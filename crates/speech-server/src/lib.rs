@@ -50,6 +50,7 @@ mod speech_api;
 mod speech_jobs;
 mod speech_project;
 mod speech_text;
+mod stress;
 mod tts_host;
 mod url_import;
 mod voice_api;
@@ -444,6 +445,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/url/tool", get(url_import::tool_status))
         .route("/url/tool/update", post(url_import::tool_update))
         .route("/engine/tags", get(speech_api::tags))
+        .route("/text/stress", post(speech_api::stress))
         .route("/projects", get(speech_api::list).post(speech_api::create))
         .route("/projects/{pid}", get(speech_api::get).put(speech_api::put).delete(speech_api::delete))
         .route("/projects/{pid}/synth", post(speech_api::synth))
@@ -637,6 +639,23 @@ async fn setup_open_models(State(st): State<AppState>) -> Response {
 
 /// Перед задачей догружаются компоненты, нужные именно ей, если их нет на диске (прогресс — в тот же SSE):
 /// проверка похожести голоса — WeSpeaker, GPU-стадия без CUDA-стека — cuFFT, onnxruntime-GPU, cuDNN.
+/// Докачать в задаче недостающие компоненты из списка (отмена задачи прерывает закачку).
+pub(crate) fn ensure_components(repo_root: &Path, ids: &[&str], progress: &setup::ProgressCb) -> Result<(), String> {
+    let manifest = setup::manifest();
+    let need: Vec<String> = ids
+        .iter()
+        .filter(|id| manifest.iter().find(|c| c.id == **id).is_some_and(|c| !setup::component_status(repo_root, c).installed))
+        .map(|id| id.to_string())
+        .collect();
+    if need.is_empty() {
+        return Ok(());
+    }
+    progress(json!({ "stage": "download", "msg": t!("setup-fetching-missing") }));
+    let ctl = jobs::current();
+    let cancel = move || ctl.as_ref().is_some_and(|c| c.is_cancelled());
+    setup::download_components(repo_root, &need, &cancel, progress).map(|_| ()).map_err(|e| e.detail)
+}
+
 pub(crate) fn ensure_job_components(
     repo_root: &Path,
     models_root: &Path,

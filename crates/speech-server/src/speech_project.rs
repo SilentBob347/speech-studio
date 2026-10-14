@@ -93,11 +93,13 @@ pub struct Settings {
     pub pause_switch_ms: i64,
     pub loudness: String,
     pub qc: QcSettings,
+    /// Русский текст перед озвучкой проходит разметку ударений и «ё» (stress.rs); движок берёт из неё то, что читает.
+    pub auto_stress: bool,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { lang: "auto".into(), engine: "higgs".into(), params: Params::default(), voice: None, pause_same_ms: 300, pause_switch_ms: 600, loudness: "video".into(), qc: QcSettings::default() }
+        Settings { lang: "auto".into(), engine: "higgs".into(), params: Params::default(), voice: None, pause_same_ms: 300, pause_switch_ms: 600, loudness: "video".into(), qc: QcSettings::default(), auto_stress: true }
     }
 }
 
@@ -332,6 +334,9 @@ pub fn synth_key(project: &SpeechProject, b: &Block, voice_tag: &str, engine: &s
     ] {
         h.update(part.as_bytes());
         h.update(b"\x1f");
+    }
+    if project.settings.auto_stress && crate::stress::is_russian(&b.text, &project.settings.lang) {
+        h.update(b"auto-stress\x1f");
     }
     h.finalize().to_hex()[..20].to_string()
 }

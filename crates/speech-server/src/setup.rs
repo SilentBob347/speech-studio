@@ -135,6 +135,17 @@ pub struct Marker {
 // закреплена sha коммита, а не main: размеры ниже верны именно для неё.
 const HF_NEMOTRON_DIAR: &str = "https://huggingface.co/altunenes/parakeet-rs/resolve/4d2a8bc71f5c896ec40faa59732e6716295edaf2/nemotron-3-diarization/nemotron3_diar_v3.onnx";
 const HF_NEMOTRON_DIAR_LICENSE: &str = "https://huggingface.co/altunenes/parakeet-rs/resolve/4d2a8bc71f5c896ec40faa59732e6716295edaf2/nemotron-3-diarization/LICENSE";
+
+// HF: RUAccent (ruaccent/accentuator, MIT), ревизия закреплена sha коммита.
+const HF_RUACCENT_ACCENT: &str = "https://huggingface.co/ruaccent/accentuator/resolve/b78ae5ea1e62beaf138bed1865cd8c3b0b5ca855/nn/nn_accent/model.onnx";
+const HF_RUACCENT_ACCENT_CONFIG: &str = "https://huggingface.co/ruaccent/accentuator/resolve/b78ae5ea1e62beaf138bed1865cd8c3b0b5ca855/nn/nn_accent/config.json";
+const HF_RUACCENT_ACCENT_VOCAB: &str = "https://huggingface.co/ruaccent/accentuator/resolve/b78ae5ea1e62beaf138bed1865cd8c3b0b5ca855/nn/nn_accent/vocab.txt";
+const HF_RUACCENT_OMOGRAPH: &str = "https://huggingface.co/ruaccent/accentuator/resolve/b78ae5ea1e62beaf138bed1865cd8c3b0b5ca855/nn/nn_omograph/tiny2/model.onnx";
+const HF_RUACCENT_OMOGRAPH_TOKENIZER: &str = "https://huggingface.co/ruaccent/accentuator/resolve/b78ae5ea1e62beaf138bed1865cd8c3b0b5ca855/nn/nn_omograph/tiny2/tokenizer.json";
+const HF_RUACCENT_ACCENTS: &str = "https://huggingface.co/ruaccent/accentuator/resolve/b78ae5ea1e62beaf138bed1865cd8c3b0b5ca855/dictionary/accents.json.gz";
+const HF_RUACCENT_OMOGRAPHS: &str = "https://huggingface.co/ruaccent/accentuator/resolve/b78ae5ea1e62beaf138bed1865cd8c3b0b5ca855/dictionary/omographs.json.gz";
+const HF_RUACCENT_YO_WORDS: &str = "https://huggingface.co/ruaccent/accentuator/resolve/b78ae5ea1e62beaf138bed1865cd8c3b0b5ca855/dictionary/yo_words.json.gz";
+const HF_RUACCENT_YO_HOMOGRAPHS: &str = "https://huggingface.co/ruaccent/accentuator/resolve/b78ae5ea1e62beaf138bed1865cd8c3b0b5ca855/dictionary/yo_homographs.json.gz";
 // HF: Mel-Band Roformer voc_fv6-Q8_0 (chenmozhijin/BSRoformer-GGUF).
 const HF_ROFORMER: &str = "https://huggingface.co/chenmozhijin/BSRoformer-GGUF/resolve/df802a6773d25ba6ef785ff619daa3e510503168/GaboxR67/MelBandRoformers/melbandroformers/vocals/voc_fv6-Q8_0.gguf";
 /// Файлы, маркеры и размер компонента, у которого своя сборка на каждую платформу.
@@ -875,6 +886,29 @@ pub fn manifest() -> Vec<Component> {
                 FileSpec { url: "https://huggingface.co/Wespeaker/wespeaker-voxceleb-resnet34-LM/resolve/f0c48c298fd835726c27956a5d617bad7115627e/voxceleb_resnet34_LM.onnx", dest_rel: "models/faces/wespeaker/voxceleb_resnet34_LM.onnx", size: 26_530_309, sha256: "7bb2f06e9df17cdf1ef14ee8a15ab08ed28e8d0ef5054ee135741560df2ec068", extract: Extract::None },
             ],
             markers: &[Marker { rel: "models/faces/wespeaker/voxceleb_resnet34_LM.onnx", expect: 26_530_309 }],
+            external_url: None,
+        },
+        // Ударения, «ё» и омографы русского текста: RUAccent (MIT) — словарь, символьная сеть и сеть омографов
+        // tiny2, обе int8; ревизия закреплена.
+        Component {
+            id: "ruaccent",
+            name: "RUAccent".into(),
+            purpose: t!("setup-comp-ruaccent-purpose"),
+            requirement: Requirement::Recommended,
+            delivery: Delivery::Download,
+            size: 33_942_783,
+            files: &[
+                FileSpec { url: HF_RUACCENT_ACCENT, dest_rel: "models/ruaccent/nn/nn_accent/model.onnx", size: 803_402, sha256: "4e393144e45626f6f1062a0784ef06f921b97321a8e7b87ac2a09a892286500a", extract: Extract::None },
+                FileSpec { url: HF_RUACCENT_ACCENT_CONFIG, dest_rel: "models/ruaccent/nn/nn_accent/config.json", size: 841, sha256: "e377f159a8fc8673e211f100d4a237d5fe3dceb3b6789a5a738bf50bda23be49", extract: Extract::None },
+                FileSpec { url: HF_RUACCENT_ACCENT_VOCAB, dest_rel: "models/ruaccent/nn/nn_accent/vocab.txt", size: 140, sha256: "242882b2f27800e49a6babf46867dabf6dc9b6535b600776a68815fe4d4f4382", extract: Extract::None },
+                FileSpec { url: HF_RUACCENT_OMOGRAPH, dest_rel: "models/ruaccent/nn/nn_omograph/tiny2/model.onnx", size: 10_528_004, sha256: "c28840ab333be5870451a57b28839d3896e3332b791e8be29e75eb1c13338882", extract: Extract::None },
+                FileSpec { url: HF_RUACCENT_OMOGRAPH_TOKENIZER, dest_rel: "models/ruaccent/nn/nn_omograph/tiny2/tokenizer.json", size: 882_532, sha256: "d39943ce113bf88db2556a096c7929080b8c6afedfeefa7e3c3c736ac1eb0090", extract: Extract::None },
+                FileSpec { url: HF_RUACCENT_ACCENTS, dest_rel: "models/ruaccent/dictionary/accents.json.gz", size: 20_954_156, sha256: "aa460ebba90de00fbbf3d41d121961f605b98667e45efb7920f127473b15515e", extract: Extract::None },
+                FileSpec { url: HF_RUACCENT_OMOGRAPHS, dest_rel: "models/ruaccent/dictionary/omographs.json.gz", size: 219_047, sha256: "04a9e81c68d65f65ba493fe0110f99e79087548c2beeec3032e2b66e28706f36", extract: Extract::None },
+                FileSpec { url: HF_RUACCENT_YO_WORDS, dest_rel: "models/ruaccent/dictionary/yo_words.json.gz", size: 548_914, sha256: "a19fa89a964a0691d9fe4ee384783e3934904891843d8f59a1c480d67947a82a", extract: Extract::None },
+                FileSpec { url: HF_RUACCENT_YO_HOMOGRAPHS, dest_rel: "models/ruaccent/dictionary/yo_homographs.json.gz", size: 5_747, sha256: "c4ee777bbbab87f9eac838f370ad92974e079d02b21903e480c54b5f0c8c60d1", extract: Extract::None },
+            ],
+            markers: &[Marker { rel: "models/ruaccent/dictionary/accents.json.gz", expect: 20_954_156 }],
             external_url: None,
         },
         // ── СAЙДКАРЫ / ДВИЖКИ ───────────────────────────────────────────────

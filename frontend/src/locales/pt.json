@@ -142,7 +142,8 @@
     "auto": "Auto",
     "sec": "s",
     "bench": "Benchmark de etapas",
-    "benchHint": "Mede tempo/GPU/VRAM por etapa -> bench.json + linhas ⏱ no registro. Amostragem leve em segundo plano a cada segundo."
+    "benchHint": "Mede tempo/GPU/VRAM por etapa -> bench.json + linhas ⏱ no registro. Amostragem leve em segundo plano a cada segundo.",
+    "roleText": "Preparação do texto · acentos"
   },
   "secrets": {
     "orTitle": "Chave do OpenRouter",
@@ -920,7 +921,17 @@
     "takesPerBlock": "Tomadas por bloco",
     "takesHint": "Mais de uma: a verificação escolhe a melhor e as outras ficam como tomadas.",
     "qcLine": "WER {{wer}}% · inseridas {{ins}}, faltando {{del}}, trocadas {{sub}}",
-    "takeWer": "WER {{wer}}%"
+    "takeWer": "WER {{wer}}%",
+    "stressAll": "Acentos e ё",
+    "stressBlock": "Acentos e ё",
+    "stressAllHint": "Marca a sílaba tônica e a letra ё em textos russos e escolhe a leitura dos homógrafos pelo contexto; suas marcas + permanecem",
+    "stressCheck": "Homógrafos:",
+    "stressKeep": "Manter como está",
+    "stressMissing": "O modelo de acentuação russa (RUAccent, 34 MB) ainda não foi baixado.",
+    "openModels": "Abrir Modelos",
+    "autoStress": "Acentos e ё antes de narrar (russo)",
+    "autoStressHint": "Os blocos em russo recebem ё e acentos antes da síntese; o motor usa o que entende (o Higgs lê ё, mas não as marcas de acento)",
+    "stressDoubt": "O modelo não tem certeza: ouça e escolha"
   },
   "tags": {
     "emotion": "Emoção",

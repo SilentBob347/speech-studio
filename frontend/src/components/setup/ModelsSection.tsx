@@ -286,6 +286,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
           </>
         )}
       </>)}
+      {group(t("settings.roleText"), <>{rowOf("ruaccent")}</>)}
       {group(t("settings.roleAsr"), <>
         {/* Движок ASR: Parakeet-TDT (GPU, дефолт) / Whisper (локально, CPU) / OpenRouter (облако). */}
         <div className="flex gap-1 mb-1.5">

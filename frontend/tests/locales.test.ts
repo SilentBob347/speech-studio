@@ -34,6 +34,8 @@ const categoriesOf = (b: Record<string, string>, base: string) =>
 const placeholders = (s: string) => [...new Set([...s.matchAll(/\{\{\s*([\w.]+)\s*\}\}/g)].map((m) => m[1]))].sort();
 const tags = (s: string) => [...s.matchAll(/<\/?[a-z]+>/g)].map((m) => m[0]).sort();
 const CYRILLIC = /[Ѐ-ӿ]/;
+// The Russian letter ё is the name of a feature (stress and ё marking) and is quoted as is in every language.
+const foreignText = (v: string) => v.replace(/ё/g, "");
 
 const en = BUNDLES.en;
 const others = LANGS.filter((l) => l !== "en");
@@ -71,7 +73,7 @@ describe("locales", () => {
 
   for (const lang of LANGS.filter((l) => l !== "ru")) {
     it(`${lang} contains no Cyrillic`, () => {
-      expect(Object.entries(BUNDLES[lang]).filter(([, v]) => CYRILLIC.test(v)).map(([k]) => k)).toEqual([]);
+      expect(Object.entries(BUNDLES[lang]).filter(([, v]) => CYRILLIC.test(foreignText(v))).map(([k]) => k)).toEqual([]);
     });
   }
 

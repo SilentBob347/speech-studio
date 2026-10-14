@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Download, Loader2, Play, Redo2, Settings2, Sparkles, Square, Undo2, Users } from "lucide-react";
-import { api } from "../../lib/api";
-import { activeTake, newId, SPEAKER_TINTS, speechApi, type Block, type BlockState, type SpeechProject } from "../../lib/speech";
+import { ArrowLeft, Download, Loader2, Play, Redo2, Settings2, Sparkles, SpellCheck, Square, Undo2, Users } from "lucide-react";
+import { api, ApiError } from "../../lib/api";
+import { activeTake, newId, spliceChars, SPEAKER_TINTS, speechApi, stressDoubts, type Block, type BlockState, type SpeechProject, type StressWord } from "../../lib/speech";
+import { openSettings } from "../../lib/settingsNav";
 import { useSpeechProject } from "../../lib/useSpeechProject";
 import { followJob } from "../../lib/followJob";
 import { errorText } from "../../lib/voices";
@@ -35,6 +36,9 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   const [queue, setQueue] = useState<string[]>([]);
   const [settings, setSettings] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [notes, setNotes] = useState<Record<string, { text: string; words: StressWord[] }>>({});
+  const [stressing, setStressing] = useState<string[] | null>(null);
+  const [stressMissing, setStressMissing] = useState(false);
   const audio = useRef<HTMLAudioElement | null>(null);
   const pushActivity = useStore((s) => s.pushActivity);
 
@@ -113,6 +117,48 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
     if (needs && !job) void runSynth({ from: id });
   };
 
+  const stressBlocks = async (ids: string[] | null) => {
+    if (!project || stressing) return;
+    const todo = blockList(project).filter((b) => b.text.trim() && (ids === null || ids.includes(b.id)));
+    setStressing(todo.map((b) => b.id));
+    setJobError(null);
+    setStressMissing(false);
+    const done: Record<string, { from: string; text: string; words: StressWord[] }> = {};
+    try {
+      for (const b of todo) {
+        const r = await speechApi.stress(b.text, project.settings.lang);
+        if (r.russian) done[b.id] = { from: b.text, text: r.text, words: stressDoubts(r.words) };
+      }
+    } catch (e) {
+      if (e instanceof ApiError && e.code === "stress-model-missing") setStressMissing(true);
+      else setJobError(errorText(e));
+    } finally {
+      setStressing(null);
+    }
+    const changed = Object.keys(done);
+    if (!changed.length) return;
+    edit((p) => {
+      for (const b of blockList(p)) {
+        const d = done[b.id];
+        if (d && b.text === d.from) b.text = d.text;
+      }
+      return p;
+    });
+    setNotes((n) => {
+      const next = { ...n };
+      for (const id of changed) next[id] = { text: done[id].text, words: done[id].words };
+      return next;
+    });
+  };
+  const pickVariant = (b: Block, w: StressWord, value: string) => {
+    const note = notes[b.id];
+    if (!note || note.text !== b.text) return;
+    const text = spliceChars(b.text, w.start, w.end, value);
+    const shift = Array.from(value).length - (w.end - w.start);
+    edit((p) => { const at = locate(p, b.id); if (at) p.chapters[at[0]].blocks[at[1]].text = text; return p; });
+    setNotes((n) => ({ ...n, [b.id]: { text, words: note.words.filter((x) => x !== w).map((x) => (x.start > w.start ? { ...x, start: x.start + shift, end: x.end + shift } : x)) } }));
+  };
+
   const actions = (b: Block): BlockActions => ({
     setText: (text) => edit((p) => { const at = locate(p, b.id); if (at) p.chapters[at[0]].blocks[at[1]].text = text; return p; }),
     patch: (change) => edit((p) => { const at = locate(p, b.id); if (at) Object.assign(p.chapters[at[0]].blocks[at[1]], change); return p; }),
@@ -155,6 +201,8 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
     synth: (force) => void runSynth({ ids: [b.id], force }),
     play: () => (playing === b.id ? stopAudio() : playBlock(b, [])),
     playFrom: () => listenFrom(b.id),
+    stress: () => void stressBlocks([b.id]),
+    pick: (w, value) => pickVariant(b, w, value),
   });
 
   if (!project) {
@@ -172,6 +220,9 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           <button onClick={undo} disabled={!canUndo} className="p-1.5 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30" {...named(t("speech.undo"))}><Undo2 size={15} /></button>
           <button onClick={redo} disabled={!canRedo} className="p-1.5 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30" {...named(t("speech.redo"))}><Redo2 size={15} /></button>
           <button onClick={() => setSettings(true)} className={bar}><Settings2 size={13} />{t("speech.settings")}</button>
+          <button onClick={() => void stressBlocks(null)} disabled={!!stressing || !blocks.length} className={bar} title={t("speech.stressAllHint")}>
+            {stressing && stressing.length > 1 ? <Loader2 size={13} className="animate-spin" /> : <SpellCheck size={13} />}{t("speech.stressAll")}
+          </button>
           {job ? (
             <button onClick={stopSynth} className={`${bar} border-[var(--color-warn)] text-[var(--color-warn)]`}><Square size={13} />{t("speech.stop")}</button>
           ) : (
@@ -202,6 +253,12 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
         </aside>
         <div className="flex-1 min-w-0 overflow-y-auto px-4 py-4">
           {(error || jobError) && <p role="alert" className="mb-3 px-3 py-2 rounded-lg border border-[var(--color-warn)]/40 text-[12px] text-[var(--color-warn)] break-words">{error ?? jobError}</p>}
+          {stressMissing && (
+            <div role="alert" className="mb-3 px-3 py-2 rounded-lg border border-[var(--color-warn)]/40 text-[12px] text-[var(--color-warn)] flex flex-wrap items-center gap-2">
+              <span className="flex-1 min-w-0">{t("speech.stressMissing")}</span>
+              <button onClick={() => { setStressMissing(false); openSettings("models"); }} className="px-2 py-1 rounded-md border border-[var(--color-warn)]/60 hover:bg-[var(--color-warn)]/10">{t("speech.openModels")}</button>
+            </div>
+          )}
           <datalist id="speech-speakers">{speakers.map((s) => <option key={s} value={s} />)}</datalist>
           {project.chapters.map((c) => (
             <section key={c.id} className="max-w-4xl mx-auto">
@@ -210,7 +267,9 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
                 {c.blocks.map((b) => {
                   const index = blocks.indexOf(b);
                   const rendering = !!job && (job.ids === null ? ["pending", "stale", "failed"].includes(stateOf(b)) : job.ids.includes(b.id));
-                  return <BlockRow key={b.id} block={b} index={index} state={stateOf(b)} rendering={rendering} playing={playing === b.id} tint={tintOf(b.speaker)} a={actions(b)} />;
+                  const note = notes[b.id];
+                  return <BlockRow key={b.id} block={b} index={index} state={stateOf(b)} rendering={rendering} playing={playing === b.id} tint={tintOf(b.speaker)}
+                    stressing={!!stressing?.includes(b.id)} doubts={note && note.text === b.text ? note.words : []} a={actions(b)} />;
                 })}
               </ol>
             </section>

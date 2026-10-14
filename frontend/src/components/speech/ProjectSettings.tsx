@@ -28,6 +28,10 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
             {LANG_CHOICES.map((l) => <option key={l} value={l}>{l === "auto" ? t("speech.langAuto") : l.toUpperCase()}</option>)}
           </select>
         </label>
+        <label className="flex items-start gap-2 text-[13px] cursor-pointer">
+          <input type="checkbox" checked={s.auto_stress} onChange={(e) => set((p) => { p.settings.auto_stress = e.target.checked; })} className="mt-0.5 w-4 h-4 accent-[var(--color-accent)]" />
+          <span>{t("speech.autoStress")}<span className="block text-[11px] text-[var(--color-muted)]">{t("speech.autoStressHint")}</span></span>
+        </label>
         <fieldset className="space-y-2">
           <legend className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)] mb-1">{t("speech.sampling")}</legend>
           <div className="grid grid-cols-3 gap-2">

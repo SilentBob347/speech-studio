@@ -271,3 +271,28 @@ pub async fn tags() -> Json<Value> {
     let cats: Vec<Value> = crate::speech_text::HIGGS_TAGS.iter().map(|(c, values)| json!({ "category": c, "values": values })).collect();
     Json(json!({ "engine": "higgs", "format": "<|{category}:{value}|>", "categories": cats }))
 }
+
+#[derive(serde::Deserialize)]
+pub struct StressReq {
+    text: String,
+    #[serde(default)]
+    lang: String,
+}
+
+/// POST /text/stress — ударения и «ё» русского текста (RUAccent): текст с `+` и пословный разбор для подсветки
+/// спорных омографов и «ё». Ручные `+` остаются как были.
+pub async fn stress(State(st): State<AppState>, Json(req): Json<StressReq>) -> Response {
+    if !crate::stress::is_russian(&req.text, &req.lang) {
+        return Json(json!({ "text": req.text, "words": [], "russian": false })).into_response();
+    }
+    if !crate::stress::installed(&st.repo_root) {
+        return refuse(StatusCode::CONFLICT, "stress-model-missing", t!("stress-model-missing"));
+    }
+    let models_root = st.models_root.clone();
+    let done = joined(tokio::task::spawn_blocking(move || crate::stress::shared(&models_root).and_then(|s| s.annotate(&req.text))).await);
+    match done {
+        Ok(Ok(r)) => Json(json!({ "text": r.text, "words": r.words, "russian": true })).into_response(),
+        Ok(Err(e)) => refuse(StatusCode::INTERNAL_SERVER_ERROR, "stress-failed", t!("stress-failed", detail = e)),
+        Err(resp) => resp,
+    }
+}

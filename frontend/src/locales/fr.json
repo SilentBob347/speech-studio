@@ -142,7 +142,8 @@
     "auto": "Auto",
     "sec": "s",
     "bench": "Benchmark des étapes",
-    "benchHint": "Mesure temps/GPU/VRAM par étape -> bench.json + lignes ⏱ dans le journal. Échantillonnage léger en arrière-plan chaque seconde."
+    "benchHint": "Mesure temps/GPU/VRAM par étape -> bench.json + lignes ⏱ dans le journal. Échantillonnage léger en arrière-plan chaque seconde.",
+    "roleText": "Préparation du texte · accents"
   },
   "secrets": {
     "orTitle": "Clé OpenRouter",
@@ -920,7 +921,17 @@
     "takesPerBlock": "Prises par bloc",
     "takesHint": "Plus d’une : la vérification choisit la meilleure, les autres restent en prises.",
     "qcLine": "WER {{wer}} % · ajoutés {{ins}}, manqués {{del}}, remplacés {{sub}}",
-    "takeWer": "WER {{wer}} %"
+    "takeWer": "WER {{wer}} %",
+    "stressAll": "Accents et ё",
+    "stressBlock": "Accents et ё",
+    "stressAllHint": "Place l’accent tonique et la lettre ё dans un texte russe et choisit la lecture des homographes selon le contexte ; vos marques + restent",
+    "stressCheck": "Homographes :",
+    "stressKeep": "Garder tel quel",
+    "stressMissing": "Le modèle d’accentuation russe (RUAccent, 34 Mo) n’est pas encore téléchargé.",
+    "openModels": "Ouvrir Modèles",
+    "autoStress": "Accents et ё avant la voix (russe)",
+    "autoStressHint": "Les blocs russes reçoivent ё et les accents avant la synthèse ; le moteur lit ce qu’il comprend (Higgs lit ё, pas les marques d’accent)",
+    "stressDoubt": "Le modèle hésite : écoutez et choisissez"
   },
   "tags": {
     "emotion": "Émotion",

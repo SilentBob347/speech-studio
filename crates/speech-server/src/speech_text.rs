@@ -139,6 +139,11 @@ pub fn for_higgs(say: &str, lang: &str) -> (String, Ignored) {
     (text, ignored)
 }
 
+/// Есть ли в тексте ручные ударения `+`.
+pub fn has_stress(text: &str) -> bool {
+    STRESS.is_match(text)
+}
+
 /// Видимый текст без разметки синтеза: для субтитров, глав и поиска.
 pub fn visible(text: &str) -> String {
     let t = PAUSE.replace_all(text, " ");

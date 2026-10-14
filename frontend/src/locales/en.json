@@ -142,7 +142,8 @@
     "auto": "Auto",
     "sec": "s",
     "bench": "Stage benchmark",
-    "benchHint": "Measure time/GPU/VRAM per pipeline stage -> bench.json + ⏱ lines in the log. Light background sampling once per second."
+    "benchHint": "Measure time/GPU/VRAM per pipeline stage -> bench.json + ⏱ lines in the log. Light background sampling once per second.",
+    "roleText": "Text preparation · stress"
   },
   "secrets": {
     "orTitle": "OpenRouter key",
@@ -920,7 +921,17 @@
     "takesPerBlock": "Takes per block",
     "takesHint": "More than one take: the best is chosen by the check, the rest stay as takes.",
     "qcLine": "WER {{wer}}% · inserted {{ins}}, missed {{del}}, replaced {{sub}}",
-    "takeWer": "WER {{wer}}%"
+    "takeWer": "WER {{wer}}%",
+    "stressAll": "Stress & ё",
+    "stressBlock": "Stress & ё",
+    "stressAllHint": "Mark stress and the letter ё in Russian text and resolve homographs by context; your own + marks stay",
+    "stressCheck": "Homographs:",
+    "stressKeep": "Keep as it is",
+    "stressMissing": "The Russian stress model (RUAccent, 34 MB) is not downloaded yet.",
+    "openModels": "Open Models",
+    "autoStress": "Stress and ё before voicing (Russian)",
+    "autoStressHint": "Russian blocks get ё and stress marks before synthesis; the engine reads what it understands (Higgs reads ё, not stress marks)",
+    "stressDoubt": "The model is unsure here: listen and pick"
   },
   "tags": {
     "emotion": "Emotion",

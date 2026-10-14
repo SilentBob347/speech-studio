@@ -92,7 +92,15 @@ fn synth_block(p: &SpeechPaths, project: &SpeechProject, b: &Block, n: u32) -> R
     let mut ignored = stx::Ignored::default();
     let (mut seed, mut temperature, mut secs, mut retried) = (0u64, project.settings.params.temperature, 0.0, Vec::new());
     let fresh = seed_for(&b.id, n);
-    for (k, piece) in stx::pieces(&b.text).into_iter().enumerate() {
+    let text = if project.settings.auto_stress && crate::stress::is_russian(&b.text, &project.settings.lang) {
+        crate::stress::shared(&p.models_root)
+            .and_then(|s| s.annotate(&b.text))
+            .map_err(|e| t!("stress-failed", detail = e))?
+            .text
+    } else {
+        b.text.clone()
+    };
+    for (k, piece) in stx::pieces(&text).into_iter().enumerate() {
         match piece {
             Piece::Pause(ms) => out.extend(std::iter::repeat_n(0.0, (SR as u64 * ms as u64 / 1000) as usize)),
             Piece::Say(text) => {
@@ -122,6 +130,7 @@ fn synth_block(p: &SpeechPaths, project: &SpeechProject, b: &Block, n: u32) -> R
             }
         }
     }
+    ignored.stress = stx::has_stress(&b.text);
     if out.is_empty() {
         return Err(t!("speech-block-silent"));
     }
@@ -236,6 +245,9 @@ pub fn synth(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Value)
     let order: Vec<String> = project.blocks().map(|b| b.id.clone()).collect();
     let start = scope.from.as_ref().and_then(|f| order.iter().position(|id| id == f)).unwrap_or(0);
     let wanted: Vec<String> = order[start..].iter().filter(|id| scope.ids.as_ref().is_none_or(|ids| ids.contains(id))).cloned().collect();
+    if project.settings.auto_stress && wanted.iter().any(|id| project.blocks().any(|b| &b.id == id && crate::stress::is_russian(&b.text, &project.settings.lang))) {
+        crate::ensure_components(&p.repo_root, &[crate::stress::COMPONENT, "onnxruntime"], &|ev| progress(ev))?;
+    }
     let checking = qc.asr_check || qc.takes > 1;
     let (mut done, mut failed, mut skipped) = (0usize, Vec::new(), 0usize);
     let mut made: BTreeMap<String, Vec<u32>> = BTreeMap::new();

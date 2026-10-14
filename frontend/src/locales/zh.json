@@ -142,7 +142,8 @@
     "auto": "自动",
     "sec": "秒",
     "bench": "阶段基准测试",
-    "benchHint": "按阶段测量时间/GPU/显存 -> bench.json + 日志中的 ⏱ 行。每秒一次的轻量后台采样。"
+    "benchHint": "按阶段测量时间/GPU/显存 -> bench.json + 日志中的 ⏱ 行。每秒一次的轻量后台采样。",
+    "roleText": "文本准备 · 重音"
   },
   "secrets": {
     "orTitle": "OpenRouter 密钥",
@@ -920,7 +921,17 @@
     "takesPerBlock": "每段版本数",
     "takesHint": "多于一个时由检查挑选最佳，其余保留为版本。",
     "qcLine": "WER {{wer}}% · 多出 {{ins}}，漏掉 {{del}}，替换 {{sub}}",
-    "takeWer": "WER {{wer}}%"
+    "takeWer": "WER {{wer}}%",
+    "stressAll": "重音和 ё",
+    "stressBlock": "重音和 ё",
+    "stressAllHint": "为俄语文本标注重音和字母 ё，并根据上下文确定同形异音词的读法；您自己的 + 标记保留不变",
+    "stressCheck": "同形异音词：",
+    "stressKeep": "保持原样",
+    "stressMissing": "俄语重音模型（RUAccent，34 MB）尚未下载。",
+    "openModels": "打开“模型”",
+    "autoStress": "配音前标注重音和 ё（俄语）",
+    "autoStressHint": "俄语文本块在合成前加上 ё 和重音；引擎读取它能理解的部分（Higgs 读取 ё，但不读重音符号）",
+    "stressDoubt": "模型不确定：请试听后选择"
   },
   "tags": {
     "emotion": "情绪",
