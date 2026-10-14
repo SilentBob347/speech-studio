@@ -991,7 +991,9 @@
     "humming": "Fredonnement",
     "sigh": "Soupir",
     "sniff": "Reniflement",
-    "sneeze": "Éternuement"
+    "sneeze": "Éternuement",
+    "rate": "Tempo",
+    "universal": "Pause et tempo marchent avec tout moteur : le tempo dure jusqu’à la balise de tempo suivante ou la fin du bloc."
   },
   "dict": {
     "title": "Dictionnaire de prononciation",

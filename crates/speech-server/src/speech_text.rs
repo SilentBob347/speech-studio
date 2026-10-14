@@ -16,10 +16,15 @@ pub const MAX_PAUSE_MS: u32 = 10_000;
 pub enum Piece {
     Say(String),
     Pause(u32),
+    /// Темп следующих фраз до нового тега или конца блока.
+    Rate(f64),
 }
 
+/// Темп `[rate:x]` — от четверти до учетверённого.
+pub const RATE_RANGE: (f64, f64) = (0.25, 4.0);
+
 static PAUSE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)\[\s*pause\s+(\d+(?:[.,]\d+)?)\s*(ms|s)?\s*\]|sil\s*<\[\s*(\d+)\s*\]>|<\[\s*(tiny|small|medium|large|huge)\s*\]>").expect("pause")
+    Regex::new(r"(?i)\[\s*pause\s+(\d+(?:[.,]\d+)?)\s*(ms|s)?\s*\]|sil\s*<\[\s*(\d+)\s*\]>|<\[\s*(tiny|small|medium|large|huge)\s*\]>|\[\s*rate\s*:\s*(\d+(?:[.,]\d+)?)\s*\]").expect("pause")
 });
 static ACCENT: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\*\*([^*\n]{1,80})\*\*").expect("accent"));
 static ACCENT_MARK: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"<\[\s*accented\s*\]>").expect("accented"));
@@ -74,6 +79,11 @@ pub fn pieces(text: &str) -> Vec<Piece> {
         let m = c.get(0).expect("whole match");
         push_say(&mut out, &text[last..m.start()]);
         last = m.end();
+        if let Some(r) = c.get(5) {
+            let rate = r.as_str().replace(',', ".").parse::<f64>().unwrap_or(1.0).clamp(RATE_RANGE.0, RATE_RANGE.1);
+            out.push(Piece::Rate(rate));
+            continue;
+        }
         let ms = if let Some(v) = c.get(1) {
             let n: f64 = v.as_str().replace(',', ".").parse().unwrap_or(0.0);
             match c.get(2).map(|u| u.as_str().to_ascii_lowercase()) {
@@ -172,6 +182,18 @@ mod tests {
             Piece::Say("четыре".into()),
             Piece::Pause(1500),
         ]);
+    }
+
+    #[test]
+    fn rate_tags_split_the_block_and_are_clamped() {
+        assert_eq!(pieces("Раз [rate:1.5] два [rate:9] три"), vec![
+            Piece::Say("Раз".into()),
+            Piece::Rate(1.5),
+            Piece::Say("два".into()),
+            Piece::Rate(4.0),
+            Piece::Say("три".into()),
+        ]);
+        assert_eq!(visible("Раз [rate:0,8] два"), "Раз два");
     }
 
     #[test]

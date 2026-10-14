@@ -115,12 +115,14 @@ fn synth_block(p: &SpeechPaths, project: &SpeechProject, b: &Block, n: u32) -> R
     let (mut seed, mut temperature, mut secs, mut retried) = (0u64, project.settings.params.temperature, 0.0, Vec::new());
     let fresh = seed_for(&b.id, n);
     let params = take_params(&project.settings.params, n);
+    let mut rate = 1.0f64;
     let entries = dictionary(p, project);
     let stress = project.settings.auto_stress && crate::stress::is_russian(&b.text, &project.settings.lang);
     let text = crate::prep::prepare(&b.text, &prep_opts(p, project, voice.as_deref(), &entries, stress)).map_err(|e| t!("stress-failed", detail = e))?.text;
     for (k, piece) in stx::pieces(&text).into_iter().enumerate() {
         match piece {
             Piece::Pause(ms) => out.extend(std::iter::repeat_n(0.0, (SR as u64 * ms as u64 / 1000) as usize)),
+            Piece::Rate(r) => rate = r,
             Piece::Say(text) => {
                 let (say, ig) = stx::for_higgs(&text, lang);
                 ignored.accent |= ig.accent;
@@ -144,7 +146,8 @@ fn synth_block(p: &SpeechPaths, project: &SpeechProject, b: &Block, n: u32) -> R
                 }
                 secs += s.seconds;
                 retried.extend(s.defects.iter().map(|d| d.to_string()));
-                out.extend(resample_to(s.samples, s.sr));
+                let samples = resample_to(s.samples, s.sr);
+                out.extend(if (rate - 1.0).abs() > 1e-3 { at_rate(&samples, rate)? } else { samples });
             }
         }
     }
@@ -154,6 +157,17 @@ fn synth_block(p: &SpeechPaths, project: &SpeechProject, b: &Block, n: u32) -> R
     }
     let take = Take { n, seed, temperature, created: sp::now(), source: "synth".into(), synth_secs: secs, retried, duration: out.len() as f64 / SR as f64, ..Default::default() };
     Ok((out, serde_json::to_value(&ignored).unwrap_or(Value::Null), take))
+}
+
+/// Фраза в темпе `rate` (atempo ffmpeg, как подгонка длины в Dub): высота голоса не меняется.
+fn at_rate(samples: &[f32], rate: f64) -> Result<Vec<f32>, String> {
+    let dir = tempfile::Builder::new().prefix("rate-").tempdir().map_err(|e| e.to_string())?;
+    let src = dir.path().join("in.wav");
+    let dst = dir.path().join("out.wav");
+    crate::wavio::write_mono_f32(&src, samples, SR)?;
+    crate::media::time_stretch(&src, &dst, rate)?;
+    let (out, sr) = crate::wavio::read_mono_f32(&dst)?;
+    Ok(resample_to(out, sr as i32))
 }
 
 /// Параметры дубля `n`: при сиде «+1» / «−1» сид сдвигается на номер дубля и дальше фиксирован.

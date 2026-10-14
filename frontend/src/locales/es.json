@@ -991,7 +991,9 @@
     "humming": "Tarareo",
     "sigh": "Suspiro",
     "sniff": "Sorbido",
-    "sneeze": "Estornudo"
+    "sneeze": "Estornudo",
+    "rate": "Tempo",
+    "universal": "Pausa y tempo funcionan con cualquier motor: el tempo dura hasta la siguiente etiqueta de tempo o el final del bloque."
   },
   "dict": {
     "title": "Diccionario de pronunciación",

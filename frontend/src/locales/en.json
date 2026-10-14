@@ -991,7 +991,9 @@
     "humming": "Humming",
     "sigh": "Sigh",
     "sniff": "Sniff",
-    "sneeze": "Sneeze"
+    "sneeze": "Sneeze",
+    "rate": "Tempo",
+    "universal": "Pause and tempo work with any engine: tempo lasts to the next tempo tag or the end of the block."
   },
   "dict": {
     "title": "Pronunciation dictionary",

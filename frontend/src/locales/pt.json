@@ -991,7 +991,9 @@
     "humming": "Cantarolar",
     "sigh": "Suspiro",
     "sniff": "Fungada",
-    "sneeze": "Espirro"
+    "sneeze": "Espirro",
+    "rate": "Ritmo",
+    "universal": "Pausa e ritmo funcionam com qualquer motor: o ritmo vale até a próxima tag de ritmo ou o fim do bloco."
   },
   "dict": {
     "title": "Dicionário de pronúncia",
