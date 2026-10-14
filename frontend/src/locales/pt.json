@@ -1007,7 +1007,17 @@
     "clipsToFolder": "Salvar tudo em uma pasta…",
     "splitMode": "Como cortar o texto",
     "continuation": "Entonação contínua",
-    "continuationHint": "Cada bloco usa como referência a tomada anterior da mesma voz com o seu texto (continuação do Higgs): tom e ritmo seguem adiante. Trocar uma tomada narra de novo os blocos seguintes."
+    "continuationHint": "Cada bloco usa como referência a tomada anterior da mesma voz com o seu texto (continuação do Higgs): tom e ritmo seguem adiante. Trocar uma tomada narra de novo os blocos seguintes.",
+    "drag": "Arraste para mover; os blocos selecionados vão juntos",
+    "selectBlock": "Selecionar o bloco (Shift — um intervalo)",
+    "selection": "Blocos selecionados",
+    "selectedCount": "Selecionados: {{n}}",
+    "voiceSelected": "Narrar o selecionado",
+    "hideShow": "Ocultar / mostrar",
+    "deleteSelected": "Excluir",
+    "selectAll": "Selecionar tudo",
+    "selectNone": "Limpar a seleção",
+    "narrator": "Narrador"
   },
   "tags": {
     "emotion": "Emoção",

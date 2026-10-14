@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowDown, ArrowUp, ChevronDown, Combine, Eye, EyeOff, Loader2, Pause, Pin, Play, Plus, RefreshCw, Scissors, SlidersHorizontal, SpellCheck, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, Combine, Eye, EyeOff, GripVertical, Loader2, Pause, Pin, Play, Plus, RefreshCw, Scissors, SlidersHorizontal, SpellCheck, Trash2 } from "lucide-react";
 import { activeTake, cueTime, MARKERS, withCase, type Block, type BlockState, type Marker, type StressWord } from "../../lib/speech";
 import { named } from "../../lib/a11y";
 import VoicePicker from "./VoicePicker";
@@ -27,11 +27,13 @@ export type BlockActions = {
   synth: (force: boolean) => void;
   play: () => void;
   playFrom: () => void;
+  select: (range: boolean) => void;
+  dragStart: () => void;
   stress: () => void;
   pick: (w: StressWord, value: string) => void;
 };
 
-function AutoText({ value, onCommit, label, inputRef }: { value: string; onCommit: (v: string) => void; label: string; inputRef: React.RefObject<HTMLTextAreaElement | null> }) {
+function AutoText({ value, onCommit, label, inputRef, stale }: { value: string; onCommit: (v: string) => void; label: string; inputRef: React.RefObject<HTMLTextAreaElement | null>; stale: boolean }) {
   const [draft, setDraft] = useState(value);
   const [seen, setSeen] = useState(value);
   if (value !== seen) { setSeen(value); setDraft(value); }
@@ -47,12 +49,15 @@ function AutoText({ value, onCommit, label, inputRef }: { value: string; onCommi
   return (
     <textarea ref={inputRef} value={draft} rows={1} aria-label={label} spellCheck
       onChange={(e) => setDraft(e.target.value)} onBlur={() => { if (draft !== value) onCommit(draft); }}
-      className="w-full resize-none overflow-hidden bg-transparent text-[14px] leading-relaxed focus:outline-none placeholder:text-[var(--color-muted)]" />
+      className={`w-full resize-none overflow-hidden bg-transparent text-[14px] leading-relaxed focus:outline-none placeholder:text-[var(--color-muted)] ${stale ? "underline decoration-dotted decoration-[var(--color-warn)] underline-offset-4" : ""}`} />
   );
 }
 
-export default function BlockRow({ pid, block, index, state, fit, rendering, playing, tint, stressing, doubts, a }: {
+export default function BlockRow({ pid, block, index, state, fit, rendering, playing, tint, stressing, doubts, selected, selecting, dropping, a }: {
   pid: string;
+  selected: boolean;
+  selecting: boolean;
+  dropping: boolean;
   fit?: "fits" | "tight" | "impossible";
   block: Block;
   stressing: boolean;
@@ -79,8 +84,15 @@ export default function BlockRow({ pid, block, index, state, fit, rendering, pla
   const shown: BlockState | "rendering" = rendering ? "rendering" : state;
   const icon = "p-1.5 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)] disabled:opacity-30";
   return (
-    <li id={`block-${block.id}`} className={`group rounded-xl border transition-colors ${playing ? "border-[var(--color-accent)]" : "border-transparent hover:border-[var(--color-border)]"} ${block.hidden ? "opacity-50" : ""}`}>
+    <li id={`block-${block.id}`} data-block={block.id}
+      className={`group rounded-xl border transition-colors ${playing ? "border-[var(--color-accent)]" : selected ? "border-[var(--color-accent)]/60 bg-[color-mix(in_oklab,var(--color-accent)_6%,transparent)]" : "border-transparent hover:border-[var(--color-border)]"} ${block.hidden ? "opacity-50" : ""} ${dropping ? "shadow-[inset_0_2px_0_var(--color-accent)]" : ""}`}>
       <div className="flex gap-3 px-2 py-2">
+        <div className="flex flex-col items-center gap-1 pt-1 -mr-1">
+          <span onPointerDown={(e) => { e.preventDefault(); a.dragStart(); }}
+            className="cursor-grab touch-none text-[var(--color-muted)] opacity-0 group-hover:opacity-100 focus-visible:opacity-100" title={t("speech.drag")} aria-hidden="true"><GripVertical size={13} /></span>
+          <input type="checkbox" checked={selected} onChange={() => undefined} onClick={(e) => a.select(e.shiftKey)} {...named(t("speech.selectBlock"))}
+            className={`w-3.5 h-3.5 accent-[var(--color-accent)] ${selecting || selected ? "" : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100"}`} />
+        </div>
         <div className="w-28 shrink-0 pt-0.5 space-y-1">
           <input list="speech-speakers" value={block.speaker} onChange={(e) => a.patch({ speaker: e.target.value })} aria-label={t("speech.speaker")}
             className="w-full bg-transparent text-[12px] font-semibold truncate focus:outline-none rounded px-1 -mx-1 focus:bg-[var(--color-surface-2)]" style={{ color: tint }} />
@@ -103,7 +115,7 @@ export default function BlockRow({ pid, block, index, state, fit, rendering, pla
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <AutoText value={block.text} onCommit={a.setText} label={t("speech.blockText", { n: index + 1 })} inputRef={text} />
+          <AutoText value={block.text} onCommit={a.setText} label={t("speech.blockText", { n: index + 1 })} inputRef={text} stale={state === "stale"} />
           {doubts.length > 0 && (
             <div className="mt-1 flex flex-wrap items-center gap-1 text-[11px]">
               <span className="text-[var(--color-muted)]">{t("speech.stressCheck")}</span>

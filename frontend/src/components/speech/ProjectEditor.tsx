@@ -42,6 +42,10 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   const [dictionary, setDictionary] = useState(false);
   const [searching, setSearching] = useState(false);
   const [history, setHistory] = useState(false);
+  const [selected, setSelected] = useState<string[]>([]);
+  const [anchor, setAnchor] = useState<string | null>(null);
+  const [dragging, setDragging] = useState<string[] | null>(null);
+  const [dropAt, setDropAt] = useState<string | null>(null);
   const [synthQueue, setQueueList] = useState<QueuedSynth[]>([]);
   const [queueOpen, setQueueOpen] = useState(false);
   const [notes, setNotes] = useState<Record<string, { text: string; words: StressWord[] }>>({});
@@ -180,7 +184,54 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
     setNotes((n) => ({ ...n, [b.id]: { text, words: note.words.filter((x) => x !== w).map((x) => (x.start > w.start ? { ...x, start: x.start + shift, end: x.end + shift } : x)) } }));
   };
 
+  const selectBlock = (id: string, range: boolean) => {
+    const order = blocks.map((x) => x.id);
+    if (range && anchor) {
+      const [a1, a2] = [order.indexOf(anchor), order.indexOf(id)].sort((x, y) => x - y);
+      setSelected([...new Set([...selected, ...order.slice(a1, a2 + 1)])]);
+    } else {
+      setSelected((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+      setAnchor(id);
+    }
+  };
+  /** Move the dragged blocks (in their order) before `target`, across chapters if needed. */
+  const moveBefore = useCallback((ids: string[], target: string) => {
+    if (ids.includes(target)) return;
+    edit((p) => {
+      const moving: Block[] = [];
+      for (const c of p.chapters) {
+        c.blocks = c.blocks.filter((b) => { if (ids.includes(b.id)) { moving.push(b); return false; } return true; });
+      }
+      moving.sort((x, y) => ids.indexOf(x.id) - ids.indexOf(y.id));
+      const at = locate(p, target);
+      if (!at) return p;
+      p.chapters[at[0]].blocks.splice(at[1], 0, ...moving);
+      return p;
+    });
+  }, [edit]);
+
+  useEffect(() => {
+    if (!dragging) return;
+    const over = (e: PointerEvent) => {
+      const li = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest<HTMLElement>("[data-block]");
+      setDropAt(li?.dataset.block ?? null);
+    };
+    const up = (e: PointerEvent) => {
+      const li = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest<HTMLElement>("[data-block]");
+      if (li?.dataset.block) moveBefore(dragging, li.dataset.block);
+      setDragging(null);
+      setDropAt(null);
+    };
+    const cancel = (e: KeyboardEvent) => { if (e.key === "Escape") { setDragging(null); setDropAt(null); } };
+    window.addEventListener("pointermove", over);
+    window.addEventListener("pointerup", up, { once: true });
+    window.addEventListener("keydown", cancel);
+    return () => { window.removeEventListener("pointermove", over); window.removeEventListener("pointerup", up); window.removeEventListener("keydown", cancel); };
+  }, [dragging, moveBefore]);
+
   const actions = (b: Block): BlockActions => ({
+    select: (range) => selectBlock(b.id, range),
+    dragStart: () => setDragging(selected.includes(b.id) ? blocks.filter((x) => selected.includes(x.id)).map((x) => x.id) : [b.id]),
     setText: (text) => edit((p) => { const at = locate(p, b.id); if (at) p.chapters[at[0]].blocks[at[1]].text = text; return p; }),
     patch: (change) => edit((p) => { const at = locate(p, b.id); if (at) Object.assign(p.chapters[at[0]].blocks[at[1]], change); return p; }),
     split: (pos) => edit((p) => {
@@ -276,6 +327,17 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
         </div>
       </div>
 
+      {selected.length > 0 && (
+        <div role="toolbar" aria-label={t("speech.selection")} className="flex flex-wrap items-center gap-2 px-5 py-2 border-b border-[var(--color-border)] bg-[color-mix(in_oklab,var(--color-accent)_8%,var(--color-surface))]">
+          <span className="text-[12px] font-medium tabnum">{t("speech.selectedCount", { n: selected.length })}</span>
+          <button onClick={() => void runSynth({ ids: selected, force: true })} disabled={!!job} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[12px] font-medium disabled:opacity-40"><Sparkles size={12} />{t("speech.voiceSelected")}</button>
+          <button onClick={() => void stressBlocks(selected)} className="px-2.5 py-1 rounded-md border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)]">{t("speech.stressBlock")}</button>
+          <button onClick={() => edit((p) => { const all = blockList(p).filter((b) => selected.includes(b.id)); const hide = all.some((b) => !b.hidden); all.forEach((b) => { b.hidden = hide; }); return p; })} className="px-2.5 py-1 rounded-md border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)]">{t("speech.hideShow")}</button>
+          <button onClick={() => { edit((p) => { for (const c of p.chapters) c.blocks = c.blocks.filter((b) => !selected.includes(b.id)); if (!blockList(p).length) p.chapters[0].blocks.push({ id: newId(), speaker: t("speech.narrator"), voice: null, text: "", direction: "", pause_ms: null, hidden: false, takes: [], active: null, pinned: null, error: null, note: "", marker: "", start: null, end: null }); return p; }); setSelected([]); }} className="px-2.5 py-1 rounded-md border border-[var(--color-border)] text-[12px] hover:border-[var(--color-warn)] hover:text-[var(--color-warn)]">{t("speech.deleteSelected")}</button>
+          <button onClick={() => setSelected(blocks.map((b) => b.id))} className="px-2.5 py-1 rounded-md text-[12px] text-[var(--color-muted)] hover:text-[var(--color-text)]">{t("speech.selectAll")}</button>
+          <button onClick={() => setSelected([])} className="ml-auto p-1 rounded text-[var(--color-muted)] hover:text-[var(--color-text)]" {...named(t("speech.selectNone"))}><X size={14} /></button>
+        </div>
+      )}
       {searching && (
         <SearchReplace blocks={blocks} onClose={() => setSearching(false)}
           onJump={(id) => document.getElementById(`block-${id}`)?.scrollIntoView({ block: "center", behavior: "smooth" })}
@@ -314,7 +376,8 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
                   const rendering = !!job && (job.ids === null ? ["pending", "stale", "failed"].includes(stateOf(b)) : job.ids.includes(b.id));
                   const note = notes[b.id];
                   return <BlockRow key={b.id} pid={pid} block={b} index={index} state={stateOf(b)} fit={project.status?.[b.id]?.fit} rendering={rendering} playing={playing === b.id} tint={tintOf(b.speaker)}
-                    stressing={!!stressing?.includes(b.id)} doubts={note && note.text === b.text ? note.words : []} a={actions(b)} />;
+                    stressing={!!stressing?.includes(b.id)} doubts={note && note.text === b.text ? note.words : []}
+                    selected={selected.includes(b.id)} selecting={selected.length > 0} dropping={!!dragging && dropAt === b.id} a={actions(b)} />;
                 })}
               </ol>
             </section>
