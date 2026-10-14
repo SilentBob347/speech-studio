@@ -11,7 +11,7 @@ import BridgeHost from "./components/BridgeHost";
 import TopBar from "./components/shell/TopBar";
 import Hotkeys from "./components/shell/Hotkeys";
 import FirstRun from "./components/setup/FirstRun";
-import ModePage from "./pages/ModePage";
+import ListeningPage from "./components/listening/ListeningPage";
 import SpeechPage from "./components/speech/SpeechPage";
 
 const modelName = (p?: string) => (p ? (p.split(/[\\/]/).pop() || p).replace(/\.(gguf|onnx|bin|pt|safetensors)$/i, "") : "");
@@ -58,7 +58,7 @@ export default function App() {
       {stage === "boot" && <div className="flex-1 grid place-items-center"><Loader2 size={22} className="animate-spin text-[var(--color-muted)]" /></div>}
       {stage === "offline" && <ServerOffline />}
       {stage === "setup" && <FirstRun />}
-      {stage === "ready" && (mode === "speech" ? <SpeechPage /> : <ModePage mode={mode} />)}
+      {stage === "ready" && (mode === "speech" ? <SpeechPage /> : <ListeningPage />)}
       <footer className="mono h-6 px-4 flex items-center gap-2 text-[10px] text-[var(--color-muted)] border-t border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
         <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] shrink-0" /><span className="truncate" title={capOffline ? t("status.backendOffline") : cap}>{capOffline ? t("status.backendOffline") : cap}</span>
       </footer>

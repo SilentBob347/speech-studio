@@ -141,20 +141,28 @@ impl ListenProject {
         self.lines.iter().filter(|l| !l.hidden && !l.text.trim().is_empty())
     }
 
-    /// Отрезки записи, отмеченные к удалению: подряд идущие вырезанные слова одной строки сливаются вместе с тишиной
-    /// между ними, соседние отрезки — тоже.
+    /// Отрезки записи, отмеченные к удалению. Подряд идущие вырезанные слова сливаются вместе с тишиной между ними;
+    /// граница отрезка — середина паузы до соседнего оставленного слова: метки слов у распознавателя неточны на
+    /// десятки миллисекунд, а рез по середине паузы не оставляет хвостов и не съедает соседей.
     pub fn cut_ranges(&self) -> Vec<(f64, f64)> {
+        let mut words: Vec<&Word> = self.lines.iter().filter(|l| !l.hidden).flat_map(|l| l.words.iter()).collect();
+        words.sort_by(|a, b| a.start.total_cmp(&b.start));
         let mut out: Vec<(f64, f64)> = Vec::new();
-        for l in &self.lines {
-            let mut run: Option<(f64, f64)> = None;
-            for w in &l.words {
-                if w.cut {
-                    run = Some(run.map_or((w.start, w.end), |(a, _)| (a, w.end)));
-                } else if let Some(r) = run.take() {
-                    out.push(r);
-                }
+        let mut i = 0;
+        while i < words.len() {
+            if !words[i].cut {
+                i += 1;
+                continue;
             }
-            out.extend(run);
+            let first = i;
+            while i + 1 < words.len() && words[i + 1].cut {
+                i += 1;
+            }
+            let (a, b) = (words[first].start, words[i].end);
+            let a = if first > 0 { (words[first - 1].end.min(a) + a) / 2.0 } else { a };
+            let b = if i + 1 < words.len() { (b + words[i + 1].start.max(b)) / 2.0 } else { b };
+            out.push((a, b));
+            i += 1;
         }
         merge_ranges(out)
     }
@@ -312,11 +320,15 @@ mod tests {
         p.lines.push(Line { words: vec![w("a", 0.0, 0.5, false), w("b", 0.6, 1.0, true), w("c", 1.1, 1.5, true), w("d", 1.6, 2.0, false)], ..Default::default() });
         p.lines.push(Line { words: vec![w("e", 3.0, 3.5, true)], ..Default::default() });
         let cuts = p.cut_ranges();
-        assert_eq!(cuts, vec![(0.6, 1.5), (3.0, 3.5)]);
-        assert_eq!(keep_ranges(&cuts, 5.0), vec![(0.0, 0.6), (1.5, 3.0), (3.5, 5.0)]);
-        assert!((remap(1.6, &cuts) - 0.7).abs() < 1e-9);
-        assert!((remap(4.0, &cuts) - 2.6).abs() < 1e-9);
-        assert!((remap(1.0, &cuts) - 0.6).abs() < 1e-9, "inside a cut lands at its start");
+        let near = |x: f64, y: f64| (x - y).abs() < 1e-9;
+        assert_eq!(cuts.len(), 2);
+        assert!(near(cuts[0].0, 0.55) && near(cuts[0].1, 1.55), "cuts go to the middle of the pauses around: {cuts:?}");
+        assert!(near(cuts[1].0, 2.5) && near(cuts[1].1, 3.5), "the last word has no pause after it: {cuts:?}");
+        let keep = keep_ranges(&cuts, 5.0);
+        assert!(keep.len() == 3 && near(keep[1].0, 1.55) && near(keep[2].1, 5.0), "{keep:?}");
+        assert!(near(remap(1.6, &cuts), 0.6));
+        assert!(near(remap(4.0, &cuts), 2.0));
+        assert!(near(remap(1.0, &cuts), 0.55), "inside a cut lands at its start");
     }
 
     #[test]

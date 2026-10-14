@@ -319,12 +319,21 @@ pub fn cut(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Result<Value
     if cuts.is_empty() {
         return Err(t!("listen-nothing-marked"));
     }
+    step(progress, t!("listen-step-cut", n = cuts.len() as i64), 10);
+    let work = lp::dir(&p.workspace, pid).join("work");
+    std::fs::create_dir_all(&work).map_err(|e| format!("{}: {e}", work.display()))?;
+    let wav = work.join("audio16.wav");
+    if !wav.is_file() {
+        crate::media::to_16k_mono(&src, &wav)?;
+    }
+    let (samples, sr) = crate::wavio::read_mono_f32(&wav)?;
+    let cuts: Vec<(f64, f64)> = cuts.iter().map(|&(a, b)| snap_cut(&samples, sr, a, b)).collect();
+    let cuts = lp::merge_ranges(cuts);
     let total = crate::media::duration(&src)?;
     let keep = lp::keep_ranges(&cuts, total);
     if keep.is_empty() {
         return Err(t!("listen-cut-everything"));
     }
-    step(progress, t!("listen-step-cut", n = cuts.len() as i64), 10);
     let new_pid = crate::speech_project::new_id();
     let dir = lp::dir(&p.workspace, &new_pid);
     std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
@@ -356,10 +365,67 @@ pub fn cut(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Result<Value
     Ok(json!({ "pid": new_pid, "removed": cuts.iter().map(|(a, b)| b - a).sum::<f64>() }))
 }
 
+/// Окно поиска тихой точки вокруг метки границы: метки слов у распознавателя чаще запаздывают, поэтому назад
+/// окно шире.
+const SNAP_BEFORE: f64 = 0.25;
+const SNAP_AFTER: f64 = 0.05;
+const SNAP_FRAME: f64 = 0.01;
+/// Насколько тише звука на метке должно быть место, куда сдвигается граница.
+const SNAP_QUIETER_DB: f64 = 6.0;
+
+/// Середина самого тихого участка записи в [t - before, t + after] (RMS по 10 мс; участок — кадры не громче
+/// минимума на 1 дБ подряд); из нескольких таких — ближайший к метке. Нет места заметно тише метки — сама метка.
+fn quietest(samples: &[f32], sr: u32, t: f64, before: f64, after: f64) -> f64 {
+    let frame = ((sr as f64 * SNAP_FRAME) as usize).max(1);
+    let total = samples.len() as f64 / sr.max(1) as f64;
+    let (lo, hi) = ((t - before).max(0.0), (t + after).min(total));
+    let mut frames: Vec<(f64, f64)> = Vec::new();
+    let mut at = lo;
+    while at + SNAP_FRAME <= hi + 1e-9 {
+        let i = ((at * sr as f64) as usize).min(samples.len());
+        let chunk = &samples[i..(i + frame).min(samples.len())];
+        if !chunk.is_empty() {
+            let energy = chunk.iter().map(|x| x * x).sum::<f32>() as f64 / chunk.len() as f64;
+            frames.push((at + SNAP_FRAME / 2.0, 10.0 * (energy + 1e-12).log10()));
+        }
+        at += SNAP_FRAME;
+    }
+    let Some(floor) = frames.iter().map(|f| f.1).reduce(f64::min) else { return t };
+    let at_label = frames.iter().min_by(|x, y| (x.0 - t).abs().total_cmp(&(y.0 - t).abs())).map_or(floor, |f| f.1);
+    if floor > at_label - SNAP_QUIETER_DB {
+        return t;
+    }
+    let mut best: Option<(f64, f64)> = None;
+    let mut k = 0;
+    while k < frames.len() {
+        if frames[k].1 > floor + 1.0 {
+            k += 1;
+            continue;
+        }
+        let first = k;
+        while k + 1 < frames.len() && frames[k + 1].1 <= floor + 1.0 {
+            k += 1;
+        }
+        let mid = (frames[first].0 + frames[k].0) / 2.0;
+        if best.is_none_or(|(_, d)| (mid - t).abs() < d) {
+            best = Some((mid, (mid - t).abs()));
+        }
+        k += 1;
+    }
+    best.map_or(t, |(m, _)| m)
+}
+
+/// Границы выреза — в тишину рядом с метками слов, чтобы не оставались хвосты слов и не съедались соседние.
+fn snap_cut(samples: &[f32], sr: u32, a: f64, b: f64) -> (f64, f64) {
+    let a2 = quietest(samples, sr, a, SNAP_BEFORE, SNAP_AFTER);
+    let b2 = quietest(samples, sr, b, SNAP_BEFORE, SNAP_AFTER);
+    if b2 - a2 > SNAP_FRAME * 2.0 { (a2, b2) } else { (a, b) }
+}
+
 /// Проверка озвучки по эталонному тексту: что распознано против того, что задумано, по словам.
-pub fn check_reference(project: &ListenProject) -> Value {
+pub fn check_reference(project: &ListenProject, reference: &str) -> Value {
     let heard: String = project.shown().map(|l| l.text.as_str()).collect::<Vec<_>>().join(" ");
-    let e = crate::qc::normalize(&project.reference);
+    let e = crate::qc::normalize(reference);
     let h = crate::qc::normalize(&heard);
     let ops = crate::qc::word_diff(&e, &h);
     let errors = ops.iter().filter(|o| o.op != "same").count();
@@ -392,6 +458,18 @@ mod tests {
         let mut flagged = line("Субтитры сделал DimaTorzok", 2.0, 2.5, "0");
         flagged.flag = Some("credit".into());
         assert_eq!(merge_short(vec![line("Да", 1.5, 1.8, "0"), flagged]).len(), 2);
+    }
+
+    #[test]
+    fn cut_edges_move_into_the_nearest_quiet_spot() {
+        let sr = 16_000u32;
+        let mut x = vec![0.5f32; sr as usize * 2];
+        for v in &mut x[(0.62 * sr as f64) as usize..(0.66 * sr as f64) as usize] {
+            *v = 0.0;
+        }
+        let (a, b) = snap_cut(&x, sr, 0.76, 1.5);
+        assert!((a - 0.64).abs() < 0.011, "a word label late by 0.1 s snaps to the middle of the pause: {a}");
+        assert!((b - 1.5).abs() < 0.06, "no quiet spot nearby keeps the edge near its label: {b}");
     }
 
     #[test]

@@ -229,10 +229,11 @@ pub async fn export(State(st): State<AppState>, AxPath(pid): AxPath<String>, Jso
     saved(res, StatusCode::BAD_REQUEST)
 }
 
-/// GET /listen/{pid}/check — распознанное против эталонного текста проекта по словам.
-pub async fn check(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Response {
+/// POST /listen/{pid}/check {reference} — распознанное против эталонного текста по словам.
+pub async fn check(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<Value>) -> Response {
+    let reference = body.get("reference").and_then(Value::as_str).unwrap_or_default();
     match lp::load(&st.workspace, &pid) {
-        Ok(p) => Json(listen_jobs::check_reference(&p)).into_response(),
+        Ok(p) => Json(listen_jobs::check_reference(&p, reference)).into_response(),
         Err(e) => refuse(StatusCode::NOT_FOUND, "no_project", e),
     }
 }
@@ -301,6 +302,12 @@ fn voices_from_speakers(ws: &Path, voices_dir: &Path, models_root: &Path, pid: &
         crate::media::keep_audio_ranges(&cut_from, tmp.path(), &[(best.start, best.end)])?;
         let mut card = crate::voice_library::guess_card(name);
         card.source = "listening".into();
+        card.transcript_auto = true;
+        if !matches!(project.settings.lang.as_str(), "" | "auto") {
+            card.lang = project.settings.lang.clone();
+        } else if crate::stress::is_russian(&best.text, "auto") {
+            card.lang = "ru".into();
+        }
         let voice = crate::voice_library::import_audio(voices_dir, &crate::voice_library::sanitize(name), tmp.path(), card)?;
         crate::voice_library::write_transcript(voices_dir, &voice, best.text.trim())?;
         let local: Vec<crate::ref_pick::Word> =
