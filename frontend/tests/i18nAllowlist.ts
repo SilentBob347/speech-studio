@@ -18,17 +18,17 @@ export const ALLOW: Allow = {
  * spelled the same in the language. "*" applies to every language.
  */
 export const SAME_AS_EN: Record<"*" | "ru" | "zh" | "es" | "pt" | "fr", string[]> = {
-  "*": ["modes.speech", "modes.listening", "app.name", "asrVariant.int8", "asrVariant.fp32", "asrVariant.ultra", "asrVariant.ultraInt8", "jobs.atStage", "downloads.speed", "providers.localGemma", "providers.serverUrlPlaceholder", "url.qHeight", "url.tool.version"],
+  "*": ["speech.takeWer", "modes.speech", "modes.listening", "app.name", "asrVariant.int8", "asrVariant.fp32", "asrVariant.ultra", "asrVariant.ultraInt8", "jobs.atStage", "downloads.speed", "providers.localGemma", "providers.serverUrlPlaceholder", "url.qHeight", "url.tool.version"],
   ru: [],
   zh: ["units.gb", "units.mb", "units.kb", "units.b"],
   es: [
-    "speech.pauseAuto", "voices.snr", "voice.g_female", "voice.g_male", "jobs.kind.remix", "settings.auto", "settings.sec", "common.error", "setup.error", "units.gb", "units.mb", "units.kb", "units.b", "units.watt", "cloud.beta", "hwPreset.ram", "secrets.proxyTitle",
+    "speech.strictness_normal", "speech.pauseAuto", "voices.snr", "voice.g_female", "voice.g_male", "jobs.kind.remix", "settings.auto", "settings.sec", "common.error", "setup.error", "units.gb", "units.mb", "units.kb", "units.b", "units.watt", "cloud.beta", "hwPreset.ram", "secrets.proxyTitle",
     ],
   pt: [
-    "speech.pauseAuto", "voices.snr", "voice.g_female", "voice.g_male", "jobs.kind.remix", "settings.auto", "settings.sec", "units.gb", "units.mb", "units.kb", "units.b", "units.watt", "cloud.beta", "hwPreset.ram", "secrets.proxyTitle",
+    "speech.strictness_normal", "speech.pauseAuto", "voices.snr", "voice.g_female", "voice.g_male", "jobs.kind.remix", "settings.auto", "settings.sec", "units.gb", "units.mb", "units.kb", "units.b", "units.watt", "cloud.beta", "hwPreset.ram", "secrets.proxyTitle",
     ],
   fr: [
-    "modes.label", "jobs.kind.export", "speech.langAuto", "speech.pauseAuto", "speech.format", "voices.pause", "voices.age_senior", "voices.source", "voices.src_pack", "voices.photo", "voice.recordStop", "voice.g_female", "jobs.kind.remix", "settings.vision",
+    "modes.label", "tags.style", "tags.amusement", "tags.confusion", "tags.surprise", "tags.pause", "jobs.kind.export", "speech.langAuto", "speech.pauseAuto", "speech.format", "voices.pause", "voices.age_senior", "voices.source", "voices.src_pack", "voices.photo", "voice.recordStop", "voice.g_female", "jobs.kind.remix", "settings.vision",
     "settings.auto", "settings.sec", "help.sectionsTitle", "common.pause", "units.watt", "secrets.proxyTitle", "bridge.agent",
     ],
 };

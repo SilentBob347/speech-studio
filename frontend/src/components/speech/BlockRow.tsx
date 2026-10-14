@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp, ChevronDown, Combine, Eye, EyeOff, Loader2, Pause, 
 import { activeTake, type Block, type BlockState } from "../../lib/speech";
 import { named } from "../../lib/a11y";
 import VoicePicker from "./VoicePicker";
+import TagPalette from "./TagPalette";
 
 const STATE_DOT: Record<BlockState | "rendering", string> = {
   pending: "bg-[var(--color-muted)]",
@@ -60,6 +61,13 @@ export default function BlockRow({ block, index, state, rendering, playing, tint
   const [open, setOpen] = useState(false);
   const text = useRef<HTMLTextAreaElement>(null);
   const take = activeTake(block);
+  const insertTag = (tag: string) => {
+    const el = text.current;
+    const value = el?.value ?? block.text;
+    const at = el?.selectionStart ?? value.length;
+    const before = value.slice(0, at);
+    a.setText(`${before}${before && !before.endsWith(" ") ? " " : ""}${tag} ${value.slice(at).trimStart()}`.trimEnd());
+  };
   const shown: BlockState | "rendering" = rendering ? "rendering" : state;
   const icon = "p-1.5 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)] disabled:opacity-30";
   return (
@@ -76,6 +84,7 @@ export default function BlockRow({ block, index, state, rendering, playing, tint
         </div>
         <div className="flex-1 min-w-0">
           <AutoText value={block.text} onCommit={a.setText} label={t("speech.blockText", { n: index + 1 })} inputRef={text} />
+          {take?.qc && <p className={`mt-0.5 text-[11px] ${take.qc.passed ? "text-[var(--color-muted)]" : "text-[var(--color-warn)]"}`} title={take.qc.heard}>{t("speech.qcLine", { wer: Math.round(take.qc.wer * 100), ins: take.qc.inserted, del: take.qc.deleted, sub: take.qc.substituted })}</p>}
           {block.error && state === "failed" && <p role="alert" className="mt-1 text-[11px] text-[#ff8f8f] break-words">{block.error.text}</p>}
           {block.direction && !open && <p className="mt-0.5 text-[11px] text-[var(--color-muted)] italic truncate">{t("speech.directionShort", { text: block.direction })}</p>}
         </div>
@@ -104,7 +113,7 @@ export default function BlockRow({ block, index, state, rendering, playing, tint
                 <select value={block.active ?? ""} onChange={(e) => a.patch({ active: e.target.value ? Number(e.target.value) : null })} disabled={!block.takes.length}
                   className="flex-1 min-w-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]">
                   {!block.takes.length && <option value="">—</option>}
-                  {[...block.takes].reverse().map((tk) => <option key={tk.n} value={tk.n}>#{tk.n} · {tk.duration.toFixed(1)}{t("settings.sec")}{tk.n === block.pinned ? ` · ${t("speech.pinned")}` : ""}</option>)}
+                  {[...block.takes].reverse().map((tk) => <option key={tk.n} value={tk.n}>#{tk.n} · {tk.duration.toFixed(1)}{t("settings.sec")}{tk.qc ? ` · ${t("speech.takeWer", { wer: Math.round(tk.qc.wer * 100) })}` : ""}{tk.n === block.pinned ? ` · ${t("speech.pinned")}` : ""}</option>)}
                 </select>
                 <button onClick={() => a.patch({ pinned: block.pinned === block.active ? null : block.active })} disabled={block.active == null} aria-pressed={block.pinned != null && block.pinned === block.active}
                   className={`p-1 rounded-md ${block.pinned != null && block.pinned === block.active ? "text-[var(--color-accent)]" : "text-[var(--color-muted)]"} hover:text-[var(--color-text)] disabled:opacity-30`} {...named(t("speech.pinTake"))}><Pin size={13} /></button>
@@ -115,6 +124,10 @@ export default function BlockRow({ block, index, state, rendering, playing, tint
             <input value={block.direction} onChange={(e) => a.patch({ direction: e.target.value })} placeholder={t("speech.directionHint")}
               className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]" />
           </label>
+          <details className="rounded-md border border-[var(--color-border)] px-2 py-1.5">
+            <summary className="cursor-pointer text-[11px] text-[var(--color-muted)]">{t("speech.tagsTitle")}</summary>
+            <div className="mt-2"><TagPalette onInsert={insertTag} /></div>
+          </details>
           <div className="flex flex-wrap gap-1">
             <button onClick={() => a.split(text.current?.selectionStart ?? block.text.length)} className={icon + " inline-flex items-center gap-1 text-[11px]"}><Scissors size={12} />{t("speech.split")}</button>
             <button onClick={a.mergeNext} className={icon + " inline-flex items-center gap-1 text-[11px]"}><Combine size={12} />{t("speech.mergeNext")}</button>

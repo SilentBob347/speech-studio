@@ -69,6 +69,25 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
           </label>
           <p className="col-span-2 text-[11px] text-[var(--color-muted)]">{t("speech.pausesHint")}</p>
         </fieldset>
+        <fieldset className="space-y-2">
+          <legend className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)] mb-1">{t("speech.quality")}</legend>
+          <label className="flex items-center gap-2 text-[13px] cursor-pointer">
+            <input type="checkbox" checked={s.qc.asr_check} onChange={(e) => set((p) => { p.settings.qc.asr_check = e.target.checked; })} className="w-4 h-4 accent-[var(--color-accent)]" />
+            {t("speech.asrCheck")}
+          </label>
+          <p className="text-[11px] text-[var(--color-muted)]">{t("speech.asrCheckHint")}</p>
+          <div className="grid grid-cols-2 gap-2">
+            <label className={label}>{t("speech.strictness")}
+              <select value={s.qc.strictness} onChange={(e) => set((p) => { p.settings.qc.strictness = e.target.value as "strict" | "normal" | "lenient"; })} className={field}>
+                {(["strict", "normal", "lenient"] as const).map((k) => <option key={k} value={k}>{t(`speech.strictness_${k}`)}</option>)}
+              </select>
+            </label>
+            <label className={label}>{t("speech.takesPerBlock")}
+              <input type="number" min={1} max={20} value={s.qc.takes} onChange={(e) => set((p) => { p.settings.qc.takes = Math.round(num(e.target.value, 1, 20, 1)); })} className={field} />
+            </label>
+          </div>
+          <p className="text-[11px] text-[var(--color-muted)]">{t("speech.takesHint")}</p>
+        </fieldset>
         <label className={label}>{t("speech.loudness")}
           <select value={s.loudness} onChange={(e) => set((p) => { p.settings.loudness = e.target.value as Loudness; })} className={field}>
             {LOUDNESS.map((l) => <option key={l} value={l}>{t(`speech.loudness_${l}`)}</option>)}

@@ -758,3 +758,5 @@ speech-narrator = 旁白
 speech-no-project = 没有项目 { $pid }。
 media-loudnorm-silent = 音频是静音：没有可调整的响度。
 media-bad-format = { $format } 不是导出格式：WAV、FLAC、MP3、OGG 或 M4A。
+speech-qc-block = 正在听检第 { $n } 段，共 { $total } 段…
+speech-qc-failed = 检查未通过：识别为“{ $heard }”。请试听、选择其他版本或重新配音。

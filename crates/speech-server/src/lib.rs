@@ -8,6 +8,7 @@
 
 #[macro_use]
 pub mod i18n;
+mod asr_util;
 mod bench;
 mod credentials;
 #[cfg(test)]
@@ -34,6 +35,7 @@ mod mcp;
 mod models;
 mod openrouter;
 mod presets;
+mod qc;
 pub mod process_group;
 mod record;
 mod ref_pick;
@@ -441,6 +443,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/url/fetches/{id}/resume", post(url_import::fetch_resume))
         .route("/url/tool", get(url_import::tool_status))
         .route("/url/tool/update", post(url_import::tool_update))
+        .route("/engine/tags", get(speech_api::tags))
         .route("/projects", get(speech_api::list).post(speech_api::create))
         .route("/projects/{pid}", get(speech_api::get).put(speech_api::put).delete(speech_api::delete))
         .route("/projects/{pid}/synth", post(speech_api::synth))

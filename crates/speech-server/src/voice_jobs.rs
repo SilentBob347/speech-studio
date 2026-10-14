@@ -24,38 +24,15 @@ fn work_dir(voices: &Path, name: &str, what: &str) -> Result<tempfile::TempDir, 
 pub fn transcribe(p: &VoicePaths, name: &str, progress: &dyn Fn(Value)) -> Result<Value, String> {
     let audio = lib::audio_path(&p.voices_dir, name).ok_or_else(|| t!("voice-missing", name = name.to_string()))?;
     let card = lib::read_card(&p.voices_dir, name)?;
-    let work = work_dir(&p.voices_dir, name, "asr")?;
-    let wav = work.path().join("ref-16k.wav");
     progress(json!({ "type": "progress", "stage": "voice_transcript", "msg": t!("voice-transcribing", name = name.to_string()) }));
-    crate::media::to_16k_mono(&audio, &wav)?;
     crate::ensure_job_components(&p.repo_root, &p.models_root, false, false, &|ev| progress(ev))?;
-    let mut sel = crate::models::load_selection(&p.models_root);
-    let mut choice = crate::models::resolve_asr_choice(&p.repo_root, &p.models_root, &sel);
-    let parakeet = matches!(choice, crate::models::AsrChoice::Parakeet(_));
-    if parakeet && !card.lang.is_empty() && !crate::models::parakeet_knows(&card.lang) {
-        if let Some(obj) = sel.as_object_mut() {
-            obj.insert("asr_engine".into(), json!("whisper"));
-        }
-        choice = crate::models::resolve_asr_choice(&p.repo_root, &p.models_root, &sel);
-        if matches!(choice, crate::models::AsrChoice::Parakeet(_)) {
-            return Err(t!("voice-lang-needs-whisper", name = name.to_string(), lang = card.lang.clone()));
-        }
-    }
-    std::env::set_var("DUB_ASR_BACKEND", crate::models::stage_backend(&p.models_root, "asr_backend"));
-    let mut asr = crate::models::build_engine(&choice);
-    let lang = if card.lang.is_empty() { "auto" } else { card.lang.as_str() };
-    let segments = asr.transcribe(&wav, lang).map_err(|e| e.localize())?;
-    let text = segments.iter().map(|s| s.text.trim()).filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" ");
+    let heard = crate::asr_util::transcribe(&p.repo_root, &p.models_root, &audio, &card.lang, name)?;
+    let text = heard.text;
     if text.is_empty() {
         return Err(t!("voice-no-speech", name = name.to_string()));
     }
     lib::write_transcript(&p.voices_dir, name, &text)?;
-    let words: Vec<crate::ref_pick::Word> = segments
-        .iter()
-        .flat_map(|s| s.words.iter())
-        .map(|w| crate::ref_pick::Word { word: w.word.clone(), start: w.start, end: w.end })
-        .collect();
-    lib::write_words(&p.voices_dir, name, &words)?;
+    lib::write_words(&p.voices_dir, name, &heard.words)?;
     let mut card = lib::read_card(&p.voices_dir, name)?;
     card.transcript_auto = true;
     lib::write_card(&p.voices_dir, name, &card)?;

@@ -982,3 +982,5 @@ speech-narrator = Рассказчик
 speech-no-project = Проекта { $pid } нет.
 media-loudnorm-silent = Звук тихий: приводить к громкости нечего.
 media-bad-format = { $format } — не формат экспорта: WAV, FLAC, MP3, OGG или M4A.
+speech-qc-block = Проверяю на слух { $n } из { $total }…
+speech-qc-failed = Проверка не прошла: распознано «{ $heard }». Послушайте, выберите другой дубль или озвучьте заново.

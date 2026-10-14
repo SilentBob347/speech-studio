@@ -956,3 +956,5 @@ speech-narrator = Narrador
 speech-no-project = O projeto { $pid } não existe.
 media-loudnorm-silent = O áudio está em silêncio: não há volume para ajustar.
 media-bad-format = { $format } não é um formato de exportação: WAV, FLAC, MP3, OGG ou M4A.
+speech-qc-block = Verificando de ouvido { $n } de { $total }…
+speech-qc-failed = A verificação não passou: reconhecido como «{ $heard }». Ouça, escolha outra tomada ou locute de novo.

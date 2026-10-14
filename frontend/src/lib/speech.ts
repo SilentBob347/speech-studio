@@ -3,7 +3,10 @@ import { BASE, postCoded, sendCoded, getCoded } from "./api";
 export type Take = {
   n: number; file: string; duration: number; seed: number; temperature: number; key: string; created: number;
   source: string; synth_secs: number; retried: string[];
+  qc: QcCheck | null;
 };
+export type QcCheck = { wer: number; words: number; inserted: number; deleted: number; substituted: number; heard: string; passed: boolean };
+export type QcSettings = { asr_check: boolean; strictness: "strict" | "normal" | "lenient"; takes: number };
 export type Block = {
   id: string; speaker: string; voice: string | null; text: string; direction: string; pause_ms: number | null;
   hidden: boolean; takes: Take[]; active: number | null; pinned: number | null; error: { key: string; text: string } | null;
@@ -13,7 +16,7 @@ export type SpeechParams = { temperature: number; top_k: number; top_p: number; 
 export type Loudness = "off" | "video" | "podcast" | "acx";
 export type SpeechSettings = {
   lang: string; engine: string; params: SpeechParams; voice: string | null;
-  pause_same_ms: number; pause_switch_ms: number; loudness: Loudness;
+  pause_same_ms: number; pause_switch_ms: number; loudness: Loudness; qc: QcSettings;
 };
 export type BlockState = "pending" | "ready" | "stale" | "failed" | "skipped";
 export type SpeechProject = {

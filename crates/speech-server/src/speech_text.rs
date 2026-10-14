@@ -24,6 +24,21 @@ static PAUSE: LazyLock<Regex> = LazyLock::new(|| {
 static ACCENT: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\*\*([^*\n]{1,80})\*\*").expect("accent"));
 static ACCENT_MARK: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"<\[\s*accented\s*\]>").expect("accented"));
 static PHONEMES: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\[\[([^\[\]]{1,120})\]\]").expect("phonemes"));
+static ANGLE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"<[^<>\n]{1,48}>").expect("angle"));
+static HIGGS_TAG: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^<\|(\w+):(\w+)\|>$").expect("higgs tag"));
+
+/// Теги экспрессии Higgs: категория → значения (белый список HiggsAudio-Studio `director_worker.py`).
+pub const HIGGS_TAGS: [(&str, &[&str]); 4] = [
+    ("emotion", &["affection", "amusement", "anger", "arousal", "awe", "bitterness", "confusion", "contemplation", "contentment", "determination", "disgust", "elation", "enthusiasm", "fear", "helplessness", "longing", "pride", "relief", "sadness", "shame", "surprise"]),
+    ("prosody", &["speed_very_slow", "speed_slow", "speed_fast", "speed_very_fast", "pitch_low", "pitch_high", "expressive_high", "expressive_low", "pause", "long_pause"]),
+    ("style", &["singing", "shouting", "whispering"]),
+    ("sfx", &["cough", "laughter", "crying", "screaming", "burping", "humming", "sigh", "sniff", "sneeze"]),
+];
+
+fn higgs_tag_known(cat: &str, value: &str) -> bool {
+    HIGGS_TAGS.iter().any(|(c, values)| *c == cat && values.contains(&value))
+}
+
 static STRESS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\+([АаЕеЁёИиОоУуЫыЭэЮюЯяAaEeIiOoUuYy])").expect("stress"));
 
 fn context_pause(word: &str) -> u32 {
@@ -42,6 +57,7 @@ pub struct Ignored {
     pub accent: bool,
     pub phonemes: bool,
     pub stress: bool,
+    pub unknown_tags: Vec<String>,
 }
 
 /// Куски блока: фразы и паузы между ними; пустые фразы выпадают, соседние паузы складываются.
@@ -101,8 +117,26 @@ pub fn for_higgs(say: &str, lang: &str) -> (String, Ignored) {
         ignored.stress = true;
         c[1].to_string()
     });
+    let mut tags: Vec<String> = Vec::new();
+    let t = ANGLE.replace_all(&t, |c: &regex::Captures| {
+        let whole = &c[0];
+        match HIGGS_TAG.captures(whole) {
+            Some(h) if higgs_tag_known(&h[1], &h[2]) => {
+                tags.push(whole.to_string());
+                format!("\u{E000}{}\u{E001}", tags.len() - 1)
+            }
+            _ => {
+                ignored.unknown_tags.push(whole.to_string());
+                String::new()
+            }
+        }
+    });
     let cleaned = crate::tts_text::tts_text(&t, &t, lang, &[]);
-    (cleaned.text, ignored)
+    let mut text = cleaned.text;
+    for (i, tag) in tags.iter().enumerate() {
+        text = text.replace(&format!("\u{E000}{i}\u{E001}"), tag);
+    }
+    (text, ignored)
 }
 
 /// Видимый текст без разметки синтеза: для субтитров, глав и поиска.
@@ -112,6 +146,7 @@ pub fn visible(text: &str) -> String {
     let t = ACCENT_MARK.replace_all(&t, "");
     let t = PHONEMES.replace_all(&t, "$1");
     let t = STRESS.replace_all(&t, "$1");
+    let t = ANGLE.replace_all(&t, " ");
     t.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
@@ -145,13 +180,20 @@ mod tests {
     fn markup_higgs_does_not_read_is_taken_off_and_reported() {
         let (t, ig) = for_higgs("Это **очень** важно, з+амок и [[zamok]] <[accented]>тут", "ru");
         assert_eq!(t, "Это очень важно, замок и zamok тут");
-        assert_eq!(ig, Ignored { accent: true, phonemes: true, stress: true });
+        assert_eq!(ig, Ignored { accent: true, phonemes: true, stress: true, unknown_tags: vec![] });
         let (t, ig) = for_higgs("Обычная фраза.", "ru");
         assert_eq!((t.as_str(), ig), ("Обычная фраза.", Ignored::default()));
     }
 
     #[test]
+    fn known_higgs_tags_reach_the_engine_and_made_up_ones_are_cut_and_named() {
+        let (t, ig) = for_higgs("<|emotion:anger|> Хватит! <|sfx:laughter|> Шучу. <|emotion:rage|> <b>жирный</b>", "ru");
+        assert_eq!(t, "<|emotion:anger|> Хватит! <|sfx:laughter|> Шучу. жирный");
+        assert_eq!(ig.unknown_tags, vec!["<|emotion:rage|>".to_string(), "<b>".to_string(), "</b>".to_string()]);
+    }
+
+    #[test]
     fn the_visible_text_has_no_synthesis_markup() {
-        assert_eq!(visible("Раз [pause 300ms] **два** з+амок sil<[100]>"), "Раз два замок");
+        assert_eq!(visible("Раз [pause 300ms] **два** з+амок sil<[100]> <|emotion:joy|>три"), "Раз два замок три");
     }
 }

@@ -265,3 +265,9 @@ pub async fn save_export(State(st): State<AppState>, AxPath(pid): AxPath<String>
         Err(e) => refuse(StatusCode::BAD_REQUEST, "save_failed", format!("{} -> {}: {e}", src.display(), dst.display())),
     }
 }
+
+/// GET /engine/tags — теги экспрессии движка по категориям (окно строит из них палитру вставки).
+pub async fn tags() -> Json<Value> {
+    let cats: Vec<Value> = crate::speech_text::HIGGS_TAGS.iter().map(|(c, values)| json!({ "category": c, "values": values })).collect();
+    Json(json!({ "engine": "higgs", "format": "<|{category}:{value}|>", "categories": cats }))
+}

@@ -32,6 +32,7 @@ pub struct Take {
     pub source: String,
     pub synth_secs: f64,
     pub retried: Vec<String>,
+    pub qc: Option<crate::qc::Check>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
@@ -67,6 +68,22 @@ pub struct Chapter {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(default)]
+pub struct QcSettings {
+    /// Распознать каждый новый дубль и сравнить с текстом.
+    pub asr_check: bool,
+    pub strictness: String,
+    /// Сколько дублей на блок; больше одного — лучший выбирается проверкой.
+    pub takes: u32,
+}
+
+impl Default for QcSettings {
+    fn default() -> Self {
+        QcSettings { asr_check: false, strictness: "normal".into(), takes: 1 }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(default)]
 pub struct Settings {
     pub lang: String,
     pub engine: String,
@@ -75,11 +92,12 @@ pub struct Settings {
     pub pause_same_ms: i64,
     pub pause_switch_ms: i64,
     pub loudness: String,
+    pub qc: QcSettings,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { lang: "auto".into(), engine: "higgs".into(), params: Params::default(), voice: None, pause_same_ms: 300, pause_switch_ms: 600, loudness: "video".into() }
+        Settings { lang: "auto".into(), engine: "higgs".into(), params: Params::default(), voice: None, pause_same_ms: 300, pause_switch_ms: 600, loudness: "video".into(), qc: QcSettings::default() }
     }
 }
 
@@ -156,6 +174,12 @@ impl SpeechProject {
             if !(-2000..=10_000).contains(&p) {
                 return Err(format!("pause {p} ms is outside -2000..10000"));
             }
+        }
+        if !matches!(self.settings.qc.strictness.as_str(), "strict" | "normal" | "lenient") {
+            return Err(format!("strictness {} is not one of strict, normal, lenient", self.settings.qc.strictness));
+        }
+        if !(1..=20).contains(&self.settings.qc.takes) {
+            return Err(format!("takes per block {} is outside 1..20", self.settings.qc.takes));
         }
         if !matches!(self.settings.loudness.as_str(), "off" | "video" | "podcast" | "acx") {
             return Err(format!("loudness preset {} is not one of off, video, podcast, acx", self.settings.loudness));

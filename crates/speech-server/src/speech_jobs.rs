@@ -147,17 +147,100 @@ pub struct Scope {
     pub force: bool,
 }
 
-pub fn synth(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Value)) -> Result<Value, String> {
-    let project = sp::load(&p.workspace, pid)?;
-    let order: Vec<String> = project.blocks().map(|b| b.id.clone()).collect();
-    let start = scope.from.as_ref().and_then(|f| order.iter().position(|id| id == f)).unwrap_or(0);
-    let wanted: Vec<String> = order[start..].iter().filter(|id| scope.ids.as_ref().is_none_or(|ids| ids.contains(id))).cloned().collect();
-    let (mut done, mut failed, mut skipped) = (0usize, Vec::new(), 0usize);
-    let total = wanted.len();
-    for (i, id) in wanted.iter().enumerate() {
+/// Озвучить один блок `count` дублями и записать их в проект; номера новых дублей. Ошибка — в блок.
+fn voice_block(p: &SpeechPaths, pid: &str, id: &str, count: u32, source: &str, progress: &dyn Fn(Value)) -> Result<Vec<u32>, String> {
+    let mut made = Vec::new();
+    for _ in 0..count {
         if crate::jobs::current().is_some_and(|c| c.is_cancelled()) {
             return Err(crate::jobs::CANCELLED.to_string());
         }
+        let project = sp::load(&p.workspace, pid)?;
+        let Some(b) = project.blocks().find(|b| b.id == id).cloned() else { return Ok(made) };
+        let key = keys(p, &project).remove(id).unwrap_or_default();
+        let n = b.takes.iter().map(|t| t.n).max().unwrap_or(0) + 1;
+        let result = synth_block(p, &project, &b, n).and_then(|(samples, ignored, mut take)| {
+            let file = format!("{}-{n}.flac", b.id);
+            write_flac(&samples, &takes_dir(p, pid).join(&file))?;
+            take.file = file;
+            take.key = key.clone();
+            take.source = source.into();
+            Ok((take, ignored))
+        });
+        let mut fresh = sp::load(&p.workspace, pid)?;
+        let Some(block) = fresh.block_mut(id) else { return Ok(made) };
+        match result {
+            Ok((take, ignored)) => {
+                block.takes.push(take);
+                if block.pinned.is_none() {
+                    block.active = Some(n);
+                }
+                block.error = None;
+                sp::save(&p.workspace, pid, &fresh)?;
+                made.push(n);
+                progress(json!({ "type": "progress", "stage": "speech_block_done", "block": id, "ignored": ignored }));
+            }
+            Err(e) => {
+                block.error = Some(sp::BlockError { key, text: e.clone() });
+                sp::save(&p.workspace, pid, &fresh)?;
+                return Err(e);
+            }
+        }
+    }
+    Ok(made)
+}
+
+/// Распознать новые дубли блоков, выбрать лучший по WER; блоки, где проверку не прошёл ни один, — в ответе.
+fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, progress: &dyn Fn(Value)) -> Result<Vec<String>, String> {
+    if crate::hw::total_vram() < 12 * 1024 * 1024 * 1024 {
+        tts_host::unload();
+    }
+    crate::ensure_job_components(&p.repo_root, &p.models_root, false, false, &|ev| progress(ev))?;
+    let mut failed = Vec::new();
+    for (i, (id, takes)) in made.iter().enumerate() {
+        progress(json!({ "type": "progress", "stage": "speech_qc", "msg": t!("speech-qc-block", n = (i + 1) as i64, total = made.len() as i64), "pct": (i * 100 / made.len().max(1)) as i64 }));
+        let project = sp::load(&p.workspace, pid)?;
+        let Some(b) = project.blocks().find(|b| &b.id == id).cloned() else { continue };
+        let lang = project.settings.lang.clone();
+        let strictness = project.settings.qc.strictness.clone();
+        let mut checks: Vec<(u32, crate::qc::Check)> = Vec::new();
+        for n in takes {
+            let Some(take) = b.takes.iter().find(|t| t.n == *n) else { continue };
+            let heard = crate::asr_util::transcribe(&p.repo_root, &p.models_root, &takes_dir(p, pid).join(&take.file), &lang, &b.id)?;
+            checks.push((*n, crate::qc::check(&b.text, &heard.text, &strictness)));
+        }
+        let mut fresh = sp::load(&p.workspace, pid)?;
+        let Some(block) = fresh.block_mut(id) else { continue };
+        for (n, c) in &checks {
+            if let Some(t) = block.takes.iter_mut().find(|t| t.n == *n) {
+                t.qc = Some(c.clone());
+            }
+        }
+        let best = checks.iter().min_by(|a, b| (!a.1.passed, a.1.wer).partial_cmp(&(!b.1.passed, b.1.wer)).unwrap_or(std::cmp::Ordering::Equal));
+        if let Some((n, c)) = best {
+            if block.pinned.is_none() {
+                block.active = Some(*n);
+            }
+            if !c.passed {
+                failed.push(id.clone());
+            }
+        }
+        sp::save(&p.workspace, pid, &fresh)?;
+    }
+    Ok(failed)
+}
+
+pub fn synth(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Value)) -> Result<Value, String> {
+    let project = sp::load(&p.workspace, pid)?;
+    let qc = project.settings.qc.clone();
+    let random_seed = project.settings.params.seed_mode != "fixed";
+    let order: Vec<String> = project.blocks().map(|b| b.id.clone()).collect();
+    let start = scope.from.as_ref().and_then(|f| order.iter().position(|id| id == f)).unwrap_or(0);
+    let wanted: Vec<String> = order[start..].iter().filter(|id| scope.ids.as_ref().is_none_or(|ids| ids.contains(id))).cloned().collect();
+    let checking = qc.asr_check || qc.takes > 1;
+    let (mut done, mut failed, mut skipped) = (0usize, Vec::new(), 0usize);
+    let mut made: BTreeMap<String, Vec<u32>> = BTreeMap::new();
+    let total = wanted.len();
+    for (i, id) in wanted.iter().enumerate() {
         let project = sp::load(&p.workspace, pid)?;
         let Some(b) = project.blocks().find(|b| &b.id == id).cloned() else { continue };
         let key = keys(p, &project).remove(id).unwrap_or_default();
@@ -166,44 +249,44 @@ pub fn synth(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Value)
             skipped += 1;
             continue;
         }
-        let snippet: String = sp::visible_snippet(&b.text);
-        progress(json!({ "type": "progress", "stage": "speech_synth", "msg": t!("speech-synth-block", n = (i + 1) as i64, total = total as i64, text = snippet), "pct": (i * 100 / total.max(1)) as i64 }));
-        let n = b.takes.iter().map(|t| t.n).max().unwrap_or(0) + 1;
-        let result = synth_block(p, &project, &b, n).and_then(|(samples, ignored, mut take)| {
-            let file = format!("{}-{n}.flac", b.id);
-            write_flac(&samples, &takes_dir(p, pid).join(&file))?;
-            take.file = file;
-            take.key = key.clone();
-            Ok((take, ignored))
-        });
-        let mut fresh = sp::load(&p.workspace, pid)?;
-        let Some(block) = fresh.block_mut(id) else { continue };
-        match result {
-            Ok((take, ignored)) => {
-                let n = take.n;
-                block.takes.push(take);
-                if block.pinned.is_none() {
-                    block.active = Some(n);
-                }
-                block.error = None;
-                sp::save(&p.workspace, pid, &fresh)?;
+        progress(json!({ "type": "progress", "stage": "speech_synth", "msg": t!("speech-synth-block", n = (i + 1) as i64, total = total as i64, text = sp::visible_snippet(&b.text)), "pct": (i * 100 / total.max(1)) as i64 }));
+        match voice_block(p, pid, id, qc.takes, if qc.takes > 1 { "multitake" } else { "synth" }, progress) {
+            Ok(ns) => {
                 done += 1;
-                progress(json!({ "type": "progress", "stage": "speech_block_done", "block": id, "ignored": ignored }));
+                made.insert(id.clone(), ns);
             }
-            Err(e) => {
-                block.error = Some(sp::BlockError { key: key.clone(), text: e.clone() });
-                sp::save(&p.workspace, pid, &fresh)?;
-                if e.starts_with(tts_host::ENGINE_STUCK) || e == crate::jobs::CANCELLED {
-                    return Err(e);
+            Err(e) if e.starts_with(tts_host::ENGINE_STUCK) || e == crate::jobs::CANCELLED => return Err(e),
+            Err(e) => failed.push(json!({ "block": id, "error": e })),
+        }
+    }
+    let mut qc_failed = Vec::new();
+    if checking && !made.is_empty() {
+        qc_failed = check_takes(p, pid, &made, progress)?;
+        if random_seed && !qc_failed.is_empty() {
+            let mut again: BTreeMap<String, Vec<u32>> = BTreeMap::new();
+            for id in &qc_failed {
+                if let Ok(ns) = voice_block(p, pid, id, 1, "retry", progress) {
+                    again.insert(id.clone(), ns);
                 }
-                failed.push(json!({ "block": id, "error": e }));
+            }
+            if !again.is_empty() {
+                qc_failed = check_takes(p, pid, &again, progress)?;
+            }
+        }
+        for id in &qc_failed {
+            let mut fresh = sp::load(&p.workspace, pid)?;
+            let key = keys(p, &fresh).remove(id).unwrap_or_default();
+            if let Some(block) = fresh.block_mut(id) {
+                let heard = block.active.and_then(|n| block.takes.iter().find(|t| t.n == n)).and_then(|t| t.qc.as_ref()).map(|c| c.heard.clone()).unwrap_or_default();
+                block.error = Some(sp::BlockError { key, text: t!("speech-qc-failed", heard = heard) });
+                sp::save(&p.workspace, pid, &fresh)?;
             }
         }
     }
     if done == 0 && !failed.is_empty() {
         return Err(t!("speech-synth-all-failed", error = failed[0]["error"].as_str().unwrap_or("").to_string()));
     }
-    Ok(json!({ "done": done, "failed": failed, "skipped": skipped }))
+    Ok(json!({ "done": done, "failed": failed, "skipped": skipped, "qc_failed": qc_failed }))
 }
 
 /// Пресет громкости: интегральная громкость и потолок пиков; ACX — средний уровень −20 (RMS-цель ACX −23…−18), пики −3.
