@@ -33,6 +33,9 @@ pub struct Take {
     pub synth_secs: f64,
     pub retried: Vec<String>,
     pub qc: Option<crate::qc::Check>,
+    /// Текст блока, по которому озвучен дубль: к нему можно вернуться вместе с дублем.
+    pub text: String,
+    pub direction: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
@@ -56,7 +59,13 @@ pub struct Block {
     pub active: Option<u32>,
     pub pinned: Option<u32>,
     pub error: Option<BlockError>,
+    /// Заметка к блоку: на синтез не влияет.
+    pub note: String,
+    /// Цвет маркера (`red`, `amber`, `green`, `blue`, `violet`) или пусто.
+    pub marker: String,
 }
+
+pub const MARKERS: [&str; 5] = ["red", "amber", "green", "blue", "violet"];
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 #[serde(default)]
@@ -169,6 +178,9 @@ impl SpeechProject {
                     if !b.takes.iter().any(|t| t.n == n) {
                         return Err(format!("block {} points at take {n}, which it does not have", b.id));
                     }
+                }
+                if !b.marker.is_empty() && !MARKERS.contains(&b.marker.as_str()) {
+                    return Err(format!("block {} marker {:?} is not one of {MARKERS:?}", b.id, b.marker));
                 }
                 if let Some(p) = b.pause_ms {
                     if !(-2000..=10_000).contains(&p) {

@@ -941,7 +941,18 @@
     "seed_fixed": "Fixed",
     "seed_inc": "+1 for each take",
     "seed_dec": "−1 for each take",
-    "langNotByEngine": "{{engine}} does not speak it"
+    "langNotByEngine": "{{engine}} does not speak it",
+    "note": "Note",
+    "noteHint": "A note for yourself; it is not read aloud",
+    "marker": "Marker",
+    "markerNone": "No marker",
+    "marker_red": "Red",
+    "marker_amber": "Amber",
+    "marker_green": "Green",
+    "marker_blue": "Blue",
+    "marker_violet": "Violet",
+    "takeText": "Take #{{n}} was voiced from: {{text}}",
+    "takeTextRestore": "Bring that text back"
   },
   "tags": {
     "emotion": "Emotion",
@@ -1050,5 +1061,19 @@
     "ignoredTags": "Tags the engine does not know are cut: {{tags}}",
     "ignoredDictPhonemes": "Phoneme rules skipped for this engine: {{words}}",
     "stressMissing": "Stress and ё are off: the RUAccent model is not downloaded."
+  },
+  "search": {
+    "open": "Find",
+    "title": "Find and replace in the project (Ctrl+F)",
+    "find": "Find",
+    "replace": "Replace with",
+    "regex": "Regular expression ($1 in the replacement inserts a group)",
+    "case": "Match case",
+    "prev": "Previous",
+    "next": "Next",
+    "replaceHere": "Replace here",
+    "replaceAll": "Replace all",
+    "count": "Found: {{n}} · blocks: {{blocks}}",
+    "badRegex": "The regular expression is broken"
   }
 }

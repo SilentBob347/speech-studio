@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, BookOpen, Download, Loader2, Play, Redo2, Settings2, Sparkles, SpellCheck, Square, Undo2, Users } from "lucide-react";
+import { ArrowLeft, BookOpen, Download, Search, Loader2, Play, Redo2, Settings2, Sparkles, SpellCheck, Square, Undo2, Users } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { activeTake, newId, spliceChars, SPEAKER_TINTS, speechApi, stressDoubts, type Block, type BlockState, type SpeechProject, type StressWord } from "../../lib/speech";
 import { openSettings } from "../../lib/settingsNav";
@@ -14,6 +14,7 @@ import VoicePicker from "./VoicePicker";
 import ProjectSettings from "./ProjectSettings";
 import ExportDialog from "./ExportDialog";
 import DictionaryDialog from "./DictionaryDialog";
+import SearchReplace from "./SearchReplace";
 
 function blockList(p: SpeechProject): Block[] {
   return p.chapters.flatMap((c) => c.blocks);
@@ -38,6 +39,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   const [settings, setSettings] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [dictionary, setDictionary] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [notes, setNotes] = useState<Record<string, { text: string; words: StressWord[] }>>({});
   const [stressing, setStressing] = useState<string[] | null>(null);
   const [stressMissing, setStressMissing] = useState(false);
@@ -47,6 +49,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement | null;
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") { e.preventDefault(); setSearching(true); return; }
       if (el && (el.tagName === "TEXTAREA" || el.tagName === "INPUT")) return;
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); if (e.shiftKey) redo(); else undo(); }
       else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") { e.preventDefault(); redo(); }
@@ -172,7 +175,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
       const tail = src.text.slice(pos).trim();
       if (!head || !tail) return p;
       src.text = head;
-      p.chapters[at[0]].blocks.splice(at[1] + 1, 0, { ...src, id: newId(), text: tail, takes: [], active: null, pinned: null, error: null });
+      p.chapters[at[0]].blocks.splice(at[1] + 1, 0, { ...src, id: newId(), text: tail, takes: [], active: null, pinned: null, error: null, note: "", marker: "" });
       return p;
     }),
     mergeNext: () => edit((p) => {
@@ -187,7 +190,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
     }),
     insertAfter: () => edit((p) => {
       const at = locate(p, b.id);
-      if (at) p.chapters[at[0]].blocks.splice(at[1] + 1, 0, { id: newId(), speaker: b.speaker, voice: null, text: "", direction: "", pause_ms: null, hidden: false, takes: [], active: null, pinned: null, error: null });
+      if (at) p.chapters[at[0]].blocks.splice(at[1] + 1, 0, { id: newId(), speaker: b.speaker, voice: null, text: "", direction: "", pause_ms: null, hidden: false, takes: [], active: null, pinned: null, error: null, note: "", marker: "" });
       return p;
     }),
     move: (dir) => edit((p) => {
@@ -222,6 +225,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           <button onClick={undo} disabled={!canUndo} className="p-1.5 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30" {...named(t("speech.undo"))}><Undo2 size={15} /></button>
           <button onClick={redo} disabled={!canRedo} className="p-1.5 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30" {...named(t("speech.redo"))}><Redo2 size={15} /></button>
           <button onClick={() => setSettings(true)} className={bar}><Settings2 size={13} />{t("speech.settings")}</button>
+          <button onClick={() => setSearching((v) => !v)} aria-pressed={searching} className={bar} title={t("search.title")}><Search size={13} />{t("search.open")}</button>
           <button onClick={() => setDictionary(true)} className={bar} title={t("speech.dictionaryHint")}><BookOpen size={13} />{t("speech.dictionary")}</button>
           <button onClick={() => void stressBlocks(null)} disabled={!!stressing || !blocks.length} className={bar} title={t("speech.stressAllHint")}>
             {stressing && stressing.length > 1 ? <Loader2 size={13} className="animate-spin" /> : <SpellCheck size={13} />}{t("speech.stressAll")}
@@ -239,6 +243,11 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
         </div>
       </div>
 
+      {searching && (
+        <SearchReplace blocks={blocks} onClose={() => setSearching(false)}
+          onJump={(id) => document.getElementById(`block-${id}`)?.scrollIntoView({ block: "center", behavior: "smooth" })}
+          onReplace={(changes) => edit((p) => { for (const b of blockList(p)) if (changes[b.id] !== undefined) b.text = changes[b.id]; return p; })} />
+      )}
       <div className="flex-1 min-h-0 flex">
         <aside aria-label={t("speech.cast")} className="hidden lg:block w-64 shrink-0 border-r border-[var(--color-border)] overflow-y-auto p-4 space-y-3">
           <h2 className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)] flex items-center gap-1.5"><Users size={12} />{t("speech.cast")}</h2>

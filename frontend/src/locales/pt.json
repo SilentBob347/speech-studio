@@ -941,7 +941,18 @@
     "seed_fixed": "Fixa",
     "seed_inc": "+1 a cada tomada",
     "seed_dec": "−1 a cada tomada",
-    "langNotByEngine": "{{engine}} não fala"
+    "langNotByEngine": "{{engine}} não fala",
+    "note": "Nota",
+    "noteHint": "Uma nota para você; não é lida em voz alta",
+    "marker": "Marcador",
+    "markerNone": "Sem marcador",
+    "marker_red": "Vermelho",
+    "marker_amber": "Âmbar",
+    "marker_green": "Verde",
+    "marker_blue": "Azul",
+    "marker_violet": "Violeta",
+    "takeText": "A tomada #{{n}} foi narrada com: {{text}}",
+    "takeTextRestore": "Voltar a esse texto"
   },
   "tags": {
     "emotion": "Emoção",
@@ -1050,5 +1061,19 @@
     "ignoredTags": "Tags desconhecidas do motor foram removidas: {{tags}}",
     "ignoredDictPhonemes": "Regras de fonemas ignoradas para este motor: {{words}}",
     "stressMissing": "Acentos e ё desligados: o modelo RUAccent não foi baixado."
+  },
+  "search": {
+    "open": "Buscar",
+    "title": "Buscar e substituir no projeto (Ctrl+F)",
+    "find": "Buscar",
+    "replace": "Substituir por",
+    "regex": "Expressão regular ($1 na substituição insere um grupo)",
+    "case": "Diferenciar maiúsculas",
+    "prev": "Anterior",
+    "next": "Próximo",
+    "replaceHere": "Substituir aqui",
+    "replaceAll": "Substituir tudo",
+    "count": "Encontrado: {{n}} · blocos: {{blocks}}",
+    "badRegex": "A expressão regular tem um erro"
   }
 }

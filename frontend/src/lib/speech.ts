@@ -3,14 +3,17 @@ import { BASE, coded, postCoded, sendCoded, getCoded } from "./api";
 export type Take = {
   n: number; file: string; duration: number; seed: number; temperature: number; key: string; created: number;
   source: string; synth_secs: number; retried: string[];
-  qc: QcCheck | null;
+  qc: QcCheck | null; text: string; direction: string;
 };
 export type QcCheck = { wer: number; words: number; inserted: number; deleted: number; substituted: number; heard: string; passed: boolean };
 export type QcSettings = { asr_check: boolean; strictness: "strict" | "normal" | "lenient"; takes: number };
 export type Block = {
   id: string; speaker: string; voice: string | null; text: string; direction: string; pause_ms: number | null;
   hidden: boolean; takes: Take[]; active: number | null; pinned: number | null; error: { key: string; text: string } | null;
+  note: string; marker: Marker | "";
 };
+export type Marker = "red" | "amber" | "green" | "blue" | "violet";
+export const MARKERS: Record<Marker, string> = { red: "#ff6b6b", amber: "#ffc46b", green: "#7ee0c3", blue: "#4cc2ff", violet: "#b8a4ff" };
 export type Chapter = { id: string; title: string; blocks: Block[] };
 export type SeedMode = "fixed" | "random" | "inc" | "dec";
 export type SpeechParams = { temperature: number; top_k: number; top_p: number; seed_mode: SeedMode; seed: number; max_tokens: number };

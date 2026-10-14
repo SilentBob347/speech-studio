@@ -155,7 +155,19 @@ fn synth_block(p: &SpeechPaths, project: &SpeechProject, b: &Block, n: u32) -> R
     if out.is_empty() {
         return Err(t!("speech-block-silent"));
     }
-    let take = Take { n, seed, temperature, created: sp::now(), source: "synth".into(), synth_secs: secs, retried, duration: out.len() as f64 / SR as f64, ..Default::default() };
+    let take = Take {
+        n,
+        seed,
+        temperature,
+        created: sp::now(),
+        source: "synth".into(),
+        synth_secs: secs,
+        retried,
+        duration: out.len() as f64 / SR as f64,
+        text: b.text.clone(),
+        direction: b.direction.clone(),
+        ..Default::default()
+    };
     Ok((out, serde_json::to_value(&ignored).unwrap_or(Value::Null), take))
 }
 

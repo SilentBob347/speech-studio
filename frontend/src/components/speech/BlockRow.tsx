@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, ChevronDown, Combine, Eye, EyeOff, Loader2, Pause, Pin, Play, Plus, RefreshCw, Scissors, SlidersHorizontal, SpellCheck, Trash2 } from "lucide-react";
-import { activeTake, withCase, type Block, type BlockState, type StressWord } from "../../lib/speech";
+import { activeTake, MARKERS, withCase, type Block, type BlockState, type Marker, type StressWord } from "../../lib/speech";
 import { named } from "../../lib/a11y";
 import VoicePicker from "./VoicePicker";
 import TagPalette from "./TagPalette";
@@ -78,7 +78,7 @@ export default function BlockRow({ pid, block, index, state, rendering, playing,
   const shown: BlockState | "rendering" = rendering ? "rendering" : state;
   const icon = "p-1.5 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)] disabled:opacity-30";
   return (
-    <li className={`group rounded-xl border transition-colors ${playing ? "border-[var(--color-accent)]" : "border-transparent hover:border-[var(--color-border)]"} ${block.hidden ? "opacity-50" : ""}`}>
+    <li id={`block-${block.id}`} className={`group rounded-xl border transition-colors ${playing ? "border-[var(--color-accent)]" : "border-transparent hover:border-[var(--color-border)]"} ${block.hidden ? "opacity-50" : ""}`}>
       <div className="flex gap-3 px-2 py-2">
         <div className="w-28 shrink-0 pt-0.5 space-y-1">
           <input list="speech-speakers" value={block.speaker} onChange={(e) => a.patch({ speaker: e.target.value })} aria-label={t("speech.speaker")}
@@ -88,6 +88,12 @@ export default function BlockRow({ pid, block, index, state, rendering, playing,
             <span>{t(`speech.state_${shown}`)}</span>
             {take && <span className="mono tabnum ml-auto">{take.duration.toFixed(1)}{t("settings.sec")}</span>}
           </div>
+          {(block.marker || block.note) && (
+            <div className="flex items-center gap-1 text-[10px] text-[var(--color-muted)]" title={block.note || undefined}>
+              {block.marker && <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: MARKERS[block.marker] }} />}
+              {block.note && <span className="truncate italic">{block.note}</span>}
+            </div>
+          )}
         </div>
         <div className="flex-1 min-w-0">
           <AutoText value={block.text} onCommit={a.setText} label={t("speech.blockText", { n: index + 1 })} inputRef={text} />
@@ -116,6 +122,12 @@ export default function BlockRow({ pid, block, index, state, rendering, playing,
                 </span>
               ))}
             </div>
+          )}
+          {take && take.text && take.text !== block.text && (
+            <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-[var(--color-muted)]">
+              <span className="truncate max-w-[60ch]" title={take.text}>{t("speech.takeText", { n: take.n, text: take.text })}</span>
+              <button onClick={() => a.patch({ text: take.text, direction: take.direction })} className="px-1.5 rounded border border-[var(--color-border)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]">{t("speech.takeTextRestore")}</button>
+            </p>
           )}
           {take?.qc && <p className={`mt-0.5 text-[11px] ${take.qc.passed ? "text-[var(--color-muted)]" : "text-[var(--color-warn)]"}`} title={take.qc.heard}>{t("speech.qcLine", { wer: Math.round(take.qc.wer * 100), ins: take.qc.inserted, del: take.qc.deleted, sub: take.qc.substituted })}</p>}
           {block.error && state === "failed" && <p role="alert" className="mt-1 text-[11px] text-[#ff8f8f] break-words">{block.error.text}</p>}
@@ -152,6 +164,19 @@ export default function BlockRow({ pid, block, index, state, rendering, playing,
                   className={`p-1 rounded-md ${block.pinned != null && block.pinned === block.active ? "text-[var(--color-accent)]" : "text-[var(--color-muted)]"} hover:text-[var(--color-text)] disabled:opacity-30`} {...named(t("speech.pinTake"))}><Pin size={13} /></button>
               </div>
             </label>
+          </div>
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="flex-1 min-w-48 text-[11px] text-[var(--color-muted)]">{t("speech.note")}
+              <input value={block.note} onChange={(e) => a.patch({ note: e.target.value })} placeholder={t("speech.noteHint")}
+                className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]" />
+            </label>
+            <div role="radiogroup" aria-label={t("speech.marker")} className="flex items-center gap-1 pb-1">
+              <button role="radio" aria-checked={!block.marker} onClick={() => a.patch({ marker: "" })} className={`w-4 h-4 rounded-sm border ${!block.marker ? "border-[var(--color-text)]" : "border-[var(--color-border)]"}`} {...named(t("speech.markerNone"))} />
+              {(Object.keys(MARKERS) as Marker[]).map((m) => (
+                <button key={m} role="radio" aria-checked={block.marker === m} onClick={() => a.patch({ marker: m })} {...named(t(`speech.marker_${m}`))}
+                  className={`w-4 h-4 rounded-sm border-2 ${block.marker === m ? "border-[var(--color-text)]" : "border-transparent"}`} style={{ background: MARKERS[m] }} />
+              ))}
+            </div>
           </div>
           <label className="block text-[11px] text-[var(--color-muted)]">{t("speech.direction")}
             <input value={block.direction} onChange={(e) => a.patch({ direction: e.target.value })} placeholder={t("speech.directionHint")}
