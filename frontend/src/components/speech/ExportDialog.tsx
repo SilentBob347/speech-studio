@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, Download, Loader2, Package, Sparkles, X } from "lucide-react";
+import { Download, Loader2, Package, Sparkles, X } from "lucide-react";
 import { EXPORT_FORMATS, speechApi, type AcxReport, type ExportFormat, type ExportProblem, type SpeechProject } from "../../lib/speech";
 import { followJob } from "../../lib/followJob";
 import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
+import FileActions from "./FileActions";
 import { useEscapeLayer } from "../../lib/escape";
 
 /** Export: what keeps it back (blocks not voiced or out of date), the format and the finished file to save. */
@@ -23,6 +24,7 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
   const [subs, setSubs] = useState<string | null>(null);
   const [chapterList, setChapterList] = useState<string | null>(null);
   const [acx, setAcx] = useState<AcxReport | null>(null);
+  const [files, setFiles] = useState<{ file: string; bytes: number; mtime: number }[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [withAudio, setWithAudio] = useState(true);
   const [pack, setPack] = useState<{ file: string; bytes: number } | null>(null);
@@ -76,10 +78,10 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
             </div>
             <p className="text-[12px] text-[var(--color-muted)]">{t("speech.exportLoudness", { preset: t(`speech.loudness_${project.settings.loudness}`) })}</p>
             {file ? (
-              <div className="flex flex-wrap gap-2">
-                <a href={speechApi.exportUrl(pid, file)} download={file} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[13px] font-semibold"><Check size={14} />{t("speech.saveFile", { file })}</a>
-                {chapterList && <a href={speechApi.exportUrl(pid, chapterList)} download={chapterList} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)]" title={t("speech.chaptersHint")}>{t("speech.saveChapters")}</a>}
-                {subs && <a href={speechApi.exportUrl(pid, subs)} download={subs} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)]" title={t("speech.subsHint")}>{t("speech.saveSubs")}</a>}
+              <div className="space-y-1.5">
+                <FileActions pid={pid} file={file} primary />
+                {chapterList && <FileActions pid={pid} file={chapterList} label={t("speech.saveChapters")} />}
+                {subs && <FileActions pid={pid} file={subs} label={t("speech.saveSubs")} />}
               </div>
             ) : (
               <button onClick={run} disabled={busy} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[13px] font-semibold disabled:opacity-40">
@@ -107,13 +109,20 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
             <input type="checkbox" checked={withAudio} onChange={(e) => { setWithAudio(e.target.checked); setPack(null); }} className="w-4 h-4 accent-[var(--color-accent)]" />{t("speech.packAudio")}
           </label>
           {pack ? (
-            <a href={speechApi.exportUrl(pid, pack.file)} download={pack.file} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-accent)] text-[var(--color-accent)] text-[12px] font-semibold"><Check size={13} />{t("speech.saveFile", { file: pack.file })}</a>
+            <FileActions pid={pid} file={pack.file} />
           ) : (
             <button onClick={() => void runPack()} disabled={packing} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] font-medium hover:border-[var(--color-accent)] disabled:opacity-40">
               {packing ? <Loader2 size={13} className="animate-spin" /> : <Package size={13} />}{t("speech.packRun")}
             </button>
           )}
         </div>
+        <details onToggle={(e) => { if (e.currentTarget.open) speechApi.exports(pid).then((r) => setFiles(r.files), (er: unknown) => setError(errorText(er))); }} className="pt-3 border-t border-[var(--color-border)]">
+          <summary className="cursor-pointer text-[12px] font-semibold">{t("files.title")}</summary>
+          <ul className="mt-2 space-y-1.5 max-h-48 overflow-y-auto">
+            {files?.length === 0 && <li className="text-[11px] text-[var(--color-muted)]">{t("files.none")}</li>}
+            {files?.map((f) => <li key={f.file}><FileActions pid={pid} file={f.file} label={f.file} /></li>)}
+          </ul>
+        </details>
         {error && <p role="alert" className="text-[12px] text-[var(--color-warn)] break-words">{error}</p>}
       </div>
     </div>

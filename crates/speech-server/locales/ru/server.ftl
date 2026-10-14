@@ -1006,3 +1006,4 @@ book-unknown-format = { $name }: книги читаются из EPUB, FB2, PDF
 book-empty = В { $name } не нашлось текста
 book-damaged = Файл книги повреждён или не то, что сказано в его имени: { $detail }
 speech-chapter-n = Глава { $n }
+export-save-as = Сохранить как

@@ -906,7 +906,6 @@
     "voiceTheMissing": "为缺失部分配音",
     "format": "格式",
     "exportLoudness": "响度：{{preset}}",
-    "saveFile": "保存 {{file}}",
     "exportRun": "生成文件",
     "tagsTitle": "表现力标签",
     "quality": "质量",
@@ -1131,5 +1130,12 @@
     "create": "创建项目",
     "minutes": "{{m}} 分钟",
     "hours": "{{h}} 小时 {{m}} 分钟"
+  },
+  "files": {
+    "saveAs": "将 {{file}} 另存为…",
+    "reveal": "在文件夹中显示",
+    "savedTo": "已保存：{{path}}",
+    "title": "项目文件",
+    "none": "尚未导出任何内容"
   }
 }

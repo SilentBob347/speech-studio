@@ -474,6 +474,9 @@ pub fn build_router(state: AppState) -> Router {
         .route("/projects/{pid}/save-export", post(speech_api::save_export))
         .route("/projects/{pid}/takes/{file}", get(speech_api::take_file))
         .route("/projects/{pid}/exports/{file}", get(speech_api::export_file))
+        .route("/projects/{pid}/exports", get(speech_api::exports_list))
+        .route("/projects/{pid}/exports/{file}/reveal", post(speech_api::export_reveal))
+        .route("/projects/{pid}/exports/{file}/save-as", post(speech_api::export_save_as))
         .route("/jobs", get(jobs_list))
         .route("/jobs/{job_id}", get(job_get))
         .route("/jobs/{job_id}/cancel", post(job_cancel))
@@ -985,7 +988,7 @@ async fn pick_folder() -> Json<Value> {
 
 
 /// Открыть проводник/файловый менеджер с ВЫДЕЛЕННЫМ файлом (не плеер). Windows: explorer /select.
-fn reveal_in_explorer(path: String) {
+pub(crate) fn reveal_in_explorer(path: String) {
     tokio::task::spawn_blocking(move || {
         #[cfg(windows)]
         {

@@ -502,3 +502,62 @@ pub async fn from_book(State(st): State<AppState>, Json(req): Json<FromBook>) ->
         Err(r) => r,
     }
 }
+
+fn export_path(st: &AppState, pid: &str, file: &str) -> Option<std::path::PathBuf> {
+    (sp::is_pid(pid) && safe_file(file)).then(|| st.workspace.join(pid).join("exports").join(file)).filter(|p| p.is_file())
+}
+
+/// GET /projects/{pid}/exports — файлы экспорта проекта: имя, размер, время; новые сверху.
+pub async fn exports_list(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Response {
+    if !sp::is_pid(&pid) {
+        return refuse(StatusCode::BAD_REQUEST, "bad_request", pid);
+    }
+    let dir = st.workspace.join(&pid).join("exports");
+    let mut files: Vec<Value> = std::fs::read_dir(&dir)
+        .map(|rd| {
+            rd.flatten()
+                .filter(|e| e.path().is_file())
+                .filter_map(|e| {
+                    let meta = e.metadata().ok()?;
+                    let mtime = meta.modified().ok()?.duration_since(std::time::UNIX_EPOCH).ok()?.as_secs();
+                    Some(json!({ "file": e.file_name().to_string_lossy(), "bytes": meta.len(), "mtime": mtime }))
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    files.sort_by(|a, b| b["mtime"].as_u64().cmp(&a["mtime"].as_u64()));
+    Json(json!({ "files": files, "dir": dir.to_string_lossy() })).into_response()
+}
+
+/// POST /projects/{pid}/exports/{file}/reveal — показать файл в проводнике.
+pub async fn export_reveal(State(st): State<AppState>, AxPath((pid, file)): AxPath<(String, String)>) -> Response {
+    match export_path(&st, &pid, &file) {
+        Some(p) => {
+            crate::reveal_in_explorer(p.to_string_lossy().into_owned());
+            Json(json!({ "ok": true })).into_response()
+        }
+        None => refuse(StatusCode::NOT_FOUND, "no_file", file),
+    }
+}
+
+/// POST /projects/{pid}/exports/{file}/save-as — системный диалог «Сохранить как» и копия туда; отмена — `{path: null}`.
+pub async fn export_save_as(State(st): State<AppState>, AxPath((pid, file)): AxPath<(String, String)>) -> Response {
+    let Some(src) = export_path(&st, &pid, &file) else { return refuse(StatusCode::NOT_FOUND, "no_file", file) };
+    let ext = Path::new(&file).extension().and_then(|e| e.to_str()).unwrap_or("").to_string();
+    let name = file.clone();
+    let picked = tokio::task::spawn_blocking(move || {
+        let mut dialog = rfd::FileDialog::new().set_title(t!("export-save-as")).set_file_name(&name);
+        if !ext.is_empty() {
+            dialog = dialog.add_filter(ext.to_uppercase(), &[ext.as_str()]);
+        }
+        dialog.save_file()
+    })
+    .await
+    .ok()
+    .flatten();
+    let Some(dst) = picked else { return Json(json!({ "path": null })).into_response() };
+    match std::fs::copy(&src, &dst) {
+        Ok(bytes) => Json(json!({ "path": dst.to_string_lossy(), "bytes": bytes })).into_response(),
+        Err(e) => refuse(StatusCode::BAD_REQUEST, "save_failed", format!("{} -> {}: {e}", src.display(), dst.display())),
+    }
+}

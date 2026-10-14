@@ -986,3 +986,4 @@ book-unknown-format = { $name }: books are read from EPUB, FB2, PDF, DOCX, HTML,
 book-empty = No text was found in { $name }
 book-damaged = The book file is damaged or not what its name says: { $detail }
 speech-chapter-n = Chapter { $n }
+export-save-as = Save as

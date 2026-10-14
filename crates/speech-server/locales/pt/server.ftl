@@ -980,3 +980,4 @@ book-unknown-format = { $name }: livros são lidos de EPUB, FB2, PDF, DOCX, HTML
 book-empty = Nenhum texto foi encontrado em { $name }
 book-damaged = O arquivo do livro está danificado ou não é o que o nome diz: { $detail }
 speech-chapter-n = Capítulo { $n }
+export-save-as = Salvar como

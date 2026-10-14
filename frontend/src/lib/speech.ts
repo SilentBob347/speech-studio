@@ -90,6 +90,9 @@ export const speechApi = {
   bookChapter: (id: string, index: number) => getCoded<{ title: string; text: string }>(`/books/${id}/chapters/${index}`),
   fromBook: (body: { id: string; name?: string; voice: string | null; chapters: { index: number; title?: string; text?: string }[] }) =>
     postCoded<{ project_id: string; project: SpeechProject }>("/projects/from-book", body),
+  exports: (pid: string) => getCoded<{ files: { file: string; bytes: number; mtime: number }[]; dir: string }>(`/projects/${pid}/exports`),
+  revealExport: (pid: string, file: string) => postCoded<{ ok: boolean }>(`/projects/${pid}/exports/${encodeURIComponent(file)}/reveal`, {}),
+  saveExportAs: (pid: string, file: string) => postCoded<{ path: string | null; bytes?: number }>(`/projects/${pid}/exports/${encodeURIComponent(file)}/save-as`, {}),
   pack: (pid: string, audio: boolean) => postCoded<{ file: string; bytes: number }>(`/projects/${pid}/package`, { audio }),
   importPackage: (file: File) => {
     const form = new FormData();

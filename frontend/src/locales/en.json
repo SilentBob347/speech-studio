@@ -906,7 +906,6 @@
     "voiceTheMissing": "Voice the missing",
     "format": "Format",
     "exportLoudness": "Loudness: {{preset}}",
-    "saveFile": "Save {{file}}",
     "exportRun": "Make the file",
     "tagsTitle": "Expression tags",
     "quality": "Quality",
@@ -1131,5 +1130,12 @@
     "create": "Create the project",
     "minutes": "{{m}} min",
     "hours": "{{h}} h {{m}} min"
+  },
+  "files": {
+    "saveAs": "Save {{file}} as…",
+    "reveal": "Show in folder",
+    "savedTo": "Saved: {{path}}",
+    "title": "Project files",
+    "none": "Nothing exported yet"
   }
 }

@@ -782,3 +782,4 @@ book-unknown-format = { $name }：支持从 EPUB、FB2、PDF、DOCX、HTML、MD 
 book-empty = 在 { $name } 中没有找到文本
 book-damaged = 书籍文件已损坏或与扩展名不符：{ $detail }
 speech-chapter-n = 第 { $n } 章
+export-save-as = 另存为
