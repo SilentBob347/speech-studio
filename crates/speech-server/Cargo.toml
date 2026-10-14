@@ -6,6 +6,7 @@ license.workspace = true
 description = "axum-сервис Speech Studio: озвучка (Speech) и распознавание (Listening)"
 
 [dependencies]
+tempfile = "3"
 fluent-templates = "0.15.1"
 dub-core = { git = "https://github.com/timoncool/dub-studio", rev = "11f909a8e798d56f5f43e0b7ae959d77a05a1866" }
 dub-asr = { git = "https://github.com/timoncool/dub-studio", rev = "11f909a8e798d56f5f43e0b7ae959d77a05a1866", features = ["cuda"] }
@@ -73,6 +74,5 @@ windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Securit
 libc = "0.2"
 
 [dev-dependencies]
-tempfile = "3"
 # Поддельный HTTP-сервер для тестов провайдеров.
 dub-llm = { git = "https://github.com/timoncool/dub-studio", rev = "11f909a8e798d56f5f43e0b7ae959d77a05a1866", features = ["test-support"] }

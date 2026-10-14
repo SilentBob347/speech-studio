@@ -35,6 +35,7 @@ mod openrouter;
 mod presets;
 pub mod process_group;
 mod record;
+mod ref_pick;
 mod secrets_api;
 pub mod service;
 mod setup;
@@ -43,6 +44,9 @@ mod studio_settings;
 mod tts_text;
 mod tts_trim;
 mod url_import;
+mod voice_api;
+mod voice_jobs;
+mod voice_library;
 mod wavio;
 mod ytdlp;
 
@@ -184,6 +188,14 @@ pub fn set_ort_dylib_env(repo_root: &Path, beside_exe: &Path) {
     }
 }
 
+/// ONNX Runtime, скачанный задачей, — CUDA-сборка: путь на неё, пока процесс ещё не загрузил библиотеку (ort
+/// грузит её при первой сессии; загруженную до этого CPU-сборку сменит только перезапуск студии).
+fn point_ort_at_gpu(repo_root: &Path) {
+    if let Some(gpu) = dub_core::runtime::ort_candidates(&repo_root.join("models")).into_iter().find(|c| c.is_file()) {
+        std::env::set_var("ORT_DYLIB_PATH", gpu);
+    }
+}
+
 /// Маршрут прокси из models/active.json для всех HTTP-клиентов приложения (dub_llm::net): вызывать на старте.
 /// Сохранение формы прокси перестраивает его сразу, без рестарта.
 pub fn init_proxy_route(repo_root: &Path) {
@@ -311,7 +323,7 @@ impl AppState {
 
 
 /// Ответ на неудачную постановку джобы: 409 с id уже идущей джобы того же класса или 500.
-fn enqueue_error(e: jobs::EnqueueError) -> Response {
+pub(crate) fn enqueue_error(e: jobs::EnqueueError) -> Response {
     match e {
         jobs::EnqueueError::Conflict { job_id, kind } => (
             StatusCode::CONFLICT,
@@ -396,13 +408,24 @@ pub fn build_router(state: AppState) -> Router {
         .route("/record/level", get(record_level))
         .route("/record/start", post(record_start))
         .route("/record/stop", post(record_stop))
-        .route("/voices", get(voices_list))
+        .route("/voices", get(voice_api::list))
         .route("/voices/download-pack", post(voices_download_pack))
         .route("/voices/catalog", get(voices_catalog))
-        .route("/voices/sample", get(voice_sample))
+        .route("/voices/sample", get(voice_api::sample))
+        .route("/voices/photo", get(voice_api::photo).post(voice_api::set_photo))
+        .route("/voices/card", post(voice_api::set_card))
+        .route("/voices/transcript", post(voice_api::set_transcript))
+        .route("/voices/transcribe", post(voice_api::transcribe))
+        .route("/voices/clean", post(voice_api::clean))
+        .route("/voices/restore", post(voice_api::restore))
+        .route("/voices/import", post(voice_api::import))
+        .route("/voices/import-zip", post(voice_api::import_zip_route))
+        .route("/voices/export", post(voice_api::export))
+        .route("/voices/ref-candidates", post(voice_api::ref_candidates))
+        .route("/voices/ref-apply", post(voice_api::ref_apply))
         .route("/voices/get", post(voices_get))
-        .route("/voices/rename", post(voices_rename))
-        .route("/voices/delete", post(voices_delete))
+        .route("/voices/rename", post(voice_api::rename))
+        .route("/voices/delete", post(voice_api::delete))
         .route("/settings/ui-lang", axum::routing::put(set_ui_lang))
         .route("/app/paths", get(studio_settings::app_paths))
         .route("/url/probe", get(url_import::probe_get).post(url_import::probe_post))
@@ -597,7 +620,7 @@ async fn setup_open_models(State(st): State<AppState>) -> Response {
 
 /// Перед задачей догружаются компоненты, нужные именно ей, если их нет на диске (прогресс — в тот же SSE):
 /// проверка похожести голоса — WeSpeaker, GPU-стадия без CUDA-стека — cuFFT, onnxruntime-GPU, cuDNN.
-fn ensure_job_components(
+pub(crate) fn ensure_job_components(
     repo_root: &Path,
     models_root: &Path,
     similarity: bool,
@@ -651,6 +674,9 @@ fn ensure_job_components(
     let cancel = move || ctl.as_ref().is_some_and(|c| c.is_cancelled());
     if !need.is_empty() {
         setup::download_components(repo_root, &need, &cancel, progress).map_err(|e| e.detail)?;
+        if need.iter().any(|id| id == "onnxruntime-gpu") {
+            point_ort_at_gpu(repo_root);
+        }
     }
     if need_diar {
         if let Err(e) = setup::download_components(repo_root, &["sortformer".to_string()], &cancel, progress) {
@@ -670,58 +696,6 @@ async fn hw_snapshot() -> Json<hw::HardwareSnapshot> {
 }
 
 /// Безопасное имя голоса: только буквы/цифры/пробел/дефис/подчёркивание (без разделителей путей).
-fn sanitize_voice_name(s: &str) -> String {
-    let n: String = s
-        .chars()
-        .filter(|c| c.is_alphanumeric() || *c == ' ' || *c == '-' || *c == '_')
-        .take(48)
-        .collect();
-    let n = n.trim().to_string();
-    if n.is_empty() { "Мой голос".to_string() } else { n }
-}
-
-/// Имена голосов в каталоге: стемы .wav/.mp3 (запись с микрофона = .wav; пак = .mp3).
-fn list_voice_names(dir: &Path) -> Vec<String> {
-    let mut names = std::collections::BTreeSet::new();
-    if let Ok(rd) = std::fs::read_dir(dir) {
-        for e in rd.flatten() {
-            let p = e.path();
-            let ext = p.extension().and_then(|s| s.to_str()).unwrap_or("").to_lowercase();
-            if ext == "wav" || ext == "mp3" {
-                if let Some(stem) = p.file_stem().and_then(|s| s.to_str()) {
-                    names.insert(stem.to_string());
-                }
-            }
-        }
-    }
-    names.into_iter().collect()
-}
-
-/// GET /voices — список голосов из каталога (пак + записи с микрофона).
-async fn voices_list(State(st): State<AppState>) -> Json<Value> {
-    Json(json!({ "voices": list_voice_names(&st.voices_dir) }))
-}
-
-/// GET /voices/sample?name=<name> — отдать аудио-сэмпл голоса (voices/<name>.wav|.mp3) с Range для <audio>
-/// (прослушка выбранного голоса в UI). sanitize защищает от path-traversal.
-async fn voice_sample(
-    State(st): State<AppState>,
-    axum::extract::Query(q): axum::extract::Query<std::collections::HashMap<String, String>>,
-    req: axum::http::Request<axum::body::Body>,
-) -> Response {
-    let name = sanitize_voice_name(q.get("name").map(|s| s.as_str()).unwrap_or(""));
-    if name.is_empty() {
-        return (StatusCode::BAD_REQUEST, "no name").into_response();
-    }
-    for ext in ["wav", "mp3"] {
-        let p = st.voices_dir.join(format!("{name}.{ext}"));
-        if p.is_file() {
-            return serve_file_range(&p, req, None).await;
-        }
-    }
-    (StatusCode::NOT_FOUND, "voice not found").into_response()
-}
-
 /// GET /record/devices — список микрофонов.
 async fn record_devices() -> Json<Value> {
     Json(json!({ "devices": tokio::task::spawn_blocking(record::input_devices).await.unwrap_or_default() }),
@@ -733,11 +707,15 @@ async fn record_level() -> Json<Value> {
     Json(json!({ "level": record::level() }))
 }
 
-/// POST /record/start {name, device?} — начать запись голоса в voices/<name>.wav.
+/// POST /record/start {name, device?} — начать запись голоса в новый файл voices/<имя>.wav (занятое имя получает номер).
 async fn record_start(State(st): State<AppState>, Json(body): Json<Value>) -> Json<Value> {
-    let name = sanitize_voice_name(body.get("name").and_then(|v| v.as_str()).unwrap_or("Мой голос"),
-    );
+    let base = voice_library::sanitize(body.get("name").and_then(|v| v.as_str()).unwrap_or(""));
+    let base = if base.is_empty() { t!("voice-default-name") } else { base };
     let device = body.get("device").and_then(|v| v.as_str()).map(|s| s.to_string());
+    if let Err(e) = std::fs::create_dir_all(&st.voices_dir) {
+        return Json(json!({ "ok": false, "error": format!("{}: {e}", st.voices_dir.display()) }));
+    }
+    let name = voice_library::free_name(&st.voices_dir, &base);
     let path = st.voices_dir.join(format!("{name}.wav"));
     match tokio::task::spawn_blocking(move || record::start(&path, device)).await {
         Ok(Ok(())) => Json(json!({ "ok": true, "name": name })),
@@ -746,14 +724,44 @@ async fn record_start(State(st): State<AppState>, Json(body): Json<Value>) -> Js
     }
 }
 
-/// POST /record/stop — остановить запись; вернуть имя записанного голоса + обновлённый список.
-async fn record_stop(State(st): State<AppState>) -> Json<Value> {
-    let path = tokio::task::spawn_blocking(record::stop).await;
-    let name = match path {
-        Ok(Ok(p)) => p.file_stem().and_then(|s| s.to_str()).map(|s| s.to_string()),
-        _ => None,
+/// POST /record/stop {clean?, transcribe?} — остановить запись: голос получает карточку (свой голос, с
+/// микрофона) и задачу очистки и транскрипта рефа. Ответ — имя, задача и библиотека.
+async fn record_stop(State(st): State<AppState>, body: Option<Json<Value>>) -> Response {
+    let body = body.map(|Json(v)| v).unwrap_or(Value::Null);
+    let path = match tokio::task::spawn_blocking(record::stop).await {
+        Ok(Ok(p)) => p,
+        Ok(Err(e)) => return (StatusCode::BAD_REQUEST, Json(json!({ "error": "record_failed", "detail": e }))).into_response(),
+        Err(e) => return join_failure(e),
     };
-    Json(json!({ "name": name, "voices": list_voice_names(&st.voices_dir) }))
+    let Some(name) = path.file_stem().and_then(|s| s.to_str()).map(str::to_string) else {
+        return internal_error(format!("{}: no name", path.display()));
+    };
+    let card = voice_library::VoiceCard { source: "mic".into(), consent: "own".into(), ..Default::default() };
+    if let Err(e) = voice_library::write_card(&st.voices_dir, &name, &card) {
+        return internal_error(e);
+    }
+    let clean = body.get("clean").and_then(Value::as_bool).unwrap_or_else(|| models::voice_clean_default(&st.models_root));
+    let transcribe = body.get("transcribe").and_then(Value::as_bool).unwrap_or(true);
+    let job = if clean {
+        Some(voice_api::enqueue(&st, jobs::JobKind::VoiceClean, name.clone(), transcribe).await)
+    } else if transcribe {
+        Some(voice_api::enqueue(&st, jobs::JobKind::VoiceTranscript, name.clone(), false).await)
+    } else {
+        None
+    };
+    let job = match job {
+        Some(r) if !r.status().is_success() => return r,
+        Some(r) => {
+            let bytes = axum::body::to_bytes(r.into_body(), 1 << 16).await.unwrap_or_default();
+            serde_json::from_slice::<Value>(&bytes).ok().and_then(|v| v.get("job_id").cloned())
+        }
+        None => None,
+    };
+    mcp::tell_windows(json!({ "changed": "voices" }));
+    let mut out = voice_api::listing(&st.voices_dir);
+    out["name"] = json!(name);
+    out["job_id"] = job.unwrap_or(Value::Null);
+    Json(out).into_response()
 }
 
 
@@ -789,32 +797,13 @@ async fn voices_get(State(st): State<AppState>, Json(body): Json<Value>) -> Json
     let dir = st.voices_dir.clone();
     let ok = tokio::task::spawn_blocking(move || record::fetch_voice(&dir, &name)).await;
     match ok {
-        Ok(Ok(())) => Json(json!({ "ok": true, "voices": list_voice_names(&st.voices_dir) })),
+        Ok(Ok(())) => {
+            mcp::tell_windows(json!({ "changed": "voices" }));
+            Json(json!({ "ok": true, "voices": voice_api::listing(&st.voices_dir)["voices"] }))
+        }
         Ok(Err(e)) => Json(json!({ "ok": false, "error": e })),
         Err(e) => Json(json!({ "ok": false, "error": e.to_string() })),
     }
-}
-
-/// POST /voices/rename {from, to} — переименовать голос (mp3/wav + txt).
-async fn voices_rename(State(st): State<AppState>, Json(body): Json<Value>) -> Json<Value> {
-    let from = sanitize_voice_name(body.get("from").and_then(|v| v.as_str()).unwrap_or(""));
-    let to = sanitize_voice_name(body.get("to").and_then(|v| v.as_str()).unwrap_or(""));
-    for ext in ["wav", "mp3", "txt"] {
-        let src = st.voices_dir.join(format!("{from}.{ext}"));
-        if src.is_file() {
-            let _ = std::fs::rename(&src, st.voices_dir.join(format!("{to}.{ext}")));
-        }
-    }
-    Json(json!({ "voices": list_voice_names(&st.voices_dir) }))
-}
-
-/// POST /voices/delete {name} — удалить голос.
-async fn voices_delete(State(st): State<AppState>, Json(body): Json<Value>) -> Json<Value> {
-    let name = sanitize_voice_name(body.get("name").and_then(|v| v.as_str()).unwrap_or(""));
-    for ext in ["wav", "mp3", "txt"] {
-        let _ = std::fs::remove_file(st.voices_dir.join(format!("{name}.{ext}")));
-    }
-    Json(json!({ "voices": list_voice_names(&st.voices_dir) }))
 }
 
 /// POST /voices/download-pack — скачать пак голосов (VibeVoice) и распаковать в каталог голосов.
@@ -957,7 +946,7 @@ fn reveal_in_explorer(path: String) {
 
 /// Отдать файл с поддержкой Range (для <video> seek). Используем tower-http ServeFile — он
 /// корректно обрабатывает Range/If-Range/Content-Range. dl -> Content-Disposition attachment.
-async fn serve_file_range(
+pub(crate) async fn serve_file_range(
     path: &Path,
     req: axum::http::Request<axum::body::Body>,
     download_name: Option<String>,

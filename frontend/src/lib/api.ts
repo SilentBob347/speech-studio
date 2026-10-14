@@ -1,9 +1,8 @@
 import i18n from "./i18n";
 import type en from "../locales/en.json";
-// Dub Studio API client — talks to the single-worker FastAPI backend over the dub-engine.
-// dev: Vite (5173) -> dub-server (8793, DUB_STUDIO_PORT). desktop/portable: the server serves the SPA
-// itself, so calls are same-origin (""). VITE_API overrides both.
-export const BASE = (import.meta.env.VITE_API as string | undefined) ?? (import.meta.env.DEV ? "http://127.0.0.1:8793" : "");
+// Speech Studio API client. dev: Vite (5173) -> speech-server (8797, SPEECH_STUDIO_PORT). desktop/portable: the
+// server serves the SPA itself, so calls are same-origin (""). VITE_API overrides both.
+export const BASE = (import.meta.env.VITE_API as string | undefined) ?? (import.meta.env.DEV ? "http://127.0.0.1:8797" : "");
 
 /** This window's mark: the studio tells the changes the window made itself apart from an agent's or another window's. */
 export const WINDOW_ID = crypto.randomUUID();
@@ -227,6 +226,17 @@ export class SetupError extends Error {
   }
 }
 
+export type VoiceGender = "" | "female" | "male";
+export type VoiceAge = "" | "child" | "teen" | "adult" | "senior";
+export type VoiceConsent = "" | "own" | "permitted" | "public";
+export type VoiceCard = {
+  gender: VoiceGender; age: VoiceAge; lang: string; tags: string[]; source: string; consent: VoiceConsent;
+  favorite: boolean; kind: "clone" | "preset" | "design"; transcript_auto: boolean; cleaned: boolean;
+};
+export type VoiceEntry = { name: string; audio: string; size: number; transcript: string | null; photo: string | null; original: boolean; card: VoiceCard };
+export type RefIssue = "long_pause" | "noisy" | "clipped" | "short";
+export type RefCandidate = { start: number; end: number; duration: number; max_pause: number; snr_db: number; clipping: number; text: string; score: number; issues: RefIssue[] };
+export type VoiceListing = { voices: VoiceEntry[]; broken: { name: string; error: string }[] };
 export type HwSnapshot = {
   gpuName: string; totalVram: number; usedVram: number; freeVram: number;
   gpuUtilization: number; temperature: number; powerDraw: number; powerLimit: number;
@@ -405,7 +415,7 @@ export const api = {
   // Пресеты железа: список + детект GPU/VRAM + рекомендация; применение пишет кванты/облако в active.json.
   hwPresets: () => getJson<{ presets: { id: string; title: string; subtitle: string }[]; hardware: { gpuName: string; totalVramGb: number; totalRamGb: number; hasGpu: boolean; recommended: string; reason: string } }>("/engine/presets"),
   applyPreset: (id: string) => postJson<{ ok: boolean; id: string; applied: { key: string; value: string }[] }>("/engine/preset", { id }),
-  voices: () => getJson<{ voices: string[] }>("/voices"),
+  voices: () => getCoded<VoiceListing>("/voices"),
   // Дефолты запуска дубляжа (форма стартового экрана) хранит сервис: одни на все окна и агента.
   launchDefaults: () => getJson<LaunchDefaultsState>("/settings/launch"),
   saveLaunchDefaults: (patch: Partial<LaunchDefaults>) =>
@@ -419,13 +429,45 @@ export const api = {
   recordDevices: () => getJson<{ devices: string[] }>("/record/devices"),
   recordLevel: () => getJson<{ level: number }>("/record/level"),
   recordStart: (name: string, device?: string) => postJson<{ ok: boolean; name?: string; error?: string }>("/record/start", { name, device }),
-  recordStop: () => fetch(`${BASE}/record/stop`, { method: "POST" }).then(j<{ name: string | null; voices: string[] }>),
+  recordStop: (opts: { clean: boolean; transcribe: boolean }) => postCoded<VoiceListing & { name: string; job_id: string | null }>("/record/stop", opts),
   voicesDownloadPack: () => fetch(`${BASE}/voices/download-pack`, { method: "POST" }).then(j<{ job_id: string }>),
   voicesCatalog: () => getCoded<{ voices: { name: string; gender: string; url: string }[] }>("/voices/catalog"),
-  voicesGet: (name: string) => postJson<{ ok: boolean; voices?: string[]; error?: string }>("/voices/get", { name }),
-  voiceSampleUrl: (name: string) => `${BASE}/voices/sample?name=${encodeURIComponent(name)}`,   // прослушка выбранного голоса (<audio>)
-  voicesRename: (from: string, to: string) => postJson<{ voices: string[] }>("/voices/rename", { from, to }),
-  voicesDelete: (name: string) => postJson<{ voices: string[] }>("/voices/delete", { name }),
+  voicesGet: (name: string) => postJson<{ ok: boolean; voices?: VoiceEntry[]; error?: string }>("/voices/get", { name }),
+  voiceSampleUrl: (name: string, original = false, rev = 0) => `${BASE}/voices/sample?name=${encodeURIComponent(name)}${original ? "&original=1" : ""}&rev=${rev}`,
+  voicePhotoUrl: (name: string, rev: number) => `${BASE}/voices/photo?name=${encodeURIComponent(name)}&rev=${rev}`,
+  voicesRename: (from: string, to: string) => postCoded<VoiceListing>("/voices/rename", { from, to }),
+  voicesDelete: (name: string) => postCoded<VoiceListing>("/voices/delete", { name }),
+  voiceSetCard: (name: string, card: Partial<VoiceCard>) => postCoded<{ voice: VoiceEntry }>("/voices/card", { name, card }),
+  voiceSetTranscript: (name: string, text: string) => postCoded<{ voice: VoiceEntry }>("/voices/transcript", { name, text }),
+  voiceTranscribe: (name: string) => postCoded<{ job_id: string }>("/voices/transcribe", { name }),
+  voiceClean: (name: string) => postCoded<{ job_id: string }>("/voices/clean", { name }),
+  voiceRestore: (name: string) => postCoded<{ voice: VoiceEntry }>("/voices/restore", { name }),
+  voiceRefCandidates: (name: string) => postCoded<{ name: string; max_len: number; duration: number; candidates: RefCandidate[] }>("/voices/ref-candidates", { name }),
+  voiceRefApply: (name: string, start: number, end: number) => postCoded<{ voice: VoiceEntry }>("/voices/ref-apply", { name, start, end }),
+  voiceImport: (files: File[], opts: { name?: string; clean: boolean; transcribe: boolean }) => {
+    const form = new FormData();
+    if (opts.name) form.append("name", opts.name);
+    form.append("clean", opts.clean ? "1" : "0");
+    form.append("transcribe", opts.transcribe ? "1" : "0");
+    for (const f of files) form.append("file", f, f.name);
+    return fetch(`${BASE}/voices/import`, { method: "POST", body: form }).then(coded<{ names: string[]; jobs: ({ job_id: string } | { error: unknown })[] }>);
+  },
+  voicePhoto: (name: string, file: File) => {
+    const form = new FormData();
+    form.append("name", name);
+    form.append("file", file, file.name);
+    return fetch(`${BASE}/voices/photo`, { method: "POST", body: form }).then(coded<{ voice: VoiceEntry }>);
+  },
+  voicesExport: async (names: string[]): Promise<Blob> => {
+    const r = await fetch(`${BASE}/voices/export`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify({ names }) });
+    if (!r.ok) return coded<never>(r);
+    return r.blob();
+  },
+  voicesImportZip: (file: File) => {
+    const form = new FormData();
+    form.append("file", file, file.name);
+    return fetch(`${BASE}/voices/import-zip`, { method: "POST", body: form }).then(coded<{ added: string[]; already: string[] }>);
+  },
   speakerVoice: (pid: string, speaker: string, name: string) => sendCoded<{ ok: boolean; name: string; voices: string[] }>("POST", `/projects/${pid}/speaker-voice`, { speaker, name }),
   // Слоты голосов из библиотеки (#114): раздать голоса по спикерам по полу/приоритету. Пустые списки -> клон.
   voiceSlots: (pid: string, slots: { male: string[]; female: string[] }) =>

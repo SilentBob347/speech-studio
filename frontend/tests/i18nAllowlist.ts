@@ -22,13 +22,13 @@ export const SAME_AS_EN: Record<"*" | "ru" | "zh" | "es" | "pt" | "fr", string[]
   ru: [],
   zh: ["units.gb", "units.mb", "units.kb", "units.b"],
   es: [
-    "voice.g_female", "voice.g_male", "jobs.kind.remix", "settings.auto", "settings.sec", "common.error", "setup.error", "units.gb", "units.mb", "units.kb", "units.b", "units.watt", "cloud.beta", "hwPreset.ram", "secrets.proxyTitle",
+    "voices.snr", "voice.g_female", "voice.g_male", "jobs.kind.remix", "settings.auto", "settings.sec", "common.error", "setup.error", "units.gb", "units.mb", "units.kb", "units.b", "units.watt", "cloud.beta", "hwPreset.ram", "secrets.proxyTitle",
     ],
   pt: [
-    "voice.g_female", "voice.g_male", "jobs.kind.remix", "settings.auto", "settings.sec", "units.gb", "units.mb", "units.kb", "units.b", "units.watt", "cloud.beta", "hwPreset.ram", "secrets.proxyTitle",
+    "voices.snr", "voice.g_female", "voice.g_male", "jobs.kind.remix", "settings.auto", "settings.sec", "units.gb", "units.mb", "units.kb", "units.b", "units.watt", "cloud.beta", "hwPreset.ram", "secrets.proxyTitle",
     ],
   fr: [
-    "modes.label", "voice.recordStop", "voice.g_female", "jobs.kind.remix", "settings.vision",
+    "modes.label", "voices.pause", "voices.age_senior", "voices.source", "voices.src_pack", "voices.photo", "voice.recordStop", "voice.g_female", "jobs.kind.remix", "settings.vision",
     "settings.auto", "settings.sec", "help.sectionsTitle", "common.pause", "units.watt", "secrets.proxyTitle", "bridge.agent",
     ],
 };

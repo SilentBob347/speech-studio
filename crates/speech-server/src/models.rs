@@ -157,6 +157,11 @@ pub fn component_selection(id: &str) -> Vec<(&'static str, String)> {
     }
 }
 
+/// Очищать ли новый голос Roformer перед клоном (настройка `voice_clean`, по умолчанию да).
+pub fn voice_clean_default(mroot: &Path) -> bool {
+    load_selection(mroot).get("voice_clean").and_then(Value::as_str) != Some("0")
+}
+
 /// Разрешённые слоты для прямой установки через POST /engine/select {key,value} (без скачивания):
 /// переключение движка/модели/кванта + видимые в настройках лимиты RAM. Возврат true, если слот допустим.
 pub fn is_selection_key(key: &str) -> bool {
@@ -180,6 +185,7 @@ pub fn is_selection_key(key: &str) -> bool {
             | "lead_into_silence" // "1" -> не влезшая фраза начинается раньше, в тишину перед репликой, вместо ускорения
             | "emo_ref_on"      // "1" -> эмоциональный референс сцены (перенос эмоций из оригинального вокала); "0" -> выкл
             | "auto_shorten"    // "1" (по умолчанию) -> не влезшие в слот фразы рендер сокращает через LLM и озвучивает заново
+            | "voice_clean"     // "1" (по умолчанию) -> новый голос (файл, микрофон) очищается Roformer перед клоном
             // Провайдер перевода и отдельно vision: local (своя Gemma) | server (локальный OpenAI-совместимый
             // сервер: Ollama, LM Studio, vLLM) | openrouter. Значение проверяет select_model.
             | "llm_provider"
@@ -213,6 +219,7 @@ pub fn is_selection_value(key: &str, value: &str) -> bool {
         "llm_provider" | "vision_provider" => LlmBackend::parse(value).is_some(),
         "tts_provider" => matches!(value, "local" | "openrouter" | "google"),
         "google_tts_mode" => matches!(value, "standard" | "batch"),
+        "voice_clean" => matches!(value, "0" | "1"),
         "google_tts_model" => {
             !value.is_empty()
                 && value

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AudioLines, Bot, ChevronDown, Ear, HelpCircle, Loader2, Plus, ScrollText, Settings, type LucideIcon } from "lucide-react";
+import { AudioLines, Bot, ChevronDown, Ear, HelpCircle, Loader2, Plus, ScrollText, Settings, Users, type LucideIcon } from "lucide-react";
 import { LANGS, setLang, type Lang } from "../../lib/i18n";
 import { OPEN_HELP_EVENT, OPEN_SETTINGS_EVENT, SETTINGS_SECTIONS } from "../../lib/settingsNav";
 import { bridgeError, takeArgs, textArg, useBridgeCommand } from "../../lib/mcpBridge";
@@ -14,6 +14,7 @@ import AgentPanel from "../AgentPanel";
 import ModelsSection from "../setup/ModelsSection";
 import PresetsSection from "../setup/PresetsSection";
 import HelpModal from "./HelpModal";
+import VoiceLibrary from "../voices/VoiceLibrary";
 
 function LanguageSwitcher() {
   const { t, i18n } = useTranslation();
@@ -39,10 +40,10 @@ function ModeSwitcher() {
       {MODE_ITEMS.map(({ id, icon: Icon, label, hint }) => {
         const active = mode === id;
         return (
-          <button key={id} type="button" role="tab" aria-selected={active} onClick={() => setMode(id)} title={t(hint)}
+          <button key={id} type="button" role="tab" aria-selected={active} onClick={() => setMode(id)} title={t(hint)} aria-label={t(label)}
             className={`flex h-7 items-center gap-1.5 rounded-md px-3 text-[12px] font-medium transition-colors ${active ? "bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm" : "text-[var(--color-muted)] hover:text-[var(--color-text)]"}`}>
             <Icon size={14} className={active ? "text-[var(--color-accent)]" : ""} />
-            <span>{t(label)}</span>
+            <span className="hidden md:inline">{t(label)}</span>
           </button>
         );
       })}
@@ -109,6 +110,7 @@ export default function TopBar() {
   // Открытые настройки: цель «раздел[:часть]» и номер запроса — повторный запрос той же цели снова ведёт к ней.
   const [settings, setSettings] = useState<{ target: string; request: number } | null>(null);
   const [help, setHelp] = useState(false);
+  const [voices, setVoices] = useState(false);
   const openSettingsAt = (target: string) => setSettings(settingsRequest(target));
   useEffect(() => {
     const open = (e: Event) => setSettings(settingsRequest((e as CustomEvent<string>).detail));
@@ -133,16 +135,22 @@ export default function TopBar() {
       <span className="flex items-center gap-2 font-bold tracking-tight shrink-0">
         <img src="/favicon.svg" alt="" width={20} height={20} className="rounded-[5px] shadow-[0_0_10px_color-mix(in_oklab,var(--color-accent)_30%,transparent)]" />
         {t("app.name")}
-        <span className="font-normal text-[11px] text-[var(--color-muted)] tracking-normal" title={t("app.name") + " v" + __APP_VERSION__}>v{__APP_VERSION__}</span>
+        <span className="hidden lg:inline font-normal text-[11px] text-[var(--color-muted)] tracking-normal" title={t("app.name") + " v" + __APP_VERSION__}>v{__APP_VERSION__}</span>
       </span>
       {ready && <ModeSwitcher />}
       <StatusBar />
       <div className="flex items-center gap-2 shrink-0">
         <div id="dock-slot" className="flex items-center gap-2 shrink-0" />
         {ready && (
-          <button onClick={startFresh} title={t("nav.newTitle")}
+          <button onClick={() => setVoices(true)} title={t("voices.title")} aria-label={t("voices.title")}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] font-medium text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-colors">
+            <Users size={13} /><span className="hidden xl:inline">{t("voices.open")}</span>
+          </button>
+        )}
+        {ready && (
+          <button onClick={startFresh} title={t("nav.newTitle")} aria-label={t("nav.newTitle")}
             className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[12px] font-bold text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-colors shadow-sm">
-            <Plus size={13} />{t("nav.new")}
+            <Plus size={13} /><span className="hidden xl:inline">{t("nav.new")}</span>
           </button>
         )}
         <WhatsNew />
@@ -153,6 +161,7 @@ export default function TopBar() {
         <LanguageSwitcher />
       </div>
       {help && <HelpModal onClose={() => setHelp(false)} />}
+      {voices && <VoiceLibrary onClose={() => setVoices(false)} />}
       {settings !== null && (
         <SettingsModal target={settings.target} request={settings.request} onClose={() => setSettings(null)}
           panes={{ models: <><PresetsSection /><ModelsSection /></>, cloud: <ModelsSection part="cloud" />, network: <ProxySection />, agent: <AgentPanel /> }} />

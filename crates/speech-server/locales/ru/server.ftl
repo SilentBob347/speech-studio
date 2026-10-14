@@ -955,3 +955,14 @@ update-button-install = Обновить
 update-button-later = Позже
 update-open-failed = Не удалось открыть { $url }: { $error }
 update-failed = Не удалось обновить: { $error }
+
+## Voice library
+voice-missing = Голоса «{ $name }» нет.
+voice-transcribing = Распознаю текст рефа «{ $name }»…
+voice-no-speech = В «{ $name }» не распознано речи: запись, похоже, тихая или одна музыка.
+voice-clean-missing = Для очистки голоса нужны движок отделения голоса и его модель: скачайте их в Настройки → Модели → Очистка голоса или используйте голос без очистки.
+voice-cleaning = Очищаю «{ $name }» от музыки и шума…
+voice-bad-audio = «{ $name }» — не тот звуковой файл: студия берёт WAV, MP3, FLAC, M4A и OGG.
+voice-default-name = Мой голос
+voice-lang-needs-whisper = «{ $name }» на языке, которого Parakeet не знает ({ $lang }): такой текст распознаёт Whisper. Скачайте Whisper и одну его модель в Настройки → Модели → Распознавание речи.
+voice-no-words = У «{ $name }» ещё нет таймингов слов: сначала распознайте текст рефа.

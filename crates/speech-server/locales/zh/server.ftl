@@ -731,3 +731,14 @@ update-button-install = 更新
 update-button-later = 稍后
 update-open-failed = 无法打开 { $url }：{ $error }
 update-failed = 更新未能安装：{ $error }
+
+## Voice library
+voice-missing = 没有名为 { $name } 的声音。
+voice-transcribing = 正在识别 { $name } 的参考文本…
+voice-no-speech = 在 { $name } 中没有识别到语音：录音可能是静音或只有音乐。
+voice-clean-missing = 声音净化需要人声分离引擎及其模型：请在 设置 → 模型 → 声音净化 中下载，或不经净化直接使用该声音。
+voice-cleaning = 正在去除 { $name } 中的音乐和噪声…
+voice-bad-audio = { $name } 不是工作室支持的音频文件：WAV、MP3、FLAC、M4A 或 OGG。
+voice-default-name = 我的声音
+voice-lang-needs-whisper = { $name } 使用 Parakeet 不支持的语言（{ $lang }）：这类文本由 Whisper 识别。请在 设置 → 模型 → 语音识别 中下载 Whisper 及其一个模型。
+voice-no-words = { $name } 还没有词级时间戳：请先识别其参考文本。

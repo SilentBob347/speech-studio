@@ -1,25 +1,25 @@
 __pycache__/
 *.pyc
 *.egg-info/
-workspace/
-casting_library/
+/workspace/
+/casting_library/
 node_modules/
 dist/
 test_e2e_*
 
 # portable runtime — all created by install.bat / run.bat, never committed
-python/
-.venv-sortformer/
-node/
-ffmpeg/
-models/
+/python/
+/.venv-sortformer/
+/node/
+/ffmpeg/
+/models/
 # хранилище секретов портативной раскладки (ключ OpenRouter, пароль прокси) — никогда в репозиторий
-secrets/
-voices/
-downloads/
-temp/
-cache/
-output/
+/secrets/
+/voices/
+/downloads/
+/temp/
+/cache/
+/output/
 cuda_version.txt
 run-dev.bat
 

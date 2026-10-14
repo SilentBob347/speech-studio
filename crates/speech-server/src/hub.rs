@@ -111,6 +111,8 @@ pub fn job_ended(kind: JobKind, status: JobStatus, error: Option<&str>) {
                 JobKind::Retranslate => &["llm"],
                 JobKind::DubAudio => &["tts"],
                 JobKind::Render => &["tts", "sep"],
+                JobKind::VoiceTranscript => &["asr"],
+                JobKind::VoiceClean => &["sep"],
                 _ => &[],
             };
             match MODELS.get() {

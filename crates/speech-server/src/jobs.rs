@@ -74,10 +74,12 @@ pub enum JobKind {
     Shorten,
     /// «Собрать глоссарий из текста» (кандидаты в итоге джобы).
     Glossary,
+    VoiceTranscript,
+    VoiceClean,
 }
 
 impl JobKind {
-    const ALL: [JobKind; 14] = [
+    const ALL: [JobKind; 16] = [
         JobKind::Analyze,
         JobKind::Retranslate,
         JobKind::Remix,
@@ -92,6 +94,8 @@ impl JobKind {
         JobKind::DetectText,
         JobKind::Shorten,
         JobKind::Glossary,
+        JobKind::VoiceTranscript,
+        JobKind::VoiceClean,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -110,6 +114,8 @@ impl JobKind {
             JobKind::DetectText => "detect_text",
             JobKind::Shorten => "shorten",
             JobKind::Glossary => "glossary",
+            JobKind::VoiceTranscript => "voice_transcript",
+            JobKind::VoiceClean => "voice_clean",
         }
     }
 
@@ -126,6 +132,7 @@ impl JobKind {
             JobKind::DubAudio | JobKind::Render | JobKind::ExportLang => Some("audio"),
             JobKind::Separate => Some("separate"),
             JobKind::DetectText => Some("detect_text"),
+            JobKind::VoiceTranscript | JobKind::VoiceClean => Some("voice"),
             JobKind::Download | JobKind::VoicesPack | JobKind::Frame => None,
         }
     }

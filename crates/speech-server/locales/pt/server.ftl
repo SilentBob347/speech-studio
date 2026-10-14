@@ -929,3 +929,14 @@ update-button-install = Atualizar
 update-button-later = Mais tarde
 update-open-failed = Não foi possível abrir { $url }: { $error }
 update-failed = A atualização não foi instalada: { $error }
+
+## Voice library
+voice-missing = Não há voz chamada { $name }.
+voice-transcribing = Reconhecendo o texto de referência de { $name }…
+voice-no-speech = Nenhuma fala reconhecida em { $name }: a gravação pode estar em silêncio ou ser só música.
+voice-clean-missing = A limpeza da voz precisa do motor de separação de voz e do seu modelo: baixe-os em Configurações → Modelos → Limpeza de voz, ou use a voz sem limpeza.
+voice-cleaning = Limpando { $name } de música e ruído…
+voice-bad-audio = { $name } não é um arquivo de som aceito pelo estúdio: WAV, MP3, FLAC, M4A ou OGG.
+voice-default-name = Minha voz
+voice-lang-needs-whisper = { $name } está num idioma que o Parakeet não conhece ({ $lang }): o texto é reconhecido pelo Whisper. Baixe o Whisper e um dos seus modelos em Configurações → Modelos → Reconhecimento de fala.
+voice-no-words = { $name } ainda não tem tempos de palavras: reconheça primeiro o texto de referência.

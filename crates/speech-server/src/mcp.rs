@@ -669,7 +669,7 @@ fn annotations(name: &str) -> Value {
     // reads whose names the rules above miss
     const READ_NAMES: &[&str] = &["studio_wait", "proxy_test", "openrouter_verify", "ui_screenshot", "ui_read_page", "ui_console", "url_probe"];
     // writes over what was stored, so the earlier content is gone: a client asks first
-    const OVERWRITES: &[&str] = &["openrouter_set_key"];
+    const OVERWRITES: &[&str] = &["openrouter_set_key", "voice_transcript_set"];
     let changes = CHANGES.iter().any(|verb| name.split('_').any(|word| word == *verb));
     let read_only = READ_NAMES.contains(&name) || !changes && READS.iter().any(|part| name.ends_with(part) || name.contains(&format!("{part}_")));
     let destructive = name.ends_with("_delete") || name.ends_with("_cancel") || name.contains("_cancel_") || name.ends_with("_delete_key") || OVERWRITES.contains(&name);
@@ -1284,7 +1284,7 @@ fn tools() -> &'static [Tool] {
             // ---------------------------------------------------------------- voices
             Tool {
                 name: "voices_list",
-                description: "The voices of the studio's library by name, for voice_set, casting_update and voice_slots_assign.",
+                description: "The voices of the studio's library: each with its card (gender, age, lang, tags, source, consent, favorite, kind, cleaned, transcript_auto), the transcript of its reference and whether it has a photo and a kept original. broken lists a voice whose card file is damaged, with the reason.",
                 schema: nothing,
                 call: |_| get("/voices".into()),
             },
@@ -1332,9 +1332,15 @@ fn tools() -> &'static [Tool] {
             },
             Tool {
                 name: "voice_record_stop",
-                description: "Stop the recording and keep it as the voice: answers its name (null when nothing was recorded) and the library's voices.",
-                schema: nothing,
-                call: |_| post("/record/stop".into(), json!({})),
+                description: "Stop the recording and keep it as a voice of the user's own: answers its name, the job that cleans it (clean; by default as the setting clean new voices, on unless turned off) and recognises its reference text (transcribe, default true) - follow it with studio_wait - and the library.",
+                schema: || object(json!({ "clean": { "type": "boolean" }, "transcribe": { "type": "boolean" } }), &[]),
+                call: |args| {
+                    let mut body = json!({ "transcribe": args.get("transcribe").and_then(Value::as_bool).unwrap_or(true) });
+                    if let Some(clean) = args.get("clean").and_then(Value::as_bool) {
+                        body["clean"] = json!(clean);
+                    }
+                    post("/record/stop".into(), body)
+                },
             },
             Tool {
                 name: "voice_rename",
@@ -1347,6 +1353,106 @@ fn tools() -> &'static [Tool] {
                 description: "Delete a voice from the library.",
                 schema: || id_only("name", "voice name from voices_list"),
                 call: |args| post("/voices/delete".into(), json!({ "name": text(args, "name")? })),
+            },
+            Tool {
+                name: "voice_card_set",
+                description: "Change a voice's card: gender (female, male or empty), age (child, teen, adult, senior or empty), lang (a code such as ru), tags (the whole list), source (where the voice comes from), consent (own, permitted, public or empty), favorite, kind (clone, preset, design). Only the fields given change; an unknown field or value is refused.",
+                schema: || object(json!({ "name": { "type": "string" }, "card": { "type": "object" } }), &["name", "card"]),
+                call: |args| post("/voices/card".into(), json!({ "name": text(args, "name")?, "card": args.get("card").cloned().unwrap_or(Value::Null) })),
+            },
+            Tool {
+                name: "voice_transcript_set",
+                description: "Write the text spoken in a voice's reference by hand (the engine clones better with the right text); an empty text removes it.",
+                schema: || object(json!({ "name": { "type": "string" }, "text": { "type": "string" } }), &["name", "text"]),
+                call: |args| post("/voices/transcript".into(), json!({ "name": text(args, "name")?, "text": args.get("text").and_then(Value::as_str).unwrap_or("") })),
+            },
+            Tool {
+                name: "voice_transcribe",
+                description: "Recognise the text spoken in a voice's reference with the recognition engine chosen in the settings: a job, follow it with studio_wait.",
+                schema: || id_only("name", "voice name from voices_list"),
+                call: |args| post("/voices/transcribe".into(), json!({ "name": text(args, "name")? })),
+            },
+            Tool {
+                name: "voice_clean",
+                description: "Clean a voice of music and noise (Mel-Band Roformer) before cloning: a job, follow it with studio_wait. The original is kept and voice_restore brings it back. Refused with clean_missing when the separation engine is not downloaded (models_download roformer and bsroformer-engine).",
+                schema: || id_only("name", "voice name from voices_list"),
+                call: |args| post("/voices/clean".into(), json!({ "name": text(args, "name")? })),
+            },
+            Tool {
+                name: "voice_restore",
+                description: "Bring back a voice's sound as it was before voice_clean.",
+                schema: || id_only("name", "voice name from voices_list"),
+                call: |args| post("/voices/restore".into(), json!({ "name": text(args, "name")? })),
+            },
+            Tool {
+                name: "voice_ref_candidates",
+                description: "The best pieces of a voice's reference for cloning, best first: windows cut at pauses between the recognised words, no longer than the engine's reference limit, each with its duration, longest pause inside, signal-to-noise (snr_db), clipping share and issues (long_pause, noisy, clipped, short). Needs the reference text recognised first (voice_transcribe).",
+                schema: || id_only("name", "voice name from voices_list"),
+                call: |args| post("/voices/ref-candidates".into(), json!({ "name": text(args, "name")? })),
+            },
+            Tool {
+                name: "voice_ref_apply",
+                description: "Keep only the piece start..end (seconds) of a voice's reference: the sound is cut and its text and word timings follow; the original is kept and voice_restore brings it back.",
+                schema: || object(json!({ "name": { "type": "string" }, "start": { "type": "number" }, "end": { "type": "number" } }), &["name", "start", "end"]),
+                call: |args| post("/voices/ref-apply".into(), json!({ "name": text(args, "name")?, "start": args.get("start").and_then(Value::as_f64), "end": args.get("end").and_then(Value::as_f64) })),
+            },
+            Tool {
+                name: "voice_import",
+                description: "Make voices of sound files on this computer (WAV, MP3, FLAC, M4A, OGG), each brought to the reference loudness. name names a single file's voice (a taken name gets a number). clean (by default the setting clean new voices, on unless turned off) and transcribe (default true) start a job on every new voice; follow them with studio_wait.",
+                schema: || object(json!({ "paths": { "type": "array", "items": { "type": "string" } }, "name": { "type": "string" }, "clean": { "type": "boolean" }, "transcribe": { "type": "boolean" } }), &["paths"]),
+                call: |args| {
+                    let paths = args.get("paths").and_then(Value::as_array).ok_or("paths must be a list of files")?;
+                    let mut files = Vec::new();
+                    for p in paths {
+                        let path = PathBuf::from(p.as_str().ok_or("every path must be a string")?);
+                        if !path.is_file() {
+                            return Err(format!("{} is not a file on this computer.", path.display()));
+                        }
+                        let name = file_name(&path);
+                        files.push(("file".to_string(), path, name));
+                    }
+                    let flag = |key: &str, default: bool| if args.get(key).and_then(Value::as_bool).unwrap_or(default) { "1" } else { "0" }.to_string();
+                    let mut fields = vec![("transcribe".to_string(), flag("transcribe", true))];
+                    if args.get("clean").and_then(Value::as_bool).is_some() {
+                        fields.push(("clean".to_string(), flag("clean", false)));
+                    }
+                    if let Some(n) = args.get("name").and_then(Value::as_str).filter(|n| !n.trim().is_empty()) {
+                        fields.push(("name".to_string(), n.trim().to_string()));
+                    }
+                    Ok(Call { method: Method::POST, path: "/voices/import".into(), payload: Payload::Form { fields, files } })
+                },
+            },
+            Tool {
+                name: "voice_photo_set",
+                description: "Give a voice a photo from a JPG, PNG or WebP file on this computer.",
+                schema: || object(json!({ "name": { "type": "string" }, "path": { "type": "string" } }), &["name", "path"]),
+                call: |args| {
+                    let path = PathBuf::from(text(args, "path")?);
+                    if !path.is_file() {
+                        return Err(format!("{} is not a file on this computer.", path.display()));
+                    }
+                    let file = file_name(&path);
+                    Ok(Call { method: Method::POST, path: "/voices/photo".into(), payload: Payload::Form { fields: vec![("name".to_string(), text(args, "name")?)], files: vec![("file".to_string(), path, file)] } })
+                },
+            },
+            Tool {
+                name: "voices_export",
+                description: "Save chosen voices with everything of theirs (sound, reference text, card, photo) as a ZIP file at path.",
+                schema: || object(json!({ "names": { "type": "array", "items": { "type": "string" } }, "path": { "type": "string", "description": "the .zip file to write" } }), &["names", "path"]),
+                call: |args| post("/voices/export".into(), json!({ "names": args.get("names").cloned().unwrap_or(Value::Null), "path": text(args, "path")? })),
+            },
+            Tool {
+                name: "voices_import_zip",
+                description: "Take voices from a ZIP file made by voices_export: a voice already in the library (the same sound) is recognised and skipped, a different one under a taken name gets a number.",
+                schema: || id_only("path", "the .zip file"),
+                call: |args| {
+                    let path = PathBuf::from(text(args, "path")?);
+                    if !path.is_file() {
+                        return Err(format!("{} is not a file on this computer.", path.display()));
+                    }
+                    let file = file_name(&path);
+                    Ok(Call { method: Method::POST, path: "/voices/import-zip".into(), payload: Payload::Form { fields: Vec::new(), files: vec![("file".to_string(), path, file)] } })
+                },
             },
         ];
         all.extend(window::tools());
