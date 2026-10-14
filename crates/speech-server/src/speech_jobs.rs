@@ -40,15 +40,37 @@ pub fn keys(p: &SpeechPaths, project: &SpeechProject) -> BTreeMap<String, String
     let cfg = higgs_config(p);
     let engine = format!("higgs:{}", cfg.quant);
     let limit = ref_limit(&p.models_root);
+    let entries = dictionary(p, project);
+    let compiled = crate::prep::compile_all(&entries);
     let mut tags: BTreeMap<Option<String>, String> = BTreeMap::new();
     project
         .blocks()
         .map(|b| {
             let voice = project.voice_of(b);
             let tag = tags.entry(voice.clone()).or_insert_with(|| sp::voice_tag(&p.voices_dir, voice.as_deref())).clone();
-            (b.id.clone(), sp::synth_key(project, b, &tag, &engine, limit))
+            let prep = crate::prep::fingerprint(&b.text, &prep_opts(p, project, voice.as_deref(), &entries, project.settings.auto_stress), &compiled);
+            (b.id.clone(), sp::synth_key(project, b, &tag, &engine, limit, &prep))
         })
         .collect()
+}
+
+/// Записи словаря для проекта сверху вниз: его собственные, затем глобальные.
+pub fn dictionary(p: &SpeechPaths, project: &SpeechProject) -> Vec<crate::pron_dict::Entry> {
+    let mut all = project.dictionary.clone();
+    all.extend(crate::pron_dict::load_global(&p.repo_root));
+    all
+}
+
+pub fn prep_opts<'a>(p: &'a SpeechPaths, project: &'a SpeechProject, voice: Option<&'a str>, entries: &'a [crate::pron_dict::Entry], stress: bool) -> crate::prep::Opts<'a> {
+    crate::prep::Opts {
+        lang: &project.settings.lang,
+        voice,
+        engine: &project.settings.engine,
+        entries,
+        normalize: project.settings.normalize,
+        stress,
+        models_root: &p.models_root,
+    }
 }
 
 fn takes_dir(p: &SpeechPaths, pid: &str) -> PathBuf {
@@ -92,14 +114,9 @@ fn synth_block(p: &SpeechPaths, project: &SpeechProject, b: &Block, n: u32) -> R
     let mut ignored = stx::Ignored::default();
     let (mut seed, mut temperature, mut secs, mut retried) = (0u64, project.settings.params.temperature, 0.0, Vec::new());
     let fresh = seed_for(&b.id, n);
-    let text = if project.settings.auto_stress && crate::stress::is_russian(&b.text, &project.settings.lang) {
-        crate::stress::shared(&p.models_root)
-            .and_then(|s| s.annotate(&b.text))
-            .map_err(|e| t!("stress-failed", detail = e))?
-            .text
-    } else {
-        b.text.clone()
-    };
+    let entries = dictionary(p, project);
+    let stress = project.settings.auto_stress && crate::stress::is_russian(&b.text, &project.settings.lang);
+    let text = crate::prep::prepare(&b.text, &prep_opts(p, project, voice.as_deref(), &entries, stress)).map_err(|e| t!("stress-failed", detail = e))?.text;
     for (k, piece) in stx::pieces(&text).into_iter().enumerate() {
         match piece {
             Piece::Pause(ms) => out.extend(std::iter::repeat_n(0.0, (SR as u64 * ms as u64 / 1000) as usize)),
@@ -215,7 +232,13 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, pr
         for n in takes {
             let Some(take) = b.takes.iter().find(|t| t.n == *n) else { continue };
             let heard = crate::asr_util::transcribe(&p.repo_root, &p.models_root, &takes_dir(p, pid).join(&take.file), &lang, &b.id)?;
-            checks.push((*n, crate::qc::check(&b.text, &heard.text, &strictness)));
+            let entries = dictionary(p, &project);
+            let voice = project.voice_of(&b);
+            let expected = crate::prep::prepare(&b.text, &prep_opts(p, &project, voice.as_deref(), &entries, false)).map(|x| x.text).unwrap_or_else(|_| b.text.clone());
+            let heard_said = if crate::prep::block_lang(&b.text, &lang) == "ru" { crate::normalize_ru::normalize(&heard.text).text } else { heard.text.clone() };
+            let mut check = crate::qc::check(&expected, &heard_said, &strictness);
+            check.heard = heard.text.clone();
+            checks.push((*n, check));
         }
         let mut fresh = sp::load(&p.workspace, pid)?;
         let Some(block) = fresh.block_mut(id) else { continue };

@@ -95,11 +95,13 @@ pub struct Settings {
     pub qc: QcSettings,
     /// Русский текст перед озвучкой проходит разметку ударений и «ё» (stress.rs); движок берёт из неё то, что читает.
     pub auto_stress: bool,
+    /// Русский текст перед озвучкой проходит нормализацию: числа, даты, единицы словами (normalize_ru.rs).
+    pub normalize: bool,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { lang: "auto".into(), engine: "higgs".into(), params: Params::default(), voice: None, pause_same_ms: 300, pause_switch_ms: 600, loudness: "video".into(), qc: QcSettings::default(), auto_stress: true }
+        Settings { lang: "auto".into(), engine: "higgs".into(), params: Params::default(), voice: None, pause_same_ms: 300, pause_switch_ms: 600, loudness: "video".into(), qc: QcSettings::default(), auto_stress: true, normalize: true }
     }
 }
 
@@ -113,11 +115,13 @@ pub struct SpeechProject {
     pub settings: Settings,
     pub cast: BTreeMap<String, String>,
     pub chapters: Vec<Chapter>,
+    /// Словарь произношения проекта: срабатывает раньше глобального.
+    pub dictionary: Vec<crate::pron_dict::Entry>,
 }
 
 impl Default for SpeechProject {
     fn default() -> Self {
-        SpeechProject { kind: KIND.into(), version: 1, name: String::new(), created: 0, settings: Settings::default(), cast: BTreeMap::new(), chapters: Vec::new() }
+        SpeechProject { kind: KIND.into(), version: 1, name: String::new(), created: 0, settings: Settings::default(), cast: BTreeMap::new(), chapters: Vec::new(), dictionary: Vec::new() }
     }
 }
 
@@ -151,6 +155,7 @@ impl SpeechProject {
             return Err(format!("this is a {} project, not a speech one", self.kind));
         }
         self.settings.params.checked()?;
+        crate::pron_dict::validate(&self.dictionary)?;
         let mut seen = std::collections::HashSet::new();
         for c in &self.chapters {
             if c.id.is_empty() || !seen.insert(format!("c:{}", c.id)) {
@@ -319,7 +324,7 @@ pub fn voice_tag(voices: &Path, name: Option<&str>) -> String {
 }
 
 /// Ключ синтеза блока: всё, от чего зависит звук. `engine` — движок и его модель с квантом.
-pub fn synth_key(project: &SpeechProject, b: &Block, voice_tag: &str, engine: &str, ref_limit: f64) -> String {
+pub fn synth_key(project: &SpeechProject, b: &Block, voice_tag: &str, engine: &str, ref_limit: f64, prep: &str) -> String {
     let p = &project.settings.params;
     let seed = if p.seed_mode == "fixed" { p.seed.to_string() } else { "random".into() };
     let mut h = blake3::Hasher::new();
@@ -337,6 +342,10 @@ pub fn synth_key(project: &SpeechProject, b: &Block, voice_tag: &str, engine: &s
     }
     if project.settings.auto_stress && crate::stress::is_russian(&b.text, &project.settings.lang) {
         h.update(b"auto-stress\x1f");
+    }
+    if !prep.is_empty() {
+        h.update(prep.as_bytes());
+        h.update(b"\x1f");
     }
     h.finalize().to_hex()[..20].to_string()
 }
@@ -419,16 +428,16 @@ mod tests {
     fn the_key_changes_with_what_changes_the_sound() {
         let mut p = from_text("t", "Привет.", "Р");
         let b = p.chapters[0].blocks[0].clone();
-        let k = synth_key(&p, &b, "v1", "higgs:q8_0", 12.0);
-        assert_eq!(k, synth_key(&p, &b, "v1", "higgs:q8_0", 12.0));
-        assert_ne!(k, synth_key(&p, &b, "v2", "higgs:q8_0", 12.0));
-        assert_ne!(k, synth_key(&p, &b, "v1", "higgs:q6_k", 12.0));
+        let k = synth_key(&p, &b, "v1", "higgs:q8_0", 12.0, "");
+        assert_eq!(k, synth_key(&p, &b, "v1", "higgs:q8_0", 12.0, ""));
+        assert_ne!(k, synth_key(&p, &b, "v2", "higgs:q8_0", 12.0, ""));
+        assert_ne!(k, synth_key(&p, &b, "v1", "higgs:q6_k", 12.0, ""));
         p.settings.params.temperature = 0.7;
-        assert_ne!(k, synth_key(&p, &b, "v1", "higgs:q8_0", 12.0));
+        assert_ne!(k, synth_key(&p, &b, "v1", "higgs:q8_0", 12.0, ""));
         let mut b2 = b.clone();
         b2.pause_ms = Some(900);
         p.settings.params.temperature = 1.0;
-        assert_eq!(k, synth_key(&p, &b2, "v1", "higgs:q8_0", 12.0), "a pause is silence, it does not change the clip");
+        assert_eq!(k, synth_key(&p, &b2, "v1", "higgs:q8_0", 12.0, ""), "a pause is silence, it does not change the clip");
     }
 
     #[test]

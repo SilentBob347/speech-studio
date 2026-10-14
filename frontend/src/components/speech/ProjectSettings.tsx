@@ -29,6 +29,10 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
           </select>
         </label>
         <label className="flex items-start gap-2 text-[13px] cursor-pointer">
+          <input type="checkbox" checked={s.normalize} onChange={(e) => set((p) => { p.settings.normalize = e.target.checked; })} className="mt-0.5 w-4 h-4 accent-[var(--color-accent)]" />
+          <span>{t("speech.normalize")}<span className="block text-[11px] text-[var(--color-muted)]">{t("speech.normalizeHint")}</span></span>
+        </label>
+        <label className="flex items-start gap-2 text-[13px] cursor-pointer">
           <input type="checkbox" checked={s.auto_stress} onChange={(e) => set((p) => { p.settings.auto_stress = e.target.checked; })} className="mt-0.5 w-4 h-4 accent-[var(--color-accent)]" />
           <span>{t("speech.autoStress")}<span className="block text-[11px] text-[var(--color-muted)]">{t("speech.autoStressHint")}</span></span>
         </label>

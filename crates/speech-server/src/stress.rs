@@ -26,7 +26,7 @@ const ACCENT_MIN_SCORE: f32 = 0.55;
 /// Омограф спорный, когда сеть отдала лучшему варианту меньше этого отрыва от второго.
 const DOUBT_MARGIN: f32 = 0.2;
 
-static MARKUP: LazyLock<Regex> = LazyLock::new(|| {
+pub(crate) static MARKUP: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)<\|[^|\n]*\|>|\[\[[^\[\]]*\]\]|\[\s*pause[^\]]*\]|sil\s*<\[[^\]]*\]>|<\[[^\]]*\]>").expect("markup")
 });
 static TOKEN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[\w]+|[^\w\s]+").expect("token"));
@@ -175,6 +175,18 @@ impl Stresser {
             omograph: Mutex::new(session(&d.join("nn/nn_omograph/tiny2/model.onnx"))?),
             omo_tok,
         })
+    }
+
+    /// Знает ли разметчик слово: словарь ударений, омографы, «ё».
+    pub fn knows(&self, word: &str) -> bool {
+        let w = lower(word);
+        let e = w.replace('ё', "е");
+        self.accents.contains_key(w.as_bytes())
+            || self.accents.contains_key(e.as_bytes())
+            || self.omographs.contains_key(&w)
+            || self.yo_words.contains_key(&e)
+            || self.yo_homographs.contains_key(&e)
+            || w.chars().filter(|c| is_vowel(*c)).count() < 2
     }
 
     fn dict_pos(&self, word: &str) -> Option<usize> {
@@ -531,6 +543,17 @@ impl Plan {
             .collect();
         Stressed { text, words }
     }
+}
+
+/// Русские слова текста (вне разметки синтеза), строчными, без ударений `+`.
+pub fn cyrillic_words(text: &str) -> Vec<String> {
+    let plan = Plan::new(text);
+    plan.sentences()
+        .into_iter()
+        .flat_map(|s| plan.tokens(s))
+        .filter(|(s, e)| plan.processable(*s, *e))
+        .map(|(s, e)| lower(&plan.clean_str(s, e)))
+        .collect()
 }
 
 /// Русский ли текст блока при языке проекта `lang` (`auto` — по доле кириллицы среди букв).

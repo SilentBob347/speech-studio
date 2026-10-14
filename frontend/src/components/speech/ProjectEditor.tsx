@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, Download, Loader2, Play, Redo2, Settings2, Sparkles, SpellCheck, Square, Undo2, Users } from "lucide-react";
+import { ArrowLeft, BookOpen, Download, Loader2, Play, Redo2, Settings2, Sparkles, SpellCheck, Square, Undo2, Users } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { activeTake, newId, spliceChars, SPEAKER_TINTS, speechApi, stressDoubts, type Block, type BlockState, type SpeechProject, type StressWord } from "../../lib/speech";
 import { openSettings } from "../../lib/settingsNav";
@@ -13,6 +13,7 @@ import BlockRow, { type BlockActions } from "./BlockRow";
 import VoicePicker from "./VoicePicker";
 import ProjectSettings from "./ProjectSettings";
 import ExportDialog from "./ExportDialog";
+import DictionaryDialog from "./DictionaryDialog";
 
 function blockList(p: SpeechProject): Block[] {
   return p.chapters.flatMap((c) => c.blocks);
@@ -36,6 +37,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   const [queue, setQueue] = useState<string[]>([]);
   const [settings, setSettings] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [dictionary, setDictionary] = useState(false);
   const [notes, setNotes] = useState<Record<string, { text: string; words: StressWord[] }>>({});
   const [stressing, setStressing] = useState<string[] | null>(null);
   const [stressMissing, setStressMissing] = useState(false);
@@ -220,6 +222,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           <button onClick={undo} disabled={!canUndo} className="p-1.5 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30" {...named(t("speech.undo"))}><Undo2 size={15} /></button>
           <button onClick={redo} disabled={!canRedo} className="p-1.5 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30" {...named(t("speech.redo"))}><Redo2 size={15} /></button>
           <button onClick={() => setSettings(true)} className={bar}><Settings2 size={13} />{t("speech.settings")}</button>
+          <button onClick={() => setDictionary(true)} className={bar} title={t("speech.dictionaryHint")}><BookOpen size={13} />{t("speech.dictionary")}</button>
           <button onClick={() => void stressBlocks(null)} disabled={!!stressing || !blocks.length} className={bar} title={t("speech.stressAllHint")}>
             {stressing && stressing.length > 1 ? <Loader2 size={13} className="animate-spin" /> : <SpellCheck size={13} />}{t("speech.stressAll")}
           </button>
@@ -268,7 +271,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
                   const index = blocks.indexOf(b);
                   const rendering = !!job && (job.ids === null ? ["pending", "stale", "failed"].includes(stateOf(b)) : job.ids.includes(b.id));
                   const note = notes[b.id];
-                  return <BlockRow key={b.id} block={b} index={index} state={stateOf(b)} rendering={rendering} playing={playing === b.id} tint={tintOf(b.speaker)}
+                  return <BlockRow key={b.id} pid={pid} block={b} index={index} state={stateOf(b)} rendering={rendering} playing={playing === b.id} tint={tintOf(b.speaker)}
                     stressing={!!stressing?.includes(b.id)} doubts={note && note.text === b.text ? note.words : []} a={actions(b)} />;
                 })}
               </ol>
@@ -276,6 +279,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           ))}
         </div>
       </div>
+      {dictionary && <DictionaryDialog pid={pid} project={project} onChange={edit} onClose={() => setDictionary(false)} />}
       {settings && <ProjectSettings project={project} onChange={edit} onClose={() => setSettings(false)} />}
       {exporting && <ExportDialog pid={pid} project={project} onClose={() => setExporting(false)} onVoiceMissing={() => { setExporting(false); void runSynth({}); }} onDone={(file) => pushActivity(t("speech.exported", { file }), "done")} />}
     </main>

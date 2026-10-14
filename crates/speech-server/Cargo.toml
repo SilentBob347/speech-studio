@@ -68,6 +68,11 @@ regex = "1"
 ort = { version = "=2.0.0-rc.13", default-features = false, features = ["load-dynamic", "tracing", "api-28"] }
 tokenizers = { version = "0.23", default-features = false, features = ["onig"] }
 fst = "0.4"
+# словарь произношения (pron_dict.rs): правила Balabolka REX с обратными ссылками и границами слов.
+fancy-regex = "0.19"
+# нормализация русского (normalize_ru.rs): числительные с падежом и родом — порт num2words (LGPL-2.1).
+num2words2-core = "0.1"
+num-bigint = "0.4"
 rust-genai = { version = "=0.3.1", default-features = false }
 
 # job object с kill-on-close: сайдкары не переживают студию (process_group.rs).

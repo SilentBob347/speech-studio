@@ -5,6 +5,7 @@ import { activeTake, withCase, type Block, type BlockState, type StressWord } fr
 import { named } from "../../lib/a11y";
 import VoicePicker from "./VoicePicker";
 import TagPalette from "./TagPalette";
+import PrepareView from "./PrepareView";
 
 const STATE_DOT: Record<BlockState | "rendering", string> = {
   pending: "bg-[var(--color-muted)]",
@@ -50,7 +51,8 @@ function AutoText({ value, onCommit, label, inputRef }: { value: string; onCommi
   );
 }
 
-export default function BlockRow({ block, index, state, rendering, playing, tint, stressing, doubts, a }: {
+export default function BlockRow({ pid, block, index, state, rendering, playing, tint, stressing, doubts, a }: {
+  pid: string;
   block: Block;
   stressing: boolean;
   doubts: StressWord[];
@@ -63,6 +65,7 @@ export default function BlockRow({ block, index, state, rendering, playing, tint
 }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const [howRead, setHowRead] = useState(false);
   const text = useRef<HTMLTextAreaElement>(null);
   const take = activeTake(block);
   const insertTag = (tag: string) => {
@@ -154,6 +157,10 @@ export default function BlockRow({ block, index, state, rendering, playing, tint
             <input value={block.direction} onChange={(e) => a.patch({ direction: e.target.value })} placeholder={t("speech.directionHint")}
               className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]" />
           </label>
+          <details open={howRead} onToggle={(e) => setHowRead(e.currentTarget.open)} className="rounded-md border border-[var(--color-border)] px-2 py-1.5">
+            <summary className="cursor-pointer text-[11px] text-[var(--color-muted)]">{t("speech.howRead")}</summary>
+            {howRead && <div className="mt-2"><PrepareView pid={pid} block={block.id} text={block.text} /></div>}
+          </details>
           <details className="rounded-md border border-[var(--color-border)] px-2 py-1.5">
             <summary className="cursor-pointer text-[11px] text-[var(--color-muted)]">{t("speech.tagsTitle")}</summary>
             <div className="mt-2"><TagPalette onInsert={insertTag} /></div>

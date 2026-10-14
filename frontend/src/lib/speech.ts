@@ -1,4 +1,4 @@
-import { BASE, postCoded, sendCoded, getCoded } from "./api";
+import { BASE, coded, postCoded, sendCoded, getCoded } from "./api";
 
 export type Take = {
   n: number; file: string; duration: number; seed: number; temperature: number; key: string; created: number;
@@ -16,12 +16,25 @@ export type SpeechParams = { temperature: number; top_k: number; top_p: number; 
 export type Loudness = "off" | "video" | "podcast" | "acx";
 export type SpeechSettings = {
   lang: string; engine: string; params: SpeechParams; voice: string | null;
-  pause_same_ms: number; pause_switch_ms: number; loudness: Loudness; qc: QcSettings; auto_stress: boolean;
+  pause_same_ms: number; pause_switch_ms: number; loudness: Loudness; qc: QcSettings; auto_stress: boolean; normalize: boolean;
 };
+export type DictKind = "word" | "regex" | "phonemes";
+export type DictEntry = {
+  id: string; enabled: boolean; kind: DictKind; find: string; say: string; case_sensitive: boolean; whole_word: boolean;
+  lang: string; voice: string; engine: string; note: string; source: string;
+};
+export type PrepLayer = "dictionary" | "normalizer" | "stress" | "engine";
+export type PrepStep = { layer: PrepLayer; rule: string; from: string; to: string };
+export type Prepared = {
+  text: string; engine_text: string; steps: PrepStep[]; unknown: string[];
+  ignored: { accent: boolean; phonemes: boolean; stress: boolean; unknown_tags: string[] };
+  ignored_phonemes: string[]; broken: [string, string][];
+};
+export type UnknownWord = { word: string; count: number; why: "unread" | "no_stress" };
 export type BlockState = "pending" | "ready" | "stale" | "failed" | "skipped";
 export type SpeechProject = {
   kind: "speech"; version: number; name: string; created: number; settings: SpeechSettings;
-  cast: Record<string, string>; chapters: Chapter[];
+  cast: Record<string, string>; chapters: Chapter[]; dictionary: DictEntry[];
   status?: Record<string, { state: BlockState; key: string }>;
 };
 export type ProjectCard = { pid: string; kind: string; name: string; mtime: number; created?: number; blocks?: number; ready?: number };
@@ -48,6 +61,16 @@ export const speechApi = {
   exportCheck: (pid: string) => getCoded<{ problems: ExportProblem[] }>(`/projects/${pid}/export-check`),
   export: (pid: string, format: ExportFormat, chapter?: string) => postCoded<{ job_id: string }>(`/projects/${pid}/export`, { format, chapter }),
   stress: (text: string, lang: string) => postCoded<StressResult>("/text/stress", { text, lang }),
+  prepare: (text: string, pid?: string, block?: string) => postCoded<{ prepared: Prepared; stress_applied: boolean; stress_missing: boolean }>("/text/prepare", { text, pid, block }),
+  dictionary: () => getCoded<{ entries: DictEntry[] }>("/dictionary"),
+  saveDictionary: (entries: DictEntry[]) => sendCoded<{ entries: DictEntry[] }>("PUT", "/dictionary", { entries }),
+  importDictionary: (file: File) => {
+    const form = new FormData();
+    form.append("file", file, file.name);
+    return fetch(`${BASE}/dictionary/import`, { method: "POST", body: form }).then(coded<{ entries: DictEntry[]; source: string }>);
+  },
+  dictionaryCounts: (pid: string) => getCoded<{ counts: Record<string, number> }>(`/projects/${pid}/dictionary-counts`),
+  unknownWords: (pid: string) => getCoded<{ words: UnknownWord[]; stress_checked: boolean }>(`/projects/${pid}/unknown-words`),
   takeUrl: (pid: string, file: string) => `${BASE}/projects/${pid}/takes/${encodeURIComponent(file)}`,
   exportUrl: (pid: string, file: string) => `${BASE}/projects/${pid}/exports/${encodeURIComponent(file)}`,
 };
@@ -78,3 +101,7 @@ export function spliceChars(text: string, start: number, end: number, insert: st
   const chars = Array.from(text);
   return [...chars.slice(0, start), ...Array.from(insert), ...chars.slice(end)].join("");
 }
+
+export const newEntry = (find = "", say = ""): DictEntry => ({
+  id: newId(), enabled: true, kind: "word", find, say, case_sensitive: false, whole_word: true, lang: "", voice: "", engine: "", note: "", source: "manual",
+});

@@ -51,6 +51,10 @@ mod speech_jobs;
 mod speech_project;
 mod speech_text;
 mod stress;
+mod normalize_ru;
+mod pron_dict;
+mod prep;
+mod dict_api;
 mod tts_host;
 mod url_import;
 mod voice_api;
@@ -446,6 +450,11 @@ pub fn build_router(state: AppState) -> Router {
         .route("/url/tool/update", post(url_import::tool_update))
         .route("/engine/tags", get(speech_api::tags))
         .route("/text/stress", post(speech_api::stress))
+        .route("/text/prepare", post(dict_api::prepare))
+        .route("/dictionary", get(dict_api::get_global).put(dict_api::put_global))
+        .route("/dictionary/import", post(dict_api::import))
+        .route("/projects/{pid}/dictionary-counts", get(dict_api::counts))
+        .route("/projects/{pid}/unknown-words", get(dict_api::unknown_words))
         .route("/projects", get(speech_api::list).post(speech_api::create))
         .route("/projects/{pid}", get(speech_api::get).put(speech_api::put).delete(speech_api::delete))
         .route("/projects/{pid}/synth", post(speech_api::synth))
