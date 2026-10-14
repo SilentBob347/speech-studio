@@ -76,8 +76,27 @@ pub fn higgs() -> Engine {
     }
 }
 
+/// OpenRouter: языки и голоса — у выбранной модели; параметров выборки и клона нет.
+pub fn openrouter() -> Engine {
+    Engine {
+        id: "openrouter",
+        name: "OpenRouter",
+        languages: &[],
+        params: Vec::new(),
+        seed_modes: &["random"],
+        tag_format: "",
+        tags: Vec::new(),
+        clone: "none",
+        continuation: false,
+        streaming: false,
+        deterministic_seed: false,
+        max_chars: 1000,
+        reads: Reads { stress: false, yo: true, phonemes: false, accent: false },
+    }
+}
+
 pub fn all() -> Vec<Engine> {
-    vec![higgs()]
+    vec![higgs(), openrouter()]
 }
 
 pub fn get(id: &str) -> Option<Engine> {
@@ -86,7 +105,7 @@ pub fn get(id: &str) -> Option<Engine> {
 
 /// Язык проекта годится движку; `auto` годится всегда — язык берётся по письму блока.
 pub fn supports(engine: &Engine, lang: &str) -> bool {
-    lang.is_empty() || lang == "auto" || engine.languages.contains(&lang)
+    lang.is_empty() || lang == "auto" || engine.languages.is_empty() || engine.languages.contains(&lang)
 }
 
 #[cfg(test)]

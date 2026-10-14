@@ -5,6 +5,11 @@ import { speechApi, type EngineCaps, type Loudness, type ParamSpec, type SeedMod
 import { named } from "../../lib/a11y";
 import { useEscapeLayer } from "../../lib/escape";
 import { LANG_CHOICES } from "./langs";
+import OpenRouterModelSelect from "../OpenRouterModelSelect";
+import { api } from "../../lib/api";
+import { openSettings } from "../../lib/settingsNav";
+
+const RU_MARK = "RU";
 
 const LOUDNESS: Loudness[] = ["video", "podcast", "acx", "off"];
 let enginesCache: EngineCaps[] | null = null;
@@ -28,6 +33,14 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
     speechApi.engines().then((r) => { enginesCache = r.engines; setEngines(r.engines); }, () => undefined);
   }, []);
   const engine = engines?.find((e) => e.id === s.engine) ?? null;
+  const local = s.engine !== "openrouter";
+  const [cloudVoices, setCloudVoices] = useState<{ name: string; gender: string; ru: boolean }[]>([]);
+  const [hasKey, setHasKey] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (s.engine !== "openrouter") return;
+    api.openrouterSettings().then((r) => setHasKey(r.configured), () => setHasKey(null));
+    if (s.cloud_model) api.openrouterVoices(s.cloud_model).then((r) => setCloudVoices(r.voices), () => setCloudVoices([]));
+  }, [s.engine, s.cloud_model]);
   const set = (f: (p: SpeechProject) => void) => onChange((p) => { f(p); return p; });
   const num = (v: string, lo: number, hi: number, fallback: number) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : fallback; };
   return (
@@ -37,10 +50,32 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
           <h2 id="ps-title" className="font-semibold">{t("speech.settingsTitle")}</h2>
           <button onClick={onClose} {...named(t("a11y.close"))} className="text-[var(--color-muted)] hover:text-[var(--color-text)]"><X size={16} /></button>
         </div>
+        <div className="space-y-2">
+          <label className={label}>{t("speech.engine")}
+            <select value={s.engine} onChange={(e) => set((p) => { p.settings.engine = e.target.value; })} className={field}>
+              {(engines ?? []).map((en) => <option key={en.id} value={en.id}>{en.name}</option>)}
+            </select>
+          </label>
+          {s.engine === "openrouter" && (
+            <div className="space-y-2 rounded-lg border border-[var(--color-border)] p-2.5">
+              {hasKey === false && (
+                <p className="text-[11px] text-[var(--color-warn)]">{t("speech.cloudNoKey")} <button onClick={() => openSettings("cloud:key")} className="underline">{t("speech.cloudOpenKey")}</button></p>
+              )}
+              <OpenRouterModelSelect kind="tts" value={s.cloud_model} onChange={(id) => set((p) => { p.settings.cloud_model = id; p.settings.cloud_voice = ""; })} placeholder={t("speech.cloudModelDefault")} />
+              <label className={label}>{t("speech.cloudVoice")}
+                <input list="cloud-voices" value={s.cloud_voice} onChange={(e) => set((p) => { p.settings.cloud_voice = e.target.value; })} placeholder={t("speech.cloudVoiceDefault")} className={field} />
+                <datalist id="cloud-voices">
+                  {cloudVoices.map((v) => <option key={v.name} value={v.name}>{[v.gender, v.ru ? RU_MARK : ""].filter(Boolean).join(" · ")}</option>)}
+                </datalist>
+              </label>
+              <p className="text-[11px] text-[var(--color-muted)]">{t("speech.cloudHint")}</p>
+            </div>
+          )}
+        </div>
         <label className={label}>{t("speech.lang")}
           <select value={s.lang} onChange={(e) => set((p) => { p.settings.lang = e.target.value; })} className={field}>
             {LANG_CHOICES.map((l) => {
-              const off = !!engine && l !== "auto" && !engine.languages.includes(l);
+              const off = !!engine && engine.languages.length > 0 && l !== "auto" && !engine.languages.includes(l);
               return <option key={l} value={l} disabled={off}>{l === "auto" ? t("speech.langAuto") : l.toUpperCase()}{off ? ` — ${t("speech.langNotByEngine", { engine: engine.name })}` : ""}</option>;
             })}
           </select>
@@ -53,6 +88,7 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
           <input type="checkbox" checked={s.auto_stress} onChange={(e) => set((p) => { p.settings.auto_stress = e.target.checked; })} className="mt-0.5 w-4 h-4 accent-[var(--color-accent)]" />
           <span>{t("speech.autoStress")}<span className="block text-[11px] text-[var(--color-muted)]">{t("speech.autoStressHint")}</span></span>
         </label>
+        {local && <>
         <label className="flex items-start gap-2 text-[13px] cursor-pointer">
           <input type="checkbox" checked={s.continuation} onChange={(e) => set((p) => { p.settings.continuation = e.target.checked; })} className="mt-0.5 w-4 h-4 accent-[var(--color-accent)]" />
           <span>{t("speech.continuation")}<span className="block text-[11px] text-[var(--color-muted)]">{t("speech.continuationHint")}</span></span>
@@ -87,6 +123,7 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
             )}
           </div>
         </fieldset>
+        </>}
         <fieldset className="grid grid-cols-2 gap-2">
           <legend className="col-span-2 text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)] mb-1">{t("speech.pauses")}</legend>
           <label className={label}>{t("speech.pauseSame")}

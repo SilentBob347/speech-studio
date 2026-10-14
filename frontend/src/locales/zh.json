@@ -1023,7 +1023,14 @@
     "dragOver": "{{block}}位于{{target}}上方",
     "dragDropped": "{{block}}已移到{{target}}",
     "dragCancelled": "已取消移动{{block}}",
-    "dragInstructions": "要移动文本块，请按空格或回车，用方向键移动，再按空格或回车；Esc 取消。"
+    "dragInstructions": "要移动文本块，请按空格或回车，用方向键移动，再按空格或回车；Esc 取消。",
+    "engine": "引擎",
+    "cloudNoKey": "还没有 OpenRouter 密钥。",
+    "cloudOpenKey": "添加密钥",
+    "cloudModelDefault": "在“云端”中选择的模型",
+    "cloudVoice": "声音",
+    "cloudVoiceDefault": "在“云端”中选择的声音，或模型的声音名称",
+    "cloudHint": "每个文本块由云端模型配音，需付费；文本块的指示作为风格发送。不使用库中的声音和重音符号。"
   },
   "tags": {
     "emotion": "情绪",

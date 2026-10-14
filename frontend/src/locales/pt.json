@@ -1023,7 +1023,14 @@
     "dragOver": "O {{block}} está sobre o {{target}}",
     "dragDropped": "O {{block}} foi movido para o lugar do {{target}}",
     "dragCancelled": "Mover o {{block}} foi cancelado",
-    "dragInstructions": "Para mover um bloco, pressione Espaço ou Enter, mova com as setas e pressione Espaço ou Enter de novo; Esc cancela."
+    "dragInstructions": "Para mover um bloco, pressione Espaço ou Enter, mova com as setas e pressione Espaço ou Enter de novo; Esc cancela.",
+    "engine": "Motor",
+    "cloudNoKey": "Ainda não há chave do OpenRouter.",
+    "cloudOpenKey": "Adicionar a chave",
+    "cloudModelDefault": "O modelo escolhido em Nuvem",
+    "cloudVoice": "Voz",
+    "cloudVoiceDefault": "A voz escolhida em Nuvem ou um nome de voz do modelo",
+    "cloudHint": "Cada bloco é narrado pelo modelo na nuvem e custa dinheiro; a indicação do bloco vai como estilo. Vozes da biblioteca e marcas de acento não são usadas."
   },
   "tags": {
     "emotion": "Emoção",

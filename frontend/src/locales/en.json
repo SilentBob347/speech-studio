@@ -1023,7 +1023,14 @@
     "dragOver": "{{block}} is over {{target}}",
     "dragDropped": "{{block}} was moved to {{target}}",
     "dragCancelled": "Moving {{block}} was cancelled",
-    "dragInstructions": "To move a block, press Space or Enter, move it with the arrow keys, then press Space or Enter again; Escape cancels."
+    "dragInstructions": "To move a block, press Space or Enter, move it with the arrow keys, then press Space or Enter again; Escape cancels.",
+    "engine": "Engine",
+    "cloudNoKey": "No OpenRouter key yet.",
+    "cloudOpenKey": "Add the key",
+    "cloudModelDefault": "The model chosen in Cloud",
+    "cloudVoice": "Voice",
+    "cloudVoiceDefault": "The voice chosen in Cloud, or a voice name of the model",
+    "cloudHint": "Each block is voiced by the cloud model and costs money; the direction of a block goes to it as the style. Library voices and stress marks are not used."
   },
   "tags": {
     "emotion": "Emotion",

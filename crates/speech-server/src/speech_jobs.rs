@@ -37,8 +37,7 @@ pub fn ref_limit(models_root: &Path) -> f64 {
 
 /// Ключи синтеза всех блоков проекта при нынешних голосах и настройках.
 pub fn keys(p: &SpeechPaths, project: &SpeechProject) -> BTreeMap<String, String> {
-    let cfg = higgs_config(p);
-    let engine = format!("higgs:{}", cfg.quant);
+    let engine = engine_tag(p, project);
     let limit = ref_limit(&p.models_root);
     let entries = dictionary(p, project);
     let compiled = crate::prep::compile_all(&entries);
@@ -52,6 +51,16 @@ pub fn keys(p: &SpeechPaths, project: &SpeechProject) -> BTreeMap<String, String
             (b.id.clone(), sp::synth_key(project, b, &tag, &engine, limit, &prep))
         })
         .collect()
+}
+
+/// Что за движок и модель озвучивают проект — часть ключа дубля.
+fn engine_tag(p: &SpeechPaths, project: &SpeechProject) -> String {
+    if project.settings.engine == "openrouter" {
+        let (m, v) = crate::cloud_tts::model_and_voice(&p.models_root, &project.settings.cloud_model, &project.settings.cloud_voice).unwrap_or_default();
+        format!("openrouter:{m}:{v}")
+    } else {
+        format!("higgs:{}", higgs_config(p).quant)
+    }
 }
 
 /// Записи словаря для проекта сверху вниз: его собственные, затем глобальные.
@@ -101,7 +110,53 @@ fn resample_to(samples: Vec<f32>, sr: i32) -> Vec<f32> {
 }
 
 /// Звук одного блока: фразы синтезом, паузы тишиной. Возвращает сэмплы (SR), что разметки проигнорировано и сводку.
+/// Блок облаком: фраза за фразой, паузы и темп — как у Higgs.
+fn synth_block_cloud(p: &SpeechPaths, project: &SpeechProject, b: &Block, n: u32) -> Result<(Vec<f32>, Value, Take), String> {
+    let (model, voice) = crate::cloud_tts::model_and_voice(&p.models_root, &project.settings.cloud_model, &project.settings.cloud_voice)?;
+    let entries = dictionary(p, project);
+    let stress = project.settings.auto_stress && crate::stress::is_russian(&b.text, &project.settings.lang);
+    let prepared = crate::prep::prepare(&b.text, &prep_opts(p, project, Some(voice.as_str()), &entries, stress)).map_err(|e| t!("stress-failed", detail = e))?;
+    let (mut out, mut rate, started) = (Vec::new(), 1.0f64, std::time::Instant::now());
+    for piece in stx::pieces(&prepared.text) {
+        match piece {
+            Piece::Pause(ms) => out.extend(std::iter::repeat_n(0.0, (SR as u64 * ms as u64 / 1000) as usize)),
+            Piece::Rate(r) => rate = r,
+            Piece::Say(text) => {
+                let say = stx::visible(&text);
+                if say.trim().is_empty() {
+                    continue;
+                }
+                let samples = crate::cloud_tts::synth(&say, &model, &voice, b.direction.trim())?;
+                out.extend(if (rate - 1.0).abs() > 1e-3 { at_rate(&samples, rate)? } else { samples });
+            }
+        }
+    }
+    if out.is_empty() {
+        return Err(t!("speech-block-silent"));
+    }
+    let fitted = fit_to_cue(project, b, out)?;
+    let take = Take {
+        n,
+        created: sp::now(),
+        source: "cloud".into(),
+        synth_secs: started.elapsed().as_secs_f64(),
+        duration: fitted.samples.len() as f64 / SR as f64,
+        text: b.text.clone(),
+        direction: b.direction.clone(),
+        voice: voice.clone(),
+        engine: format!("openrouter:{model}"),
+        fit_stretch: fitted.stretch,
+        fit_lead: fitted.lead,
+        fit_over: fitted.over,
+        ..Default::default()
+    };
+    Ok((fitted.samples, serde_json::to_value(&prepared.ignored).unwrap_or(Value::Null), take))
+}
+
 fn synth_block(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Block, n: u32) -> Result<(Vec<f32>, Value, Take), String> {
+    if project.settings.engine == "openrouter" {
+        return synth_block_cloud(p, project, b, n);
+    }
     let cfg = higgs_config(p);
     let engine = tts_host::engine(&cfg)?;
     let voice = project.voice_of(b);

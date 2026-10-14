@@ -56,6 +56,7 @@ mod pron_dict;
 mod prep;
 mod dict_api;
 mod engines;
+mod cloud_tts;
 mod speechproj;
 mod book_import;
 mod acx;
