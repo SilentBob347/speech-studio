@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Check, Copy, HelpCircle, Star, X } from "lucide-react";
 import { DONATE } from "../../lib/links";
 import { named } from "../../lib/a11y";
+import { useEscapeLayer } from "../../lib/escape";
 
 function HelpSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -29,6 +30,7 @@ function CryptoRow({ coin, addr }: { coin: string; addr: string }) {
 
 export default function HelpModal({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
+  useEscapeLayer(onClose);
   const how = t("help.how", { returnObjects: true }) as unknown as string[];
   const features = t("help.features", { returnObjects: true }) as unknown as string[];
   const sections = t("help.sections", { returnObjects: true }) as unknown as string[];

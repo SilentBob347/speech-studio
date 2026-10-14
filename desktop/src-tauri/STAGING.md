@@ -34,7 +34,7 @@ scripts\build-release.ps1 -ReleaseNotes "..." -ModelsSource "F:\AI\Speech Studio
    в `desktop/`): NSIS и MSI с подписью
    обновлений из `TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Обычная сборка и `tauri dev`
    идут по `tauri.conf.json` и staging не требуют.
-4. `release/<версия>/`: `Dub.Studio_<версия>_x64-setup.exe` и `.sig`, MSI и `.sig`, портативный zip и
+4. `release/<версия>/`: `Speech.Studio_<версия>_x64-setup.exe` и `.sig`, MSI и `.sig`, портативный zip и
    `latest.json` (UTF-8 без BOM, `url` с точками вместо пробелов): платформы `windows-x86_64` (NSIS, запасная),
    `windows-x86_64-nsis` и `windows-x86_64-msi` с подписью своего установщика.
 
@@ -44,7 +44,7 @@ scripts\build-release.ps1 -ReleaseNotes "..." -ModelsSource "F:\AI\Speech Studio
 
 ## Раскладка и данные
 
-Установщик и портативный zip кладут ресурсы рядом с `Dub-Studio.exe`. Оболочка
+Установщик и портативный zip кладут ресурсы рядом с `Speech-Studio.exe`. Оболочка
 (`desktop/src-tauri/src/layout.rs`) выбирает каталог данных (`models`, `workspace`, `voices`, `casting_library`,
 `tools`, профиль WebView2, `temp`):
 

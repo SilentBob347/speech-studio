@@ -5,6 +5,7 @@ import { Sparkles, X, ExternalLink } from "lucide-react";
 import newsData from "../data/news.json";
 import { reportNotice, useHubState, type HubState } from "../lib/studioHub";
 import changelogRaw from "../../../CHANGELOG.md?raw";
+import { useEscapeLayer } from "../lib/escape";
 
 type Localized = Record<string, string>;
 interface NewsItem { id: string; date: string; release?: string; releaseButton?: string; title: Localized; body: Localized }
@@ -180,7 +181,8 @@ type Tab = "news" | "changelog";
 
 function WhatsNewModal({ onClose, news }: { onClose: () => void; news: NewsItem[] }) {
   const { t, i18n } = useTranslation();
-  const [tab, setTab] = useState<Tab>("news");
+  const [tab, setTab] = useState<Tab>(news.length ? "news" : "changelog");
+  useEscapeLayer(onClose);
   const tabCls = (on: boolean) =>
     `px-3 py-1.5 rounded-md text-[13px] transition-colors ${on ? "bg-[var(--color-surface-2)] text-[var(--color-text)] border border-[var(--color-border)]" : "text-[var(--color-muted)] hover:text-[var(--color-text)] border border-transparent"}`;
   return (

@@ -131,7 +131,7 @@ export default function TopBar() {
   return (
     <header className="flex items-center gap-3 px-5 h-14 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
       <span className="flex items-center gap-2 font-bold tracking-tight shrink-0">
-        <img src="/favicon.svg" alt="" width={20} height={20} className="rounded-[5px] shadow-[0_0_10px_rgba(198,242,78,0.25)]" />
+        <img src="/favicon.svg" alt="" width={20} height={20} className="rounded-[5px] shadow-[0_0_10px_color-mix(in_oklab,var(--color-accent)_30%,transparent)]" />
         {t("app.name")}
         <span className="font-normal text-[11px] text-[var(--color-muted)] tracking-normal" title={t("app.name") + " v" + __APP_VERSION__}>v{__APP_VERSION__}</span>
       </span>

@@ -1,21 +1,17 @@
 @import "tailwindcss";
 
-/* Dub Studio — "dark studio console" aesthetic.
-   Near-black instrument panel · ONE acid-lime signal accent · depth via luminance steps + 1px hairlines (NOT
-   shadows) · Onest UI (Latin+Cyrillic) + JetBrains Mono for the console/timecode texture + Noto SC for CJK.
-   4 surface elevations on a near-black (never #000) base. Tokens drive both Tailwind utils and the Konva canvas. */
 @theme {
-  --color-bg: #0b0c0e;            /* canvas — near-black, never pure */
-  --color-surface: #121317;       /* panel  (elevation 1) */
-  --color-surface-2: #1a1c22;     /* raised / hover (elevation 2) */
-  --color-overlay: #23262e;       /* overlay (elevation 3) */
-  --color-border: #262a31;        /* hairline */
+  --color-bg: #090c11;            /* canvas — near-black, never pure */
+  --color-surface: #0f131a;       /* panel  (elevation 1) */
+  --color-surface-2: #161b24;     /* raised / hover (elevation 2) */
+  --color-overlay: #1e2430;       /* overlay (elevation 3) */
+  --color-border: #222a36;        /* hairline */
   --color-hairline: #ffffff14;    /* inset top hairline for raised surfaces */
-  --color-text: #e8eaed;          /* soft off-white, never #fff */
-  --color-muted: #888e99;         /* cool gray */
-  --color-accent: #c6f24e;        /* THE signal accent — acid lime (one per screen) */
-  --color-on-accent: #0b0c0e;     /* near-black text on the lime accent */
-  --color-accent-2: #5be0c8;      /* teal — info / secondary highlight */
+  --color-text: #e6ebf2;          /* soft off-white, never #fff */
+  --color-muted: #8892a3;         /* cool gray */
+  --color-accent: #4cc2ff;        /* THE signal accent — azure (one per screen) */
+  --color-on-accent: #041019;     /* near-black text on the azure accent */
+  --color-accent-2: #a5b8ff;      /* periwinkle — info / secondary highlight */
   --color-warn: #ffb020;
   --font-ui: "Onest", "Noto Sans SC", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
@@ -25,7 +21,7 @@ html, body, #root { height: 100%; }
 body {
   margin: 0;
   background:
-    radial-gradient(120% 80% at 50% -10%, #16181d 0%, var(--color-bg) 55%) fixed,
+    radial-gradient(120% 80% at 50% -10%, #122033 0%, var(--color-bg) 55%) fixed,
     var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-ui);
@@ -54,7 +50,7 @@ body::after {
 
 /* floating chrome = GLASS (blueprint: only on floating UI — Cmd-K / modals / menus — NEVER over the playing preview).
    solid tint scrim + one capped backdrop-filter layer; depth via hairline + drop, not heavy shadow stacks. */
-.glass-scrim { background: rgba(7, 8, 10, 0.55); backdrop-filter: blur(3px); }
+.glass-scrim { background: rgba(5, 8, 13, 0.58); backdrop-filter: blur(3px); }
 .glass-panel {
   background: color-mix(in oklab, var(--color-overlay) 80%, transparent);
   backdrop-filter: blur(22px) saturate(1.35);
@@ -68,7 +64,7 @@ body::after {
 
 ::-webkit-scrollbar { width: 9px; height: 9px; }
 ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 6px; }
-::-webkit-scrollbar-thumb:hover { background: #333843; }
+::-webkit-scrollbar-thumb:hover { background: #2c3442; }
 ::-webkit-scrollbar-track { background: transparent; }
 
 @media (prefers-reduced-motion: reduce) { * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
