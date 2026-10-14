@@ -1,12 +1,12 @@
 //! Динамический резолв активного варианта модели для КАЖДОГО движка — переключение квантов.
 //!
 //! Порт-баг, который это чинит: пути моделей морозились в AppState при старте, а `set_opts` был
-//! заглушкой — скачанный альт-квант (Higgs q6_k, Roformer Q5_0, Parakeet fp32, Gemma q8_0) никогда
+//! заглушкой — скачанный альт-квант (Higgs q6_k, Roformer Q5_0, Parakeet Ultra int8, Gemma q8_0) никогда
 //! не применялся, работали только дефолты. Теперь резолв идёт ПРИ КАЖДОЙ джобе (analyze/render):
 //!   env-override → сохранённый выбор (models/active.json) → скан установленного → дефолт.
 //! Так «скачал/выбрал квант → применился» без рестарта сервера.
 //!
-//! active.json = {"tts":"q6_k","asr":"fp32","mt":"q8_0","sep":"Q5_0"} — токен варианта на движок.
+//! active.json = {"tts":"q6_k","asr":"ultra-int8","mt":"q8_0","sep":"Q5_0"} — токен варианта на движок.
 //! Пишется при завершении скачки компонента (setup) и при смене в дропдауне (POST /engine/select).
 
 use serde_json::Value;
@@ -129,8 +129,6 @@ pub fn component_selection(id: &str) -> Vec<(&'static str, String)> {
         "higgs-q6_k" => vec![("tts", "q6_k".into())],
         "higgs-q4_k_m" => vec![("tts", "q4_k_m".into())],
         "parakeet" => vec![("asr_engine", "parakeet".into()), ("asr", "int8".into())],
-        "parakeet-fp32" => vec![("asr_engine", "parakeet".into()), ("asr", "fp32".into())],
-        "parakeet-ultra" => vec![("asr_engine", "parakeet".into()), ("asr", "ultra".into())],
         "parakeet-ultra-int8" => vec![("asr_engine", "parakeet".into()), ("asr", "ultra-int8".into())],
         "whisper-tiny" => vec![("asr_engine", "whisper".into()), ("whisper_model", "tiny".into()),
         ],
@@ -780,8 +778,8 @@ pub fn resolve_sep(mroot: &Path, sel: &Value) -> PathBuf {
     f("Q8_0")
 }
 
-/// Parakeet ASR: каталоги tdt (int8) / tdt-fp32 / tdt-ultra (Parakeet Ultra, fp32) / tdt-ultra-int8. from_pretrained сам
-/// различает имена файлов внутри. Без выбора — int8 (дефолт). Env SPEECH_STUDIO_TDT имеет приоритет.
+/// Parakeet ASR: каталоги tdt (int8) и tdt-ultra-int8 (Parakeet Ultra, int8) — только квантованные веса.
+/// from_pretrained сам различает имена файлов внутри. Без выбора — int8. Env SPEECH_STUDIO_TDT имеет приоритет.
 pub fn resolve_asr(mroot: &Path, sel: &Value) -> PathBuf {
     if let Ok(env) = std::env::var("SPEECH_STUDIO_TDT") {
         return PathBuf::from(env);
@@ -790,22 +788,14 @@ pub fn resolve_asr(mroot: &Path, sel: &Value) -> PathBuf {
 }
 
 fn resolve_asr_dir(mroot: &Path, sel: &Value) -> PathBuf {
-    let fp32 = mroot.join("tdt-fp32");
     let int8 = mroot.join("tdt");
-    let ultra = mroot.join("tdt-ultra");
     let ultra_int8 = mroot.join("tdt-ultra-int8");
-    let fp32_ok = fp32.join("encoder-model.onnx").is_file();
     let int8_ok = int8.join("encoder-model.int8.onnx").is_file();
-    let ultra_ok = ultra.join("encoder-model.onnx").is_file();
     let ultra_int8_ok = ultra_int8.join("encoder-model.int8.onnx").is_file();
     match pick(sel, "asr") {
-        Some("fp32") if fp32_ok => fp32,
         Some("int8") if int8_ok => int8,
-        Some("ultra") if ultra_ok => ultra,
         Some("ultra-int8") if ultra_int8_ok => ultra_int8,
         _ if int8_ok => int8,
-        _ if fp32_ok => fp32,
-        _ if ultra_ok => ultra,
         _ if ultra_int8_ok => ultra_int8,
         _ => int8,
     }
@@ -863,8 +853,7 @@ mod asr_variant_tests {
 
     #[test]
     fn parakeet_components_map_to_their_asr_slot() {
-        for (id, variant) in [("parakeet", "int8"), ("parakeet-fp32", "fp32"), ("parakeet-ultra", "ultra"),
-            ("parakeet-ultra-int8", "ultra-int8"),
+        for (id, variant) in [("parakeet", "int8"), ("parakeet-ultra-int8", "ultra-int8"),
         ] {
             let sel = component_selection(id);
             assert_eq!(sel, vec![("asr_engine", "parakeet".to_string()), ("asr", variant.to_string())], "{id}");
@@ -889,12 +878,7 @@ mod asr_variant_tests {
         }
     }
 
-    const ALL: &[(&str, &str)] = &[
-        ("tdt", "encoder-model.int8.onnx"),
-        ("tdt-fp32", "encoder-model.onnx"),
-        ("tdt-ultra", "encoder-model.onnx"),
-        ("tdt-ultra-int8", "encoder-model.int8.onnx"),
-    ];
+    const ALL: &[(&str, &str)] = &[("tdt", "encoder-model.int8.onnx"), ("tdt-ultra-int8", "encoder-model.int8.onnx")];
 
     fn sel(asr: &str) -> Value {
         serde_json::json!({ "asr": asr })
@@ -908,9 +892,8 @@ mod asr_variant_tests {
     fn each_selected_variant_resolves_to_its_folder() {
         let m = TmpModels::new("all", ALL);
         assert_eq!(leaf(&resolve_asr_dir(&m.0, &sel("int8"))), "tdt");
-        assert_eq!(leaf(&resolve_asr_dir(&m.0, &sel("fp32"))), "tdt-fp32");
-        assert_eq!(leaf(&resolve_asr_dir(&m.0, &sel("ultra"))), "tdt-ultra");
         assert_eq!(leaf(&resolve_asr_dir(&m.0, &sel("ultra-int8"))), "tdt-ultra-int8");
+        assert_eq!(leaf(&resolve_asr_dir(&m.0, &sel("fp32"))), "tdt", "full-precision choices of an older version fall to int8");
     }
 
     #[test]
@@ -920,19 +903,10 @@ mod asr_variant_tests {
     }
 
     #[test]
-    fn ultra_selected_but_missing_falls_to_installed() {
-        let m = TmpModels::new("missing", &ALL[..1]);
-        assert_eq!(leaf(&resolve_asr_dir(&m.0, &sel("ultra"))), "tdt");
-    }
-
-    #[test]
     fn only_ultra_installed_is_used() {
-        let m = TmpModels::new("only", &ALL[2..3]);
-        assert_eq!(leaf(&resolve_asr_dir(&m.0, &serde_json::json!({}))), "tdt-ultra");
-        assert_eq!(
-            AsrChoice::Parakeet(resolve_asr_dir(&m.0, &sel("ultra"))).describe(),
-            "Parakeet (tdt-ultra)"
-        );
+        let m = TmpModels::new("only", &ALL[1..2]);
+        assert_eq!(leaf(&resolve_asr_dir(&m.0, &serde_json::json!({}))), "tdt-ultra-int8");
+        assert_eq!(AsrChoice::Parakeet(resolve_asr_dir(&m.0, &sel("ultra-int8"))).describe(), "Parakeet (tdt-ultra-int8)");
     }
 }
 

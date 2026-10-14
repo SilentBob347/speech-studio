@@ -311,7 +311,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
             <div className="text-[11px] text-[var(--color-muted)]">{t("providers.asrCloudHint")}</div>
           </div>
         ) : asrEngine === "parakeet" ? (
-          variantPicker("Parakeet-TDT 0.6B v3", ["parakeet", "parakeet-ultra-int8", "parakeet-fp32", "parakeet-ultra"], ASR_VARIANT_I18N)
+          variantPicker("Parakeet-TDT 0.6B v3", ["parakeet", "parakeet-ultra-int8"], ASR_VARIANT_I18N)
         ) : (
           <>
             {rowOf("whisper-engine")}

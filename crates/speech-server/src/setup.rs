@@ -702,51 +702,6 @@ pub fn manifest() -> Vec<Component> {
             markers: DRAMA3_MARKERS,
             external_url: None,
         },
-        // Альтернативный квант ASR: fp32 (точнее, тяжелее int8). Отдельная папка (fp32 приоритетнее int8).
-        Component {
-            id: "parakeet-fp32",
-            name: "Parakeet-TDT 0.6B v3 (fp32)".into(),
-            purpose: t!("setup-comp-parakeet-fp32-purpose"),
-            requirement: Requirement::Optional,
-            delivery: Delivery::Download,
-            size: 2_549_945_719,
-            files: &[
-                FileSpec { url: "https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce/encoder-model.onnx", dest_rel: "models/tdt-fp32/encoder-model.onnx", size: 41_770_866, sha256: "98a74b21b4cc0017c1e7030319a4a96f4a9506e50f0708f3a516d02a77c96bb1", extract: Extract::None },
-                FileSpec { url: "https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce/encoder-model.onnx.data", dest_rel: "models/tdt-fp32/encoder-model.onnx.data", size: 2_435_420_160, sha256: "9a22d372c51455c34f13405da2520baefb7125bd16981397561423ed32d24f36", extract: Extract::None },
-                FileSpec { url: "https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce/decoder_joint-model.onnx", dest_rel: "models/tdt-fp32/decoder_joint-model.onnx", size: 72_520_893, sha256: "e978ddf6688527182c10fde2eb4b83068421648985ef23f7a86be732be8706c1", extract: Extract::None },
-                FileSpec { url: "https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce/nemo128.onnx", dest_rel: "models/tdt-fp32/nemo128.onnx", size: 139_764, sha256: "a9fde1486ebfcc08f328d75ad4610c67835fea58c73ba57e3209a6f6cf019e9f", extract: Extract::None },
-                FileSpec { url: "https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce/vocab.txt", dest_rel: "models/tdt-fp32/vocab.txt", size: 93_939, sha256: "d58544679ea4bc6ac563d1f545eb7d474bd6cfa467f0a6e2c1dc1c7d37e3c35d", extract: Extract::None },
-                FileSpec { url: "https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce/config.json", dest_rel: "models/tdt-fp32/config.json", size: 97, sha256: "666903c76b9798caf2c210afd4f6cd60b08a8dbf9800ec8d7a3bc0d2148ac466", extract: Extract::None },
-            ],
-            markers: &[Marker { rel: "models/tdt-fp32/encoder-model.onnx", expect: 41_770_866 }, Marker { rel: "models/tdt-fp32/encoder-model.onnx.data", expect: 2_435_420_160 }, Marker { rel: "models/tdt-fp32/vocab.txt", expect: 93_939 }],
-            external_url: None,
-        },
-        // Parakeet Ultra (Moondream): дообученный parakeet-tdt-0.6b-v3 той же архитектуры, словаря и 25 языков,
-        // fp32. ONNX — altunenes/parakeet-rs/parakeet-ultra; nemo128.onnx и config.json дополняют папку до
-        // раскладки tdt-fp32 (файлы байт-в-байт те же, что у базовой модели). Ревизии закреплены sha коммитов.
-        Component {
-            id: "parakeet-ultra",
-            name: "Parakeet Ultra 0.6B (fp32)".into(),
-            purpose: t!("setup-comp-parakeet-ultra-purpose"),
-            requirement: Requirement::Optional,
-            delivery: Delivery::Download,
-            size: 2_596_031_917,
-            files: &[
-                FileSpec { url: "https://huggingface.co/altunenes/parakeet-rs/resolve/4d2a8bc71f5c896ec40faa59732e6716295edaf2/parakeet-ultra/encoder-model.onnx", dest_rel: "models/tdt-ultra/encoder-model.onnx", size: 87_857_063, sha256: "76f835e57d62d82f1485c7a84706782e44a123a69f4efa86ed3b4ad56e236051", extract: Extract::None },
-                FileSpec { url: "https://huggingface.co/altunenes/parakeet-rs/resolve/4d2a8bc71f5c896ec40faa59732e6716295edaf2/parakeet-ultra/encoder-model.onnx.data", dest_rel: "models/tdt-ultra/encoder-model.onnx.data", size: 2_435_420_160, sha256: "6aeb9438f1f45dafc17d27c61a12bc406c0c2ccb8c17219aeeb3f898c283a8e6", extract: Extract::None },
-                FileSpec { url: "https://huggingface.co/altunenes/parakeet-rs/resolve/4d2a8bc71f5c896ec40faa59732e6716295edaf2/parakeet-ultra/decoder_joint-model.onnx", dest_rel: "models/tdt-ultra/decoder_joint-model.onnx", size: 72_520_894, sha256: "a5911fe202e8fba44251fce252a6c9c7c0a7c724c882a13f81d96611fa2d7ccb", extract: Extract::None },
-                FileSpec { url: "https://huggingface.co/altunenes/parakeet-rs/resolve/4d2a8bc71f5c896ec40faa59732e6716295edaf2/parakeet-ultra/vocab.txt", dest_rel: "models/tdt-ultra/vocab.txt", size: 93_939, sha256: "d58544679ea4bc6ac563d1f545eb7d474bd6cfa467f0a6e2c1dc1c7d37e3c35d", extract: Extract::None },
-                FileSpec { url: "https://huggingface.co/altunenes/parakeet-rs/resolve/4d2a8bc71f5c896ec40faa59732e6716295edaf2/tdt/nemo128.onnx", dest_rel: "models/tdt-ultra/nemo128.onnx", size: 139_764, sha256: "a9fde1486ebfcc08f328d75ad4610c67835fea58c73ba57e3209a6f6cf019e9f", extract: Extract::None },
-                FileSpec { url: "https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce/config.json", dest_rel: "models/tdt-ultra/config.json", size: 97, sha256: "666903c76b9798caf2c210afd4f6cd60b08a8dbf9800ec8d7a3bc0d2148ac466", extract: Extract::None },
-            ],
-            markers: &[
-                Marker { rel: "models/tdt-ultra/encoder-model.onnx", expect: 87_857_063 },
-                Marker { rel: "models/tdt-ultra/encoder-model.onnx.data", expect: 2_435_420_160 },
-                Marker { rel: "models/tdt-ultra/decoder_joint-model.onnx", expect: 72_520_894 },
-                Marker { rel: "models/tdt-ultra/vocab.txt", expect: 93_939 },
-            ],
-            external_url: None,
-        },
         // Parakeet Ultra int8 (Masterx): та же дообученная Moondream модель, квантованная тем же рецептом, что
         // istupakov int8 базовой. Своя папка: энкодер в пределах допуска по размеру от базового int8, а декодер
         // и словарь совпадают с ним по размеру при других байтах.
@@ -1178,8 +1133,6 @@ fn vram_estimate(id: &str) -> u64 {
         "gemma-q6_k" => gb(11.2),
         "gemma-q8_0" => gb(14.0),
         "parakeet" => gb(1.1),
-        "parakeet-fp32" => gb(2.7),
-        "parakeet-ultra" => gb(2.7),
         "parakeet-ultra-int8" => gb(1.1),
         "sortformer" => gb(0.5),
         "roformer" => gb(0.5),
@@ -1594,7 +1547,7 @@ fn import_size_fits(m: &Marker, sz: u64) -> bool {
 /// Исходный файл для маркера `m` компонента `c` из индекса `map` (basename в нижнем регистре -> файлы).
 /// Кандидат — файл с тем же именем и подходящим размером (точный в приоритете). Каталог-источник
 /// отбрасывается, если в нём лежит одноимённый файл ДРУГОГО маркера той же папки назначения с неподходящим
-/// размером: это файлы другой модели. Так Parakeet fp32 и Parakeet Ultra (одинаковые имена, у
+/// размером: это файлы другой модели. Так Parakeet и Parakeet Ultra (одинаковые имена, у
 /// encoder-model.onnx.data ещё и одинаковый размер) не смешиваются в одной папке.
 fn pick_import_source<'a>(
     c: &Component,
@@ -3024,7 +2977,7 @@ mod tests {
     fn a_downloaded_variant_stands_for_its_model_on_the_first_run() {
         let mut comps = vec![
             model("parakeet", 1.1, Requirement::Required),
-            model("parakeet-ultra", 2.7, Requirement::Optional),
+            model("parakeet-ultra-int8", 0.7, Requirement::Optional),
             model("gemma", 8.5, Requirement::Required),
             model("higgs-engine", 0.0, Requirement::Required),
         ];
@@ -3165,7 +3118,7 @@ mod tests {
 
     #[test]
     fn new_model_components_pinned_and_sized() {
-        for id in ["sortformer", "parakeet-ultra", "parakeet-ultra-int8"] {
+        for id in ["sortformer", "parakeet-ultra-int8"] {
             let c = comp(id);
             let sum: u64 = c.files.iter().map(|f| f.size).sum();
             assert_eq!(c.size, sum, "{id}: size != сумме файлов");
@@ -3241,18 +3194,6 @@ mod tests {
         map
     }
 
-    const FP32_DIR: &[(&str, u64)] = &[
-        ("src/fp32/encoder-model.onnx", 41_770_866),
-        ("src/fp32/encoder-model.onnx.data", 2_435_420_160),
-        ("src/fp32/decoder_joint-model.onnx", 72_520_893),
-        ("src/fp32/vocab.txt", 93_939),
-    ];
-    const ULTRA_DIR: &[(&str, u64)] = &[
-        ("src/ultra/encoder-model.onnx", 87_857_063),
-        ("src/ultra/encoder-model.onnx.data", 2_435_420_160),
-        ("src/ultra/decoder_joint-model.onnx", 72_520_894),
-        ("src/ultra/vocab.txt", 93_939),
-    ];
 
     fn picks(id: &str, map: &std::collections::HashMap<String, Vec<(PathBuf, u64)>>,
     ) -> Vec<Option<String>> {
@@ -3261,20 +3202,6 @@ mod tests {
             .iter()
             .map(|m| pick_import_source(&c, m, map).map(|p| p.to_string_lossy().replace('\\', "/")))
             .collect()
-    }
-
-    #[test]
-    fn import_never_fills_ultra_from_fp32_folder() {
-        let map = index(FP32_DIR);
-        assert!(picks("parakeet-ultra", &map).iter().all(Option::is_none), "{:?}", picks("parakeet-ultra", &map));
-        assert!(picks("parakeet-fp32", &map).iter().all(Option::is_some));
-    }
-
-    #[test]
-    fn import_never_fills_fp32_from_ultra_folder() {
-        let map = index(ULTRA_DIR);
-        assert!(picks("parakeet-fp32", &map).iter().all(Option::is_none), "{:?}", picks("parakeet-fp32", &map));
-        assert!(picks("parakeet-ultra", &map).iter().all(Option::is_some));
     }
 
     const INT8_DIR: &[(&str, u64)] = &[
@@ -3297,18 +3224,6 @@ mod tests {
         let both: Vec<(&str, u64)> = INT8_DIR.iter().chain(ULTRA_INT8_DIR).copied().collect();
         let map = index(&both);
         for (id, dir) in [("parakeet", "src/int8/"), ("parakeet-ultra-int8", "src/ultra-int8/")] {
-            for p in picks(id, &map) {
-                assert!(p.as_deref().is_some_and(|p| p.starts_with(dir)), "{id}: {p:?}");
-            }
-        }
-    }
-
-    #[test]
-    fn import_takes_each_variant_from_its_own_folder() {
-        let both: Vec<(&str, u64)> = FP32_DIR.iter().chain(ULTRA_DIR).copied().collect();
-        let map = index(&both);
-        for (id, dir) in [("parakeet-ultra", "src/ultra/"), ("parakeet-fp32", "src/fp32/"),
-        ] {
             for p in picks(id, &map) {
                 assert!(p.as_deref().is_some_and(|p| p.starts_with(dir)), "{id}: {p:?}");
             }
