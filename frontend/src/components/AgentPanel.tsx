@@ -5,7 +5,7 @@ import { api, type McpStatus } from "../lib/api";
 
 // MCP-сервер студии для того, кто подключает агента: подключён ли агент, адрес и что вставить в Claude Code
 // или другой клиент. Сервер работает вместе со студией.
-const SERVER_NAME = "dub-studio";
+const SERVER_NAME = "speech-studio";
 
 function CopyField({ label, value, multiline }: { label: string; value: string; multiline?: boolean }) {
   const { t } = useTranslation();

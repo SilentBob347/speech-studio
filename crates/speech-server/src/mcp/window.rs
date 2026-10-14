@@ -26,9 +26,9 @@ use crate::jobs::JobFn;
 use super::*;
 
 /// The header the page marks every request of its window with.
-const WINDOW_HEADER: &str = "x-dub-window";
+const WINDOW_HEADER: &str = "x-speech-window";
 /// The header the MCP tools' own calls carry.
-pub(super) const AGENT_HEADER: &str = "x-dub-agent";
+pub(super) const AGENT_HEADER: &str = "x-speech-agent";
 /// The revision of the project an answer shows, and the one the state a whole-project PUT writes
 /// was taken at.
 pub(crate) const REV_HEADER: &str = "x-project-rev";

@@ -36,7 +36,7 @@ function useNews(lang: string): NewsItem[] {
 }
 
 const pick = (text: Localized, lang: string): string => text[lang] ?? text.en ?? Object.values(text)[0] ?? "";
-const SEEN_KEY = "dub-seen-news";
+const SEEN_KEY = "speech-seen-news";
 
 function readSeen(): string | null {
   return localStorage.getItem(SEEN_KEY);

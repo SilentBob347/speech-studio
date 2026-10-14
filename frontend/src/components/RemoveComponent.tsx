@@ -26,7 +26,7 @@ export default function RemoveComponent({ c, disabled, onDone, onError }: {
       if (r.errors.length > 0) onError(`${t("downloads.removeErrors")} · ${r.errors.join("; ")}`);
       setOpen(false);
     } catch (e) {
-      throw new Error(e instanceof SetupError ? `${errText(e.code)} · ${e.detail}` : String(e));
+      throw new Error(e instanceof SetupError ? `${errText(e.code)} · ${e.detail}` : String(e), { cause: e });
     }
   };
   return (

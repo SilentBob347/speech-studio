@@ -46,7 +46,7 @@ export default function ResourceMonitor() {
   const fl = useFloatable("monitor", { x: window.innerWidth - 268, y: 64 });
   const timer = useRef<number | null>(null);
 
-  useEffect(() => { force((n) => n + 1); }, []); // дождаться #dock-slot
+  useEffect(() => { const frame = requestAnimationFrame(() => force((n) => n + 1)); return () => cancelAnimationFrame(frame); }, []); // дождаться #dock-slot
   useEffect(() => {
     let alive = true;
     const poll = async () => {

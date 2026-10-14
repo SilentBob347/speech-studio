@@ -24,7 +24,7 @@ export interface HubState {
   items: HubItem[];
 }
 
-const CHANGED = "dub:hub-changed";
+const CHANGED = "speech:hub-changed";
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
   const r = await fetch(`${BASE}${path}`, init);
@@ -67,7 +67,8 @@ export function useHubState(lang: string): HubState | null {
       shared = { lang, state: null, timer: window.setInterval(() => load(lang), 60_000) };
       load(lang);
     } else if (shared.state) {
-      setState(shared.state);
+      const current = shared.state;
+      void Promise.resolve().then(() => setState(current));
     }
     listeners.add(setState);
     return () => { listeners.delete(setState); };

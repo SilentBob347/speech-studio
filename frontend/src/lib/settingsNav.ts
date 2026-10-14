@@ -1,6 +1,7 @@
 // Открыть настройки на нужном разделе из любого места окна: цель — «раздел» или «раздел:часть»
 // (часть — блок раздела, к которому прокрутить, например "cloud:key").
-export const OPEN_SETTINGS_EVENT = "dub:open-settings";
+export const OPEN_SETTINGS_EVENT = "speech:open-settings";
+export const OPEN_HELP_EVENT = "speech:open-help";
 
 export const SETTINGS_SECTIONS = ["models", "cloud", "quality", "network", "interface", "agent", "privacy", "about"] as const;
 export type SettingsSection = (typeof SETTINGS_SECTIONS)[number];
@@ -16,4 +17,8 @@ export function parseSettingsTarget(target: string | null | undefined, available
   const [page, part] = (target ?? "").split(":");
   const section = available.find((s) => s === page);
   return section ? { section, part: part || null } : null;
+}
+
+export function openHelp(): void {
+  window.dispatchEvent(new Event(OPEN_HELP_EVENT));
 }

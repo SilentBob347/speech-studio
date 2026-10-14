@@ -25,8 +25,8 @@ $whereTheKeyIs = @'
 The updater signing key is read from the environment:
   TAURI_SIGNING_PRIVATE_KEY           the key itself (or its path)
   TAURI_SIGNING_PRIVATE_KEY_PASSWORD  its password
-When they are not set, %USERPROFILE%\.tauri\dubstudio-updater.key and, beside it,
-dubstudio-updater.key.password are used; DUB_STUDIO_KEY_FILE overrides that path.
+When they are not set, %USERPROFILE%\.tauri\speech-studio-updater.key and, beside it,
+speech-studio-updater.key.password are used; SPEECH_STUDIO_KEY_FILE overrides that path.
 The public half must match plugins.updater.pubkey in desktop/src-tauri/tauri.conf.json,
 or every update is rejected. The key and its password never go into the repository.
 '@
@@ -81,7 +81,7 @@ if ($missing.Count -gt 0) {
 }
 
 # Key: environment first, then the key file beside the user's Tauri settings.
-$keyFile = if ($env:DUB_STUDIO_KEY_FILE) { $env:DUB_STUDIO_KEY_FILE } else { Join-Path $env:USERPROFILE '.tauri\dubstudio-updater.key' }
+$keyFile = if ($env:SPEECH_STUDIO_KEY_FILE) { $env:SPEECH_STUDIO_KEY_FILE } else { Join-Path $env:USERPROFILE '.tauri\speech-studio-updater.key' }
 if ([string]::IsNullOrWhiteSpace($env:TAURI_SIGNING_PRIVATE_KEY) -and (Test-Path $keyFile)) {
     $env:TAURI_SIGNING_PRIVATE_KEY = (Get-Content -Raw $keyFile).Trim()
 }

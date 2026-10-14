@@ -26,7 +26,7 @@ export function projectRev(pid: string): number | undefined {
  */
 function fetch(input: string, init: RequestInit = {}): Promise<Response> {
   const headers = new Headers(init.headers);
-  headers.set("x-dub-window", WINDOW_ID);
+  headers.set("x-speech-window", WINDOW_ID);
   const path = new URL(input, window.location.href).pathname;
   const pid = PROJECT_ROUTE.exec(path)?.[1];
   const known = pid === undefined ? undefined : revisions.get(pid);

@@ -1,89 +1,7 @@
 {
   "app": {
-    "name": "Dub Studio",
-    "tagline": "Doublez et traduisez n'importe quelle vidéo — en local."
-  },
-  "speakers": {
-    "count": "Nombre de locuteurs",
-    "countHint": "Si vous connaissez le nombre de participants, indiquez-le. Les mêmes voix seront reconnues entre les différents passages de l’enregistrement."
-  },
-  "drop": {
-    "title": "Déposez une vidéo à doubler",
-    "hint": "MP4 ou MOV — tout tourne sur votre machine",
-    "start": "Lancer le traitement",
-    "change": "cliquer pour changer",
-    "browse": "Parcourir",
-    "recent": "Récents",
-    "demo": "Essayer la démo",
-    "audioMode": "Sans vidéo — mode audio uniquement"
-  },
-  "hero": {
-    "eyebrow": "LOCAL · HORS LIGNE · 100+ LANGUES",
-    "headline": "Doublez n'importe quelle vidéo comme si elle avait été tournée ainsi.",
-    "sub": "L'analyse automatique fait la première passe — ensuite vous contrôlez tout : voix, texte, style des sous-titres, flou, avec un aperçu en direct à chaque étape.",
-    "f1": "Texte à l'écran, localisé sur place",
-    "f2": "Clonez, distribuez ou pack de voix",
-    "f3": "Réécrivez le script puis redoublez",
-    "formats": "MP4 · MOV · jusqu'à 4K · rien ne quitte votre machine",
-    "f4": "Diarisation + transcription propre, voix des locuteurs"
-  },
-  "analyze": {
-    "title": "Analyse de votre vidéo",
-    "titleAudio": "Analyse de votre audio",
-    "download": "Téléchargement des modèles",
-    "firstRunNote": "Premier lancement : modèles téléchargés une fois (plusieurs Go) — rapide ensuite",
-    "separating": "Séparation de l'audio",
-    "recognizing": "Reconnaissance vocale",
-    "diarizing": "Identification des locuteurs",
-    "translating": "Traduction",
-    "voicing": "Génération de la voix",
-    "style": "Détection du style des sous-titres",
-    "locating": "Localisation du texte à l'écran",
-    "casting": "Distribution des personnages",
-    "assembling": "Assemblage de la vidéo",
-    "cancel": "Annuler"
-  },
-  "editor": {
-    "transcript": "Transcription",
-    "style": "Style",
-    "voice": "Voix",
-    "preview": "Aperçu",
-    "timeline": "Chronologie"
-  },
-  "mode": {
-    "subtitles": "Sous-titres",
-    "dub": "Doublage",
-    "voiceover": "Voix off",
-    "funny": "Drôle",
-    "subtitles_desc": "Audio original + sous-titres dans la langue d'origine",
-    "dub_desc": "Redoublé dans la langue cible",
-    "funny_desc": "Gemma réécrit le script puis redouble",
-    "voiceover_desc": "Voix traduite par-dessus l'original atténué",
-    "transcribe_desc": "Transcription + diarisation, sans doublage",
-    "transcribe": "Transcription"
-  },
-  "actions": {
-    "translate": "Traduire",
-    "dub": "Doublage complet",
-    "funny": "Remix amusant",
-    "dubFile": "Doubler un fichier",
-    "transcribe": "Transcription et voix"
-  },
-  "style": {
-    "font": "Police",
-    "size": "Taille",
-    "color": "Couleur",
-    "outline": "Contour",
-    "shadow": "Ombre",
-    "outlineW": "bord",
-    "outlineWFull": "Épaisseur du contour (px), 0 = aucun",
-    "bold": "Gras",
-    "italic": "Italique",
-    "caps": "MAJUSCULES",
-    "plate": "Plaque",
-    "resetAuto": "Réinit. auto",
-    "resetGlobal": "Réinit. global",
-    "plateColor": "Couleur de la plaque"
+    "name": "Speech Studio",
+    "tagline": "Donner une voix à un texte et reconnaître la parole, sur votre ordinateur."
   },
   "voice": {
     "clone": "Cloner l'original",
@@ -122,9 +40,6 @@
     "speakerName": "Locuteur {{spk}}",
     "autoName": "Voix {{n}}",
     "packMissing": "(pack introuvable)",
-    "addSpeakerDone_one": "{{count}} ligne → nouveau SPK {{spk}}",
-    "addSpeakerDone_many": "{{count}} lignes → nouveau SPK {{spk}}",
-    "addSpeakerDone_other": "{{count}} lignes → nouveau SPK {{spk}}",
     "ageTeen": "ado",
     "ageChild": "enfant",
     "errNoSeparation": "Impossible de créer une voix à partir du locuteur {{spk}} : ce projet n'a pas de voix séparée et le moteur de séparation vocale n'est pas installé, la voix contiendrait donc la musique. Installez-le dans {{settings}} → {{models}} → {{section}}.",
@@ -134,66 +49,10 @@
     "catalogFailed": "Impossible de charger la liste des voix : {{error}}",
     "getFailed": "Impossible de télécharger la voix {{name}} : {{error}}"
   },
-  "remix": {
-    "title": "Remix",
-    "placeholder": "Thème — p. ex. « thème pirate », « comme un JT », « sarcastique »",
-    "apply": "Appliquer le remix",
-    "hint": "Gemma réécrit tout le script selon votre thème en gardant le timing. L’export le redouble."
-  },
-  "export": {
-    "title": "Exporter",
-    "summary": "{{segments}} segments · {{speakers}} locuteurs · sous-titres {{lang}}",
-    "proceed": "Exporter",
-    "tweak": "Continuer l'édition",
-    "beforeAfter": "Original ↔ Doublé"
-  },
-  "blur": {
-    "title": "Masque",
-    "on": "Couvrir le texte d'origine",
-    "add": "Ajouter une zone",
-    "frame": "Sur cette image",
-    "all": "Toutes",
-    "show": "Afficher le masque",
-    "hide": "Masquer le masque",
-    "off": "désactivé",
-    "modeBlur": "Flou (clic → remplissage)",
-    "modeFill": "Remplissage (clic → flou)",
-    "fillColor": "Couleur de remplissage"
-  },
-  "compare": {
-    "toggle": "Comparer",
-    "original": "Original",
-    "result": "Doublé"
-  },
-  "titles": {
-    "tab": "Titres",
-    "add": "Titre perso",
-    "delete": "Supprimer le titre",
-    "defaultText": "Titre"
-  },
-  "preset": {
-    "title": "Préréglage",
-    "original": "Comme l'original"
-  },
-  "files": {
-    "title": "Fichiers",
-    "download": "Télécharger",
-    "open": "Ouvrir",
-    "downloaded": "Enregistré"
-  },
   "nav": {
     "new": "Nouveau",
-    "newHint": "Commencer avec une nouvelle vidéo"
-  },
-  "play": {
-    "dub": "Lire le doublage (vidéo + voix)",
-    "volume": "Volume",
-    "lagNotice": "L'aperçu peut être différé — ce n'est pas un bug. Résultat exact à l'export."
-  },
-  "recent": {
-    "title": "Projets récents",
-    "delete": "Supprimer le projet",
-    "deleteConfirm": "Supprimer le projet «{{video}}» ? Ses fichiers seront effacés définitivement."
+    "newHint": "Commencer avec une nouvelle vidéo",
+    "newTitle": "Recommencer le mode actuel sur une page vierge (Ctrl+N)"
   },
   "prefs": {
     "title": "Paramètres",
@@ -239,65 +98,11 @@
     "copied": "Copié",
     "pathsFailed": "Impossible d'obtenir le dossier de données : {{error}}"
   },
-  "projects": {
-    "title": "Tous les projets",
-    "all": "Tous les projets ({{n}})",
-    "count_one": "{{count}} projet",
-    "count_many": "{{count}} projets",
-    "count_other": "{{count}} projets",
-    "countFiltered": "{{shown}} sur {{total}}",
-    "search": "Rechercher par nom, langue ou mode",
-    "empty": "Aucun projet pour l'instant",
-    "noMatch": "Aucun projet ne correspond à la recherche et aux filtres",
-    "created": "créé le {{date}}",
-    "edited": "modifié {{ago}}",
-    "more_one": "Afficher {{count}} de plus",
-    "more_many": "Afficher {{count}} de plus",
-    "more_other": "Afficher {{count}} de plus",
-    "deleteConfirm": "Supprimer",
-    "loadFailed": "Impossible de charger la liste des projets : {{error}}",
-    "openFailed": "Impossible d'ouvrir le projet : {{error}}",
-    "sort": {
-      "label": "Tri : {{order}}",
-      "title": "Trier par",
-      "newest": "Plus récents d'abord",
-      "oldest": "Plus anciens d'abord",
-      "edited": "Modifiés récemment",
-      "nameAsc": "Nom A–Z",
-      "nameDesc": "Nom Z–A",
-      "longest": "Plus longs d'abord",
-      "shortest": "Plus courts d'abord"
-    },
-    "filter": {
-      "status": "Filtrer par état",
-      "all": "Tous",
-      "done": "Prêt",
-      "pending": "Pas prêt",
-      "reset": "Réinitialiser les filtres"
-    }
-  },
   "offline": {
     "title": "Le service du studio ne répond pas",
-    "body": "Cette fenêtre ne parvient pas à joindre le service Dub Studio sur cet ordinateur. Si vous avez fermé l'application, relancez-la ; si elle s'est arrêtée d'elle-même, redémarrez-la. La page reviendra d'elle-même dès que le service répondra.",
+    "body": "Cette fenêtre ne parvient pas à joindre le service Speech Studio sur cet ordinateur. Si vous avez fermé l'application, relancez-la ; si elle s'est arrêtée d'elle-même, redémarrez-la. La page reviendra d'elle-même dès que le service répondra.",
     "retrying": "Vérification toutes les 2 s · {{seconds}} s",
     "retry": "Vérifier maintenant"
-  },
-  "launch": {
-    "loadFailed": "Impossible de lire les réglages de lancement enregistrés ; le formulaire affiche ceux par défaut : {{error}}",
-    "saveFailed": "Impossible d'enregistrer les réglages de lancement : {{error}}"
-  },
-  "multilang": {
-    "title": "Plusieurs langues",
-    "exportTitle": "Exporter vers d'autres langues",
-    "exportHint": "Exporte ce clip dans plusieurs langues l’une après l’autre avec les mêmes réglages : mise en page des sous-titres, styles, flou et voix sont conservés ; seuls la traduction et le doublage changent.",
-    "exportGo": "Exporter · {{n}}",
-    "add": "＋ Ajouter une langue",
-    "openEditor": "Éditeur",
-    "done": "Terminé",
-    "backToExport": "↩ Retour à l’export",
-    "langsCount_one": "{{count}} langue",
-    "langsCount_many": "{{count}} langues",
-    "langsCount_other": "{{count}} langues"
   },
   "status": {
     "working": "En cours…",
@@ -306,36 +111,6 @@
     "log": "Journal d'activité",
     "clear": "Effacer",
     "backendOffline": "backend hors ligne"
-  },
-  "edit": {
-    "setStart": "Début au curseur",
-    "setEnd": "Fin au curseur",
-    "startVideo": "Début au début de la vidéo",
-    "endVideo": "Fin à la fin de la vidéo",
-    "alignLeft": "Aligner à gauche",
-    "alignCenter": "Centrer",
-    "alignRight": "Aligner à droite"
-  },
-  "seg": {
-    "add": "Ajouter une phrase",
-    "addHint": "Insérez votre propre réplique — doublée avec la voix du locuteur et affichée dans les sous-titres",
-    "speakerHint": "Réattribuer cette ligne à un autre locuteur (utilise la voix de ce locuteur)",
-    "timingHint": "Ajuster le minutage de cette ligne (début → fin, secondes) s'il a dérivé de la parole",
-    "seconds": "s",
-    "newSpeaker": "Nouveau locuteur",
-    "regen": "Régénérer la voix de cette phrase",
-    "play": "Écouter la voix de cette phrase",
-    "keep": "Garder l'original",
-    "unkeep": "Re-doubler",
-    "hide": "Masquer la ligne",
-    "show": "Afficher la ligne",
-    "del": "Supprimer la ligne",
-    "refresh": "Actualiser",
-    "refreshHint": "Forcer le rafraîchissement de l'aperçu / sous-titres",
-    "drag": "Déplacer la phrase (glisser-déposer)",
-    "moveUp": "Monter",
-    "moveDown": "Descendre",
-    "edited": "modifié"
   },
   "settings": {
     "sounds": "Sons de notification",
@@ -459,32 +234,31 @@
     "concurrencyHint": "morceaux sur N connexions — ASR/TTS/traduction cloud plus rapides (1 = une à la fois)"
   },
   "help": {
-    "title": "À propos de Dub Studio",
-    "intro": "Dub Studio double et traduit n'importe quelle vidéo entièrement sur votre machine — rien ne quitte votre ordinateur. Déposez un clip : il l'analyse une fois, puis vous réglez chaque détail avec un aperçu en direct.",
+    "title": "À propos de Speech Studio",
+    "intro": "Speech Studio donne une voix aux textes et reconnaît la parole sur votre ordinateur : les modèles tournent sur votre carte graphique, et le cloud n'est utilisé que là où vous l'activez.",
     "howTitle": "Comment ça marche",
     "how": [
-      "Déposez un MP4/MOV — il sépare l'audio, reconnaît la parole, distingue les locuteurs, traduit et lit le texte à l'écran.",
-      "Choisissez un mode — sous-titres, doublage complet, voix off, remix amusant ou transcription ; combinez librement audio, sous-titres et flou.",
-      "Modifiez tout — transcription, voix, style des sous-titres, masques — avec aperçu instantané.",
-      "Exportez la vidéo finie. Tout tourne localement sur votre GPU."
+      "Au premier lancement, téléchargez les modèles : le studio choisit l'ensemble adapté à votre carte graphique.",
+      "Speech : écrivez ou collez un texte, choisissez une voix et lancez la voix.",
+      "Listening : ouvrez un enregistrement, un lien ou le micro et obtenez le texte avec les locuteurs.",
+      "Enregistrez le résultat là où vous voulez."
     ],
     "featuresTitle": "Fonctions",
     "features": [
-      "Clonage de voix, distribution auto par locuteur ou un pack de voix",
-      "Texte à l'écran localisé sur place",
-      "Réécrivez le script et redoublez (mode amusant)",
-      "Style des sous-titres : police, couleur, contour, ombre, plaque",
-      "Masques : flou ou un rectangle uni sur l'original",
-      "Modes composables — doublage sans sous-titres, sous-titres sans doublage, tout mélange",
-      "Ajoutez vos propres répliques à la transcription — avec la voix du locuteur",
-      "100+ langues, entièrement hors ligne, jusqu'à 4K"
+      "Clonage de voix à partir de quelques secondes d'enregistrement",
+      "Votre propre bibliothèque de voix avec photos et étiquettes",
+      "Higgs Audio v3 en local, Drama 3 sur les cartes de 24 Go",
+      "Reconnaissance Parakeet et Whisper",
+      "Locuteurs distingués dans un enregistrement",
+      "Voix et reconnaissance dans le cloud via OpenRouter et Google",
+      "Un agent (MCP) pilote le studio sous vos yeux",
+      "Six langues d'interface"
     ],
     "sectionsTitle": "Sections",
     "sections": [
-      "Transcription — modifiez chaque ligne et sa traduction",
-      "Voix — choisissez le doublage et régénérez",
-      "Style et Masque — sous-titres, titres, caches",
-      "Paramètres (⚙) — la pile de modèles (ASR / LLM / Vision / TTS)"
+      "Speech : donner une voix à un texte",
+      "Listening : reconnaître la parole et vérifier une voix",
+      "Paramètres (⚙) : modèles, cloud, réseau, agent, statistiques"
     ],
     "donateTitle": "Soutenir l'auteur",
     "donateIntro": "Je fais des logiciels open-source et de la recherche en IA. Presque tout ce que je crée est gratuit et accessible à tous. Vos dons m'aident à continuer de créer et de chercher sans me soucier d'où viendra le prochain repas =) Merci 🙏",
@@ -493,16 +267,6 @@
     "copy": "Copier l'adresse",
     "madeBy": "Réalisé par",
     "founder": "fondateur de"
-  },
-  "sel": {
-    "pick": "Sélection :",
-    "all": "Tout",
-    "count_one": "{{count}} sélectionné",
-    "count_many": "{{count}} sélectionnés",
-    "count_other": "{{count}} sélectionnés",
-    "keep": "Original",
-    "hide": "Masquer",
-    "del": "Supprimer"
   },
   "common": {
     "undo": "Annuler",
@@ -531,11 +295,16 @@
     "fsWindow": "Fenêtre en plein écran",
     "wheelSeek": "Ctrl + molette — défiler",
     "help": "Afficher cette aide",
-    "esc": "Fermer / quitter le plein écran"
+    "esc": "Fermer / quitter le plein écran",
+    "modeSpeech": "Mode Speech",
+    "modeListening": "Mode Listening",
+    "new": "Recommencer dans le mode actuel",
+    "settings": "Paramètres",
+    "helpWindow": "Aide"
   },
   "setup": {
     "title": "Premier lancement",
-    "subtitle": "Dub Studio a besoin de quelques composants avant le premier doublage. Tout le nécessaire est déjà coché — il suffit d’appuyer sur « Télécharger la sélection » en bas.",
+    "subtitle": "Speech Studio a besoin de quelques composants avant la première voix. Tout le nécessaire est déjà coché : cliquez sur Télécharger la sélection en bas.",
     "download": "Télécharger la sélection",
     "downloadOne": "Télécharger",
     "cancel": "Annuler",
@@ -559,9 +328,9 @@
     "pickNoteTitle": "Un quant par modèle.",
     "pickNote": "Le nécessaire est déjà coché. Les quants sont des variantes du même modèle (OU) : quant plus élevé = meilleure qualité et plus lourd, plus bas = plus léger. Pas besoin de tout télécharger.",
     "grpHiggs": "Voix · Higgs Audio v3",
-    "grpGemma": "Traduction + texte à l'écran · Gemma-4 12B",
+    "grpGemma": "Assistant de script · Gemma-4 12B",
     "grpParakeet": "Reconnaissance vocale · Parakeet-TDT",
-    "grpRoformer": "Séparation vocale · Mel-Band Roformer",
+    "grpRoformer": "Nettoyage de la voix · Mel-Band Roformer",
     "pickOneQuant": "choisissez-en un",
     "default": "par défaut",
     "alt": "ou",
@@ -569,183 +338,7 @@
     "noVram": "Ne tiendra pas dans la mémoire vidéo de cette carte : inutile de le télécharger.",
     "noVramShort": "ne tient pas en VRAM",
     "noVramGroup": "Aucune variante ne tient dans la mémoire vidéo de cette carte : faites tourner cette étape sur un serveur ou dans le cloud, avec le préréglage ci-dessus.",
-    "cloudHint": "Vous avez choisi <b>Cloud</b> et saisi la clé ? Vous pouvez ne pas télécharger les lourds modèles locaux ci-dessous — la traduction et la voix passeront par OpenRouter."
-  },
-  "batch": {
-    "open": "Lot de fichiers",
-    "title": "Traitement par lot",
-    "queue": "File",
-    "start": "Démarrer",
-    "queued": "en file",
-    "analyzing": "analyse",
-    "rendering": "rendu",
-    "done": "terminé",
-    "error": "erreur",
-    "open_out": "Ouvrir",
-    "saveAll": "Tout enregistrer dans un dossier",
-    "back": "Retour",
-    "add": "Ajouter des fichiers",
-    "filesCount_one": "{{count}} fichier",
-    "filesCount_many": "{{count}} fichiers",
-    "filesCount_other": "{{count}} fichiers"
-  },
-  "transcribe": {
-    "title": "Transcription et diarisation",
-    "speakers": "Locuteurs · créer des voix",
-    "speaker": "Locuteur",
-    "makeVoice": "Voix",
-    "makeAll": "Créer toutes les voix",
-    "made": "Terminé",
-    "refHint": "le texte de référence est transcrit automatiquement (comme Higgs)",
-    "sec": "s réf",
-    "exportSrt": "Exporter .srt",
-    "exportTxt": "Exporter .txt",
-    "empty": "Aucune ligne dans la transcription",
-    "speakersCount_one": "{{count}} locuteur",
-    "speakersCount_many": "{{count}} locuteurs",
-    "speakersCount_other": "{{count}} locuteurs"
-  },
-  "comp": {
-    "langHint": "100+ langues. Pour une source hors d'Europe, Whisper s'active automatiquement.",
-    "asrSwitched": "Parakeet ne connaît pas {{lang}} — ASR basculé sur Whisper (99 langues).",
-    "detect": "Détecter le texte à l'écran",
-    "detectHint": "L'OCR trouve les textes incrustés à flouter et localiser. Lent en 4K — désactivez si inutile (p. ex. doublage sans sous-titres).",
-    "casting": "Distribution des personnages",
-    "castingHint": "Facultatif. Ajoute un passage sur les images : détecte les visages, les associe aux locuteurs et constitue une distribution de personnages (avatar, nom, voix) modifiable après l'analyse. Plus lent sur les vidéos longues.",
-    "hint": "Composez librement — audio et sous-titres sont indépendants, dans tout mode",
-    "audioLabel": "Audio",
-    "audioNone": "Original (sans doublage)",
-    "audioDub": "Doublage",
-    "audioVoiceover": "Voix off",
-    "origGain": "Original sous la traduction",
-    "subsLabel": "Sous-titres",
-    "subsNone": "Sans sous-titres",
-    "subsOriginal": "Original",
-    "subsTranslate": "Traduits",
-    "subsBilingual": "Les deux",
-    "audioNoneHint": "Garder la piste d'origine — aucune voix générée.",
-    "audioDubHint": "Remplacer la parole par une voix générée dans la langue cible.",
-    "audioVoiceoverHint": "Voix traduite par-dessus l'original atténué.",
-    "audioTranscribeHint": "Seulement reconnaître la parole et la séparer par locuteur — sans doublage.",
-    "subsNoneHint": "Ne pas afficher de sous-titres.",
-    "subsOriginalHint": "Sous-titres dans la langue d'origine (parlée).",
-    "subsTranslateHint": "Sous-titres traduits dans la langue cible.",
-    "subsBilingualHint": "La traduction avec l'original en seconde ligne plus petite.",
-    "optionsHelp": "Survolez une option pour voir ce qu'elle fait",
-    "burn": "Sur la vidéo",
-    "burnHint": "Incruster sous-titres/titres sur la vidéo (désactivé = vidéo propre, ex. doublage sans sous-titres)",
-    "funny": "Remix drôle",
-    "voiceHint": "Voix : clone / casting auto / du pack"
-  },
-  "bilingual": {
-    "settings": "Réglages de la seconde ligne",
-    "title": "Ligne de l'original",
-    "translationTop": "Traduction en haut",
-    "originalTop": "Original en haut",
-    "size": "Taille",
-    "sizeValue": "{{pct}} % de la ligne principale",
-    "color": "Couleur du texte",
-    "opacity": "Opacité",
-    "pct": "{{pct}} %",
-    "sameAsMain": "Comme la principale"
-  },
-  "audio": {
-    "onlyTitle": "Projet audio uniquement",
-    "onlyHint": "Pas de piste vidéo. Modifiez la transcription, choisissez les voix, puis exportez pour obtenir l'audio doublé (WAV)."
-  },
-  "import": {
-    "subs": "Importer des sous-titres (SRT / ASS)",
-    "subsHint": "Vous avez déjà des sous-titres ? Importez-les : on prend leur texte et leur timing comme base au lieu de la reconnaissance auto (locuteurs attribués automatiquement, puis traduction et voix).",
-    "subsClear": "Retirer — utiliser la reconnaissance auto",
-    "translated": "Sous-titres déjà dans la langue cible (sans traduction)",
-    "translatedHint": "Ex. : vidéo anglaise + sous-titres russes → doublage russe. Le texte va directement à la voix ; reconnaissance et traduction ignorées."
-  },
-  "subalign": {
-    "label": "Caler le minutage sur la parole",
-    "hint": "Sous-titres d'une autre version ou avec une marge de lecture ? Nous reconnaissons la parole et plaçons chaque réplique là où elle est réellement prononcée (décalage et dérive corrigés). Nécessite une passe de reconnaissance vocale. Uniquement pour des sous-titres dans la langue de la vidéo."
-  },
-  "trStyle": {
-    "label": "Style de traduction",
-    "normal": "Normal",
-    "technical": "Technique",
-    "literary": "Littéraire",
-    "casual": "Familier",
-    "custom": "Personnalisé…",
-    "customPlaceholder": "Votre consigne pour le traducteur — p. ex. « formel, sans argot », « ton Gen-Z »"
-  },
-  "keepOrig": {
-    "label": "Conserver la piste originale",
-    "hint": "Ajoute une deuxième piste audio avec l'original — commutable dans n'importe quel lecteur.",
-    "mp4": "MP4",
-    "mkv": "MKV",
-    "mp4Hint": "MP4 — meilleure compatibilité",
-    "mkvHint": "MKV — tous les lecteurs voient les pistes"
-  },
-  "voiceSlots": {
-    "label": "Voix",
-    "clone": "Cloner depuis la vidéo",
-    "library": "Depuis la bibliothèque",
-    "male": "Voix masculines",
-    "female": "Voix féminines",
-    "add": "Ajouter une voix",
-    "remove": "Retirer",
-    "priorityHint": "Ordre = priorité : l'emplacement 1 est le locuteur qui parle le plus de ce genre, puis en rotation. Liste vide = ce genre est cloné.",
-    "assigned_one": "Voix attribuées : {{count}} locuteur",
-    "assigned_many": "Voix attribuées : {{count}} locuteurs",
-    "assigned_other": "Voix attribuées : {{count}} locuteurs",
-    "missing": "Voix de la bibliothèque introuvables : {{names}}. Ces locuteurs gardent des voix clonées",
-    "noVocals": "Aucune piste vocale pour mesurer les voix. Les locuteurs gardent des voix clonées"
-  },
-  "accordion": {
-    "voices": "Voix",
-    "subs": "Sous-titres",
-    "advanced": "Plus d'options",
-    "voicesLib_one": "Depuis la bibliothèque : {{count}} voix",
-    "voicesLib_many": "Depuis la bibliothèque : {{count}} voix",
-    "voicesLib_other": "Depuis la bibliothèque : {{count}} voix"
-  },
-  "casting": {
-    "tab": "Personnages",
-    "tabHint": "Distribution des personnages — visages, voix et notes d'élocution",
-    "title": "Distribution des personnages",
-    "hint": "Personnages détectés dans la vidéo. Donnez à chacun un nom, une note d'élocution (transmise au traducteur) et une voix de doublage, puis appliquez la distribution. Voix vide = clonage depuis la vidéo.",
-    "apply": "Appliquer la distribution",
-    "applied": "Appliqué",
-    "namePlaceholder": "Nom du personnage",
-    "speech": "Style d'élocution",
-    "speechPlaceholder": "ex. bourru et sarcastique, parle vite, âgé",
-    "voice": "Voix de doublage",
-    "voiceClone": "Cloner depuis la vidéo",
-    "contentAuto": "Auto",
-    "contentReal": "Visages réels",
-    "contentAnime": "Dessin animé / anime",
-    "gender": {
-      "male": "Homme",
-      "female": "Femme",
-      "unknown": "—"
-    },
-    "autoByGender": "— attribution automatique selon le genre —",
-    "count_one": "{{count}} personnage",
-    "count_many": "{{count}} personnages",
-    "count_other": "{{count}} personnages",
-    "lines_one": "{{count}} réplique",
-    "lines_many": "{{count}} répliques",
-    "lines_other": "{{count}} répliques"
-  },
-  "castingLib": {
-    "save": "Enregistrer la distribution dans la bibliothèque",
-    "saveHint": "Enregistre la distribution actuelle comme profil à appliquer à une autre vidéo",
-    "savedShort": "Enregistré",
-    "namePlaceholder": "Nom de la distribution",
-    "savedToast": "Distribution « {{name}} » enregistrée dans la bibliothèque",
-    "playSample": "Écouter un échantillon de voix",
-    "stopSample": "Arrêter",
-    "applyLabel": "Appliquer une distribution enregistrée",
-    "none": "— aucune —",
-    "profileOption": "{{name}} ({{n}} pers.)",
-    "empty": "La bibliothèque est vide — enregistrez une distribution depuis l'éditeur.",
-    "delete": "Supprimer le profil",
-    "deleteConfirm": "Supprimer ce profil de distribution ?"
+    "cloudHint": "Vous avez choisi <b>Cloud</b> et saisi la clé ? Inutile de télécharger les gros modèles locaux ci-dessous : la voix et la reconnaissance passeront par OpenRouter."
   },
   "downloads": {
     "errDiskSpace": "Espace libre insuffisant dans le dossier des modèles",
@@ -843,116 +436,11 @@
     "threads": "Threads parallèles",
     "threadsHint": "segments sur N connexions — ASR/TTS/traduction cloud plus rapides (1 = sans multithreading)"
   },
-  "proxy": {
-    "title": "Proxy",
-    "all": "Tout faire passer par le proxy",
-    "allHint": "à activer si le téléchargement direct des modèles ou OpenRouter ne fonctionne pas",
-    "ok": "Ça fonctionne — HF et OpenRouter sont accessibles via le proxy",
-    "badHf": "téléchargement des modèles (HF)",
-    "services": "services",
-    "unreachable": "Inaccessible via le proxy : {{list}}",
-    "failed": "Impossible de vérifier le proxy",
-    "support": "Prend en charge HTTP/HTTPS/SOCKS5. S'applique immédiatement au téléchargement des modèles et au cloud."
-  },
-  "orKey": {
-    "title": "Clé OpenRouter",
-    "hint": "pour les moteurs cloud (traduction / TTS)",
-    "ok": "La clé fonctionne — enregistrée",
-    "rejected": "Clé refusée par OpenRouter",
-    "unavailable": "OpenRouter est indisponible"
-  },
   "hwPreset": {
     "title": "Préréglage selon le matériel",
     "gpu": "{{name}} · {{gb}} Go de VRAM",
     "noGpu": "GPU NVIDIA introuvable",
     "ram": "RAM {{gb}} Go"
-  },
-  "qc": {
-    "asr": {
-      "tip": "Vérifie automatiquement le texte reconnu avec Whisper ASR pour écarter silences et défauts",
-      "label": "Vérification du texte par ASR (QC)",
-      "hint": "contrôle automatique du doublage par ASR (le désactiver accélère la synthèse)"
-    },
-    "duration": {
-      "tip": "Ajuste de la vitesse et contrôle de la durée audio selon la plage du sous-titre",
-      "label": "Contrôle de la durée des phrases (Stretch QC)",
-      "hint": "ajustement de la durée et limite d'étirement maximal"
-    },
-    "multitake": {
-      "tip": "Génère 3 variantes de doublage par phrase et choisit automatiquement la meilleure selon la durée",
-      "label": "Sélection multi-prises (3 prises)",
-      "hint": "3 variantes de doublage — la meilleure selon la durée est retenue (plus lent, mais de meilleure qualité)"
-    },
-    "speechRate": {
-      "tip": "Adapte dynamiquement le rythme de parole du modèle à la longueur du texte et à la plage de temps disponible",
-      "label": "Débit de parole dynamique (Speech Rate TTS)",
-      "hint": "adapte la vitesse de parole à la longueur du texte dans la fenêtre"
-    },
-    "leadIntoSilence": {
-      "tip": "Quand une réplique doublée dépasse son créneau et qu’il y a du silence avant, elle commence plus tôt — jusqu’à une seconde — et garde son débit au lieu d’être accélérée. Elle finit là où finit l’originale.",
-      "label": "Démarrer dans le silence",
-      "hint": "une réplique trop longue commence plus tôt, dans la pause qui la précède"
-    },
-    "emoRef": {
-      "tip": "Transfère l'émotion, l'intonation et le jeu directement depuis l'audio original de la scène",
-      "label": "Référence émotionnelle de la scène (Emo-Ref)",
-      "hint": "copie l'intonation, l'émotion et le jeu de la scène originale"
-    },
-    "breath": {
-      "tip": "Insère automatiquement de douces respirations naturelles dans les pauses entre les répliques",
-      "label": "Respirations entre les phrases",
-      "hint": "insère de douces respirations naturelles dans les pauses pour rendre la parole plus vivante"
-    },
-    "autoShorten": {
-      "tip": "Si une réplique doublée demande plus d'accélération que le rendu n'en applique (jusqu'à ×4 avec le débit de parole dynamique), le modèle de traduction la réécrit plus court une fois et seule cette réplique est redoublée",
-      "label": "Raccourcir les répliques qui ne tiennent pas",
-      "hint": "réécrire plus court la traduction des répliques qui ne tiennent pas et les redoubler"
-    }
-  },
-  "manual": {
-    "newTitle": "Créer un projet (configuration manuelle)",
-    "newSub": "configuration manuelle",
-    "tip": "Crée un projet sans génération automatique et passe directement aux sous-titres",
-    "label": "Mode manuel",
-    "sub": "vers les sous-titres",
-    "starting": "Création du projet en mode manuel...",
-    "done": "Projet créé en mode manuel — prêt pour le travail sur les sous-titres"
-  },
-  "duck": {
-    "tip": "Baisse le fond sous la voix dans le doublage. Désactivé : fond à plein volume.",
-    "label": "Baisser le fond sous la voix",
-    "hint": "Ducking : le fond est plus bas sous la parole du doublage. Désactivé : fond complet."
-  },
-  "blurPlate": {
-    "tip": "Une plaque floutée sous les sous-titres pour la lisibilité. Désactivé : texte sans plaque.",
-    "label": "Plaque floutée sous les sous-titres",
-    "hint": "Une plaque floutée sous les sous-titres. Désactivé : sans plaque."
-  },
-  "palette": {
-    "placeholder": "⌘K — commandes…"
-  },
-  "timeline": {
-    "title": "Chronologie audio et sous-titres",
-    "zoomOut": "Dézoomer",
-    "zoomIn": "Zoomer",
-    "editStart": "Ajuster le début",
-    "editEnd": "Ajuster la fin",
-    "listen": "Écouter la phrase"
-  },
-  "subs": {
-    "saved": "Fichier de sous-titres enregistré avec succès !",
-    "savedAll": "Toutes les modifications des sous-titres ont été enregistrées avec succès !",
-    "empty": "Le fichier de sous-titres est vide ou son format n'a pas pu être reconnu (.srt/.ass)",
-    "saveTip": "Enregistrer les sous-titres dans un fichier (.srt)",
-    "saveTypeDesc": "Sous-titres (.srt)",
-    "importTip": "Importer un fichier de sous-titres (.srt, .ass, .vtt)",
-    "importShort": "Importer .srt/.ass",
-    "loadTip": "Charger des sous-titres existants depuis un fichier (.srt, .ass)",
-    "importList": "Importer des sous-titres (.srt, .ass)",
-    "importPanel": "Importer des sous-titres (.srt / .ass)",
-    "loaded_one": "Sous-titres chargés : {{count}} phrase de {{file}}",
-    "loaded_many": "Sous-titres chargés : {{count}} phrases de {{file}}",
-    "loaded_other": "Sous-titres chargés : {{count}} phrases de {{file}}"
   },
   "float": {
     "dock": "Remettre dans l'en-tête"
@@ -963,13 +451,9 @@
     "power": "Alimentation",
     "process": "Processus"
   },
-  "preview": {
-    "frameAlt": "Image de l'aperçu",
-    "updating": "mise à jour…"
-  },
   "agent": {
     "title": "Agent IA (MCP)",
-    "intro": "Un agent connecté ici (Claude Code, Cursor, Codex et d'autres) pilote tout le studio : il crée des projets à partir de vos vidéos, les analyse, corrige la traduction ligne par ligne, attribue les voix, fait le rendu, exporte dans d'autres langues et enregistre les résultats. Le serveur tourne avec le studio ; rien à installer.",
+    "intro": "Un agent connecté ici (Claude Code, Cursor, Codex et d'autres) pilote le studio : il télécharge les modèles, gère vos voix et vos clés, récupère des enregistrements par un lien et travaille dans cette fenêtre sous vos yeux. Le serveur tourne avec le studio ; il n'y a rien à installer.",
     "lastCall": "Dernier appel de l'agent : {{call}} · il y a {{seconds}} s",
     "none": "Aucun agent ne s'est encore connecté",
     "windowOn": "La fenêtre est connectée : l'agent la voit",
@@ -980,9 +464,6 @@
     "copied": "Copié",
     "failed": "Impossible de lire l'état de l'agent"
   },
-  "confirm": {
-    "title": "Êtes-vous sûr ?"
-  },
   "a11y": {
     "close": "Fermer",
     "clearSelection": "Effacer la sélection",
@@ -992,10 +473,6 @@
     "deleteBlur": "Supprimer cette zone de flou",
     "removeLang": "Retirer cette langue",
     "lanes": "Pistes de l’éditeur"
-  },
-  "montage": {
-    "split": "Couper la réplique à la tête de lecture",
-    "mergeNext": "Fusionner avec la réplique suivante"
   },
   "bridge": {
     "agent": "Agent",
@@ -1019,40 +496,9 @@
       "select": "choisit dans « {{name}} »",
       "press_key": "appuie sur une touche",
       "scroll": "fait défiler",
-      "navigate": "ouvre un écran",
+      "navigate": "passe à {{name}}",
       "open_settings": "ouvre les réglages",
-      "open_help": "ouvre l’aide",
-      "editor_open": "ouvre un projet",
-      "editor_frame": "regarde l’image",
-      "editor_seek": "déplace la tête de lecture",
-      "editor_select": "vous montre un passage",
-      "editor_play": "lit le doublage",
-      "editor_pause": "met en pause",
-      "editor_lane": "change de piste",
-      "editor_segment_update": "modifie une réplique",
-      "editor_segment_add": "ajoute une réplique",
-      "editor_segments_delete": "supprime des répliques",
-      "editor_segment_split": "coupe une réplique en deux",
-      "editor_segments_merge": "fusionne des répliques",
-      "editor_segment_move": "déplace une réplique sur la timeline",
-      "editor_mode": "change de mode",
-      "editor_style": "change le style des sous-titres",
-      "editor_preset": "applique un préréglage de sous-titres",
-      "editor_blur_add": "ajoute une zone de flou",
-      "editor_blur_update": "modifie une zone de flou",
-      "editor_title_add": "ajoute un titre",
-      "editor_title_update": "modifie un titre",
-      "editor_undo": "annule une modification",
-      "editor_redo": "rétablit une modification",
-      "editor_export": "lance l’export",
-      "editor_subtitles_content": "change les langues des sous-titres",
-      "editor_takes": "montre les prises d’une réplique",
-      "editor_take_select": "choisit une prise",
-      "editor_take_pin": "épingle une prise",
-      "editor_shorten": "raccourcit des répliques pour qu’elles tiennent",
-      "editor_glossary": "ouvre le glossaire",
-      "editor_glossary_set": "modifie le glossaire",
-      "editor_glossary_extract": "collecte des termes du glossaire"
+      "open_help": "ouvre l’aide"
     }
   },
   "jobs": {
@@ -1094,146 +540,12 @@
     "error": {
       "failed": "La tâche a échoué",
       "interrupted": "L'application s'est fermée pendant le traitement",
-      "engine_stuck": "Le moteur vocal s’est figé : redémarrez Dub Studio, puis cliquez sur « Reprendre »",
+      "engine_stuck": "Le moteur vocal s’est figé : redémarrez Speech Studio, puis cliquez sur « Reprendre »",
       "job_record_broken": "L'enregistrement de la tâche est endommagé"
     },
     "busy": "Le projet est occupé : {{kind}} en cours",
     "waitingFor": "En attente de la fin de {{kind}} sur ce projet",
     "cancelledKind": "{{kind}} : annulé"
-  },
-  "glossary": {
-    "open": "Glossaire",
-    "openHint": "Noms, termes et marques pour la traduction, la reconnaissance vocale et le doublage",
-    "title": "Glossaire du projet",
-    "hint": "La traduction rend chaque terme tel qu’il est écrit ici, la reconnaissance vocale corrige ses fautes et le doublage le prononce selon la colonne Prononciation.",
-    "close": "Fermer",
-    "filter": "Filtrer",
-    "add": "Ajouter un terme",
-    "extract": "Extraire du texte",
-    "extractHint": "Trouver les noms, termes et marques de la transcription avec le modèle de traduction — vous choisissez lesquels garder",
-    "extracting": "Extraction…",
-    "import": "Importer TSV",
-    "importHint": "Ajouter des termes depuis un fichier TSV : terme, traduction, garder (1/0), prononciation",
-    "export": "Exporter TSV",
-    "exportHint": "Enregistrer le glossaire en fichier TSV dans le dossier du projet",
-    "series": "Profil de la série",
-    "seriesHint": "Le glossaire de la série passe dans chaque épisode suivant analysé avec ce casting",
-    "noSeries": "Enregistrez d’abord le casting dans la bibliothèque — le profil de la série garde le glossaire",
-    "noSeriesShort": "Aucun profil",
-    "toSeries": "Enregistrer dans la série",
-    "seriesSaved": "Enregistré dans le profil de la série « {{name}} »",
-    "candidates": "Suggestions : {{n}}",
-    "acceptAll": "Tout ajouter",
-    "dismissAll": "Tout ignorer",
-    "accept": "Ajouter",
-    "dismiss": "Ignorer",
-    "keepShort": "ne pas traduire",
-    "nothingFound": "Rien de nouveau dans le texte",
-    "empty": "Pas encore de termes : ajoutez-les à la main, extrayez-les du texte ou importez un TSV",
-    "colTerm": "Terme",
-    "colTranslation": "Traduction",
-    "colKeep": "Garder",
-    "colKeepHint": "Ne pas traduire — garder le terme tel qu’il est écrit",
-    "colPronunciation": "Prononciation",
-    "colPronunciationHint": "Comment la voix le dit ; les sous-titres gardent la traduction",
-    "colAsr": "Reconnu comme",
-    "colAsrHint": "Comment la reconnaissance vocale écrit mal le terme, séparé par des virgules ; l’analyse le corrige",
-    "colNote": "Remarque",
-    "auto": "auto",
-    "autoHint": "Extrait du texte : vérifiez-le — une fois modifié, il devient le vôtre",
-    "otherLang": "La traduction et la prononciation de cette entrée sont en {{lang}} et le projet en {{target}} : elles ne sont donc pas utilisées. Modifiez-les pour les écrire en {{target}}.",
-    "remove": "Supprimer le terme",
-    "count": "Termes : {{n}}",
-    "unsaved": "non enregistré",
-    "save": "Enregistrer",
-    "saved": "Glossaire enregistré",
-    "imported": "Termes importés",
-    "exported": "Enregistré : {{path}}",
-    "stale": "La traduction a été faite avec un autre glossaire.",
-    "retranslate": "Retraduire",
-    "retranslated": "Retraduit avec le glossaire",
-    "unsavedTitle": "Fermer sans enregistrer ?",
-    "unsavedMessage": "Les modifications du glossaire seront perdues.",
-    "discard": "Fermer sans enregistrer",
-    "srcHint": "Texte reconnu — corrigez-le là où la reconnaissance vocale s’est trompée",
-    "suggest": "Ajouter « {{term}} » au glossaire ? La reconnaissance a écrit « {{from}} »",
-    "suggestAdd": "Ajouter au glossaire",
-    "suggestAdded": "« {{term}} » est dans le glossaire : l’analyse corrigera cette graphie",
-    "ttsSkipHint": "Sans balises de sons, noms des locuteurs ni mise en forme, il ne reste rien à dire — la réplique reste muette",
-    "ttsSkip": {
-      "sound_only": "Non doublé : seulement des balises de sons",
-      "no_words": "Non doublé : aucun mot"
-    },
-    "err": {
-      "over_limit": "Le glossaire compte {{total}} entrées, plus que {{max}}.",
-      "empty_term": "L’entrée {{entry}} n’a pas de terme.",
-      "field_too_long": "Entrée {{entry}} (« {{term}} ») : un champ dépasse {{max}} caractères.",
-      "duplicate": "Le terme « {{term}} » figure deux fois (entrées {{first}} et {{second}}).",
-      "tsv_keep": "Ligne {{line}} : keep vaut « {{value}} » ; attendu 1 ou 0.",
-      "tsv_empty_term": "Ligne {{line}} : terme manquant.",
-      "one_of": "Envoyez des entrées ou du TSV, pas les deux.",
-      "nothing": "Rien à enregistrer : ni entrées ni TSV."
-    }
-  },
-  "fit": {
-    "fits": "tient",
-    "tight": "juste",
-    "impossible": "ne tient pas",
-    "renderedOver": "n'a pas tenu ×{{x}}",
-    "renderedTip": "Voix de {{raw}} s pour un créneau de {{slot}} s : il faut accélérer ×{{needed}} ; naturel jusqu'à ×{{cap}}, le rendu accélère jusqu'à ×{{max}}",
-    "predictTip": "Environ {{est}} s de parole pour un créneau de {{slot}} s (×{{ratio}} ; naturel jusqu'à ×{{cap}}, le rendu accélère jusqu'à ×{{max}}). {{pace}}",
-    "paceVoice": "Débit de {{cps}} caractères par seconde, mesuré sur cette voix",
-    "paceLang": "Débit de {{cps}} caractères par seconde, habituel pour la langue (mesuré sur la voix après 3 répliques doublées)",
-    "overCount_one": "{{count}} réplique ne tient pas",
-    "overCount_many": "{{count}} répliques ne tiennent pas",
-    "overCount_other": "{{count}} répliques ne tiennent pas",
-    "onlyOver": "Ne tiennent pas",
-    "onlyOverTip": "N'afficher que les répliques qui ne tiennent pas dans leur créneau",
-    "shortenAll": "Raccourcir toutes celles qui ne tiennent pas",
-    "shortenAllTip": "Réécrire plus court la traduction de chaque réplique qui ne tient pas dans son créneau, en gardant le sens",
-    "shortenTip": "Raccourcir au créneau : réécrire la traduction plus court en gardant le sens, les noms et les termes",
-    "shortening": "Raccourcissement de la traduction pour tenir dans les créneaux",
-    "shortened_one": "{{count}} réplique raccourcie",
-    "shortened_many": "{{count}} répliques raccourcies",
-    "shortened_other": "{{count}} répliques raccourcies",
-    "rejected_one": "{{count}} réponse refusée (autre alphabet, pas plus courte ou copie de l'original)",
-    "rejected_many": "{{count}} réponses refusées (autre alphabet, pas plus courtes ou copies de l'original)",
-    "rejected_other": "{{count}} réponses refusées (autre alphabet, pas plus courtes ou copies de l'original)",
-    "failed_one": "Le modèle de traduction n'a pas répondu pour {{count}} réplique : {{error}}",
-    "failed_many": "Le modèle de traduction n'a pas répondu pour {{count}} répliques : {{error}}",
-    "failed_other": "Le modèle de traduction n'a pas répondu pour {{count}} répliques : {{error}}"
-  },
-  "takes": {
-    "toggle_one": "Prises de la réplique : {{count}}",
-    "toggle_many": "Prises de la réplique : {{count}}",
-    "toggle_other": "Prises de la réplique : {{count}}",
-    "loading": "Chargement des prises…",
-    "loadFailed": "Prises non chargées : {{error}}",
-    "empty": "Pas encore de prise : doublez d'abord la réplique",
-    "listen": "Écouter",
-    "dur": "{{sec}} s",
-    "qc": "concordance ASR {{pct}} %",
-    "source": {
-      "synth": "doublage",
-      "multitake": "multi-prise",
-      "qc": "redoublage QC",
-      "shorten": "raccourcie"
-    },
-    "active": "utilisée",
-    "pinned": "épinglée",
-    "pin": "Épingler",
-    "unpin": "Désépingler",
-    "pinTip": "Épingler cette prise : ni la régénération ni le QC ne la remplaceront tant que le texte de la réplique ne change pas",
-    "unpinTip": "Désépingler : le prochain rendu pourra redoubler la réplique",
-    "use": "Utiliser",
-    "useTip": "Faire entendre cette prise dans le mixage (sans redoublage, seul le mixage est refait)",
-    "unpinFirst": "Une autre prise est épinglée : désépinglez-la pour choisir celle-ci",
-    "rollback": "Revenir",
-    "rollbackTip": "Revenir à cette prise et à son texte (annuler rétablit l'actuel)",
-    "selecting": "Changement de prise et reconstruction du mixage",
-    "unpinnedByEdit_one": "Texte modifié dans {{count}} réplique : sa prise épinglée est libérée",
-    "unpinnedByEdit_many": "Texte modifié dans {{count}} répliques : leurs prises épinglées sont libérées",
-    "unpinnedByEdit_other": "Texte modifié dans {{count}} répliques : leurs prises épinglées sont libérées"
   },
   "url": {
     "placeholder": "Collez le lien d'une vidéo",
@@ -1350,7 +662,7 @@
     "provider_google": "Google · directement"
   },
   "hub": {
-    "why": "Savoir combien de personnes utilisent Dub Studio et pour quoi aide à décider de la suite. Rien de personnel : ni vidéos, ni textes, ni voix, ni noms de fichiers — seulement des compteurs de tâches, les modèles de chaque étape, la version, la classe de carte graphique et la raison d’un échec, chemins, noms et texte entre guillemets retirés sur cet ordinateur avant l’envoi.",
+    "why": "Savoir combien de personnes utilisent Speech Studio et pour quoi aide à décider de la suite. Rien de personnel : ni vidéos, ni textes, ni voix, ni noms de fichiers — seulement des compteurs de tâches, les modèles de chaque étape, la version, la classe de carte graphique et la raison d’un échec, chemins, noms et texte entre guillemets retirés sur cet ordinateur avant l’envoi.",
     "checkbox": "Envoyer des statistiques d'utilisation anonymes",
     "what": "Ce qui est envoyé",
     "byEnv": "Désactivées par DO_NOT_TRACK ou STUDIO_TELEMETRY dans l'environnement.",
@@ -1361,5 +673,27 @@
     "refresh": "Vérifier maintenant",
     "notices": "Annonces",
     "close": "Fermer"
+  },
+  "modes": {
+    "label": "Mode",
+    "speech": "Speech",
+    "listening": "Listening",
+    "speechHint": "Donner une voix à un texte avec vos voix (Ctrl+1)",
+    "listeningHint": "Reconnaître la parole et vérifier une voix (Ctrl+2)",
+    "speechLead": "Transforme un texte en parole avec une voix de votre bibliothèque, une voix clonée d'un court enregistrement ou une voix du cloud.",
+    "speechPoints": [
+      "Un script en blocs : une voix, un style et une pause pour chaque bloc",
+      "Plusieurs prises d'une phrase, comparées côte à côte",
+      "L'accent tonique, la lettre russe yo et les abréviations sous votre contrôle",
+      "Export en WAV, FLAC, MP3 et sous-titres"
+    ],
+    "listeningLead": "Transforme un enregistrement, un lien ou le micro en texte, avec qui parle et quand.",
+    "listeningPoints": [
+      "Parakeet ou Whisper sur votre carte graphique, ou un modèle du cloud",
+      "Les locuteurs distingués et nommés",
+      "Une voix de Speech vérifiée mot à mot avec son texte",
+      "Export en TXT, SRT, VTT et DOCX"
+    ],
+    "comingNext": "L'espace de travail de ce mode arrive avec la prochaine étape du studio."
   }
 }

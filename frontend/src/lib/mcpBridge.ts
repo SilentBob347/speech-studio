@@ -102,7 +102,7 @@ export function failed(command: string, problem: unknown): Error {
 // ---------------------------------------------------------------- showing the user what the agent does
 
 /** Every command the agent runs in the window, for the page to show it (see BridgeHost). */
-export const AGENT_ACTION = "dub:agent-action";
+export const AGENT_ACTION = "speech:agent-action";
 
 const FLASH = "mcp-agent-target";
 
@@ -475,12 +475,11 @@ const LOOKING = new Set(["read_page", "console", "editor_state"]);
 
 // ---------------------------------------------------------------- what changed behind the window
 
-export const PROJECT_CHANGED = "dub:project-changed";
-export const PROJECTS_CHANGED = "dub:projects-changed";
-export const SETTINGS_CHANGED = "dub:settings-changed";
-export const VOICES_CHANGED = "dub:voices-changed";
-export const CASTING_CHANGED = "dub:casting-changed";
-export const JOBS_CHANGED = "dub:jobs-changed";
+export const PROJECT_CHANGED = "speech:project-changed";
+export const PROJECTS_CHANGED = "speech:projects-changed";
+export const SETTINGS_CHANGED = "speech:settings-changed";
+export const VOICES_CHANGED = "speech:voices-changed";
+export const JOBS_CHANGED = "speech:jobs-changed";
 
 /** A notice of the studio: what changed, which project, its revision, who changed it, and a job's facts. */
 export type ChangeNotice = { changed: string; pid?: string | null; rev?: number; by?: string; job?: boolean; job_id?: string; kind?: string; project_id?: string | null };
@@ -488,16 +487,27 @@ export type ChangeNotice = { changed: string; pid?: string | null; rev?: number;
 /** Whether a change was made by this window itself. */
 export const isMine = (notice: ChangeNotice): boolean => notice.by === `window:${WINDOW_ID}`;
 
+/** Runs `handler` on every notice of `event` while the component is mounted, always with its latest closure. */
+export function useChanged(event: string, handler: (notice: ChangeNotice) => void): void {
+  const latest = useRef(handler);
+  useLayoutEffect(() => {
+    latest.current = handler;
+  });
+  useEffect(() => {
+    const listener = (e: Event) => latest.current((e as CustomEvent<ChangeNotice>).detail);
+    window.addEventListener(event, listener);
+    return () => window.removeEventListener(event, listener);
+  }, [event]);
+}
+
 const EVENTS: Record<string, string[]> = {
   project: [PROJECT_CHANGED],
   projects: [PROJECTS_CHANGED],
   settings: [SETTINGS_CHANGED],
   voices: [VOICES_CHANGED],
-  casting: [CASTING_CHANGED],
-  casting_library: [SETTINGS_CHANGED],
   jobs: [JOBS_CHANGED],
 };
-const EVERYTHING = [PROJECT_CHANGED, PROJECTS_CHANGED, SETTINGS_CHANGED, VOICES_CHANGED, CASTING_CHANGED];
+const EVERYTHING = [PROJECT_CHANGED, PROJECTS_CHANGED, SETTINGS_CHANGED, VOICES_CHANGED];
 
 function changed(notice: ChangeNotice): void {
   // a job this window started is followed by the window itself; its own list and settings changes it already shows

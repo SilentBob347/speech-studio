@@ -1,121 +1,7 @@
 {
   "app": {
-    "name": "Dub Studio",
-    "tagline": "Dub & translate any video — locally."
-  },
-  "speakers": {
-    "count": "Number of speakers",
-    "countHint": "If you know how many people are speaking, enter that number. The same voices will be matched across recording sections."
-  },
-  "drop": {
-    "title": "Drop a video to dub",
-    "hint": "MP4, MOV, MKV, WEBM, AVI and more — everything runs on your machine",
-    "start": "Start processing",
-    "change": "click to change",
-    "browse": "Browse",
-    "recent": "Recent",
-    "demo": "Try a demo",
-    "audioMode": "No video — audio-only mode"
-  },
-  "hero": {
-    "eyebrow": "LOCAL · OFFLINE · 100+ LANGUAGES",
-    "headline": "Dub any video like it was made that way.",
-    "sub": "Auto-analysis runs the first pass — then you take over: voices, text, caption style, blur, with a live preview at every step.",
-    "f1": "On-screen text, localized in place",
-    "f2": "Clone, auto-cast or pack voices",
-    "f3": "Rewrite the script, then re-voice",
-    "f4": "Diarization + clean transcript, voices from speakers",
-    "formats": "MP4 · MOV · MKV · WEBM · AVI · up to 4K · nothing leaves your machine"
-  },
-  "analyze": {
-    "title": "Analyzing your video",
-    "titleAudio": "Analyzing your audio",
-    "download": "Downloading models",
-    "firstRunNote": "First run: models download once (several GB) — fast after that",
-    "separating": "Separating audio",
-    "recognizing": "Recognizing speech",
-    "diarizing": "Diarizing speakers",
-    "translating": "Translating",
-    "voicing": "Generating voiceover",
-    "style": "Detecting caption style",
-    "locating": "Locating on-screen text",
-    "casting": "Casting characters",
-    "assembling": "Assembling video",
-    "cancel": "Cancel"
-  },
-  "editor": {
-    "transcript": "Transcript",
-    "style": "Style",
-    "voice": "Voice",
-    "preview": "Preview",
-    "timeline": "Timeline"
-  },
-  "mode": {
-    "subtitles": "Subtitles",
-    "dub": "Dub",
-    "voiceover": "Voiceover",
-    "funny": "Funny",
-    "transcribe": "Transcript",
-    "subtitles_desc": "Original audio + original-language subtitles",
-    "dub_desc": "Re-voiced into the target language",
-    "funny_desc": "Gemma rewrites the script, then re-dubs",
-    "voiceover_desc": "Translated voice over the ducked original",
-    "transcribe_desc": "Transcript + diarization, no dubbing"
-  },
-  "batch": {
-    "open": "Batch of files",
-    "title": "Batch processing",
-    "queue": "Queue",
-    "start": "Start",
-    "queued": "queued",
-    "analyzing": "analyzing",
-    "rendering": "rendering",
-    "done": "done",
-    "error": "error",
-    "open_out": "Open",
-    "saveAll": "Save all to folder",
-    "back": "Back",
-    "add": "Add files",
-    "filesCount_one": "{{count}} file",
-    "filesCount_other": "{{count}} files"
-  },
-  "transcribe": {
-    "title": "Transcript and diarization",
-    "speakers": "Speakers · create voices",
-    "speaker": "Speaker",
-    "makeVoice": "Voice",
-    "makeAll": "Create all voices",
-    "made": "Done",
-    "refHint": "reference text is auto-transcribed (like Higgs)",
-    "sec": "s ref",
-    "exportSrt": "Export .srt",
-    "exportTxt": "Export .txt",
-    "empty": "No lines in the transcript",
-    "speakersCount_one": "{{count}} speaker",
-    "speakersCount_other": "{{count}} speakers"
-  },
-  "actions": {
-    "translate": "Translate",
-    "dub": "Full dub",
-    "funny": "Funny remix",
-    "transcribe": "Transcript and voices",
-    "dubFile": "Dub any file"
-  },
-  "style": {
-    "font": "Font",
-    "size": "Size",
-    "color": "Color",
-    "outline": "Outline",
-    "shadow": "Shadow",
-    "outlineW": "out",
-    "outlineWFull": "Outline width (px), 0 = none",
-    "bold": "Bold",
-    "italic": "Italic",
-    "caps": "UPPERCASE",
-    "plate": "Plate",
-    "resetAuto": "Reset to auto",
-    "resetGlobal": "Reset to global",
-    "plateColor": "Plate color"
+    "name": "Speech Studio",
+    "tagline": "Voice text and recognise speech, on your own computer."
   },
   "voice": {
     "clone": "Clone original",
@@ -154,8 +40,6 @@
     "speakerName": "Speaker {{spk}}",
     "autoName": "Voice {{n}}",
     "packMissing": "(pack not found)",
-    "addSpeakerDone_one": "{{count}} line → new SPK {{spk}}",
-    "addSpeakerDone_other": "{{count}} lines → new SPK {{spk}}",
     "ageTeen": "teen",
     "ageChild": "child",
     "errNoSeparation": "Couldn't make a voice from speaker {{spk}}: this project has no separated vocals and the vocal separation engine isn't installed, so the voice would carry the music. Install it in {{settings}} → {{models}} → {{section}}.",
@@ -165,66 +49,10 @@
     "catalogFailed": "Couldn't load the voice list: {{error}}",
     "getFailed": "Couldn't download the voice {{name}}: {{error}}"
   },
-  "remix": {
-    "title": "Remix",
-    "placeholder": "Theme — e.g. ‘pirate theme’, ‘as a news report’, ‘sarcastic’",
-    "apply": "Apply remix",
-    "hint": "Gemma rewrites the whole script on your theme, keeping the timing. Export then re-dubs it."
-  },
-  "export": {
-    "title": "Export",
-    "summary": "{{segments}} segments · {{speakers}} speakers · {{lang}} captions",
-    "proceed": "Export",
-    "tweak": "Keep editing",
-    "beforeAfter": "Original ↔ Dubbed"
-  },
-  "blur": {
-    "title": "Mask",
-    "on": "Cover original text",
-    "add": "Add box",
-    "frame": "On this frame",
-    "all": "All zones",
-    "show": "Show mask",
-    "hide": "Hide mask",
-    "off": "off",
-    "modeBlur": "Blur (click → solid fill)",
-    "modeFill": "Solid fill (click → blur)",
-    "fillColor": "Fill colour"
-  },
-  "compare": {
-    "toggle": "Compare",
-    "original": "Original",
-    "result": "Dubbed"
-  },
-  "titles": {
-    "tab": "Titles",
-    "add": "Custom title",
-    "delete": "Delete title",
-    "defaultText": "Title"
-  },
-  "preset": {
-    "title": "Preset",
-    "original": "Match original"
-  },
-  "files": {
-    "title": "Files",
-    "download": "Save",
-    "downloaded": "Saved",
-    "open": "Open"
-  },
   "nav": {
     "new": "New",
-    "newHint": "Start with a new video"
-  },
-  "play": {
-    "dub": "Play the dub (video + voiceover)",
-    "volume": "Preview volume",
-    "lagNotice": "Preview may lag — not a bug. Exact result in the export."
-  },
-  "recent": {
-    "title": "Recent projects",
-    "delete": "Delete project",
-    "deleteConfirm": "Delete project «{{video}}»? Its files will be permanently erased."
+    "newHint": "Start with a new video",
+    "newTitle": "Start the current mode from a clean page (Ctrl+N)"
   },
   "prefs": {
     "title": "Settings",
@@ -270,62 +98,11 @@
     "copied": "Copied",
     "pathsFailed": "Couldn't get the data folder: {{error}}"
   },
-  "projects": {
-    "title": "All projects",
-    "all": "All projects ({{n}})",
-    "count_one": "{{count}} project",
-    "count_other": "{{count}} projects",
-    "countFiltered": "{{shown}} of {{total}}",
-    "search": "Search by name, language or mode",
-    "empty": "No projects yet",
-    "noMatch": "No projects match the search and filters",
-    "created": "created {{date}}",
-    "edited": "edited {{ago}}",
-    "more_one": "Show {{count}} more",
-    "more_other": "Show {{count}} more",
-    "deleteConfirm": "Delete",
-    "loadFailed": "Couldn't load the project list: {{error}}",
-    "openFailed": "Couldn't open the project: {{error}}",
-    "sort": {
-      "label": "Sort: {{order}}",
-      "title": "Sort by",
-      "newest": "Newest first",
-      "oldest": "Oldest first",
-      "edited": "Recently edited",
-      "nameAsc": "Name A–Z",
-      "nameDesc": "Name Z–A",
-      "longest": "Longest first",
-      "shortest": "Shortest first"
-    },
-    "filter": {
-      "status": "Filter by status",
-      "all": "All",
-      "done": "Ready",
-      "pending": "Not ready",
-      "reset": "Reset filters"
-    }
-  },
   "offline": {
     "title": "The studio service isn't responding",
-    "body": "This window can't reach the Dub Studio service on this computer. If you closed the app, start it again; if it stopped by itself, restart it. The page comes back on its own as soon as the service answers.",
+    "body": "This window can't reach the Speech Studio service on this computer. If you closed the app, start it again; if it stopped by itself, restart it. The page comes back on its own as soon as the service answers.",
     "retrying": "Checking every 2 s · {{seconds}} s",
     "retry": "Check now"
-  },
-  "launch": {
-    "loadFailed": "Couldn't read the saved launch settings, the form shows the built-in ones: {{error}}",
-    "saveFailed": "Couldn't save the launch settings: {{error}}"
-  },
-  "multilang": {
-    "title": "Multiple languages",
-    "exportTitle": "Export to other languages",
-    "exportHint": "Exports this clip into several languages one after another with the same settings — subtitle layout, styles, blur and voice are kept; only translation and voicing change.",
-    "exportGo": "Export · {{n}}",
-    "add": "＋ Add a language",
-    "openEditor": "Editor",
-    "done": "Done",
-    "backToExport": "↩ Back to language export",
-    "langsCount_one": "{{count}} language",
-    "langsCount_other": "{{count}} languages"
   },
   "status": {
     "working": "Working…",
@@ -334,36 +111,6 @@
     "log": "Activity log",
     "clear": "Clear",
     "backendOffline": "backend offline"
-  },
-  "edit": {
-    "setStart": "Start at playhead",
-    "setEnd": "End at playhead",
-    "startVideo": "Start at video start",
-    "endVideo": "End at video end",
-    "alignLeft": "Align left",
-    "alignCenter": "Align center",
-    "alignRight": "Align right"
-  },
-  "seg": {
-    "add": "Add phrase",
-    "addHint": "Insert your own line — dubbed with the speaker's voice and shown in subtitles",
-    "speakerHint": "Reassign this line to another speaker (uses that speaker's voice)",
-    "timingHint": "Fine-tune this line's timing (start → end, seconds) if it drifted from the speech",
-    "seconds": "sec",
-    "newSpeaker": "New speaker",
-    "regen": "Regenerate this line's voiceover",
-    "play": "Play this line's voiceover",
-    "keep": "Keep original",
-    "unkeep": "Re-dub",
-    "hide": "Hide line",
-    "show": "Show line",
-    "del": "Delete line",
-    "refresh": "Refresh",
-    "refreshHint": "Force-refresh the preview / subtitles (if it lags or hangs)",
-    "drag": "Drag the phrase (drag & drop)",
-    "moveUp": "Move up",
-    "moveDown": "Move down",
-    "edited": "edited"
   },
   "settings": {
     "sounds": "Notification sounds",
@@ -487,32 +234,31 @@
     "concurrencyHint": "chunks over N connections — faster cloud ASR/TTS/translation (1 = one at a time)"
   },
   "help": {
-    "title": "About Dub Studio",
-    "intro": "Dub Studio dubs and translates any video entirely on your machine — nothing leaves your computer. Drop a clip; it auto-analyzes once, then you fine-tune every detail with a live preview.",
+    "title": "About Speech Studio",
+    "intro": "Speech Studio voices text and recognises speech on your computer: the models run on your graphics card, and the cloud is used only where you turn it on.",
     "howTitle": "How it works",
     "how": [
-      "Drop an MP4/MOV — it splits the audio, recognizes speech, tells speakers apart, translates, and reads on-screen text.",
-      "Pick a mode — subtitles, full dub, voice-over, funny remix or transcript; mix audio, subtitles and blur freely.",
-      "Edit anything — transcript, voices, subtitle style, masks, add your own lines — with instant preview.",
-      "Export the finished video. Everything runs locally on your GPU."
+      "Download the models on the first run: the studio picks the set for your graphics card.",
+      "Speech: write or paste a text, pick a voice and voice it.",
+      "Listening: open a recording, a link or the microphone and get the text with the speakers.",
+      "Save the result where you want it."
     ],
     "featuresTitle": "Features",
     "features": [
-      "Voice cloning, auto-cast per speaker, or a voice pack",
-      "On-screen text localized in place",
-      "Rewrite the script and re-dub (funny mode)",
-      "Subtitle styling: font, color, outline, shadow, plate",
-      "Mask covers: blur or a solid rectangle over the original",
-      "Composable modes — dub without subtitles, subtitles without dubbing, any mix",
-      "Add your own lines to the transcript — voiced in the speaker's cloned voice",
-      "100+ languages, fully offline, up to 4K"
+      "Voice cloning from a few seconds of a recording",
+      "Your own library of voices with photos and tags",
+      "Higgs Audio v3 locally, Drama 3 on cards with 24 GB",
+      "Parakeet and Whisper recognition",
+      "Speakers told apart in a recording",
+      "Cloud voices and recognition through OpenRouter and Google",
+      "An agent (MCP) drives the studio while you watch",
+      "Six interface languages"
     ],
     "sectionsTitle": "Sections",
     "sections": [
-      "Transcript — edit each line and its translation",
-      "Voice — pick how it's voiced and regenerate",
-      "Style & Mask — subtitles, titles, covers",
-      "Settings (⚙) — the model stack (ASR / LLM / Vision / TTS)"
+      "Speech: voicing text",
+      "Listening: recognising speech and checking a voicing",
+      "Settings (⚙): models, cloud, network, agent, statistics"
     ],
     "donateTitle": "Support the author",
     "donateIntro": "I build open-source software and do AI research. Most of what I create is free and available to everyone. Your donations help me keep creating and researching without worrying about where the next meal comes from =) Thank you 🙏",
@@ -521,15 +267,6 @@
     "copy": "Copy address",
     "madeBy": "Built by",
     "founder": "founder of"
-  },
-  "sel": {
-    "pick": "Select:",
-    "all": "All",
-    "count_one": "{{count}} selected",
-    "count_other": "{{count}} selected",
-    "keep": "Keep orig.",
-    "hide": "Hide",
-    "del": "Delete"
   },
   "common": {
     "undo": "Undo",
@@ -558,17 +295,22 @@
     "fsWindow": "Fullscreen window",
     "wheelSeek": "Ctrl + wheel — scrub",
     "help": "Show this help",
-    "esc": "Close / exit fullscreen"
+    "esc": "Close / exit fullscreen",
+    "modeSpeech": "Speech mode",
+    "modeListening": "Listening mode",
+    "new": "Start over in the current mode",
+    "settings": "Settings",
+    "helpWindow": "Help"
   },
   "setup": {
     "title": "First run",
-    "subtitle": "Dub Studio needs a few components before the first dub. Everything needed is already checked — just click Download selected at the bottom.",
+    "subtitle": "Speech Studio needs a few components before the first voicing. Everything needed is already checked: click Download selected at the bottom.",
     "pickNoteTitle": "One quant per model.",
     "pickNote": "What's needed is already checked. Quants are variants of the same model (OR): higher quant = better quality and heavier, lower = lighter. No need to download them all.",
     "grpHiggs": "Voice · Higgs Audio v3",
-    "grpGemma": "Translation + on-screen text · Gemma-4 12B",
+    "grpGemma": "Script assistant · Gemma-4 12B",
     "grpParakeet": "Speech recognition · Parakeet-TDT",
-    "grpRoformer": "Vocal separation · Mel-Band Roformer",
+    "grpRoformer": "Voice cleaning · Mel-Band Roformer",
     "pickOneQuant": "pick one",
     "default": "default",
     "alt": "or",
@@ -596,145 +338,7 @@
     "done": "Done",
     "owed": "To start, these are still needed: {{list}}.",
     "error": "Error",
-    "cloudHint": "Picked <b>Cloud</b> and entered the key? You can skip downloading the heavy local models below — translation and voiceover will go through OpenRouter."
-  },
-  "comp": {
-    "langHint": "100+ languages. For a non-European source, Whisper turns on automatically.",
-    "asrSwitched": "Parakeet doesn't know {{lang}} — ASR switched to Whisper (99 languages).",
-    "detect": "Detect on-screen text",
-    "detectHint": "OCR finds baked-in captions to blur & localize. Slow on 4K — turn off if you don't need it (e.g. dubbing without subtitles).",
-    "casting": "Cast characters",
-    "castingHint": "Optional. Adds a pass over the frames — detects faces, matches them to speakers, and builds a character cast (avatar, name, voice) you can edit after analysis. Slower on long videos.",
-    "hint": "Compose freely — audio and subtitles are independent, in any mode",
-    "audioLabel": "Audio",
-    "audioNone": "Original (no dub)",
-    "audioDub": "Dub",
-    "audioVoiceover": "Voice-over",
-    "origGain": "Original under translation",
-    "subsLabel": "Subtitles",
-    "subsNone": "No subtitles",
-    "subsOriginal": "Original",
-    "subsTranslate": "Translated",
-    "subsBilingual": "Both",
-    "audioNoneHint": "Keep the original soundtrack — no voice is generated.",
-    "audioDubHint": "Replace the speech with a generated voice in the target language.",
-    "audioVoiceoverHint": "Translated voice on top of the quieted original.",
-    "audioTranscribeHint": "Only recognize speech and split it by speaker — no dubbing.",
-    "subsNoneHint": "Don't show any subtitles.",
-    "subsOriginalHint": "Subtitles in the source (spoken) language.",
-    "subsTranslateHint": "Subtitles translated into the target language.",
-    "subsBilingualHint": "The translation with the original as a smaller second line.",
-    "optionsHelp": "Hover an option to see what it does",
-    "burn": "On video",
-    "burnHint": "Burn subtitles/titles onto the video (off = clean video, e.g. dub without subtitles)",
-    "funny": "Funny remix",
-    "voiceHint": "Choose voice: clone / auto-cast / from pack"
-  },
-  "bilingual": {
-    "settings": "Second line settings",
-    "title": "Original line",
-    "translationTop": "Translation on top",
-    "originalTop": "Original on top",
-    "size": "Size",
-    "sizeValue": "{{pct}}% of the main line",
-    "color": "Text color",
-    "opacity": "Opacity",
-    "pct": "{{pct}}%",
-    "sameAsMain": "As the main line"
-  },
-  "audio": {
-    "onlyTitle": "Audio-only project",
-    "onlyHint": "No video track. Edit the transcript, pick voices, then Export to get the dubbed audio (WAV)."
-  },
-  "import": {
-    "subs": "Import subtitles (SRT / ASS)",
-    "subsHint": "Already have subtitles? Upload them — we take their text and timing as the base instead of auto-recognition (speakers assigned automatically, then translate & voice).",
-    "subsClear": "Remove — use auto-recognition",
-    "translated": "Subtitles already in the target language (no translation)",
-    "translatedHint": "E.g. English video + Russian subtitles → Russian dub. Subtitle text goes straight to voicing; ASR and translation are skipped."
-  },
-  "subalign": {
-    "label": "Align timing to the speech",
-    "hint": "Subtitles from another release or with reading margins? We recognize the speech and move each line to where it is actually said (shift and drift are fixed). Takes one speech-recognition pass. Only for subtitles in the video's language."
-  },
-  "trStyle": {
-    "label": "Translation style",
-    "normal": "Normal",
-    "technical": "Technical",
-    "literary": "Literary",
-    "casual": "Casual",
-    "custom": "Custom…",
-    "customPlaceholder": "Your instruction for the translator — e.g. 'formal, no slang', 'Gen-Z tone'"
-  },
-  "keepOrig": {
-    "label": "Keep original track",
-    "hint": "Adds a second audio track with the original — switchable in any player.",
-    "mp4": "MP4",
-    "mkv": "MKV",
-    "mp4Hint": "MP4 — best compatibility",
-    "mkvHint": "MKV — every player sees the tracks"
-  },
-  "voiceSlots": {
-    "label": "Voices",
-    "clone": "Clone from video",
-    "library": "From library",
-    "male": "Male voices",
-    "female": "Female voices",
-    "add": "Add voice",
-    "remove": "Remove",
-    "priorityHint": "Order = priority: slot 1 is the most-speaking speaker of that gender, then round-robin. Empty list = that gender is cloned.",
-    "assigned_one": "Voices assigned: {{count}} speaker",
-    "assigned_other": "Voices assigned: {{count}} speakers",
-    "missing": "Library voices not found: {{names}}. These speakers keep cloned voices",
-    "noVocals": "No vocal track to measure voices. Speakers keep cloned voices"
-  },
-  "accordion": {
-    "voices": "Voices",
-    "subs": "Subtitles",
-    "advanced": "More options",
-    "voicesLib_one": "From library: {{count}} voice",
-    "voicesLib_other": "From library: {{count}} voices"
-  },
-  "casting": {
-    "tab": "Characters",
-    "tabHint": "Character cast — faces, voices and speech notes",
-    "title": "Character casting",
-    "hint": "Detected characters from the video. Give each a name, a speech note (sent to the translator), and a dubbing voice, then apply the cast. Empty voice = clone from the video.",
-    "apply": "Apply casting",
-    "applied": "Applied",
-    "namePlaceholder": "Character name",
-    "speech": "Speech style",
-    "speechPlaceholder": "e.g. gruff and sarcastic, speaks fast, elderly",
-    "voice": "Dubbing voice",
-    "voiceClone": "Clone from video",
-    "contentAuto": "Auto",
-    "contentReal": "Real faces",
-    "contentAnime": "Cartoon / anime",
-    "gender": {
-      "male": "Male",
-      "female": "Female",
-      "unknown": "—"
-    },
-    "autoByGender": "— auto-cast by gender —",
-    "count_one": "{{count}} character",
-    "count_other": "{{count}} characters",
-    "lines_one": "{{count}} line",
-    "lines_other": "{{count}} lines"
-  },
-  "castingLib": {
-    "save": "Save cast to library",
-    "saveHint": "Save the current cast as a profile to apply to another video",
-    "savedShort": "Saved",
-    "namePlaceholder": "Cast name",
-    "savedToast": "Cast \"{{name}}\" saved to library",
-    "playSample": "Play voice sample",
-    "stopSample": "Stop",
-    "applyLabel": "Apply saved cast",
-    "none": "— none —",
-    "profileOption": "{{name}} ({{n}} char.)",
-    "empty": "Library is empty — save a cast from the editor.",
-    "delete": "Delete profile",
-    "deleteConfirm": "Delete this cast profile?"
+    "cloudHint": "Picked <b>Cloud</b> and entered the key? You can skip the heavy local models below: voicing and recognition will go through OpenRouter."
   },
   "downloads": {
     "errDiskSpace": "Not enough free space in the models folder",
@@ -832,115 +436,11 @@
     "threads": "Parallel threads",
     "threadsHint": "chunks over N connections — faster cloud ASR/TTS/translation (1 = no multithreading)"
   },
-  "proxy": {
-    "title": "Proxy",
-    "all": "Proxy all traffic",
-    "allHint": "turn on if direct model download or OpenRouter does not work",
-    "ok": "Works — HF and OpenRouter are reachable through the proxy",
-    "badHf": "model download (HF)",
-    "services": "services",
-    "unreachable": "Unreachable through the proxy: {{list}}",
-    "failed": "Could not check the proxy",
-    "support": "Supports HTTP/HTTPS/SOCKS5. Applies immediately to model downloads and the cloud."
-  },
-  "orKey": {
-    "title": "OpenRouter key",
-    "hint": "for cloud engines (translation / TTS)",
-    "ok": "Key works — saved",
-    "rejected": "Key rejected by OpenRouter",
-    "unavailable": "OpenRouter is unavailable"
-  },
   "hwPreset": {
     "title": "Hardware preset",
     "gpu": "{{name}} · {{gb}} GB VRAM",
     "noGpu": "NVIDIA GPU not found",
     "ram": "RAM {{gb}} GB"
-  },
-  "qc": {
-    "asr": {
-      "tip": "Automatically check the recognized text with Whisper ASR to cut out silence and defects",
-      "label": "ASR text check (QC)",
-      "hint": "auto-check the voiceover via ASR (turning it off speeds up synthesis)"
-    },
-    "duration": {
-      "tip": "Fit the speed and control the audio timing to the subtitle slot",
-      "label": "Phrase duration control (Stretch QC)",
-      "hint": "timing fit and maximum stretch limit"
-    },
-    "multitake": {
-      "tip": "Generate 3 voiceover variants of every phrase and automatically pick the best one by timing",
-      "label": "Multi-take selection (3 takes)",
-      "hint": "3 voiceover variants — the best one by timing is picked (slower, but better quality)"
-    },
-    "speechRate": {
-      "tip": "Dynamically adapts the neural model's speaking pace to the text length and the available time slot",
-      "label": "Dynamic speech rate (Speech Rate TTS)",
-      "hint": "adapts the speaking speed to the text length in the window"
-    },
-    "leadIntoSilence": {
-      "tip": "When a voiced line is longer than its slot and there is silence before it, it starts earlier - up to a second - and keeps its pace instead of being sped up. It still ends where the original does.",
-      "label": "Start in the silence",
-      "hint": "a line that does not fit starts earlier, in the pause before it"
-    },
-    "emoRef": {
-      "tip": "Transfers emotion, intonation and delivery straight from the scene's original audio",
-      "label": "Scene emotion reference (Emo-Ref)",
-      "hint": "copies the intonation, emotion and delivery of the original scene"
-    },
-    "breath": {
-      "tip": "Automatically inserts quiet, natural breaths in the pauses between lines",
-      "label": "Breaths between phrases",
-      "hint": "inserts natural soft breaths in pauses to make speech livelier"
-    },
-    "autoShorten": {
-      "tip": "If a voiced line needs more speed-up than the render applies (up to ×4 with the dynamic speech rate), the translation model rewrites it shorter once and only that line is voiced again",
-      "label": "Shorten lines that don't fit",
-      "hint": "rewrite the translation of lines that don't fit their slot and voice them again"
-    }
-  },
-  "manual": {
-    "newTitle": "Create a project (manual setup)",
-    "newSub": "manual setup",
-    "tip": "Create a project without auto-generation and go straight to subtitles",
-    "label": "Manual mode",
-    "sub": "to subtitles",
-    "starting": "Creating a project in manual mode...",
-    "done": "Project created in manual mode — ready to work on subtitles"
-  },
-  "duck": {
-    "tip": "Duck the background under the voice in the dub. Off — the background stays at full volume.",
-    "label": "Duck the background under the voice",
-    "hint": "Ducking: the background gets quieter under the dub's speech. Off — the full background."
-  },
-  "blurPlate": {
-    "tip": "A blurred plate behind the subtitles for readability. Off — text without a plate.",
-    "label": "Blur plate behind subtitles",
-    "hint": "A blurred plate behind the subtitles. Off — no plate."
-  },
-  "palette": {
-    "placeholder": "⌘K — commands…"
-  },
-  "timeline": {
-    "title": "Audio and subtitle timeline",
-    "zoomOut": "Zoom out",
-    "zoomIn": "Zoom in",
-    "editStart": "Adjust start",
-    "editEnd": "Adjust end",
-    "listen": "Listen to this phrase"
-  },
-  "subs": {
-    "saved": "Subtitle file saved successfully!",
-    "savedAll": "All subtitle changes saved successfully!",
-    "empty": "The subtitle file is empty or its format could not be recognized (.srt/.ass)",
-    "saveTip": "Save subtitles to a file (.srt)",
-    "saveTypeDesc": "Subtitles (.srt)",
-    "importTip": "Import a subtitle file (.srt, .ass, .vtt)",
-    "importShort": "Import .srt/.ass",
-    "loadTip": "Load ready-made subtitles from a file (.srt, .ass)",
-    "importList": "Import subtitles (.srt, .ass)",
-    "importPanel": "Import subtitles (.srt / .ass)",
-    "loaded_one": "Subtitles loaded: {{count}} phrase from {{file}}",
-    "loaded_other": "Subtitles loaded: {{count}} phrases from {{file}}"
   },
   "float": {
     "dock": "Return to the header"
@@ -951,13 +451,9 @@
     "power": "Power",
     "process": "Process"
   },
-  "preview": {
-    "frameAlt": "Preview frame",
-    "updating": "updating…"
-  },
   "agent": {
     "title": "Agent (MCP)",
-    "intro": "An agent connected here (Claude Code, Cursor, Codex and others) drives the whole studio: it makes projects of your videos, analyzes them, fixes the translation line by line, casts the voices, renders, exports other languages and saves the results. The server runs with the studio; there is nothing to install.",
+    "intro": "An agent connected here (Claude Code, Cursor, Codex and others) drives the studio: it downloads the models, manages your voices and keys, fetches recordings by a link and works in this window while you watch. The server runs with the studio; there is nothing to install.",
     "lastCall": "Agent's last call: {{call}} · {{seconds}} s ago",
     "none": "No agent has connected yet",
     "windowOn": "The window is connected: the agent sees it",
@@ -968,9 +464,6 @@
     "copied": "Copied",
     "failed": "Could not read the agent's status"
   },
-  "confirm": {
-    "title": "Are you sure?"
-  },
   "a11y": {
     "close": "Close",
     "clearSelection": "Clear the selection",
@@ -980,10 +473,6 @@
     "deleteBlur": "Delete this blur box",
     "removeLang": "Remove this language",
     "lanes": "Editor lanes"
-  },
-  "montage": {
-    "split": "Cut the line at the playhead",
-    "mergeNext": "Join with the next line"
   },
   "bridge": {
     "agent": "Agent",
@@ -1007,40 +496,9 @@
       "select": "chooses in «{{name}}»",
       "press_key": "presses a key",
       "scroll": "scrolls",
-      "navigate": "opens a screen",
+      "navigate": "switches to {{name}}",
       "open_settings": "opens the settings",
-      "open_help": "opens the help",
-      "editor_open": "opens a project",
-      "editor_frame": "looks at the frame",
-      "editor_seek": "moves the playhead",
-      "editor_select": "shows you a part",
-      "editor_play": "plays the dub",
-      "editor_pause": "pauses",
-      "editor_lane": "switches the lane",
-      "editor_segment_update": "edits a line",
-      "editor_segment_add": "adds a line",
-      "editor_segments_delete": "deletes lines",
-      "editor_segment_split": "cuts a line in two",
-      "editor_segments_merge": "joins lines",
-      "editor_segment_move": "moves a line on the timeline",
-      "editor_mode": "switches the mode",
-      "editor_style": "restyles the subtitles",
-      "editor_preset": "applies a subtitle preset",
-      "editor_blur_add": "adds a blur box",
-      "editor_blur_update": "changes a blur box",
-      "editor_title_add": "adds a title",
-      "editor_title_update": "changes a title",
-      "editor_undo": "undoes an edit",
-      "editor_redo": "redoes an edit",
-      "editor_export": "starts the export",
-      "editor_subtitles_content": "changes the subtitle languages",
-      "editor_takes": "shows a line's takes",
-      "editor_take_select": "picks a take",
-      "editor_take_pin": "pins a take",
-      "editor_shorten": "shortens lines to fit",
-      "editor_glossary": "opens the glossary",
-      "editor_glossary_set": "edits the glossary",
-      "editor_glossary_extract": "collects glossary terms"
+      "open_help": "opens the help"
     }
   },
   "jobs": {
@@ -1082,140 +540,12 @@
     "error": {
       "failed": "The task failed",
       "interrupted": "The app closed while it was running",
-      "engine_stuck": "The voice engine froze — restart Dub Studio, then press Continue",
+      "engine_stuck": "The voice engine froze — restart Speech Studio, then press Continue",
       "job_record_broken": "The task record is damaged"
     },
     "busy": "The project is busy: {{kind}} is in progress",
     "waitingFor": "Waiting for {{kind}} on this project to finish",
     "cancelledKind": "{{kind}}: cancelled"
-  },
-  "glossary": {
-    "open": "Glossary",
-    "openHint": "Names, terms and brands for the translation, speech recognition and the voice",
-    "title": "Project glossary",
-    "hint": "The translation renders each term as written here, speech recognition fixes its misspellings, the voice says it the way the Pronunciation column says.",
-    "close": "Close",
-    "filter": "Filter",
-    "add": "Add term",
-    "extract": "Collect from text",
-    "extractHint": "Find names, terms and brands in the transcript with the translation model — you choose which to keep",
-    "extracting": "Collecting…",
-    "import": "Import TSV",
-    "importHint": "Add terms from a TSV file: term, translation, keep (1/0), pronunciation",
-    "export": "Export TSV",
-    "exportHint": "Save the glossary as a TSV file in the project folder",
-    "series": "Series profile",
-    "seriesHint": "The series’ glossary goes into every next episode analyzed with this casting",
-    "noSeries": "Save the casting to the library first — the series profile keeps the glossary",
-    "noSeriesShort": "No profiles",
-    "toSeries": "Save to series",
-    "seriesSaved": "Saved to the series profile “{{name}}”",
-    "candidates": "Suggested: {{n}}",
-    "acceptAll": "Add all",
-    "dismissAll": "Dismiss all",
-    "accept": "Add",
-    "dismiss": "Dismiss",
-    "keepShort": "keep as is",
-    "nothingFound": "Nothing new found in the text",
-    "empty": "No terms yet: add them by hand, collect them from the text or import a TSV",
-    "colTerm": "Term",
-    "colTranslation": "Translation",
-    "colKeep": "Keep",
-    "colKeepHint": "Do not translate — keep the term exactly as written",
-    "colPronunciation": "Pronunciation",
-    "colPronunciationHint": "How the voice says it; subtitles keep the translation",
-    "colAsr": "Recognised as",
-    "colAsrHint": "How speech recognition misspells the term, comma-separated; analysis corrects it",
-    "colNote": "Note",
-    "auto": "auto",
-    "autoHint": "Collected from the text: check it — editing makes it yours",
-    "otherLang": "This entry's translation and pronunciation are in {{lang}}, the project in {{target}}, so they are not used. Edit them to write them in {{target}}.",
-    "remove": "Delete term",
-    "count": "Terms: {{n}}",
-    "unsaved": "not saved",
-    "save": "Save",
-    "saved": "Glossary saved",
-    "imported": "Terms imported",
-    "exported": "Saved: {{path}}",
-    "stale": "The translation was made with another glossary.",
-    "retranslate": "Translate again",
-    "retranslated": "Translated again with the glossary",
-    "unsavedTitle": "Close without saving?",
-    "unsavedMessage": "The glossary changes will be lost.",
-    "discard": "Close without saving",
-    "srcHint": "Recognised text — edit it where speech recognition was wrong",
-    "suggest": "Add “{{term}}” to the glossary? Recognition wrote “{{from}}”",
-    "suggestAdd": "Add to glossary",
-    "suggestAdded": "“{{term}}” is in the glossary: analysis will fix this spelling",
-    "ttsSkipHint": "Once sound tags, speaker labels and markup are taken out, nothing is left to say — the line stays silent",
-    "ttsSkip": {
-      "sound_only": "Not voiced: only sound tags",
-      "no_words": "Not voiced: no words"
-    },
-    "err": {
-      "over_limit": "The glossary has {{total}} entries — more than {{max}}.",
-      "empty_term": "Entry {{entry}} has no term.",
-      "field_too_long": "Entry {{entry}} (“{{term}}”): a field is longer than {{max}} characters.",
-      "duplicate": "The term “{{term}}” is listed twice (entries {{first}} and {{second}}).",
-      "tsv_keep": "Line {{line}}: keep is “{{value}}” — expected 1 or 0.",
-      "tsv_empty_term": "Line {{line}} has no term.",
-      "one_of": "Send either entries or TSV, not both.",
-      "nothing": "Nothing to save: no entries and no TSV."
-    }
-  },
-  "fit": {
-    "fits": "fits",
-    "tight": "tight",
-    "impossible": "won't fit",
-    "renderedOver": "didn't fit ×{{x}}",
-    "renderedTip": "Voiced clip {{raw}} s for a {{slot}} s slot: needs ×{{needed}} speed-up; natural up to ×{{cap}}, the render speeds up to ×{{max}}",
-    "predictTip": "About {{est}} s of speech for a {{slot}} s slot (×{{ratio}}; natural up to ×{{cap}}, the render speeds up to ×{{max}}). {{pace}}",
-    "paceVoice": "Pace {{cps}} characters per second, measured on this voice",
-    "paceLang": "Pace {{cps}} characters per second, usual for the language (measured on the voice after 3 voiced lines)",
-    "overCount_one": "{{count}} line doesn't fit",
-    "overCount_other": "{{count}} lines don't fit",
-    "onlyOver": "Don't fit",
-    "onlyOverTip": "Show only the lines that don't fit their slot",
-    "shortenAll": "Shorten all that don't fit",
-    "shortenAllTip": "Rewrite shorter the translation of every line that doesn't fit its slot, keeping the meaning",
-    "shortenTip": "Shorten to the slot: rewrite the translation shorter, keeping the meaning, names and terms",
-    "shortening": "Shortening the translation to fit the slots",
-    "shortened_one": "Shortened {{count}} line",
-    "shortened_other": "Shortened {{count}} lines",
-    "rejected_one": "{{count}} answer rejected (other script, not shorter or a copy of the source)",
-    "rejected_other": "{{count}} answers rejected (other script, not shorter or a copy of the source)",
-    "failed_one": "The translation model did not answer for {{count}} line: {{error}}",
-    "failed_other": "The translation model did not answer for {{count}} lines: {{error}}"
-  },
-  "takes": {
-    "toggle_one": "Takes of the line: {{count}}",
-    "toggle_other": "Takes of the line: {{count}}",
-    "loading": "Loading takes…",
-    "loadFailed": "Takes not loaded: {{error}}",
-    "empty": "No takes yet — voice the line first",
-    "listen": "Listen",
-    "dur": "{{sec}} s",
-    "qc": "ASR match {{pct}}%",
-    "source": {
-      "synth": "voiced",
-      "multitake": "multi-take",
-      "qc": "QC re-voice",
-      "shorten": "shortened"
-    },
-    "active": "active",
-    "pinned": "pinned",
-    "pin": "Pin",
-    "unpin": "Unpin",
-    "pinTip": "Pin this take: regeneration and QC won't replace it until the line's text changes",
-    "unpinTip": "Unpin: the next render may voice the line again",
-    "use": "Use",
-    "useTip": "Make this take the one in the mix (no re-voicing, only the mix is rebuilt)",
-    "unpinFirst": "Another take is pinned: unpin it to choose this one",
-    "rollback": "Roll back",
-    "rollbackTip": "Return to this take and its text (undo brings the current one back)",
-    "selecting": "Switching the take and rebuilding the mix",
-    "unpinnedByEdit_one": "Text changed in {{count}} line — its pinned take is unpinned",
-    "unpinnedByEdit_other": "Text changed in {{count}} lines — their pinned takes are unpinned"
   },
   "url": {
     "placeholder": "Paste a video link",
@@ -1332,7 +662,7 @@
     "provider_google": "Google · direct"
   },
   "hub": {
-    "why": "How many people use Dub Studio and what for helps decide what to work on next. Nothing personal: no videos, texts, voices or file names — only counts of jobs, the models each stage used, the version, the graphics card class and why a job failed, with paths, names and quoted text cut out on this computer before it is sent.",
+    "why": "How many people use Speech Studio and what for helps decide what to work on next. Nothing personal: no videos, texts, voices or file names — only counts of jobs, the models each stage used, the version, the graphics card class and why a job failed, with paths, names and quoted text cut out on this computer before it is sent.",
     "checkbox": "Send anonymous usage statistics",
     "what": "What is sent",
     "byEnv": "Turned off by DO_NOT_TRACK or STUDIO_TELEMETRY in the environment.",
@@ -1343,5 +673,27 @@
     "refresh": "Check now",
     "notices": "Notices",
     "close": "Close"
+  },
+  "modes": {
+    "label": "Mode",
+    "speech": "Speech",
+    "listening": "Listening",
+    "speechHint": "Voice text with your voices (Ctrl+1)",
+    "listeningHint": "Recognise speech and check a voicing (Ctrl+2)",
+    "speechLead": "Turn a text into speech with a voice from your library, a voice cloned from a short recording or a cloud voice.",
+    "speechPoints": [
+      "A script of blocks: a voice, a style and a pause for every block",
+      "Several takes of a line, compared side by side",
+      "Stress, the Russian letter yo and abbreviations under your control",
+      "Export to WAV, FLAC, MP3 and subtitles"
+    ],
+    "listeningLead": "Turn a recording, a link or the microphone into text, with who speaks when.",
+    "listeningPoints": [
+      "Parakeet or Whisper on your graphics card, or a cloud model",
+      "Speakers told apart and named",
+      "A voicing from Speech checked word by word against its text",
+      "Export to TXT, SRT, VTT and DOCX"
+    ],
+    "comingNext": "This mode's workspace arrives with the next stage of the studio."
   }
 }
