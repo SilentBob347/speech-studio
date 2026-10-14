@@ -996,7 +996,16 @@
     "queueClear": "Vider la file",
     "qcSimilarity": "similarité de voix {{s}}",
     "similarityCheck": "Vérifier que la voix ressemble à sa référence",
-    "similarityHint": "WeSpeaker compare chaque nouvelle prise à la référence de la voix (il faut 0,5 ou plus) ; une prise différente est redite et marquée. Le modèle (26 Mo) est téléchargé au premier usage."
+    "similarityHint": "WeSpeaker compare chaque nouvelle prise à la référence de la voix (il faut 0,5 ou plus) ; une prise différente est redite et marquée. Le modèle (26 Mo) est téléchargé au premier usage.",
+    "splitHint": "Paragraphes et répliques deviennent des blocs, ou chaque ligne est un clip à part (un lot)",
+    "splitParagraphs": "Par paragraphes",
+    "splitLines": "Chaque ligne est un clip",
+    "fromFiles": "Fichiers .txt",
+    "fromFilesHint": "Un lot de fichiers texte : chaque fichier devient un bloc à son nom",
+    "perBlock": "Chaque bloc dans un fichier à part (lot)",
+    "clipsDone": "Fichiers prêts : {{n}}",
+    "clipsToFolder": "Tout enregistrer dans un dossier…",
+    "splitMode": "Comment découper le texte"
   },
   "tags": {
     "emotion": "Émotion",

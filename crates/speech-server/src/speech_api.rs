@@ -83,8 +83,21 @@ pub async fn create(State(st): State<AppState>, Json(body): Json<Value>) -> Resp
     let voice = body.get("voice").and_then(Value::as_str).map(str::to_string).filter(|v| !v.is_empty());
     let lang = body.get("lang").and_then(Value::as_str).map(str::to_string);
     let p = paths(&st);
+    let split = body.get("split").and_then(Value::as_str).unwrap_or("paragraphs").to_string();
+    let files: Vec<(String, String)> = body
+        .get("files")
+        .and_then(Value::as_array)
+        .map(|a| a.iter().filter_map(|f| Some((f.get("name")?.as_str()?.to_string(), f.get("text")?.as_str()?.to_string()))).collect())
+        .unwrap_or_default();
     let res = joined(tokio::task::spawn_blocking(crate::mcp::carry(move || -> Result<(String, Value), String> {
-        let mut project = sp::from_text(&name, &text, &t!("speech-narrator"));
+        let narrator = t!("speech-narrator");
+        let mut project = if !files.is_empty() {
+            sp::from_files(&name, &files, &narrator)
+        } else if split == "lines" {
+            sp::from_lines(&name, &text, &narrator)
+        } else {
+            sp::from_text(&name, &text, &narrator)
+        };
         if project.chapters[0].blocks.is_empty() {
             project.chapters[0].blocks.push(sp::Block { id: sp::new_id(), speaker: t!("speech-narrator"), ..Default::default() });
         }
@@ -265,6 +278,7 @@ pub async fn export(State(st): State<AppState>, AxPath(pid): AxPath<String>, Jso
     let opts = ExportOpts {
         format: body.get("format").and_then(Value::as_str).unwrap_or("wav").to_string(),
         chapter: body.get("chapter").and_then(Value::as_str).map(str::to_string),
+        per_block: body.get("per_block").and_then(Value::as_bool).unwrap_or(false),
     };
     if !crate::media::EXPORT_FORMATS.contains(&opts.format.as_str()) {
         return refuse(StatusCode::BAD_REQUEST, "bad_format", t!("media-bad-format", format = opts.format.clone()));
@@ -621,4 +635,32 @@ pub async fn export_save_as(State(st): State<AppState>, AxPath((pid, file)): AxP
         Ok(bytes) => Json(json!({ "path": dst.to_string_lossy(), "bytes": bytes })).into_response(),
         Err(e) => refuse(StatusCode::BAD_REQUEST, "save_failed", format!("{} -> {}: {e}", src.display(), dst.display())),
     }
+}
+
+/// POST /projects/{pid}/exports-to-folder {files, folder?} — копии файлов экспорта в папку (без `folder` — выбрать
+/// системным диалогом); `{folder: null}` — выбор отменён.
+pub async fn exports_to_folder(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<Value>) -> Response {
+    if !sp::is_pid(&pid) {
+        return refuse(StatusCode::BAD_REQUEST, "bad_request", pid);
+    }
+    let files: Vec<String> = body.get("files").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).map(str::to_string).collect()).unwrap_or_default();
+    let folder = match body.get("folder").and_then(Value::as_str) {
+        Some(f) => Some(std::path::PathBuf::from(f)),
+        None => tokio::task::spawn_blocking(|| rfd::FileDialog::new().set_title(t!("export-pick-folder")).pick_folder()).await.ok().flatten(),
+    };
+    let Some(folder) = folder else { return Json(json!({ "folder": null })).into_response() };
+    let src = st.workspace.join(&pid).join("exports");
+    let mut copied = 0;
+    for f in &files {
+        let rel = Path::new(f);
+        if rel.components().any(|c| !matches!(c, std::path::Component::Normal(_))) {
+            return refuse(StatusCode::BAD_REQUEST, "bad_request", f.clone());
+        }
+        let name = rel.file_name().map(|n| n.to_os_string()).unwrap_or_default();
+        if let Err(e) = std::fs::copy(src.join(rel), folder.join(&name)) {
+            return refuse(StatusCode::BAD_REQUEST, "save_failed", format!("{f}: {e}"));
+        }
+        copied += 1;
+    }
+    Json(json!({ "folder": folder.to_string_lossy(), "copied": copied })).into_response()
 }

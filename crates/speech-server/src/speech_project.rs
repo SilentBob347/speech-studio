@@ -385,6 +385,27 @@ pub fn from_text(name: &str, text: &str, narrator: &str) -> SpeechProject {
     }
 }
 
+/// Пакет: каждая непустая строка — отдельный клип (блок), без разбора диалогов и нарезки.
+pub fn from_lines(name: &str, text: &str, narrator: &str) -> SpeechProject {
+    let blocks = text
+        .lines()
+        .map(str::trim)
+        .filter(|l| !l.is_empty())
+        .map(|l| Block { id: new_id(), speaker: narrator.to_string(), text: l.to_string(), ..Default::default() })
+        .collect();
+    SpeechProject { name: name.to_string(), created: now(), chapters: vec![Chapter { id: new_id(), title: String::new(), blocks }], ..Default::default() }
+}
+
+/// Пакет из файлов: текст файла — блок, имя файла — заметка блока и имя его клипа при экспорте.
+pub fn from_files(name: &str, files: &[(String, String)], narrator: &str) -> SpeechProject {
+    let blocks = files
+        .iter()
+        .filter(|(_, t)| !t.trim().is_empty())
+        .map(|(file, t)| Block { id: new_id(), speaker: narrator.to_string(), text: t.trim().to_string(), note: file.clone(), ..Default::default() })
+        .collect();
+    SpeechProject { name: name.to_string(), created: now(), chapters: vec![Chapter { id: new_id(), title: String::new(), blocks }], ..Default::default() }
+}
+
 /// Отпечаток голоса для ключа: имя, размер и время звука, текст рефа.
 pub fn voice_tag(voices: &Path, name: Option<&str>) -> String {
     let Some(name) = name else { return "base".into() };

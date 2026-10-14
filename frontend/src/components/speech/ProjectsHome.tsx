@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AudioLines, Captions, FolderOpen, Library, Loader2, Plus, Trash2 } from "lucide-react";
+import { AudioLines, Captions, Files, FolderOpen, Library, Loader2, Plus, Trash2 } from "lucide-react";
 import BookImport from "./BookImport";
 import { speechApi, type BookPreview, type ProjectCard } from "../../lib/speech";
 import { errorText } from "../../lib/voices";
@@ -17,6 +17,8 @@ export default function ProjectsHome({ onOpen }: { onOpen: (pid: string) => void
   const { t, i18n } = useTranslation();
   const [name, setName] = useState("");
   const [text, setText] = useState("");
+  const [split, setSplit] = useState<"paragraphs" | "lines">("paragraphs");
+  const txtFiles = useRef<HTMLInputElement>(null);
   const [voice, setVoice] = useState<string | null>(null);
   const [lang, setLang] = useState("auto");
   const [busy, setBusy] = useState(false);
@@ -46,11 +48,20 @@ export default function ProjectsHome({ onOpen }: { onOpen: (pid: string) => void
   useEffect(load, []);
   useChanged(PROJECTS_CHANGED, load);
 
+  const createFromFiles = async (list: FileList) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const files = await Promise.all([...list].map(async (f) => ({ name: f.name, text: await f.text() })));
+      const r = await speechApi.create({ name: name.trim() || undefined, text: "", voice, lang, files });
+      onOpen(r.project_id);
+    } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
+  };
   const create = async () => {
     setBusy(true);
     setError(null);
     try {
-      const r = await speechApi.create({ name: name.trim() || undefined, text, voice, lang });
+      const r = await speechApi.create({ name: name.trim() || undefined, text, voice, lang, split });
       onOpen(r.project_id);
     } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
   };
@@ -67,6 +78,12 @@ export default function ProjectsHome({ onOpen }: { onOpen: (pid: string) => void
             className={`${field} resize-y leading-relaxed min-h-[220px]`} />
           <div className="flex flex-wrap items-center gap-2">
             <VoicePicker value={voice} onChange={setVoice} label={t("speech.voice")} />
+            <select value={split} onChange={(e) => setSplit(e.target.value === "lines" ? "lines" : "paragraphs")} aria-label={t("speech.split")} title={t("speech.splitHint")} className="bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-2 py-1.5 text-[12px]">
+              <option value="paragraphs">{t("speech.splitParagraphs")}</option>
+              <option value="lines">{t("speech.splitLines")}</option>
+            </select>
+            <button onClick={() => txtFiles.current?.click()} disabled={busy} className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)] disabled:opacity-40" title={t("speech.fromFilesHint")}><Files size={13} />{t("speech.fromFiles")}</button>
+            <input ref={txtFiles} type="file" accept=".txt" multiple hidden onChange={(e) => { const l = e.target.files; if (l?.length) void createFromFiles(l); e.target.value = ""; }} />
             <select value={lang} onChange={(e) => setLang(e.target.value)} aria-label={t("speech.lang")} className="bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-2 py-1.5 text-[12px]">
               {LANG_CHOICES.map((l) => <option key={l} value={l}>{l === "auto" ? t("speech.langAuto") : l.toUpperCase()}</option>)}
             </select>

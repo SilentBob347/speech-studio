@@ -584,6 +584,8 @@ pub fn export_check(p: &SpeechPaths, pid: &str, project: &SpeechProject) -> Vec<
 pub struct ExportOpts {
     pub format: String,
     pub chapter: Option<String>,
+    /// Пакет: каждый блок — свой файл с громкостью по пресету.
+    pub per_block: bool,
 }
 
 /// Склеить проект в файл `exports/<имя>.<формат>`.
@@ -608,6 +610,9 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
     }
     let dir = p.workspace.join(pid);
     let work = tempfile::Builder::new().prefix("export-").tempdir_in(&dir).map_err(|e| e.to_string())?;
+    if opts.per_block {
+        return export_clips(p, pid, &project, &blocks, opts, work.path(), progress);
+    }
     let mut mix: Vec<f32> = Vec::new();
     let mut cursor: i64 = 0;
     let mut marks = Vec::new();
@@ -703,6 +708,31 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
     let subtitles = format!("{base}.srt");
     std::fs::write(exports.join(&subtitles), srt(&cues)).map_err(|e| format!("{subtitles}: {e}"))?;
     Ok(json!({ "file": file, "subtitles": subtitles, "chapters": chapter_list, "acx": acx_report, "path": target.to_string_lossy(), "duration": mix.len() as f64 / SR as f64, "marks": marks, "lufs_before": levelled.map(|l| l.before), "lufs": levelled.map(|l| l.after) }))
+}
+
+/// Пакет: каждый блок — отдельный файл `exports/<проект>/<NNN> <имя>.<формат>`, громкость — по пресету каждого.
+fn export_clips(p: &SpeechPaths, pid: &str, project: &SpeechProject, blocks: &[&Block], opts: &ExportOpts, work: &Path, progress: &dyn Fn(Value)) -> Result<Value, String> {
+    let base = file_stem(&project.name, None);
+    let folder = p.workspace.join(pid).join("exports").join(&base);
+    std::fs::create_dir_all(&folder).map_err(|e| format!("{}: {e}", folder.display()))?;
+    let mut files = Vec::new();
+    for (i, b) in blocks.iter().enumerate() {
+        progress(json!({ "type": "progress", "stage": "speech_export", "msg": t!("speech-export-block", n = (i + 1) as i64, total = blocks.len() as i64), "pct": (i * 100 / blocks.len()) as i64 }));
+        let take = b.active.and_then(|n| b.takes.iter().find(|t| t.n == n)).ok_or_else(|| t!("speech-export-not-ready", count = 1))?;
+        let wav = work.join(format!("{i}.wav"));
+        crate::media::extract_audio(&takes_dir(p, pid).join(&take.file), &wav, SR, 1)?;
+        let (mut samples, _) = crate::wavio::read_mono_f32(&wav)?;
+        if let Some((target, tp, _)) = loudness(&project.settings.loudness) {
+            crate::loudness::level(&mut samples, SR, target, tp)?;
+        }
+        crate::wavio::write_mono_f32(&wav, &samples, SR)?;
+        let label = if b.note.trim().is_empty() { crate::speech_text::visible(&b.text).chars().take(40).collect::<String>() } else { b.note.trim_end_matches(".txt").to_string() };
+        let name = format!("{:03} {}.{}", i + 1, file_stem(&label, None), opts.format);
+        let meta = crate::media::AudioMeta { title: crate::speech_text::visible(&b.text), artist: project.voice_of(b).unwrap_or_default(), album: project.name.clone(), ..Default::default() };
+        crate::media::encode_audio_meta(&wav, &folder.join(&name), &opts.format, project.settings.loudness == "acx", &meta)?;
+        files.push(format!("{base}/{name}"));
+    }
+    Ok(json!({ "files": files, "folder": folder.to_string_lossy() }))
 }
 
 fn hms(t: f64) -> String {

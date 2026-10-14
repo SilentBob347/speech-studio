@@ -996,7 +996,16 @@
     "queueClear": "Clear the queue",
     "qcSimilarity": "voice similarity {{s}}",
     "similarityCheck": "Check that the voice sounds like its reference",
-    "similarityHint": "WeSpeaker compares each new take with the voice's reference (needs 0.5 or more); an unlike take is voiced again and marked. The model (26 MB) is downloaded on first use."
+    "similarityHint": "WeSpeaker compares each new take with the voice's reference (needs 0.5 or more); an unlike take is voiced again and marked. The model (26 MB) is downloaded on first use.",
+    "splitHint": "Paragraphs and dialogue lines become blocks, or every line is a separate clip (a batch)",
+    "splitParagraphs": "By paragraphs",
+    "splitLines": "Each line is a clip",
+    "fromFiles": ".txt files",
+    "fromFilesHint": "A batch from text files: each file becomes a block named after it",
+    "perBlock": "Each block as a separate file (a batch)",
+    "clipsDone": "Files made: {{n}}",
+    "clipsToFolder": "Save all to a folder…",
+    "splitMode": "How to cut the text"
   },
   "tags": {
     "emotion": "Emotion",

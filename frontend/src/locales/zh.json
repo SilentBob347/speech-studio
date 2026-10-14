@@ -996,7 +996,16 @@
     "queueClear": "清空队列",
     "qcSimilarity": "声音相似度 {{s}}",
     "similarityCheck": "检查声音是否像参考",
-    "similarityHint": "WeSpeaker 将每个新版本与声音参考比较（需 0.5 以上）；不像的版本会重新配音并标记。首次使用时下载模型（26 MB）。"
+    "similarityHint": "WeSpeaker 将每个新版本与声音参考比较（需 0.5 以上）；不像的版本会重新配音并标记。首次使用时下载模型（26 MB）。",
+    "splitHint": "段落和对话行成为文本块，或每行是一个单独的片段（批量）",
+    "splitParagraphs": "按段落",
+    "splitLines": "每行一个片段",
+    "fromFiles": ".txt 文件",
+    "fromFilesHint": "从文本文件批量创建：每个文件成为一个以其命名的文本块",
+    "perBlock": "每个文本块单独成文件（批量）",
+    "clipsDone": "已生成文件：{{n}}",
+    "clipsToFolder": "全部保存到文件夹…",
+    "splitMode": "如何切分文本"
   },
   "tags": {
     "emotion": "情绪",

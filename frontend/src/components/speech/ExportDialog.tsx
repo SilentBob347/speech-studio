@@ -25,6 +25,9 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
   const [chapterList, setChapterList] = useState<string | null>(null);
   const [acx, setAcx] = useState<AcxReport | null>(null);
   const [files, setFiles] = useState<{ file: string; bytes: number; mtime: number }[] | null>(null);
+  const [perBlock, setPerBlock] = useState(false);
+  const [clips, setClips] = useState<string[] | null>(null);
+  const [clipsSaved, setClipsSaved] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [withAudio, setWithAudio] = useState(true);
   const [pack, setPack] = useState<{ file: string; bytes: number } | null>(null);
@@ -41,8 +44,9 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
     setBusy(true);
     setError(null);
     try {
-      const { job_id } = await speechApi.export(pid, format);
-      const r = (await followJob(job_id, "export")) as { file: string; subtitles?: string; chapters?: string | null; acx?: AcxReport | null };
+      const { job_id } = await speechApi.export(pid, format, undefined, perBlock);
+      const r = (await followJob(job_id, "export")) as { file: string; files?: string[]; subtitles?: string; chapters?: string | null; acx?: AcxReport | null };
+      if (r.files) { setClips(r.files); return; }
       setAcx(r.acx ?? null);
       setFile(r.file);
       setSubs(r.subtitles ?? null);
@@ -76,6 +80,16 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
                   className={`px-3 py-1.5 rounded-lg border text-[12px] font-semibold uppercase ${format === f ? "border-[var(--color-accent)] text-[var(--color-accent)]" : "border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-text)]"}`}>{f}</button>
               ))}
             </div>
+            <label className="flex items-center gap-2 text-[12px] cursor-pointer">
+              <input type="checkbox" checked={perBlock} onChange={(e) => { setPerBlock(e.target.checked); setFile(null); setClips(null); }} className="w-4 h-4 accent-[var(--color-accent)]" />{t("speech.perBlock")}
+            </label>
+            {clips && (
+              <div className="space-y-1.5">
+                <p className="text-[12px]">{t("speech.clipsDone", { n: clips.length })}</p>
+                <button onClick={() => speechApi.exportsToFolder(pid, clips).then((r) => setClipsSaved(r.folder), (e: unknown) => setError(errorText(e)))} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[12px] font-semibold">{t("speech.clipsToFolder")}</button>
+                {clipsSaved && <p className="text-[11px] text-[var(--color-muted)] break-all">{t("files.savedTo", { path: clipsSaved })}</p>}
+              </div>
+            )}
             <p className="text-[12px] text-[var(--color-muted)]">{t("speech.exportLoudness", { preset: t(`speech.loudness_${project.settings.loudness}`) })}</p>
             {file ? (
               <div className="space-y-1.5">

@@ -71,7 +71,7 @@ export type ExportProblem = { block: string; state: BlockState | "missing" };
 
 export const speechApi = {
   list: () => getCoded<{ projects: ProjectCard[] }>("/projects"),
-  create: (body: { name?: string; text: string; voice?: string | null; lang?: string }) => postCoded<{ project_id: string; project: SpeechProject }>("/projects", body),
+  create: (body: { name?: string; text: string; voice?: string | null; lang?: string; split?: "paragraphs" | "lines"; files?: { name: string; text: string }[] }) => postCoded<{ project_id: string; project: SpeechProject }>("/projects", body),
   get: (pid: string) => getCoded<SpeechProject>(`/projects/${pid}`),
   put: (pid: string, project: SpeechProject) => {
     const { status: _status, ...body } = project;
@@ -84,7 +84,8 @@ export const speechApi = {
   unqueue: (pid: string, n?: number) => sendCoded<{ removed: number }>("DELETE", n == null ? `/projects/${pid}/queue` : `/projects/${pid}/queue/${n}`),
   history: (pid?: string) => getCoded<{ takes: HistoryTake[] }>(pid ? `/history?pid=${pid}` : "/history"),
   exportCheck: (pid: string) => getCoded<{ problems: ExportProblem[] }>(`/projects/${pid}/export-check`),
-  export: (pid: string, format: ExportFormat, chapter?: string) => postCoded<{ job_id: string }>(`/projects/${pid}/export`, { format, chapter }),
+  export: (pid: string, format: ExportFormat, chapter?: string, perBlock = false) => postCoded<{ job_id: string }>(`/projects/${pid}/export`, { format, chapter, per_block: perBlock }),
+  exportsToFolder: (pid: string, files: string[]) => postCoded<{ folder: string | null; copied?: number }>(`/projects/${pid}/exports-to-folder`, { files }),
   fromSubtitles: (file: File, name?: string) => {
     const form = new FormData();
     if (name) form.append("name", name);
