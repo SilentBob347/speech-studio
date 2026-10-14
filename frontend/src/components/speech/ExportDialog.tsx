@@ -20,6 +20,7 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
   const [format, setFormat] = useState<ExportFormat>(project.settings.loudness === "acx" ? "mp3" : "wav");
   const [busy, setBusy] = useState(false);
   const [file, setFile] = useState<string | null>(null);
+  const [subs, setSubs] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [withAudio, setWithAudio] = useState(true);
   const [pack, setPack] = useState<{ file: string; bytes: number } | null>(null);
@@ -37,8 +38,9 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
     setError(null);
     try {
       const { job_id } = await speechApi.export(pid, format);
-      const r = (await followJob(job_id, "export")) as { file: string };
+      const r = (await followJob(job_id, "export")) as { file: string; subtitles?: string };
       setFile(r.file);
+      setSubs(r.subtitles ?? null);
       onDone(r.file);
     } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
   };
@@ -70,7 +72,10 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
             </div>
             <p className="text-[12px] text-[var(--color-muted)]">{t("speech.exportLoudness", { preset: t(`speech.loudness_${project.settings.loudness}`) })}</p>
             {file ? (
-              <a href={speechApi.exportUrl(pid, file)} download={file} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[13px] font-semibold"><Check size={14} />{t("speech.saveFile", { file })}</a>
+              <div className="flex flex-wrap gap-2">
+                <a href={speechApi.exportUrl(pid, file)} download={file} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[13px] font-semibold"><Check size={14} />{t("speech.saveFile", { file })}</a>
+                {subs && <a href={speechApi.exportUrl(pid, subs)} download={subs} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)]" title={t("speech.subsHint")}>{t("speech.saveSubs")}</a>}
+              </div>
             ) : (
               <button onClick={run} disabled={busy} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[13px] font-semibold disabled:opacity-40">
                 {busy ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}{t("speech.exportRun")}

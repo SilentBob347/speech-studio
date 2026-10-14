@@ -112,6 +112,23 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
           </div>
           <p className="text-[11px] text-[var(--color-muted)]">{t("speech.takesHint")}</p>
         </fieldset>
+        {project.chapters.some((c) => c.blocks.some((b) => b.start != null)) && (
+          <fieldset className="space-y-2">
+            <legend className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)] mb-1">{t("speech.timelineTitle")}</legend>
+            <label className="flex items-start gap-2 text-[13px] cursor-pointer">
+              <input type="checkbox" checked={s.timeline} onChange={(e) => set((p) => { p.settings.timeline = e.target.checked; })} className="mt-0.5 w-4 h-4 accent-[var(--color-accent)]" />
+              <span>{t("speech.timeline")}<span className="block text-[11px] text-[var(--color-muted)]">{t("speech.timelineHint")}</span></span>
+            </label>
+            <div className="grid grid-cols-2 gap-2 items-end">
+              <label className={label} title={t("speech.maxStretchHint")}>{t("speech.maxStretch")}
+                <input type="number" step={0.05} min={1} max={2} value={s.max_stretch} disabled={!s.timeline} onChange={(e) => set((p) => { p.settings.max_stretch = num(e.target.value, 1, 2, 1.25); })} className={field} />
+              </label>
+              <label className="flex items-center gap-2 text-[12px] cursor-pointer pb-1.5">
+                <input type="checkbox" checked={s.lead_into_silence} disabled={!s.timeline} onChange={(e) => set((p) => { p.settings.lead_into_silence = e.target.checked; })} className="w-4 h-4 accent-[var(--color-accent)]" />{t("speech.leadIntoSilence")}
+              </label>
+            </div>
+          </fieldset>
+        )}
         <label className={label}>{t("speech.loudness")}
           <select value={s.loudness} onChange={(e) => set((p) => { p.settings.loudness = e.target.value as Loudness; })} className={field}>
             {LOUDNESS.map((l) => <option key={l} value={l}>{t(`speech.loudness_${l}`)}</option>)}

@@ -1001,3 +1001,4 @@ speechproj-too-new = Файл проекта сделан более новой 
 speechproj-engine-missing = Проекту нужен движок { $engine }, которого в этой студии нет
 speechproj-asset-missing = В файле проекта нет { $path }
 speechproj-asset-damaged = { $path } в файле проекта повреждён (не сходится размер или SHA-256)
+speech-subs-empty = В { $name } не нашлось реплик с таймингом (читаются SRT, VTT и ASS)

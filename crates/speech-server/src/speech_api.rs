@@ -333,3 +333,44 @@ pub async fn import_package(State(st): State<AppState>, mut multipart: axum::ext
         Err(r) => r,
     }
 }
+
+/// POST /projects/from-subtitles (multipart `file`, `name`) — проект по таймкодам из SRT, VTT или ASS.
+pub async fn from_subtitles(State(st): State<AppState>, mut multipart: axum::extract::Multipart) -> Response {
+    let (mut name, mut file): (String, Option<(String, Vec<u8>)>) = (String::new(), None);
+    while let Ok(Some(field)) = multipart.next_field().await {
+        let field_name = field.name().unwrap_or("").to_string();
+        let file_name = field.file_name().map(str::to_string);
+        let data = match field.bytes().await {
+            Ok(b) => b,
+            Err(e) => return refuse(StatusCode::BAD_REQUEST, "bad_request", e.to_string()),
+        };
+        if field_name == "name" {
+            name = String::from_utf8_lossy(&data).trim().to_string();
+        } else {
+            file = Some((file_name.unwrap_or_else(|| "subtitles.srt".into()), data.to_vec()));
+        }
+    }
+    let Some((file_name, bytes)) = file else { return refuse(StatusCode::BAD_REQUEST, "bad_request", "no file") };
+    let ext = Path::new(&file_name).extension().and_then(|e| e.to_str()).unwrap_or("srt").to_ascii_lowercase();
+    let text = String::from_utf8_lossy(&bytes).into_owned();
+    let cues = crate::subimport::parse(&text, &ext);
+    if cues.is_empty() {
+        return refuse(StatusCode::BAD_REQUEST, "speech-subs-empty", t!("speech-subs-empty", name = file_name));
+    }
+    let title = if name.is_empty() { Path::new(&file_name).file_stem().and_then(|s| s.to_str()).unwrap_or("subtitles").to_string() } else { name };
+    let p = paths(&st);
+    let done = joined(
+        tokio::task::spawn_blocking(move || -> Result<(String, Value), String> {
+            let project = sp::from_cues(&title, &cues, &t!("speech-narrator"));
+            let pid = sp::new_id();
+            sp::save(&p.workspace, &pid, &project)?;
+            Ok((pid, shown(&p, &project)))
+        })
+        .await,
+    );
+    match done {
+        Ok(Ok((pid, project))) => Json(json!({ "project_id": pid, "project": project })).into_response(),
+        Ok(Err(e)) => refuse(StatusCode::BAD_REQUEST, "bad_request", e),
+        Err(r) => r,
+    }
+}

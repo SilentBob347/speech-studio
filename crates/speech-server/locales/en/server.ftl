@@ -981,3 +981,4 @@ speechproj-too-new = The project file was made by a newer Speech Studio (format 
 speechproj-engine-missing = The project needs the { $engine } engine, which this studio does not have
 speechproj-asset-missing = The project file lacks { $path }
 speechproj-asset-damaged = { $path } in the project file is damaged (size or SHA-256 does not match)
+speech-subs-empty = No lines with timing were found in { $name } (SRT, VTT and ASS are read)

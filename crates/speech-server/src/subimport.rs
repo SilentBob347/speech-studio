@@ -8,6 +8,8 @@ pub struct Cue {
     pub start: f64,
     pub end: f64,
     pub text: String,
+    /// Говорящий из ASS `Name` или VTT `<v Имя>`.
+    pub speaker: Option<String>,
 }
 
 /// Распарсить содержимое файла субтитров. Формат — по расширению (srt | ass | ssa).
@@ -16,6 +18,7 @@ pub fn parse(content: &str, ext: &str) -> Vec<Cue> {
     let e = ext.to_ascii_lowercase();
     let cues = match e.as_str() {
         "ass" | "ssa" => parse_ass(content),
+        "vtt" => parse_srt(content),
         _ => parse_srt(content),
     };
     // Fallback: SRT-парсер ничего не дал, но текст похож на ASS.
@@ -56,10 +59,14 @@ fn parse_srt(content: &str) -> Vec<Cue> {
         if body.is_empty() {
             continue;
         }
-        out.push(Cue { start, end, text: strip_markup(&body) });
+        let speaker = VTT_VOICE.captures(&body).map(|c| c[1].trim().to_string()).filter(|s| !s.is_empty());
+        out.push(Cue { start, end, text: strip_markup(&body), speaker });
     }
     out
 }
+
+static VTT_VOICE: std::sync::LazyLock<regex::Regex> =
+    std::sync::LazyLock::new(|| regex::Regex::new(r"<v(?:\.[\w.]+)?\s+([^>]+)>").expect("vtt voice"));
 
 /// "HH:MM:SS,mmm" -> секунды. Терпим '.' вместо ',' (иногда встречается).
 fn srt_ts(s: &str) -> Option<f64> {
@@ -125,7 +132,9 @@ fn parse_ass(content: &str) -> Vec<Cue> {
             _ => continue,
         };
         let body = cols.get(i_text).copied().unwrap_or("");
-        out.push(Cue { start, end, text: strip_markup(body) });
+        let i_name = fmt.iter().position(|f| f == "name");
+        let speaker = get(i_name).map(str::to_string).filter(|s| !s.is_empty());
+        out.push(Cue { start, end, text: strip_markup(body), speaker });
     }
     out
 }
@@ -193,6 +202,18 @@ fn strip_markup(s: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn vtt_voices_and_ass_names_become_speakers() {
+        let vtt = "WEBVTT\n\nNOTE comment\n\n1\n00:01.000 --> 00:03.500 align:start\n<v Анна>Привет!</v>\n\n00:00:04.000 --> 00:00:05.000\nБез имени";
+        let c = parse(vtt, "vtt");
+        assert_eq!(c.len(), 2);
+        assert_eq!((c[0].start, c[0].end, c[0].text.as_str(), c[0].speaker.as_deref()), (1.0, 3.5, "Привет!", Some("Анна")));
+        assert_eq!(c[1].speaker, None);
+        let ass = "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\nDialogue: 0,0:00:01.00,0:00:02.00,Default,Борис,0,0,0,,Да, конечно";
+        let c = parse(ass, "ass");
+        assert_eq!((c[0].speaker.as_deref(), c[0].text.as_str()), (Some("Борис"), "Да, конечно"));
+    }
 
     #[test]
     fn srt_basic() {

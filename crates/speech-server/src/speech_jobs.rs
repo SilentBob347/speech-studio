@@ -155,6 +155,8 @@ fn synth_block(p: &SpeechPaths, project: &SpeechProject, b: &Block, n: u32) -> R
     if out.is_empty() {
         return Err(t!("speech-block-silent"));
     }
+    let fitted = fit_to_cue(project, b, out)?;
+    let out = fitted.samples;
     let take = Take {
         n,
         seed,
@@ -166,9 +168,49 @@ fn synth_block(p: &SpeechPaths, project: &SpeechProject, b: &Block, n: u32) -> R
         duration: out.len() as f64 / SR as f64,
         text: b.text.clone(),
         direction: b.direction.clone(),
+        fit_stretch: fitted.stretch,
+        fit_lead: fitted.lead,
+        fit_over: fitted.over,
         ..Default::default()
     };
     Ok((out, serde_json::to_value(&ignored).unwrap_or(Value::Null), take))
+}
+
+struct Fitted {
+    samples: Vec<f32>,
+    stretch: f64,
+    lead: f64,
+    over: bool,
+}
+
+/// В проекте по таймкодам — уложить клип в его реплику (механизм подгонки Dub): до начала следующей реплики;
+/// не влезает — начать раньше, в тишину перед репликой; ещё не влезает — ускорить до предела; дальше — пометить.
+fn fit_to_cue(project: &SpeechProject, b: &Block, samples: Vec<f32>) -> Result<Fitted, String> {
+    let (Some(start), Some(end)) = (b.start, b.end) else { return Ok(Fitted { samples, stretch: 1.0, lead: 0.0, over: false }) };
+    if !project.settings.timeline {
+        return Ok(Fitted { samples, stretch: 1.0, lead: 0.0, over: false });
+    }
+    let timed: Vec<&Block> = project.blocks().filter(|x| !x.hidden && x.start.is_some()).collect();
+    let at = timed.iter().position(|x| x.id == b.id);
+    let next_start = at.and_then(|i| timed.get(i + 1)).and_then(|x| x.start).unwrap_or(end.max(start) + 3600.0);
+    let prev_end = at.and_then(|i| i.checked_sub(1)).and_then(|i| timed.get(i)).and_then(|x| x.end).unwrap_or(0.0);
+    let rules = dub_core::fit::FitRules {
+        speech_rate_on: false,
+        qc_duration: true,
+        max_stretch: project.settings.max_stretch,
+        lead_into_silence: project.settings.lead_into_silence,
+    };
+    let slot = dub_core::fit::slot(start, end, start, next_start, &rules);
+    let clip = samples.len() as f64 / SR as f64;
+    let lead = dub_core::fit::lead(clip, &slot, (start - prev_end).max(0.0), &rules);
+    let target = slot.target + lead;
+    let needed = dub_core::fit::needed(clip, target);
+    if needed <= 1.0 + 1e-6 {
+        return Ok(Fitted { samples, stretch: 1.0, lead, over: false });
+    }
+    let stretch = needed.min(slot.cap);
+    let samples = at_rate(&samples, stretch)?;
+    Ok(Fitted { samples, stretch, lead, over: dub_core::fit::over(needed, slot.cap) })
 }
 
 /// Фраза в темпе `rate` (atempo ffmpeg, как подгонка длины в Dub): высота голоса не меняется.
@@ -428,6 +470,7 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
     let mut cursor: i64 = 0;
     let mut marks = Vec::new();
     let mut prev_speaker: Option<&str> = None;
+    let mut cues: Vec<(f64, f64, String, String)> = Vec::new();
     for (i, b) in blocks.iter().enumerate() {
         progress(json!({ "type": "progress", "stage": "speech_export", "msg": t!("speech-export-block", n = (i + 1) as i64, total = blocks.len() as i64), "pct": (i * 90 / blocks.len()) as i64 }));
         let take = b.active.and_then(|n| b.takes.iter().find(|t| t.n == n)).ok_or_else(|| t!("speech-export-not-ready", count = 1))?;
@@ -439,15 +482,19 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
             let ms = b.pause_ms.unwrap_or(if prev == b.speaker { project.settings.pause_same_ms } else { project.settings.pause_switch_ms });
             cursor = (cursor + SR as i64 * ms / 1000).max(0);
         }
-        let at = cursor as usize;
-        marks.push(json!({ "block": b.id, "start": at as f64 / SR as f64 }));
+        let at = match (project.settings.timeline, b.start) {
+            (true, Some(start)) => ((start - take.fit_lead).max(0.0) * SR as f64) as usize,
+            _ => cursor as usize,
+        };
+        marks.push(json!({ "block": b.id, "start": at as f64 / SR as f64, "end": (at + samples.len()) as f64 / SR as f64 }));
+        cues.push((at as f64 / SR as f64, (at + samples.len()) as f64 / SR as f64, b.speaker.clone(), crate::speech_text::visible(&b.text)));
         if mix.len() < at + samples.len() {
             mix.resize(at + samples.len(), 0.0);
         }
         for (k, s) in samples.iter().enumerate() {
             mix[at + k] += *s;
         }
-        cursor = (at + samples.len()) as i64;
+        cursor = cursor.max((at + samples.len()) as i64);
         if let Some(own) = b.pause_ms.filter(|_| i + 1 == blocks.len()) {
             mix.resize(mix.len() + (SR as i64 * own.max(0) / 1000) as usize, 0.0);
         }
@@ -466,7 +513,27 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
     let file = format!("{base}.{}", opts.format);
     let target = exports.join(&file);
     crate::media::encode_audio(&joined, &target, &opts.format, project.settings.loudness == "acx")?;
-    Ok(json!({ "file": file, "path": target.to_string_lossy(), "duration": mix.len() as f64 / SR as f64, "marks": marks, "lufs_before": levelled.map(|l| l.before), "lufs": levelled.map(|l| l.after) }))
+    let subtitles = format!("{base}.srt");
+    std::fs::write(exports.join(&subtitles), srt(&cues)).map_err(|e| format!("{subtitles}: {e}"))?;
+    Ok(json!({ "file": file, "subtitles": subtitles, "path": target.to_string_lossy(), "duration": mix.len() as f64 / SR as f64, "marks": marks, "lufs_before": levelled.map(|l| l.before), "lufs": levelled.map(|l| l.after) }))
+}
+
+fn srt_time(t: f64) -> String {
+    let ms = (t.max(0.0) * 1000.0).round() as u64;
+    format!("{:02}:{:02}:{:02},{:03}", ms / 3_600_000, ms / 60_000 % 60, ms / 1000 % 60, ms % 1000)
+}
+
+/// Субтитры экспорта: каждый блок там, где он звучит в файле; говорящий — в начале строки, если их несколько.
+fn srt(cues: &[(f64, f64, String, String)]) -> String {
+    let many = cues.iter().map(|c| &c.2).collect::<std::collections::BTreeSet<_>>().len() > 1;
+    cues.iter()
+        .enumerate()
+        .map(|(i, (a, z, who, text))| {
+            let line = if many { format!("{who}: {text}") } else { text.clone() };
+            format!("{}\n{} --> {}\n{line}\n", i + 1, srt_time(*a), srt_time(*z))
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// Имя файла экспорта по проекту и главе: без символов, которых не любят файловые системы.

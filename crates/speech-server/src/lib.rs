@@ -464,6 +464,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/projects/{pid}/export", post(speech_api::export))
         .route("/projects/{pid}/package", post(speech_api::package))
         .route("/speechproj/import", post(speech_api::import_package))
+        .route("/projects/from-subtitles", post(speech_api::from_subtitles))
         .route("/projects/{pid}/export-check", get(speech_api::export_check))
         .route("/projects/{pid}/save-export", post(speech_api::save_export))
         .route("/projects/{pid}/takes/{file}", get(speech_api::take_file))

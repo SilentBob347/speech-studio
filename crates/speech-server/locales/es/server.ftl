@@ -975,3 +975,4 @@ speechproj-too-new = El archivo de proyecto lo creó un Speech Studio más nuevo
 speechproj-engine-missing = El proyecto necesita el motor { $engine }, que este estudio no tiene
 speechproj-asset-missing = Al archivo de proyecto le falta { $path }
 speechproj-asset-damaged = { $path } en el archivo de proyecto está dañado (el tamaño o el SHA-256 no coinciden)
+speech-subs-empty = No se encontraron líneas con tiempos en { $name } (se leen SRT, VTT y ASS)

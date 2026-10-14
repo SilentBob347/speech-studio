@@ -3,14 +3,14 @@ import { BASE, coded, postCoded, sendCoded, getCoded } from "./api";
 export type Take = {
   n: number; file: string; duration: number; seed: number; temperature: number; key: string; created: number;
   source: string; synth_secs: number; retried: string[];
-  qc: QcCheck | null; text: string; direction: string;
+  qc: QcCheck | null; text: string; direction: string; fit_stretch: number; fit_lead: number; fit_over: boolean;
 };
 export type QcCheck = { wer: number; words: number; inserted: number; deleted: number; substituted: number; heard: string; passed: boolean };
 export type QcSettings = { asr_check: boolean; strictness: "strict" | "normal" | "lenient"; takes: number };
 export type Block = {
   id: string; speaker: string; voice: string | null; text: string; direction: string; pause_ms: number | null;
   hidden: boolean; takes: Take[]; active: number | null; pinned: number | null; error: { key: string; text: string } | null;
-  note: string; marker: Marker | "";
+  note: string; marker: Marker | ""; start: number | null; end: number | null;
 };
 export type Marker = "red" | "amber" | "green" | "blue" | "violet";
 export const MARKERS: Record<Marker, string> = { red: "#ff6b6b", amber: "#ffc46b", green: "#7ee0c3", blue: "#4cc2ff", violet: "#b8a4ff" };
@@ -27,6 +27,7 @@ export type Loudness = "off" | "video" | "podcast" | "acx";
 export type SpeechSettings = {
   lang: string; engine: string; params: SpeechParams; voice: string | null;
   pause_same_ms: number; pause_switch_ms: number; loudness: Loudness; qc: QcSettings; auto_stress: boolean; normalize: boolean;
+  timeline: boolean; max_stretch: number; lead_into_silence: boolean;
 };
 export type DictKind = "word" | "regex" | "phonemes";
 export type DictEntry = {
@@ -45,7 +46,7 @@ export type BlockState = "pending" | "ready" | "stale" | "failed" | "skipped";
 export type SpeechProject = {
   kind: "speech"; version: number; name: string; created: number; settings: SpeechSettings;
   cast: Record<string, string>; chapters: Chapter[]; dictionary: DictEntry[];
-  status?: Record<string, { state: BlockState; key: string }>;
+  status?: Record<string, { state: BlockState; key: string; fit?: "fits" | "tight" | "impossible" }>;
 };
 export type ProjectCard = { pid: string; kind: string; name: string; mtime: number; created?: number; blocks?: number; ready?: number };
 export type ExportFormat = "wav" | "flac" | "mp3" | "ogg" | "m4a";
@@ -70,6 +71,12 @@ export const speechApi = {
   synth: (pid: string, scope: { ids?: string[]; from?: string; force?: boolean }) => postCoded<{ job_id: string }>(`/projects/${pid}/synth`, scope),
   exportCheck: (pid: string) => getCoded<{ problems: ExportProblem[] }>(`/projects/${pid}/export-check`),
   export: (pid: string, format: ExportFormat, chapter?: string) => postCoded<{ job_id: string }>(`/projects/${pid}/export`, { format, chapter }),
+  fromSubtitles: (file: File, name?: string) => {
+    const form = new FormData();
+    if (name) form.append("name", name);
+    form.append("file", file, file.name);
+    return fetch(`${BASE}/projects/from-subtitles`, { method: "POST", body: form }).then(coded<{ project_id: string; project: SpeechProject }>);
+  },
   pack: (pid: string, audio: boolean) => postCoded<{ file: string; bytes: number }>(`/projects/${pid}/package`, { audio }),
   importPackage: (file: File) => {
     const form = new FormData();
@@ -122,3 +129,11 @@ export function spliceChars(text: string, start: number, end: number, insert: st
 export const newEntry = (find = "", say = ""): DictEntry => ({
   id: newId(), enabled: true, kind: "word", find, say, case_sensitive: false, whole_word: true, lang: "", voice: "", engine: "", note: "", source: "manual",
 });
+
+/** Seconds as m:ss.s (or h:mm:ss.s) for cue times. */
+export function cueTime(t: number): string {
+  const h = Math.floor(t / 3600);
+  const m = Math.floor((t % 3600) / 60);
+  const sec = (t % 60).toFixed(1).padStart(4, "0");
+  return h ? `${h}:${String(m).padStart(2, "0")}:${sec}` : `${m}:${sec}`;
+}

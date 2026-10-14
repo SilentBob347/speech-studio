@@ -36,6 +36,10 @@ pub struct Take {
     /// Текст блока, по которому озвучен дубль: к нему можно вернуться вместе с дублем.
     pub text: String,
     pub direction: String,
+    /// Подгонка под реплику: ускорение, на сколько секунд начат раньше, не влез и с ускорением.
+    pub fit_stretch: f64,
+    pub fit_lead: f64,
+    pub fit_over: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
@@ -63,6 +67,9 @@ pub struct Block {
     pub note: String,
     /// Цвет маркера (`red`, `amber`, `green`, `blue`, `violet`) или пусто.
     pub marker: String,
+    /// Время реплики субтитров, с: в проекте по таймкодам блок звучит в нём.
+    pub start: Option<f64>,
+    pub end: Option<f64>,
 }
 
 pub const MARKERS: [&str; 5] = ["red", "amber", "green", "blue", "violet"];
@@ -106,11 +113,17 @@ pub struct Settings {
     pub auto_stress: bool,
     /// Русский текст перед озвучкой проходит нормализацию: числа, даты, единицы словами (normalize_ru.rs).
     pub normalize: bool,
+    /// Блоки звучат во времени своих реплик (проект из субтитров), а не друг за другом.
+    pub timeline: bool,
+    /// Предел ускорения клипа под реплику (как в Dub).
+    pub max_stretch: f64,
+    /// Не влезающая реплика сначала начинается раньше, в тишину перед ней (до 1 с), и только потом ускоряется.
+    pub lead_into_silence: bool,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { lang: "auto".into(), engine: "higgs".into(), params: Params::default(), voice: None, pause_same_ms: 300, pause_switch_ms: 600, loudness: "video".into(), qc: QcSettings::default(), auto_stress: true, normalize: true }
+        Settings { lang: "auto".into(), engine: "higgs".into(), params: Params::default(), voice: None, pause_same_ms: 300, pause_switch_ms: 600, loudness: "video".into(), qc: QcSettings::default(), auto_stress: true, normalize: true, timeline: false, max_stretch: 1.25, lead_into_silence: true }
     }
 }
 
@@ -132,6 +145,25 @@ impl Default for SpeechProject {
     fn default() -> Self {
         SpeechProject { kind: KIND.into(), version: 1, name: String::new(), created: 0, settings: Settings::default(), cast: BTreeMap::new(), chapters: Vec::new(), dictionary: Vec::new() }
     }
+}
+
+/// Проект по таймкодам из реплик субтитров: реплика — блок; говорящий — из файла или рассказчик.
+pub fn from_cues(name: &str, cues: &[crate::subimport::Cue], narrator: &str) -> SpeechProject {
+    let blocks = cues
+        .iter()
+        .map(|c| Block {
+            id: new_id(),
+            speaker: c.speaker.clone().unwrap_or_else(|| narrator.to_string()),
+            text: c.text.clone(),
+            start: Some(c.start),
+            end: Some(c.end),
+            ..Default::default()
+        })
+        .collect();
+    let mut project = SpeechProject { name: name.to_string(), created: now(), ..Default::default() };
+    project.settings.timeline = true;
+    project.chapters.push(Chapter { id: new_id(), title: String::new(), blocks });
+    project
 }
 
 pub fn now() -> u64 {
@@ -164,6 +196,9 @@ impl SpeechProject {
             return Err(format!("this is a {} project, not a speech one", self.kind));
         }
         self.settings.params.checked()?;
+        if !(1.0..=2.0).contains(&self.settings.max_stretch) {
+            return Err(format!("max_stretch {} is outside 1.0..2.0", self.settings.max_stretch));
+        }
         crate::pron_dict::validate(&self.dictionary)?;
         let mut seen = std::collections::HashSet::new();
         for c in &self.chapters {
@@ -177,6 +212,11 @@ impl SpeechProject {
                 for n in [b.active, b.pinned].into_iter().flatten() {
                     if !b.takes.iter().any(|t| t.n == n) {
                         return Err(format!("block {} points at take {n}, which it does not have", b.id));
+                    }
+                }
+                if let (Some(a), Some(z)) = (b.start, b.end) {
+                    if !(a >= 0.0 && z > a) {
+                        return Err(format!("block {} cue {a}..{z} is not a forward span", b.id));
                     }
                 }
                 if !b.marker.is_empty() && !MARKERS.contains(&b.marker.as_str()) {
@@ -359,6 +399,9 @@ pub fn synth_key(project: &SpeechProject, b: &Block, voice_tag: &str, engine: &s
         h.update(prep.as_bytes());
         h.update(b"\x1f");
     }
+    if let (true, Some(a), Some(z)) = (project.settings.timeline, b.start, b.end) {
+        h.update(format!("cue:{a:.3}:{z:.3}:{:.2}:{}\x1f", project.settings.max_stretch, project.settings.lead_into_silence).as_bytes());
+    }
     h.finalize().to_hex()[..20].to_string()
 }
 
@@ -380,13 +423,34 @@ pub fn status(b: &Block, key: &str) -> &'static str {
 }
 
 /// Проект для окна: сам проект и по каждому блоку его ключ и статус.
+/// Прогноз до синтеза для блока по таймкодам: `fits`, `tight` (уложится ускорением) или `impossible` — по
+/// оценке длины текста при темпе языка (механизм `dub_core::fit::verdict`).
+pub fn fit_forecast(project: &SpeechProject, b: &Block) -> Option<&'static str> {
+    let (true, Some(start), Some(end)) = (project.settings.timeline, b.start, b.end) else { return None };
+    let timed: Vec<&Block> = project.blocks().filter(|x| !x.hidden && x.start.is_some()).collect();
+    let next = timed.iter().position(|x| x.id == b.id).and_then(|i| timed.get(i + 1)).and_then(|x| x.start).unwrap_or(end + 3600.0);
+    let rules = dub_core::fit::FitRules { speech_rate_on: false, qc_duration: true, max_stretch: project.settings.max_stretch, lead_into_silence: false };
+    let slot = dub_core::fit::slot(start, end, start, next, &rules);
+    let lang = if project.settings.lang == "auto" { if crate::stress::is_russian(&b.text, "auto") { "ru" } else { "en" } } else { project.settings.lang.as_str() };
+    let est = dub_core::fit::estimate(&crate::speech_text::visible(&b.text), dub_core::fit::table_cps(lang));
+    Some(match dub_core::fit::verdict(est, &slot, &rules) {
+        dub_core::fit::Verdict::Fits => "fits",
+        dub_core::fit::Verdict::Tight => "tight",
+        dub_core::fit::Verdict::Impossible => "impossible",
+    })
+}
+
 pub fn with_status(project: &SpeechProject, keys: &BTreeMap<String, String>) -> Value {
     let mut v = serde_json::to_value(project).unwrap_or(Value::Null);
     let st: serde_json::Map<String, Value> = project
         .blocks()
         .map(|b| {
             let key = keys.get(&b.id).cloned().unwrap_or_default();
-            (b.id.clone(), json!({ "state": status(b, &key), "key": key }))
+            let mut entry = json!({ "state": status(b, &key), "key": key });
+            if let Some(fit) = fit_forecast(project, b) {
+                entry["fit"] = json!(fit);
+            }
+            (b.id.clone(), entry)
         })
         .collect();
     v["status"] = Value::Object(st);

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, ChevronDown, Combine, Eye, EyeOff, Loader2, Pause, Pin, Play, Plus, RefreshCw, Scissors, SlidersHorizontal, SpellCheck, Trash2 } from "lucide-react";
-import { activeTake, MARKERS, withCase, type Block, type BlockState, type Marker, type StressWord } from "../../lib/speech";
+import { activeTake, cueTime, MARKERS, withCase, type Block, type BlockState, type Marker, type StressWord } from "../../lib/speech";
 import { named } from "../../lib/a11y";
 import VoicePicker from "./VoicePicker";
 import TagPalette from "./TagPalette";
@@ -51,8 +51,9 @@ function AutoText({ value, onCommit, label, inputRef }: { value: string; onCommi
   );
 }
 
-export default function BlockRow({ pid, block, index, state, rendering, playing, tint, stressing, doubts, a }: {
+export default function BlockRow({ pid, block, index, state, fit, rendering, playing, tint, stressing, doubts, a }: {
   pid: string;
+  fit?: "fits" | "tight" | "impossible";
   block: Block;
   stressing: boolean;
   doubts: StressWord[];
@@ -88,6 +89,12 @@ export default function BlockRow({ pid, block, index, state, rendering, playing,
             <span>{t(`speech.state_${shown}`)}</span>
             {take && <span className="mono tabnum ml-auto">{take.duration.toFixed(1)}{t("settings.sec")}</span>}
           </div>
+          {block.start != null && block.end != null && (
+            <div className="flex items-center gap-1 text-[10px] mono tabnum text-[var(--color-muted)]" title={t("speech.cueHint")}>
+              <span>{cueTime(block.start)}–{cueTime(block.end)}</span>
+              {fit && fit !== "fits" && <span className={`px-1 rounded ${fit === "tight" ? "text-[var(--color-warn)]" : "text-[#ff8f8f]"}`} title={t(`speech.fit_${fit}`)}>{fit === "tight" ? "≈" : "!"}</span>}
+            </div>
+          )}
           {(block.marker || block.note) && (
             <div className="flex items-center gap-1 text-[10px] text-[var(--color-muted)]" title={block.note || undefined}>
               {block.marker && <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: MARKERS[block.marker] }} />}
@@ -127,6 +134,11 @@ export default function BlockRow({ pid, block, index, state, rendering, playing,
             <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-[var(--color-muted)]">
               <span className="truncate max-w-[60ch]" title={take.text}>{t("speech.takeText", { n: take.n, text: take.text })}</span>
               <button onClick={() => a.patch({ text: take.text, direction: take.direction })} className="px-1.5 rounded border border-[var(--color-border)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]">{t("speech.takeTextRestore")}</button>
+            </p>
+          )}
+          {take && (take.fit_stretch > 1.001 || take.fit_lead > 0.001 || take.fit_over) && (
+            <p className={`mt-0.5 text-[11px] ${take.fit_over ? "text-[#ff8f8f]" : "text-[var(--color-muted)]"}`}>
+              {[take.fit_lead > 0.001 && t("speech.fitLead", { s: take.fit_lead.toFixed(1) }), take.fit_stretch > 1.001 && t("speech.fitStretch", { k: take.fit_stretch.toFixed(2) }), take.fit_over && t("speech.fitOver")].filter(Boolean).join(" · ")}
             </p>
           )}
           {take?.qc && <p className={`mt-0.5 text-[11px] ${take.qc.passed ? "text-[var(--color-muted)]" : "text-[var(--color-warn)]"}`} title={take.qc.heard}>{t("speech.qcLine", { wer: Math.round(take.qc.wer * 100), ins: take.qc.inserted, del: take.qc.deleted, sub: take.qc.substituted })}</p>}

@@ -175,7 +175,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
       const tail = src.text.slice(pos).trim();
       if (!head || !tail) return p;
       src.text = head;
-      p.chapters[at[0]].blocks.splice(at[1] + 1, 0, { ...src, id: newId(), text: tail, takes: [], active: null, pinned: null, error: null, note: "", marker: "" });
+      p.chapters[at[0]].blocks.splice(at[1] + 1, 0, { ...src, id: newId(), text: tail, takes: [], active: null, pinned: null, error: null, note: "", marker: "", start: null, end: null });
       return p;
     }),
     mergeNext: () => edit((p) => {
@@ -190,7 +190,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
     }),
     insertAfter: () => edit((p) => {
       const at = locate(p, b.id);
-      if (at) p.chapters[at[0]].blocks.splice(at[1] + 1, 0, { id: newId(), speaker: b.speaker, voice: null, text: "", direction: "", pause_ms: null, hidden: false, takes: [], active: null, pinned: null, error: null, note: "", marker: "" });
+      if (at) p.chapters[at[0]].blocks.splice(at[1] + 1, 0, { id: newId(), speaker: b.speaker, voice: null, text: "", direction: "", pause_ms: null, hidden: false, takes: [], active: null, pinned: null, error: null, note: "", marker: "", start: null, end: null });
       return p;
     }),
     move: (dir) => edit((p) => {
@@ -280,7 +280,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
                   const index = blocks.indexOf(b);
                   const rendering = !!job && (job.ids === null ? ["pending", "stale", "failed"].includes(stateOf(b)) : job.ids.includes(b.id));
                   const note = notes[b.id];
-                  return <BlockRow key={b.id} pid={pid} block={b} index={index} state={stateOf(b)} rendering={rendering} playing={playing === b.id} tint={tintOf(b.speaker)}
+                  return <BlockRow key={b.id} pid={pid} block={b} index={index} state={stateOf(b)} fit={project.status?.[b.id]?.fit} rendering={rendering} playing={playing === b.id} tint={tintOf(b.speaker)}
                     stressing={!!stressing?.includes(b.id)} doubts={note && note.text === b.text ? note.words : []} a={actions(b)} />;
                 })}
               </ol>
