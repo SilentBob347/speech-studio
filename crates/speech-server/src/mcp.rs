@@ -17,10 +17,12 @@ use axum::{Json, Router};
 use serde_json::{json, Value};
 use tower::ServiceExt;
 
+mod assistant;
 mod atomic;
 mod speech_tools;
 mod window;
 
+pub(crate) use assistant::{ask_agent, follow_agent_steps};
 pub(crate) use window::{carry, carry_job, current_actor, save_with_revision, tell_windows, track, PROJECT_CHANGED, REV_HEADER};
 pub use window::{window_events, window_focus, window_result};
 
@@ -41,10 +43,9 @@ const STUDIO: &str = "Speech Studio";
 /// The name clients register the server under.
 const SERVER_NAME: &str = "speech-studio";
 /// The skill an agent reads, served as a resource and a prompt.
-const SKILL: &str = include_str!("../../../docs/mcp-skill.md");
+pub(crate) const SKILL: &str = include_str!("../../../docs/mcp-skill.md");
 const SKILL_URI: &str = "studio://skill";
 const LANGUAGES_URI: &str = "studio://languages";
-const EDITS_URI: &str = "studio://patch-ops";
 /// Answers longer than this are cut: a transcript of hundreds of lines is more
 /// than an agent reads in one call.
 const LIMIT: usize = 60_000;
@@ -205,206 +206,6 @@ fn compact_models(setup: &Value) -> Value {
 
 // ---------------------------------------------------------------- projects
 
-/// A line as an agent reads it: without its word timings.
-fn compact_segment(segment: &Value) -> Value {
-    let mut row = json!({
-        "id": segment["id"], "start": segment["start"], "end": segment["end"], "speaker": segment["speaker"],
-        "src_text": segment["src_text"], "tgt_text": segment["tgt_text"], "dirty": segment["dirty"],
-    });
-    for flag in ["hidden", "keep_original"] {
-        if segment[flag] == true {
-            row[flag] = true.into();
-        }
-    }
-    for said in ["tts_skip", "tts_text"] {
-        if segment[said].is_string() {
-            row[said] = segment[said].clone();
-        }
-    }
-    if !segment["voice"].is_null() {
-        row["voice"] = segment["voice"].clone();
-    }
-    for computed in ["fit", "takes", "shortened"] {
-        if !segment[computed].is_null() {
-            row[computed] = segment[computed].clone();
-        }
-    }
-    row
-}
-
-/// Titles and blur boxes with the idx their tools take.
-fn indexed(items: &Value) -> Value {
-    Value::Array(
-        items
-            .as_array()
-            .into_iter()
-            .flatten()
-            .enumerate()
-            .map(|(idx, item)| {
-                let mut item = item.clone();
-                item["idx"] = idx.into();
-                item
-            })
-            .collect(),
-    )
-}
-
-fn count_dirty(project: &Value) -> usize {
-    project["segments"].as_array().into_iter().flatten().filter(|segment| segment["dirty"] == true).count()
-}
-
-/// A project without what only the studio reads (word timings, the vision
-/// context, stage checksums), its lines narrowed by time or id when asked.
-fn compact_project(project: &Value, args: &Value) -> Value {
-    let from = args.get("from").and_then(Value::as_f64);
-    let to = args.get("to").and_then(Value::as_f64);
-    let ids: Vec<&str> = args.get("ids").and_then(Value::as_array).into_iter().flatten().filter_map(Value::as_str).collect();
-    let lines: Vec<Value> = project["segments"]
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter(|segment| {
-            let start = segment["start"].as_f64().unwrap_or_default();
-            let end = segment["end"].as_f64().unwrap_or_default();
-            from.is_none_or(|from| end >= from) && to.is_none_or(|to| start <= to) && (ids.is_empty() || ids.contains(&segment["id"].as_str().unwrap_or_default()))
-        })
-        .map(compact_segment)
-        .collect();
-    let captions = &project["captions"];
-    json!({
-        "meta": { "video": project["meta"]["video"], "duration": project["meta"]["duration"], "width": project["meta"]["width"], "height": project["meta"]["height"], "fps": project["meta"]["fps"] },
-        "mode": project["mode"], "tgt_lang": project["tgt_lang"], "subs": project["subs"], "audio": project["audio"],
-        "blur_on": project["render"]["blur"], "casting_enabled": project["casting_enabled"],
-        "captions": {
-            "sub_style": captions["sub_style"], "sub_y": captions["sub_y"], "preset": captions["preset"], "overrides": captions["overrides"],
-            "titles": indexed(&captions["titles"]), "blur_boxes": indexed(&captions["blur_boxes"]),
-        },
-        "segments_total": project["segments"].as_array().map_or(0, Vec::len),
-        "dirty": count_dirty(project),
-        "segments": lines,
-    })
-}
-
-/// A project's words as a transcript: each line's id, time, speaker and text - the recognised
-/// original (text src, the default) or the translation (tgt) - narrowed by from and to seconds,
-/// as JSON lines or, with format text, one "[0:14.2 SPK 1] words" line each.
-fn transcript(project: &Value, args: &Value) -> Value {
-    let from = args.get("from").and_then(Value::as_f64);
-    let to = args.get("to").and_then(Value::as_f64);
-    let translation = args.get("text").and_then(Value::as_str) == Some("tgt");
-    let clock = |seconds: f64| {
-        let tenths = (seconds.max(0.0) * 10.0).round() as u64;
-        format!("{}:{:02}.{}", tenths / 600, tenths % 600 / 10, tenths % 10)
-    };
-    // the translation as the subtitles burn it: a line's own subtitle text over its translation,
-    // and no line that keeps the original speech
-    let own: std::collections::HashMap<&str, &str> = project["captions"]["overrides"]
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter_map(|o| Some((o["seg_id"].as_str()?, o["text"].as_str()?)))
-        .collect();
-    let lines: Vec<(&Value, &str)> = project["segments"]
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter(|segment| {
-            segment["hidden"] != true && !(translation && segment["keep_original"] == true)
-        })
-        .map(|segment| {
-            let text = match translation {
-                true => segment["id"].as_str().and_then(|id| own.get(id).copied()).unwrap_or_else(|| segment["tgt_text"].as_str().unwrap_or_default()),
-                false => segment["src_text"].as_str().unwrap_or_default(),
-            };
-            (segment, text.trim())
-        })
-        .filter(|(_, text)| !text.is_empty())
-        .filter(|(segment, _)| {
-            let start = segment["start"].as_f64().unwrap_or_default();
-            let end = segment["end"].as_f64().unwrap_or_default();
-            from.is_none_or(|from| end >= from) && to.is_none_or(|to| start <= to)
-        })
-        .collect();
-    let speakers: std::collections::BTreeSet<&str> = lines.iter().filter_map(|(segment, _)| segment["speaker"].as_str()).collect();
-    if args.get("format").and_then(Value::as_str) == Some("text") {
-        let text: Vec<String> = lines
-            .iter()
-            .map(|(segment, text)| {
-                format!("[{} SPK {}] {text}", clock(segment["start"].as_f64().unwrap_or_default()), segment["speaker"].as_str().unwrap_or("-"))
-            })
-            .collect();
-        return json!({ "text": text.join("\n"), "lines": lines.len(), "speakers": speakers });
-    }
-    let rows: Vec<Value> = lines.iter().map(|(segment, text)| json!({ "id": segment["id"], "start": segment["start"], "end": segment["end"], "speaker": segment["speaker"], "text": text })).collect();
-    json!({ "language": if translation { project["tgt_lang"].as_str().unwrap_or_default() } else { "original" }, "speakers": speakers, "lines": rows })
-}
-
-/// What an edit changed: the project's state in brief and the part the edit
-/// touched, instead of the whole project every edit answers with.
-fn compact_change(name: &str, args: &Value, project: &Value) -> Value {
-    // an edit made by its op answers as the op's own tool does
-    let name = match name {
-        "project_patch" => args.get("op").and_then(Value::as_str).and_then(tool_of_op).unwrap_or(name),
-        _ => name,
-    };
-    let mut summary = json!({
-        "saved": true, "mode": project["mode"], "tgt_lang": project["tgt_lang"],
-        "segments": project["segments"].as_array().map_or(0, Vec::len), "dirty": count_dirty(project),
-    });
-    let mut named: Vec<String> = args.get("ids").and_then(Value::as_array).into_iter().flatten().filter_map(Value::as_str).map(str::to_string).collect();
-    if let Some(id) = args.get("id").and_then(Value::as_str) {
-        named.push(id.to_string());
-    }
-    let segments = project["segments"].as_array().cloned().unwrap_or_default();
-    if name == "segments_reorder" {
-        named.clear();
-    }
-    if name == "segment_split" {
-        let after = args.get("id").and_then(Value::as_str).and_then(|id| segments.iter().position(|segment| segment["id"] == id)).and_then(|at| segments.get(at + 1));
-        named.extend(after.and_then(|segment| segment["id"].as_str()).map(str::to_string),
-        );
-    }
-    let mut changed: Vec<Value> = segments.iter().filter(|segment| named.iter().any(|id| segment["id"] == id.as_str())).map(compact_segment).collect();
-    if name == "segment_add" && args.get("id").is_none() {
-        let start = args.get("start").and_then(Value::as_f64).unwrap_or_default().max(0.0);
-        changed.extend(segments.iter().filter(|segment| {
-                    segment["start"].as_f64().is_some_and(|at| (at - start).abs() < 1e-6) && segment["src_text"] == ""
-                }).map(compact_segment),
-        );
-    }
-    if !changed.is_empty() {
-        summary["changed"] = Value::Array(changed);
-    }
-    let captions = &project["captions"];
-    if name.starts_with("title") {
-        summary["titles"] = indexed(&captions["titles"]);
-    }
-    if name.starts_with("blur") {
-        summary["blur_boxes"] = indexed(&captions["blur_boxes"]);
-        summary["blur_on"] = project["render"]["blur"].clone();
-    }
-    if name.starts_with("caption") {
-        summary["sub_style"] = captions["sub_style"].clone();
-        summary["preset"] = captions["preset"].clone();
-        if let Some(line) = args.get("seg_id").and_then(Value::as_str) {
-            summary["override"] = captions["overrides"].as_array().into_iter().flatten().find(|entry| entry["seg_id"] == line).cloned().unwrap_or(Value::Null);
-        }
-    }
-    if name.starts_with("subtitles_") || matches!(name, "project_mode_set" | "audio_output_set" | "translation_target_set") {
-        summary["subs"] = project["subs"].clone();
-        summary["sub_y"] = captions["sub_y"].clone();
-    }
-    if matches!(name, "voice_set" | "gain_set" | "loudness_set" | "voiceover_gain_set" | "original_track_set" | "rewrite_set" | "translation_style_set" | "translation_target_set" | "project_mode_set" | "audio_output_set") {
-        summary["audio"] = project["audio"].clone();
-    }
-    summary
-}
-
-/// Whether an answer is a whole project.
-fn is_project(value: &Value) -> bool {
-    value.get("segments").is_some_and(Value::is_array) && value.get("captions").is_some()
-}
-
 /// The OpenRouter key never leaves the studio, and a proxy's password is hidden.
 fn redact(value: Value) -> Value {
     match value {
@@ -439,9 +240,6 @@ fn shape(name: &str, args: &Value, value: Value) -> Value {
     match name {
         "url_probe" => compact_probe(value),
         _ if detailed => value,
-        "project_get" => compact_project(&value, args),
-        "project_transcript" => transcript(&value, args),
-        _ if is_project(&value) => compact_change(name, args, &value),
         "jobs_list" => match job_rows(&value) {
             Ok(rows) => {
                 let mut listed = json!({ "jobs": rows.iter().map(compact_job).collect::<Vec<_>>() });
@@ -474,7 +272,7 @@ fn shape(name: &str, args: &Value, value: Value) -> Value {
             };
             let projects = value["projects"].as_array().cloned().unwrap_or_default().into_iter().filter(|project| {
                 let edited = project["mtime"].as_i64().unwrap_or_default();
-                (query.is_empty() || project["video"].as_str().unwrap_or_default().to_lowercase().contains(&query))
+                (query.is_empty() || project["name"].as_str().unwrap_or_default().to_lowercase().contains(&query))
                     && since.is_none_or(|since| edited >= since)
                     && until.is_none_or(|until| edited <= until)
             });
@@ -883,119 +681,8 @@ fn given(args: &Value, name: &str) -> Option<String> {
     }
 }
 
-/// An edit of a project: PATCH /projects/{pid} with the op and its fields.
-fn edit(args: &Value, op: &str) -> Result<Call, String> {
-    let path = project_path(args, "")?;
-    let mut body = body_without(args, &["pid", "response_format"]);
-    body["op"] = op.into();
-    send(Method::PATCH, path, body)
-}
-
-/// The detailed answer an edit can give instead of its summary.
-fn detail() -> Value {
-    json!({ "type": "string", "enum": ["concise", "detailed"], "description": "detailed: the whole project instead of what changed" })
-}
-
-/// Records of a glossary, as glossary_get answers them.
-fn glossary_entries() -> Value {
-    json!({
-        "type": "array",
-        "items": {
-            "type": "object",
-            "properties": {
-                "term": { "type": "string" }, "translation": { "type": "string" }, "keep": { "type": "boolean" },
-                "pronunciation": { "type": "string" }, "asr_fix": { "type": "array", "items": { "type": "string" } },
-                "note": { "type": "string" }, "source": { "type": "string", "enum": ["manual", "auto", "series"] }, "lang": { "type": "string" },
-            },
-            "required": ["term"],
-        },
-    })
-}
-
 fn ids(what: &str) -> Value {
     json!({ "type": "array", "items": { "type": "string" }, "description": what })
-}
-
-fn idxs(what: &str) -> Value {
-    json!({ "type": "array", "items": { "type": "integer" }, "description": what })
-}
-
-/// Each edit of a project and the tool that makes it; the resource
-/// studio://patch-ops lists them with their fields.
-const PATCH_OPS: &[(&str, &str)] = &[
-    ("segment", "segment_update"),
-    ("add_segment", "segment_add"),
-    ("del_segments", "segments_delete"),
-    ("hide_segments", "segments_hide"),
-    ("keep_segments", "segments_keep_original"),
-    ("reorder_segments", "segments_reorder"),
-    ("split_segment", "segment_split"),
-    ("merge_segments", "segments_merge"),
-    ("regen", "segment_regen"),
-    ("regen_all", "segments_regen_all"),
-    ("take_select", "take_select"),
-    ("take_pin", "take_pin"),
-    ("mode", "project_mode_set"),
-    ("dub", "audio_output_set"),
-    ("subs_content", "subtitles_content_set"),
-    ("subs_burn", "subtitles_burn_set"),
-    ("subpos", "subtitles_position_set"),
-    ("translate", "translation_target_set"),
-    ("translate_style", "translation_style_set"),
-    ("rewrite", "rewrite_set"),
-    ("recast", "voice_set"),
-    ("gain", "gain_set"),
-    ("loudness", "loudness_set"),
-    ("voiceover_gain", "voiceover_gain_set"),
-    ("keep_original", "original_track_set"),
-    ("caption", "caption_style_set"),
-    ("preset", "caption_preset_set"),
-    ("title_add", "title_add"),
-    ("title", "title_update"),
-    ("del_titles", "titles_delete"),
-    ("blur_add", "blur_add"),
-    ("blur", "blur_update"),
-    ("del_blurs", "blurs_delete"),
-    ("blur_enable", "blur_enable"),
-];
-
-/// Ops for one thing that a tool of many already makes, and the op it makes:
-/// sub_blur sets the same switch as blur_enable.
-const PATCH_ALIASES: &[(&str, &str)] = &[
-    ("del_segment", "del_segments"),
-    ("hide_segment", "hide_segments"),
-    ("keep_segment", "keep_segments"),
-    ("title_del", "del_titles"),
-    ("blur_del", "del_blurs"),
-    ("sub_blur", "blur_enable"),
-];
-
-/// The tool that makes an op, or makes what an alias does.
-fn tool_of_op(op: &str) -> Option<&'static str> {
-    let op = PATCH_ALIASES.iter().find(|(alias, _)| *alias == op).map_or(op, |(_, same)| *same);
-    PATCH_OPS.iter().find(|(known, _)| *known == op).map(|(_, tool)| *tool)
-}
-
-fn every_op() -> Vec<&'static str> {
-    PATCH_OPS.iter().map(|(op, _)| *op).chain(PATCH_ALIASES.iter().map(|(op, _)| *op)).collect()
-}
-
-/// Every edit of a project: its op, its tool and the tool's fields.
-fn edits() -> Value {
-    let mut ops: Vec<Value> = PATCH_OPS
-        .iter()
-        .map(|(op, tool)| {
-            let mut fields = tools().iter().find(|entry| entry.name == *tool).map(|entry| (entry.schema)()["properties"].clone()).unwrap_or(Value::Null);
-            if let Some(fields) = fields.as_object_mut() {
-                fields.remove("pid");
-                fields.remove("response_format");
-            }
-            json!({ "op": op, "tool": tool, "fields": fields })
-        })
-        .collect();
-    ops.extend(PATCH_ALIASES.iter().map(|(op, same)| json!({ "op": op, "same_as": same })),
-    );
-    json!({ "route": "PATCH /projects/{pid}", "body": "{ op, ...fields }", "answer": "the whole project, saved", "ops": ops })
 }
 
 /// The languages a project is dubbed from and into.
@@ -1009,8 +696,6 @@ fn resource(uri: &str) -> Option<(&'static str, String)> {
     match uri {
         SKILL_URI => Some(("text/markdown", SKILL.to_string())),
         LANGUAGES_URI => Some(("application/json", serde_json::to_string_pretty(&languages()).unwrap_or_default(),
-        )),
-        EDITS_URI => Some(("application/json", serde_json::to_string_pretty(&edits()).unwrap_or_default(),
         )),
         _ => None,
     }
@@ -1544,6 +1229,7 @@ fn tools() -> &'static [Tool] {
         all.extend(speech_tools::tools());
         all.extend(atomic::tools());
         all.extend(window::tools());
+        all.extend(assistant::tools());
         all
     })
 }
@@ -1789,22 +1475,93 @@ fn tool_json(id: Value, value: Value) -> Response {
     }
 }
 
-/// A picture a route answered with, as an image the agent sees.
-fn tool_image(id: Value, reply: &Reply, name: &str, args: &Value) -> Response {
-    use base64::Engine;
-    let mime = reply.mime.split(';').next().unwrap_or_default().trim().to_string();
-    let what = match name {
-        "project_frame" => format!(
-            "The {} frame of project {} at {} s.",
-            if args.get("source").and_then(Value::as_str) == Some("original") { "original" } else { "dubbed" },
-            args.get("pid").and_then(Value::as_str).unwrap_or_default(),
-            args.get("t").and_then(Value::as_f64).unwrap_or_default()
-        ),
-        _ => format!("The avatar of character {}.", args.get("character_id").and_then(Value::as_str).unwrap_or_default()),
+/// What a tool answered: JSON, text, a picture, or the window's own answer.
+pub(crate) enum Answer {
+    Json(Value),
+    Text(String),
+    Image { data: String, mime: String, text: String },
+    Window(Value),
+}
+
+/// Runs a tool as `tools/call` runs one, for an agent and for the Assistant panel alike, and journals its change.
+async fn run_tool(tool: &'static Tool, args: &Value) -> Result<Answer, String> {
+    let name = tool.name;
+    let target = if JOURNAL.iter().any(|(tool, _, _)| *tool == name) { journal_target(args) } else { String::new() };
+    // a tool may look at a file on disk before its call: off the runtime
+    let prepare = tool.call;
+    let call = {
+        let args = args.clone();
+        tokio::task::spawn_blocking(move || prepare(&args)).await.unwrap_or_else(|error| Err(format!("{name} failed: {error}")))?
     };
-    let image = base64::engine::general_purpose::STANDARD.encode(&reply.bytes);
-    rpc(id, json!({ "content": [{ "type": "image", "data": image, "mimeType": mime }, { "type": "text", "text": what }], "isError": false }),
-    )
+    Ok(match call {
+        Call { payload: Payload::Window { command, args, seconds }, .. } => Answer::Window(window::ask_window(command, args, seconds).await?),
+        call if call.path == "composite:status" => Answer::Json(status_summary().await),
+        call if call.path == "composite:wait" => Answer::Json(wait_for(args).await?),
+        call if call.path == "composite:questions" => Answer::Json(assistant::wait_for_questions(args).await),
+        call if call.path == "composite:answer" => Answer::Json(assistant::answer_question(args)?),
+        call if call.path.starts_with(atomic::PREFIX) => {
+            let state = atomic::run(&call.path[atomic::PREFIX.len()..], args).await?;
+            journal_call(name, &target, Some(&state));
+            Answer::Json(state)
+        }
+        call => {
+            if QUEUED_BEHIND_JOBS.contains(&name) {
+                graphics_card_free().await?;
+            }
+            let reply = call_route_raw(call).await?;
+            if !reply.status.is_success() {
+                return Err(reply_text(&reply));
+            }
+            if reply.mime.starts_with("image/") {
+                use base64::Engine;
+                let mime = reply.mime.split(';').next().unwrap_or_default().trim().to_string();
+                Answer::Image { data: base64::engine::general_purpose::STANDARD.encode(&reply.bytes), mime, text: format!("The picture {name} answered with.") }
+            } else {
+                let text = reply_text(&reply);
+                match serde_json::from_str::<Value>(&text) {
+                    Ok(value) => {
+                        journal_call(name, &target, Some(&value));
+                        Answer::Json(shape(name, args, redact(value)))
+                    }
+                    Err(_) => {
+                        journal_call(name, &target, None);
+                        Answer::Text(text)
+                    }
+                }
+            }
+        }
+    })
+}
+
+/// The tools for the Assistant panel, as OpenAI-style functions: the same ones an agent over MCP has, but the
+/// assistant's own request tools.
+pub(crate) fn chat_tools() -> Vec<Value> {
+    tools().iter().filter(|tool| !tool.name.starts_with("assistant_")).map(|tool| json!({ "type": "function", "function": { "name": tool.name, "description": tool.description, "parameters": (tool.schema)() } })).collect()
+}
+
+/// A tool's answer for the Assistant panel's model: its text, and a picture it answered with as a data URL.
+pub(crate) struct ChatAnswer {
+    pub text: String,
+    pub image: Option<String>,
+}
+
+/// Runs a tool for the Assistant panel as `tools/call` runs one for an agent, journal line included.
+pub(crate) async fn chat_call(name: &str, args: &Value) -> Result<ChatAnswer, String> {
+    let tool = tools().iter().find(|tool| tool.name == name && !tool.name.starts_with("assistant_")).ok_or_else(|| format!("Unknown tool: {name}"))?;
+    Ok(match run_tool(tool, args).await? {
+        Answer::Json(value) => ChatAnswer { text: cut(serde_json::to_string(&value).unwrap_or_default()), image: None },
+        Answer::Text(text) => ChatAnswer { text: cut(text), image: None },
+        Answer::Image { data, mime, text } => ChatAnswer { text, image: Some(format!("data:{mime};base64,{data}")) },
+        Answer::Window(result) => {
+            let image = result.get("image").and_then(Value::as_str).map(|data| format!("data:{};base64,{data}", result.get("mime").and_then(Value::as_str).unwrap_or("image/png")));
+            let text = match result.get("text").and_then(Value::as_str) {
+                Some(text) => text.to_string(),
+                None if image.is_some() || result.is_null() => "Done.".into(),
+                None => serde_json::to_string(&result).unwrap_or_default(),
+            };
+            ChatAnswer { text: cut(text), image }
+        }
+    })
 }
 
 /// The name a tool shows the user: its words, the first capitalised.
@@ -1863,8 +1620,7 @@ pub async fn handle(headers: HeaderMap, body: axum::body::Bytes) -> Response {
         "ping" => rpc(id, json!({})),
         "resources/list" => rpc(id, cacheable(json!({ "resources": [
             { "uri": SKILL_URI, "name": "studio skill", "title": "How to drive the studio", "description": "How to drive Speech Studio: every tool by area, the ground rules, step-by-step recipes.", "mimeType": "text/markdown" },
-            { "uri": LANGUAGES_URI, "name": "languages", "title": "Languages", "description": "The language codes a video is dubbed from and into: tgt_lang, src_lang, lang.", "mimeType": "application/json" },
-            { "uri": EDITS_URI, "name": "project edits", "title": "Project edits", "description": "Every edit of a project (PATCH op), the tool that makes it and its fields.", "mimeType": "application/json" },
+            { "uri": LANGUAGES_URI, "name": "languages", "title": "Languages", "description": "The language codes a project is voiced or recognised in: lang.", "mimeType": "application/json" },
         ] })),
         ),
         "resources/templates/list" => rpc(id, cacheable(json!({ "resourceTemplates": [] }))),
@@ -1901,67 +1657,29 @@ pub async fn handle(headers: HeaderMap, body: axum::body::Bytes) -> Response {
             let name = params.get("name").and_then(Value::as_str).unwrap_or_default();
             seen(name);
             let args = params.get("arguments").cloned().unwrap_or_else(|| json!({}));
-            let answer = |text: String, error: bool| tool_result(id.clone(), text, None, error);
             let Some(tool) = tools().iter().find(|tool| tool.name == name) else {
                 return rpc_error(id, -32602, format!("Unknown tool: {name}; tools/list names them all."),
                 );
             };
-            let target = if JOURNAL.iter().any(|(tool, _, _)| *tool == name) { journal_target(&args) } else { String::new() };
-            // a tool may look at a file on disk before its call: off the runtime
-            let prepare = tool.call;
-            let prepared = {
-                let args = args.clone();
-                tokio::task::spawn_blocking(move || prepare(&args)).await.unwrap_or_else(|error| Err(format!("{name} failed: {error}")))
-            };
-            match prepared {
-                Err(problem) => answer(problem, true),
-                Ok(Call { payload: Payload::Window { command, args, seconds,
-                        }, .. }) => match window::ask_window(command, args, seconds).await {
-                    Ok(result) => window::window_reply(id, result),
-                    Err(problem) => answer(problem, true),
-                },
-                Ok(call) if call.path == "composite:status" => {
-                    tool_json(id, status_summary().await)
-                }
-                Ok(call) if call.path == "composite:wait" => match wait_for(&args).await {
-                    Ok(state) => tool_json(id, state),
-                    Err(problem) => answer(problem, true),
-                },
-                Ok(call) if call.path.starts_with(atomic::PREFIX) => match atomic::run(&call.path[atomic::PREFIX.len()..], &args).await {
-                    Ok(state) => {
-                        journal_call(name, &target, Some(&state));
-                        tool_json(id, state)
-                    }
-                    Err(problem) => answer(problem, true),
-                },
-                Ok(call) => {
-                    if QUEUED_BEHIND_JOBS.contains(&name) {
-                        if let Err(problem) = graphics_card_free().await {
-                            return answer(problem, true);
-                        }
-                    }
-                    match call_route_raw(call).await {
-                        Ok(reply) if reply.status.is_success() && reply.mime.starts_with("image/") =>
-                        {
-                            tool_image(id, &reply, name, &args)
-                        }
-                        Ok(reply) if reply.status.is_success() => {
-                            let text = reply_text(&reply);
-                            match serde_json::from_str::<Value>(&text) {
-                                Ok(value) => {
-                                    journal_call(name, &target, Some(&value));
-                                    tool_json(id, shape(name, &args, redact(value)))
-                                }
-                                Err(_) => {
-                                    journal_call(name, &target, None);
-                                    answer(text, false)
-                                }
-                            }
-                        }
-                        Ok(reply) => answer(reply_text(&reply), true),
-                        Err(problem) => answer(problem, true),
-                    }
-                }
+            let step = assistant::step_of(name);
+            if let Some(step) = &step {
+                assistant::chat_step(json!({ "type": "tool", "id": step, "name": name, "args": args }));
+            }
+            let answer = run_tool(tool, &args).await;
+            if let Some(step) = step {
+                let (ok, summary) = match &answer {
+                    Ok(Answer::Json(value)) | Ok(Answer::Window(value)) => (true, serde_json::to_string(value).unwrap_or_default()),
+                    Ok(Answer::Text(text)) | Ok(Answer::Image { text, .. }) => (true, text.clone()),
+                    Err(problem) => (false, problem.clone()),
+                };
+                assistant::chat_step(json!({ "type": "tool_done", "id": step, "ok": ok, "summary": summary.chars().take(240).collect::<String>() }));
+            }
+            match answer {
+                Ok(Answer::Json(value)) => tool_json(id, value),
+                Ok(Answer::Text(text)) => tool_result(id, text, None, false),
+                Ok(Answer::Image { data, mime, text }) => rpc(id, json!({ "content": [{ "type": "image", "data": data, "mimeType": mime }, { "type": "text", "text": text }], "isError": false })),
+                Ok(Answer::Window(result)) => window::window_reply(id, result),
+                Err(problem) => tool_result(id, problem, None, true),
             }
         }
         _ => rpc_failure(StatusCode::NOT_FOUND, id, -32601, format!("Method not found: {method}"), None,

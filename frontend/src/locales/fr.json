@@ -1414,5 +1414,38 @@
       "job": "tâche"
     },
     "quoted": "« {{name}} »"
+  },
+  "chat": {
+    "title": "Assistant",
+    "model": "Modèle de l’assistant",
+    "costHint": "Ce qu’a coûté cette conversation (OpenRouter)",
+    "clear": "Effacer la conversation",
+    "intro": "L’assistant pilote le studio avec les mêmes outils qu’un agent MCP : il ouvre des projets, modifie le texte, fait les voix et reconnaît la parole. Chaque étape s’affiche ici et les modifications vont dans le journal des actions. La voix payante dans le cloud n’est lancée qu’avec votre accord.",
+    "introAgent": "C’est l’agent connecté (MCP) qui répond : votre message lui parvient, il fait le travail avec ses outils et répond ici. Rien n’est payé.",
+    "suggestions": {
+      "what": "Qu’est-ce qui est ouvert et que puis-je faire ici ?",
+      "voice": "Fais les voix des blocs modifiés de ce projet",
+      "check": "Vérifie que tous les blocs ont une voix sans erreur",
+      "listen": "Comment reconnaître un enregistrement à deux voix et en faire un script ?"
+    },
+    "tools": "Étapes de l’assistant",
+    "thinking": "L’assistant réfléchit…",
+    "placeholder": "Écrivez à l’assistant… (Entrée envoie, Maj+Entrée nouvelle ligne)",
+    "stop": "Arrêter",
+    "send": "Envoyer",
+    "footnote": "La conversation est payée avec la clé OpenRouter et compte dans la limite quotidienne des agents.",
+    "footnoteAgent": "C’est l’agent connecté qui répond ; la conversation est gratuite.",
+    "needsKey": "L’assistant a besoin d’un modèle OpenRouter (votre clé) ou d’un agent MCP connecté.",
+    "openKeys": "Clé OpenRouter",
+    "useAgent": "Connecter un agent",
+    "byAgent": "C’est l’agent connecté (MCP) qui répond",
+    "toolRunning": "en cours",
+    "toolDone": "fait",
+    "toolFailed": "échec",
+    "who": "Qui répond dans le panneau Assistant",
+    "whoModel": "Un modèle OpenRouter",
+    "whoModelHint": "Payant, avec votre clé ; le modèle se choisit dans le panneau.",
+    "whoAgent": "L’agent connecté (MCP)",
+    "whoAgentHint": "Le message va à l’agent (assistant_requests_wait), qui répond lui-même ; gratuit."
   }
 }

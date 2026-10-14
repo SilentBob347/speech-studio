@@ -1414,5 +1414,38 @@
       "job": "job"
     },
     "quoted": "“{{name}}”"
+  },
+  "chat": {
+    "title": "Assistant",
+    "model": "Assistant's model",
+    "costHint": "What this conversation cost (OpenRouter)",
+    "clear": "Clear the conversation",
+    "intro": "The assistant works the studio with the same tools an MCP agent has: it opens projects, edits text, voices and recognises. Each step shows here, and changes go into the activity log. It runs paid cloud voicing only with your consent.",
+    "introAgent": "The connected agent (MCP) answers: your message goes to it, it does the work with its tools and answers here. Nothing is paid.",
+    "suggestions": {
+      "what": "What is open and what can I do here?",
+      "voice": "Voice the changed blocks of this project",
+      "check": "Check that every block is voiced without errors",
+      "listen": "How do I recognise a two-speaker recording and turn it into a script?"
+    },
+    "tools": "The assistant's steps",
+    "thinking": "The assistant is thinking…",
+    "placeholder": "Write to the assistant… (Enter sends, Shift+Enter is a new line)",
+    "stop": "Stop",
+    "send": "Send",
+    "footnote": "The conversation is paid with the OpenRouter key and counts toward the agents' daily limit.",
+    "footnoteAgent": "The connected agent answers; the conversation is free.",
+    "needsKey": "The assistant needs an OpenRouter model (your key) or a connected MCP agent.",
+    "openKeys": "OpenRouter key",
+    "useAgent": "Connect an agent",
+    "byAgent": "The connected agent (MCP) answers",
+    "toolRunning": "running",
+    "toolDone": "done",
+    "toolFailed": "failed",
+    "who": "Who answers in the Assistant panel",
+    "whoModel": "An OpenRouter model",
+    "whoModelHint": "Paid with your key; the model is chosen in the panel itself.",
+    "whoAgent": "The connected agent (MCP)",
+    "whoAgentHint": "The message goes to the agent (assistant_requests_wait), which answers on its own; free."
   }
 }

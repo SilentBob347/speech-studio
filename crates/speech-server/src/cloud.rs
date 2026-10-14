@@ -306,8 +306,12 @@ fn daily_limit(models_root: &Path) -> f64 {
 
 /// Отказ агенту или программе, если вызов выйдет за дневной лимит; вызов без оценки цены при лимите тоже отказ.
 pub fn check_limit(repo_root: &Path, models_root: &Path, estimate: Option<f64>) -> Result<(), String> {
-    let origin = crate::mcp::current_actor();
-    if !matches!(origin.as_str(), "agent" | "api") {
+    check_limit_as(&crate::mcp::current_actor(), repo_root, models_root, estimate)
+}
+
+/// The same refusal for a caller named outright: the Assistant panel's conversation is an agent's.
+pub fn check_limit_as(origin: &str, repo_root: &Path, models_root: &Path, estimate: Option<f64>) -> Result<(), String> {
+    if !matches!(origin, "agent" | "api") {
         return Ok(());
     }
     let limit = daily_limit(models_root);

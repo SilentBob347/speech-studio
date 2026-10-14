@@ -17,6 +17,7 @@ import ModelsSection from "../setup/ModelsSection";
 import PresetsSection from "../setup/PresetsSection";
 import HelpModal from "./HelpModal";
 import VoiceLibrary from "../voices/VoiceLibrary";
+import AssistantPanel from "../AssistantPanel";
 
 function LanguageSwitcher() {
   const { t, i18n } = useTranslation();
@@ -127,6 +128,7 @@ export default function TopBar() {
   const [settings, setSettings] = useState<{ target: string; request: number } | null>(null);
   const [help, setHelp] = useState(false);
   const [voices, setVoices] = useState(false);
+  const [assistant, setAssistant] = useState(false);
   const openSettingsAt = (target: string) => setSettings(settingsRequest(target));
   useEffect(() => {
     const open = (e: Event) => setSettings(settingsRequest((e as CustomEvent<string>).detail));
@@ -164,6 +166,12 @@ export default function TopBar() {
           </button>
         )}
         {ready && (
+          <button onClick={() => setAssistant((open) => !open)} title={t("chat.title")} aria-label={t("chat.title")} aria-pressed={assistant}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[12px] font-medium transition-colors ${assistant ? "border-[var(--color-accent)] text-[var(--color-accent)]" : "border-[var(--color-border)] text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"}`}>
+            <Bot size={13} /><span className="hidden xl:inline">{t("chat.title")}</span>
+          </button>
+        )}
+        {ready && (
           <button onClick={startFresh} title={t("nav.newTitle")} aria-label={t("nav.newTitle")}
             className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[12px] font-bold text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-colors shadow-sm">
             <Plus size={13} /><span className="hidden xl:inline">{t("nav.new")}</span>
@@ -178,6 +186,7 @@ export default function TopBar() {
       </div>
       {help && <HelpModal onClose={() => setHelp(false)} />}
       {voices && <VoiceLibrary onClose={() => setVoices(false)} />}
+      {assistant && <AssistantPanel onClose={() => setAssistant(false)} />}
       {settings !== null && (
         <SettingsModal target={settings.target} request={settings.request} onClose={() => setSettings(null)}
           panes={{ models: <><PresetsSection /><ModelsSection /></>, cloud: <><ModelsSection part="cloud" /><CloudProviders /></>, network: <ProxySection />, agent: <AgentPanel /> }} />

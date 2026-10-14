@@ -37,6 +37,11 @@ connected and the address to paste.
 - **The window**: `ui_screenshot`, `ui_read_page`, `ui_click`, `ui_type`, `ui_select`, `ui_press_key`, `ui_scroll`,
   `ui_navigate`, `ui_open_settings`, `ui_notify`, `ui_console` work in the studio's window in front of the user; a key or
   password field reads only as filled or empty.
+- **The journal**: every change you make (create, update, delete, voice, export...) is written into the window's
+  activity log with the name of what it changed, and stays there after a restart.
+- **Being the assistant**: when the user chose «Agent (MCP)» as the assistant (Settings, Agent), what they write in the
+  Assistant panel waits for you: `assistant_requests_wait`, do what the request asks with the tools (the panel shows each
+  call), then `assistant_request_answer` with your answer in words, in the language the request names.
 
 
 ## Speech: voicing

@@ -8,6 +8,12 @@ function remember(key: string, pid: string | null) {
   try { if (pid) localStorage.setItem(key, pid); else localStorage.removeItem(key); } catch { /* the open project is only remembered where storage works */ }
 }
 
+const KEYS = { speech: "speech-studio:speech-project", listening: "speech-studio:listen-project" } as const;
+export const PROJECT_KEY = KEYS;
+
+/** The project open now in a mode, for those outside its page (the Assistant panel). */
+export const openProjectId = (mode: keyof typeof KEYS): string | null => remembered(KEYS[mode]);
+
 /** The project open in a mode, remembered across restarts; "New" in the top bar closes it. */
 export function useOpenProject(key: string): [string | null, (pid: string | null) => void] {
   const fresh = useStore((s) => s.fresh);

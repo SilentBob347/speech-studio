@@ -1414,5 +1414,38 @@
       "job": "tarefa"
     },
     "quoted": "“{{name}}”"
+  },
+  "chat": {
+    "title": "Assistente",
+    "model": "Modelo do assistente",
+    "costHint": "Quanto esta conversa custou (OpenRouter)",
+    "clear": "Limpar a conversa",
+    "intro": "O assistente opera o estúdio com as mesmas ferramentas de um agente MCP: abre projetos, edita texto, narra e reconhece. Cada passo aparece aqui e as mudanças vão para o registro de ações. Locução paga na nuvem só com o seu consentimento.",
+    "introAgent": "Quem responde é o agente conectado (MCP): sua mensagem vai para ele, que faz o trabalho com as ferramentas dele e responde aqui. Nada é pago.",
+    "suggestions": {
+      "what": "O que está aberto e o que posso fazer aqui?",
+      "voice": "Narre os blocos alterados deste projeto",
+      "check": "Verifique se todos os blocos foram narrados sem erros",
+      "listen": "Como reconheço uma gravação de dois falantes e a transformo em roteiro?"
+    },
+    "tools": "Passos do assistente",
+    "thinking": "O assistente está pensando…",
+    "placeholder": "Escreva ao assistente… (Enter envia, Shift+Enter nova linha)",
+    "stop": "Parar",
+    "send": "Enviar",
+    "footnote": "A conversa é paga com a chave do OpenRouter e conta no limite diário dos agentes.",
+    "footnoteAgent": "Quem responde é o agente conectado; a conversa é gratuita.",
+    "needsKey": "O assistente precisa de um modelo do OpenRouter (sua chave) ou de um agente MCP conectado.",
+    "openKeys": "Chave do OpenRouter",
+    "useAgent": "Conectar um agente",
+    "byAgent": "Quem responde é o agente conectado (MCP)",
+    "toolRunning": "em execução",
+    "toolDone": "concluído",
+    "toolFailed": "erro",
+    "who": "Quem responde no painel Assistente",
+    "whoModel": "Um modelo do OpenRouter",
+    "whoModelHint": "Pago, com a sua chave; o modelo é escolhido no próprio painel.",
+    "whoAgent": "O agente conectado (MCP)",
+    "whoAgentHint": "A mensagem vai para o agente (assistant_requests_wait), que responde por conta própria; gratuito."
   }
 }

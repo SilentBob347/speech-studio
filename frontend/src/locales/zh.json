@@ -1414,5 +1414,38 @@
       "job": "任务"
     },
     "quoted": "“{{name}}”"
+  },
+  "chat": {
+    "title": "助手",
+    "model": "助手模型",
+    "costHint": "本次对话的费用（OpenRouter）",
+    "clear": "清空对话",
+    "intro": "助手使用与 MCP 智能体相同的工具操作工作室：打开项目、编辑文本、配音和识别。每一步都显示在这里，修改会记入操作日志。付费的云端配音只在你同意后进行。",
+    "introAgent": "由已连接的智能体（MCP）回答：你的消息会发给它，它用自己的工具完成工作并在这里回答。不产生费用。",
+    "suggestions": {
+      "what": "现在打开的是什么？这里能做什么？",
+      "voice": "为本项目中修改过的文本块配音",
+      "check": "检查所有文本块是否都已无误配音",
+      "listen": "如何识别两人对话录音并转成脚本？"
+    },
+    "tools": "助手的步骤",
+    "thinking": "助手正在思考…",
+    "placeholder": "给助手写消息…（Enter 发送，Shift+Enter 换行）",
+    "stop": "停止",
+    "send": "发送",
+    "footnote": "对话使用 OpenRouter 密钥付费，并计入智能体的每日限额。",
+    "footnoteAgent": "由已连接的智能体回答；对话免费。",
+    "needsKey": "助手需要 OpenRouter 模型（你的密钥）或已连接的 MCP 智能体。",
+    "openKeys": "OpenRouter 密钥",
+    "useAgent": "连接智能体",
+    "byAgent": "由已连接的智能体（MCP）回答",
+    "toolRunning": "执行中",
+    "toolDone": "完成",
+    "toolFailed": "失败",
+    "who": "谁在“助手”面板中回答",
+    "whoModel": "OpenRouter 模型",
+    "whoModelHint": "付费，使用你的密钥；模型在面板中选择。",
+    "whoAgent": "已连接的智能体（MCP）",
+    "whoAgentHint": "消息发给智能体（assistant_requests_wait），由它自行回答；免费。"
   }
 }

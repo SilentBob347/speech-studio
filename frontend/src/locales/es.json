@@ -1414,5 +1414,38 @@
       "job": "tarea"
     },
     "quoted": "«{{name}}»"
+  },
+  "chat": {
+    "title": "Asistente",
+    "model": "Modelo del asistente",
+    "costHint": "Lo que costó esta conversación (OpenRouter)",
+    "clear": "Borrar la conversación",
+    "intro": "El asistente maneja el estudio con las mismas herramientas que un agente MCP: abre proyectos, edita texto, locuta y reconoce. Cada paso se ve aquí y los cambios van al registro de acciones. Solo usa locución en la nube de pago con tu permiso.",
+    "introAgent": "Responde el agente conectado (MCP): tu mensaje le llega, hace el trabajo con sus herramientas y responde aquí. No se paga nada.",
+    "suggestions": {
+      "what": "¿Qué está abierto y qué puedo hacer aquí?",
+      "voice": "Locuta los bloques modificados de este proyecto",
+      "check": "Comprueba que todos los bloques estén locutados sin errores",
+      "listen": "¿Cómo reconozco una grabación de dos hablantes y la convierto en guion?"
+    },
+    "tools": "Pasos del asistente",
+    "thinking": "El asistente está pensando…",
+    "placeholder": "Escribe al asistente… (Enter envía, Shift+Enter nueva línea)",
+    "stop": "Detener",
+    "send": "Enviar",
+    "footnote": "La conversación se paga con la clave de OpenRouter y cuenta para el límite diario de los agentes.",
+    "footnoteAgent": "Responde el agente conectado; la conversación es gratis.",
+    "needsKey": "El asistente necesita un modelo de OpenRouter (tu clave) o un agente MCP conectado.",
+    "openKeys": "Clave de OpenRouter",
+    "useAgent": "Conectar un agente",
+    "byAgent": "Responde el agente conectado (MCP)",
+    "toolRunning": "en curso",
+    "toolDone": "hecho",
+    "toolFailed": "error",
+    "who": "Quién responde en el panel Asistente",
+    "whoModel": "Un modelo de OpenRouter",
+    "whoModelHint": "De pago, con tu clave; el modelo se elige en el propio panel.",
+    "whoAgent": "El agente conectado (MCP)",
+    "whoAgentHint": "El mensaje va al agente (assistant_requests_wait), que responde por su cuenta; gratis."
   }
 }

@@ -29,6 +29,7 @@ mod llm_provider;
 mod localize;
 mod loudness;
 mod media;
+mod chat;
 mod google_speech;
 mod journal;
 mod google_tts;
@@ -508,6 +509,8 @@ pub fn build_router(state: AppState) -> Router {
         .route("/projects/{pid}/exports-to-folder", post(speech_api::exports_to_folder))
         .route("/projects/{pid}/exports/{file}/reveal", post(speech_api::export_reveal))
         .route("/projects/{pid}/exports/{file}/save-as", post(speech_api::export_save_as))
+        .route("/chat", post(chat::chat))
+        .route("/chat/models", get(chat::models))
         .route("/journal", get(journal::read).post(journal::write).delete(journal::clear))
         .route("/journal/{id}", axum::routing::delete(journal::remove))
         .route("/jobs", get(jobs_list))
