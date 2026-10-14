@@ -38,8 +38,6 @@ connected and the address to paste.
   `ui_navigate`, `ui_open_settings`, `ui_notify`, `ui_console` work in the studio's window in front of the user; a key or
   password field reads only as filled or empty.
 
-Speech (voicing text) and Listening (recognising speech and checking a voicing) arrive in the next stages; their tools
-will be listed here when they exist.
 
 ## Speech: voicing
 
