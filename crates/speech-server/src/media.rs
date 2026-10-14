@@ -1124,6 +1124,31 @@ pub fn encode_audio(src: &Path, dst: &Path, format: &str, acx: bool) -> Result<(
     encode_audio_meta(src, dst, format, acx, &AudioMeta::default())
 }
 
+/// Звук `src` из кусков `keep` (секунды) встык — FLAC. Граф фильтров идёт файлом: кусков бывают сотни, а командная
+/// строка Windows короче.
+pub fn keep_audio_ranges(src: &Path, dst: &Path, keep: &[(f64, f64)]) -> Result<(), String> {
+    if keep.is_empty() {
+        return Err("nothing to keep".into());
+    }
+    let mut graph = String::new();
+    for (i, (a, b)) in keep.iter().enumerate() {
+        graph.push_str(&format!("[0:a:0]atrim=start={a:.3}:end={b:.3},asetpts=PTS-STARTPTS[k{i}];"));
+    }
+    for i in 0..keep.len() {
+        graph.push_str(&format!("[k{i}]"));
+    }
+    graph.push_str(&format!("concat=n={}:v=0:a=1[out]", keep.len()));
+    let script = tempfile::Builder::new().prefix("cut-").suffix(".txt").tempfile().map_err(|e| e.to_string())?;
+    std::fs::write(script.path(), graph).map_err(|e| format!("{}: {e}", script.path().display()))?;
+    dub_core::atomic::write_with(dst, |tmp| {
+        run_ff_args(&os_args(&[
+            OsStr::new("-y"), OsStr::new("-i"), src.as_os_str(),
+            OsStr::new("-/filter_complex"), script.path().as_os_str(),
+            OsStr::new("-map"), OsStr::new("[out]"), OsStr::new("-c:a"), OsStr::new("flac"), OsStr::new("-f"), OsStr::new("flac"), tmp.as_os_str(),
+        ]))
+    })
+}
+
 /// Закодировать звук в формат экспорта с тегами; у M4B и M4A — ещё главы и обложка.
 pub fn encode_audio_meta(src: &Path, dst: &Path, format: &str, acx: bool, meta: &AudioMeta) -> Result<(), String> {
     let codec: &[&str] = match format {

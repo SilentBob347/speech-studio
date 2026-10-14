@@ -369,12 +369,12 @@ pub fn unqueue(pid: &str, n: Option<u64>) -> usize {
     before - list.len()
 }
 
-/// Озвучить один блок `count` дублями и записать их в проект; номера новых дублей. Ошибка — в блок.
 thread_local! {
     /// Сид повтора «с теми же параметрами» для текущей задачи.
     static REPEAT_SEED: std::cell::Cell<Option<u64>> = const { std::cell::Cell::new(None) };
 }
 
+/// Озвучить один блок `count` дублями и записать их в проект; номера новых дублей. Ошибка — в блок.
 fn voice_block(p: &SpeechPaths, pid: &str, id: &str, count: u32, source: &str, progress: &dyn Fn(Value)) -> Result<Vec<u32>, String> {
     let mut made = Vec::new();
     for _ in 0..count {

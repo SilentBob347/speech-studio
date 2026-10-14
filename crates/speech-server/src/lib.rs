@@ -60,6 +60,10 @@ mod cloud_tts;
 mod speechproj;
 mod book_import;
 mod acx;
+mod listen_api;
+mod listen_jobs;
+mod listen_project;
+mod transcript_out;
 mod tts_host;
 mod url_import;
 mod voice_api;
@@ -370,17 +374,6 @@ fn clean_partials(dir: &Path) {
     }
 }
 
-/// Начальный project.json проекта Listening: запись (source.txt), имя (name.txt), импортированные субтитры
-/// (import_subs.srt) уже лежат в папке; транскрипта ещё нет.
-pub(crate) fn write_initial_listening(dir: &Path) -> Result<(), String> {
-    let project = json!({ "kind": "listening", "transcript": null });
-    let path = dir.join("project.json");
-    let tmp = dir.join("project.json.tmp");
-    let body = serde_json::to_vec_pretty(&project).map_err(|e| e.to_string())?;
-    std::fs::write(&tmp, body).map_err(|e| format!("{}: {e}", tmp.display()))?;
-    std::fs::rename(&tmp, &path).map_err(|e| format!("{}: {e}", path.display()))
-}
-
 pub fn build_router(state: AppState) -> Router {
     let api = Router::new()
         .route("/health", get(service::health))
@@ -461,6 +454,18 @@ pub fn build_router(state: AppState) -> Router {
         .route("/dictionary/import", post(dict_api::import))
         .route("/projects/{pid}/dictionary-counts", get(dict_api::counts))
         .route("/projects/{pid}/unknown-words", get(dict_api::unknown_words))
+        .route("/listen/upload", post(listen_api::upload))
+        .route("/listen/record/start", post(listen_api::record_start))
+        .route("/listen/record/stop", post(listen_api::record_stop))
+        .route("/listen/{pid}", get(listen_api::get).put(listen_api::put))
+        .route("/listen/{pid}/audio", get(listen_api::audio))
+        .route("/listen/{pid}/transcribe", post(listen_api::transcribe))
+        .route("/listen/{pid}/cut", post(listen_api::cut))
+        .route("/listen/{pid}/export", post(listen_api::export))
+        .route("/listen/{pid}/check", get(listen_api::check))
+        .route("/listen/{pid}/to-speech", post(listen_api::to_speech))
+        .route("/listen/{pid}/voices", post(listen_api::voices))
+        .route("/projects/from_url", post(url_import::create_from_url))
         .route("/projects", get(speech_api::list).post(speech_api::create))
         .route("/projects/{pid}", get(speech_api::get).put(speech_api::put).delete(speech_api::delete))
         .route("/projects/{pid}/synth", post(speech_api::synth))

@@ -13,11 +13,11 @@ use crate::speech_jobs::{self, ExportOpts, Scope, SpeechPaths};
 use crate::speech_project::{self as sp, SpeechProject};
 use crate::{jobs, AppState};
 
-fn refuse(status: StatusCode, code: &str, detail: impl Into<String>) -> Response {
+pub(crate) fn refuse(status: StatusCode, code: &str, detail: impl Into<String>) -> Response {
     (status, Json(json!({ "error": code, "detail": detail.into() }))).into_response()
 }
 
-fn joined<T>(r: Result<T, tokio::task::JoinError>) -> Result<T, Response> {
+pub(crate) fn joined<T>(r: Result<T, tokio::task::JoinError>) -> Result<T, Response> {
     r.map_err(|e| refuse(StatusCode::INTERNAL_SERVER_ERROR, "internal", e.to_string()))
 }
 
@@ -53,8 +53,13 @@ fn summary(p: &SpeechPaths, dir: &Path) -> Option<Value> {
         card["created"] = json!(project.created);
         card["blocks"] = json!(total);
         card["ready"] = json!(ready);
+    } else if kind == crate::listen_project::KIND {
+        let project: crate::listen_project::ListenProject = serde_json::from_value(v).ok()?;
+        if let Value::Object(extra) = crate::listen_api::summary(&project) {
+            card.as_object_mut()?.extend(extra);
+        }
     } else {
-        card["name"] = json!(std::fs::read_to_string(dir.join("name.txt")).unwrap_or_default());
+        return None;
     }
     Some(card)
 }
@@ -295,7 +300,7 @@ pub async fn export(State(st): State<AppState>, AxPath(pid): AxPath<String>, Jso
     }
 }
 
-fn safe_file(name: &str) -> bool {
+pub(crate) fn safe_file(name: &str) -> bool {
     !name.is_empty() && !name.contains(['/', '\\']) && !name.contains("..")
 }
 

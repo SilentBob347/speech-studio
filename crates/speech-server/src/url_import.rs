@@ -765,8 +765,6 @@ fn make_project(fetch_root: &Path, media: &Path, title: &str, subs: Option<&Path
     let ext = media.extension().and_then(|e| e.to_str()).unwrap_or("mp4").to_ascii_lowercase();
     let dst = d.join(format!("source.{ext}"));
     std::fs::rename(media, &dst).map_err(|e| io(&dst, e))?;
-    std::fs::write(d.join("source.txt"), dst.to_string_lossy().as_bytes()).map_err(|e| io(&d.join("source.txt"), e))?;
-    std::fs::write(d.join("name.txt"), project_name(title, &ext).as_bytes()).map_err(|e| io(&d.join("name.txt"), e))?;
     let mut subs_imported = false;
     let mut warning = None;
     if let Some(src) = subs {
@@ -779,7 +777,9 @@ fn make_project(fetch_root: &Path, media: &Path, title: &str, subs: Option<&Path
             subs_imported = true;
         }
     }
-    crate::write_initial_listening(&d).map_err(|e| UrlError::new("io", e))?;
+    let name = project_name(title, &ext);
+    let name = name.strip_suffix(&format!(".{ext}")).unwrap_or(&name).to_string();
+    crate::listen_api::make(workspace, &pid, &name, &format!("source.{ext}"), title).map_err(|e| UrlError::new("io", e))?;
     Ok(Made { pid, subs_imported, warning })
 }
 
@@ -1089,10 +1089,10 @@ mod tests {
         let p = root.path().join("workspace").join(&made.pid);
         assert!(made.subs_imported && made.warning.is_none());
         assert!(p.join("source.mp4").is_file() && !dir.join("source.mp4").exists(), "the file moves, not copies");
-        assert_eq!(std::fs::read_to_string(p.join("name.txt")).unwrap(), "My clip.mp4");
         assert!(p.join("import_subs.srt").is_file());
         let project: Value = serde_json::from_str(&std::fs::read_to_string(p.join("project.json")).unwrap()).unwrap();
-        assert_eq!((project["kind"].as_str(), project["transcript"].is_null()), (Some("listening"), true));
+        assert_eq!((project["kind"].as_str(), project["name"].as_str(), project["source"].as_str()), (Some("listening"), Some("My clip"), Some("source.mp4")));
+        assert_eq!(project["made"]["by"].as_str(), Some("subs"), "platform subtitles become the transcript");
         std::fs::write(dir.join("source.m4a"), b"x").unwrap();
         std::fs::write(dir.join("empty.srt"), "garbage").unwrap();
         let made = make_project(&fetch_root, &dir.join("source.m4a"), "a", Some(&dir.join("empty.srt"))).unwrap();

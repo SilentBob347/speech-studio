@@ -39,8 +39,25 @@ pub fn normalize(text: &str) -> Vec<String> {
         .collect()
 }
 
-/// Вставки, пропуски и замены по словам (Левенштейн с восстановлением операций).
 pub fn word_ops(expected: &[String], heard: &[String]) -> (usize, usize, usize) {
+    word_diff(expected, heard).iter().fold((0, 0, 0), |(i, d, s), op| match op.op {
+        "inserted" => (i + 1, d, s),
+        "deleted" => (i, d + 1, s),
+        "substituted" => (i, d, s + 1),
+        _ => (i, d, s),
+    })
+}
+
+/// Шаг выравнивания слов: `same`, `inserted` (лишнее услышанное), `deleted` (пропущенное), `substituted`.
+#[derive(Serialize, Clone, Debug, PartialEq)]
+pub struct WordOp {
+    pub op: &'static str,
+    pub expected: Option<String>,
+    pub heard: Option<String>,
+}
+
+/// Выравнивание задуманных и услышанных слов по Левенштейну, в порядке текста.
+pub fn word_diff(expected: &[String], heard: &[String]) -> Vec<WordOp> {
     let (n, m) = (expected.len(), heard.len());
     let mut d = vec![vec![0usize; m + 1]; n + 1];
     for (i, row) in d.iter_mut().enumerate() {
@@ -56,23 +73,23 @@ pub fn word_ops(expected: &[String], heard: &[String]) -> (usize, usize, usize) 
         }
     }
     let (mut i, mut j) = (n, m);
-    let (mut ins, mut del, mut sub) = (0, 0, 0);
+    let mut ops = Vec::with_capacity(n.max(m));
     while i > 0 || j > 0 {
         if i > 0 && j > 0 && d[i][j] == d[i - 1][j - 1] + usize::from(expected[i - 1] != heard[j - 1]) {
-            if expected[i - 1] != heard[j - 1] {
-                sub += 1;
-            }
+            let op = if expected[i - 1] == heard[j - 1] { "same" } else { "substituted" };
+            ops.push(WordOp { op, expected: Some(expected[i - 1].clone()), heard: Some(heard[j - 1].clone()) });
             i -= 1;
             j -= 1;
         } else if i > 0 && d[i][j] == d[i - 1][j] + 1 {
-            del += 1;
+            ops.push(WordOp { op: "deleted", expected: Some(expected[i - 1].clone()), heard: None });
             i -= 1;
         } else {
-            ins += 1;
+            ops.push(WordOp { op: "inserted", expected: None, heard: Some(heard[j - 1].clone()) });
             j -= 1;
         }
     }
-    (ins, del, sub)
+    ops.reverse();
+    ops
 }
 
 /// Сколько бы ни было слов, больше половины с лишним ошибок — уже не та фраза.
