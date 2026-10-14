@@ -1,6 +1,6 @@
 ---
 name: speech-studio
-description: Drive Speech Studio on this computer through its MCP server - check the graphics card, download and choose the speech models (Higgs Audio, Parakeet, Whisper, diarization, voice separation), manage the voice library and record a voice from the microphone, keep the OpenRouter and Google keys and the proxy, fetch audio and video by a link, and work the studio's window while the user watches. Use whenever the user asks for anything the studio does.
+description: Drive Speech Studio on this computer through its MCP server - voice texts, scripts, podcasts and books (Higgs Audio, Drama 3, OpenRouter) with stress marks, normalisation and a pronunciation dictionary, recognise recordings with speakers and word times (Parakeet, Whisper, OpenRouter), edit them by text, check voicing against a text, manage the voice library and models, and work the studio's window while the user watches. Use whenever the user asks for anything the studio does.
 ---
 
 # Speech Studio through MCP
@@ -40,3 +40,37 @@ connected and the address to paste.
 
 Speech (voicing text) and Listening (recognising speech and checking a voicing) arrive in the next stages; their tools
 will be listed here when they exist.
+
+## Speech: voicing
+
+- **One call**: `speak_text` (text, voice, engine, lang, format, direction) gives an audio file; the same arguments
+  again answer with the same file at once. Longer work answers `done: false` with its job: `studio_wait`, then call
+  again.
+- **Projects**: `projects_list`, `project_create` (paragraphs become blocks; "Anna: ..." lines become a dialogue),
+  `project_get`, `project_update` (send the whole project back with your edits; changed blocks go stale),
+  `project_synth` (new and stale blocks, or `ids`, `force`, `from`), `project_export` (one file with subtitles, M4B with
+  chapters, or `per_block`), `project_exports`, `project_delete`.
+- **Engines**: `engines_list` says what each engine understands (languages, sampling, tags, cloning) and why one is not
+  available here (Drama 3 needs a 24 GB card).
+- **Text**: `text_prepare` shows how a text will be read (dictionary, Russian normalisation, stress marks, the engine's
+  text), `text_stress` gives stress marks and ё with unsure homographs, `dictionary_get` / `dictionary_set` /
+  `dictionary_import` (Balabolka .dic, .rex, .bxd).
+- **Director model**: `podcast_write` (topic and speakers with their manner -> a new project),
+  `project_cast_characters` (one chapter split into the narrator and characters word for word).
+
+## Listening: recognition
+
+- **One call**: `transcribe_file` (path, format text/srt/vtt/ass/json, lang, speakers), `verify_speech` (path and the
+  text it should say -> word error rate and each missed, extra or replaced word), `separate_file` (voice and music apart).
+- **Projects**: `listen_create_from_file`, `listen_get`, `listen_update` (rename speakers, edit or hide lines, mark
+  words `cut`, recognition settings, corrections), `listen_transcribe`, `listen_cut` (a new recording without the
+  marked words), `listen_export`, `listen_check`, `listen_to_speech` (the transcript as a Speech project),
+  `listen_voices` (each speaker's best clean speech into the voice library).
+
+## OpenAI-compatible API
+
+Programs that speak OpenAI's audio API can use the studio directly: `POST http://127.0.0.1:8797/v1/audio/speech`
+(`model` tts-1 / higgs / drama3, `voice` a voice name of the library, `instructions`, `speed`, `response_format` mp3,
+wav, flac, aac, pcm), `POST /v1/audio/transcriptions` (multipart `file`, `model` whisper-1, `language`,
+`response_format` json, text, srt, vtt, verbose_json) and `GET /v1/models`. With `SPEECH_STUDIO_API_TOKEN` set, send
+`Authorization: Bearer <token>`.
