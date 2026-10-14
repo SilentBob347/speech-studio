@@ -9,6 +9,8 @@ import FileActions from "./FileActions";
 import { useEscapeLayer } from "../../lib/escape";
 
 /** Export: what keeps it back (blocks not voiced or out of date), the format and the finished file to save. */
+const PART_MINUTES = [0, 60, 120, 300, 600] as const;
+
 export default function ExportDialog({ pid, project, onClose, onVoiceMissing, onDone }: {
   pid: string;
   project: SpeechProject;
@@ -26,6 +28,10 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
   const [acx, setAcx] = useState<AcxReport | null>(null);
   const [files, setFiles] = useState<{ file: string; bytes: number; mtime: number }[] | null>(null);
   const [perBlock, setPerBlock] = useState(false);
+  const [partMinutes, setPartMinutes] = useState(0);
+  type Part = { file: string; subtitles: string; timings: string; chapters: string | null; duration: number };
+  const [parts, setParts] = useState<Part[] | null>(null);
+  const [timings, setTimings] = useState<string | null>(null);
   const [clips, setClips] = useState<string[] | null>(null);
   const [clipsSaved, setClipsSaved] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -44,13 +50,15 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
     setBusy(true);
     setError(null);
     try {
-      const { job_id } = await speechApi.export(pid, format, undefined, perBlock);
-      const r = (await followJob(job_id, "export")) as { file: string; files?: string[]; subtitles?: string; chapters?: string | null; acx?: AcxReport | null };
+      const { job_id } = await speechApi.export(pid, format, undefined, perBlock, perBlock ? 0 : partMinutes);
+      const r = (await followJob(job_id, "export")) as { file: string; files?: string[]; subtitles?: string; timings?: string; chapters?: string | null; parts?: Part[] | null; acx?: AcxReport | null };
       if (r.files) { setClips(r.files); return; }
       setAcx(r.acx ?? null);
       setFile(r.file);
       setSubs(r.subtitles ?? null);
       setChapterList(r.chapters ?? null);
+      setTimings(r.timings ?? null);
+      setParts(r.parts ?? null);
       onDone(r.file);
     } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
   };
@@ -83,6 +91,14 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
             <label className="flex items-center gap-2 text-[12px] cursor-pointer">
               <input type="checkbox" checked={perBlock} onChange={(e) => { setPerBlock(e.target.checked); setFile(null); setClips(null); }} className="w-4 h-4 accent-[var(--color-accent)]" />{t("speech.perBlock")}
             </label>
+            {!perBlock && (
+              <label className="flex flex-wrap items-center gap-2 text-[12px]">{t("speech.parts")}
+                <select value={partMinutes} onChange={(e) => { setPartMinutes(Number(e.target.value)); setFile(null); setParts(null); }} className="bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]">
+                  {PART_MINUTES.map((m) => <option key={m} value={m}>{m ? t("speech.partsEvery", { h: m / 60 }) : t("speech.partsNone")}</option>)}
+                </select>
+                <span className="text-[11px] text-[var(--color-muted)]">{t("speech.partsHint")}</span>
+              </label>
+            )}
             {clips && (
               <div className="space-y-1.5">
                 <p className="text-[12px]">{t("speech.clipsDone", { n: clips.length })}</p>
@@ -93,9 +109,15 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
             <p className="text-[12px] text-[var(--color-muted)]">{t("speech.exportLoudness", { preset: t(`speech.loudness_${project.settings.loudness}`) })}</p>
             {file ? (
               <div className="space-y-1.5">
-                <FileActions pid={pid} file={file} primary />
-                {chapterList && <FileActions pid={pid} file={chapterList} label={t("speech.saveChapters")} />}
-                {subs && <FileActions pid={pid} file={subs} label={t("speech.saveSubs")} />}
+                {parts ? parts.map((part, k) => (
+                  <div key={part.file} className="space-y-1">
+                    <p className="text-[11px] text-[var(--color-muted)]">{t("speech.partN", { n: k + 1, h: (part.duration / 3600).toFixed(1) })}</p>
+                    <FileActions pid={pid} file={part.file} primary={k === 0} />
+                  </div>
+                )) : <FileActions pid={pid} file={file} primary />}
+                {!parts && chapterList && <FileActions pid={pid} file={chapterList} label={t("speech.saveChapters")} />}
+                {!parts && subs && <FileActions pid={pid} file={subs} label={t("speech.saveSubs")} />}
+                {!parts && timings && <FileActions pid={pid} file={timings} label={t("speech.saveTimings")} />}
               </div>
             ) : (
               <button onClick={run} disabled={busy} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[13px] font-semibold disabled:opacity-40">

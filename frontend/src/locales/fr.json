@@ -1044,7 +1044,13 @@
     "qcIssue_gap": "une coupure au milieu",
     "castCharacters": "Personnages",
     "castCharactersHint": "Le modèle réalisateur répartit le texte entre narrateur et personnages, mot pour mot ; chapitre après chapitre",
-    "castBlocks": "blocs : {{n}}"
+    "castBlocks": "blocs : {{n}}",
+    "parts": "Découper en parties",
+    "partsNone": "un seul fichier",
+    "partsEvery": "parties de {{h}} h",
+    "partsHint": "Les parties sont coupées aux limites des chapitres, chacune avec ses chapitres, son texte et ses sous-titres.",
+    "partN": "Partie {{n}} · {{h}} h",
+    "saveTimings": "Texte avec minutage (JSON)"
   },
   "tags": {
     "emotion": "Émotion",

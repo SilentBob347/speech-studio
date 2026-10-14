@@ -854,3 +854,5 @@ dict-try-local-only = 试听仅适用于本机引擎（Higgs、Drama 3）；项�
 dict-try-empty = 请输入要试听的句子
 dict-try-before = 试听：按原文
 dict-try-after = 试听：应用规则
+speech-part-n = 第 { $n } 部分
+speech-export-encoding = 正在编码第 { $n } / { $total } 部分

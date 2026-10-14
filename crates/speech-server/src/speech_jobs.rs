@@ -582,6 +582,7 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, pr
                 c.heard = heard.text.clone();
                 let pause = stx::pieces(&b.text).iter().filter_map(|x| if let Piece::Pause(ms) = x { Some(*ms as f64 / 1000.0) } else { None }).fold(0.0, f64::max);
                 c.issues = crate::qc::timing_issues(&heard.words, take.duration, pause);
+                c.timed = heard.words.iter().map(|w| (w.word.clone(), (w.start * 1000.0).round() / 1000.0, (w.end * 1000.0).round() / 1000.0)).collect();
                 c
             } else {
                 crate::qc::Check { passed: true, ..Default::default() }
@@ -735,6 +736,8 @@ fn synth_scope(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Valu
 
 /// Пауза между главами при сборке одним файлом (граница раздела у tts-audiobook-tool — 2–2,5 с).
 const CHAPTER_PAUSE_MS: i64 = 2_000;
+/// MP3 at a constant 192 kbps: ACX's rate, and plenty for speech.
+const MP3_KBPS: u32 = 192;
 
 /// Запас под сжатие: кодеки с потерями поднимают пики между отсчётами, поэтому для них потолок ниже на 1 дБ (AES TD1004).
 const LOSSY_HEADROOM_DB: f64 = 1.0;
@@ -778,6 +781,8 @@ pub struct ExportOpts {
     pub chapter: Option<String>,
     /// Пакет: каждый блок — свой файл с громкостью по пресету.
     pub per_block: bool,
+    /// Длинная книга — частями не длиннее стольких минут (по границам глав).
+    pub part_minutes: Option<u32>,
 }
 
 /// Склеить проект в файл `exports/<имя>.<формат>`.
@@ -810,6 +815,8 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
     let mut marks = Vec::new();
     let mut prev_speaker: Option<&str> = None;
     let mut cues: Vec<(f64, f64, String, String)> = Vec::new();
+    // each block's place in the file and the words recognition timed in its take, for synced text
+    let mut timed: Vec<(f64, f64, String, String, Vec<(String, f64, f64)>)> = Vec::new();
     let chapter_of: std::collections::HashMap<&str, usize> = project.chapters.iter().enumerate().flat_map(|(ci, c)| c.blocks.iter().map(move |b| (b.id.as_str(), ci))).collect();
     let mut chapter_starts: Vec<(usize, f64)> = Vec::new();
     for (i, b) in blocks.iter().enumerate() {
@@ -836,6 +843,8 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
             }
         }
         cues.push((at as f64 / SR as f64, (at + samples.len()) as f64 / SR as f64, b.speaker.clone(), crate::speech_text::visible(&b.text)));
+        let words = take.qc.as_ref().map(|q| q.timed.iter().map(|(w, a, z)| (w.clone(), at as f64 / SR as f64 + a, at as f64 / SR as f64 + z)).collect()).unwrap_or_default();
+        timed.push((at as f64 / SR as f64, (at + samples.len()) as f64 / SR as f64, b.speaker.clone(), crate::speech_text::visible(&b.text), words));
         if mix.len() < at + samples.len() {
             mix.resize(at + samples.len(), 0.0);
         }
@@ -862,17 +871,21 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
             c.0 += head;
             c.1 += head;
         });
+        timed.iter_mut().for_each(|t| {
+            t.0 += head;
+            t.1 += head;
+            t.4.iter_mut().for_each(|w| {
+                w.1 += head;
+                w.2 += head;
+            });
+        });
     } else if project.settings.room_tone {
         crate::acx::room_tone(&mut mix, SR, 0.0, 0.0);
     }
     let acx_report = if acx { Some(crate::acx::report(&mix, SR)?) } else { None };
-    let joined = work.path().join("joined.wav");
-    crate::wavio::write_mono_f32(&joined, &mix, SR)?;
     let exports = dir.join("exports");
     std::fs::create_dir_all(&exports).map_err(|e| format!("{}: {e}", exports.display()))?;
     let base = file_stem(&project.name, opts.chapter.as_deref().and_then(|id| project.chapters.iter().find(|c| c.id == id)).map(|c| c.title.as_str()));
-    let file = format!("{base}.{}", opts.format);
-    let target = exports.join(&file);
     let total = mix.len() as f64 / SR as f64;
     let chapters: Vec<(f64, f64, String)> = chapter_starts
         .iter()
@@ -883,25 +896,108 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
             (*a, z, if title.is_empty() { t!("speech-chapter-n", n = (k + 1) as i64) } else { title.to_string() })
         })
         .collect();
-    let voice = project.settings.voice.clone().unwrap_or_default();
-    let meta = crate::media::AudioMeta {
-        title: project.name.clone(),
-        artist: project.book.as_ref().map(|b| b.author.clone()).filter(|a| !a.is_empty()).unwrap_or(voice),
-        album: project.book.as_ref().map(|b| b.title.clone()).unwrap_or_default(),
-        comment: format!("Speech Studio · {}", crate::engines::get(&project.settings.engine).map(|e| e.name).unwrap_or("")),
-        genre: if project.book.is_some() { "Audiobook".into() } else { String::new() },
-        chapters: if chapters.len() > 1 { chapters.clone() } else { Vec::new() },
-        cover: project.book.as_ref().and_then(|b| b.cover.as_ref()).map(|c| dir.join(c)),
+    let cuts = match opts.part_minutes.filter(|m| *m > 0 && total > *m as f64 * 60.0) {
+        Some(m) => part_cuts(total, m as f64 * 60.0, &chapters.iter().map(|c| c.0).collect::<Vec<_>>(), &cues.iter().map(|c| c.0).collect::<Vec<_>>()),
+        None => Vec::new(),
     };
-    crate::media::encode_audio_meta(&joined, &target, &opts.format, project.settings.loudness == "acx", &meta)?;
-    let chapter_list = (chapters.len() > 1).then(|| format!("{base}.chapters.txt"));
-    if let Some(name) = &chapter_list {
-        let text: String = chapters.iter().map(|(a, _, t)| format!("{}\t{t}\n", hms(*a))).collect();
-        std::fs::write(exports.join(name), text).map_err(|e| format!("{name}: {e}"))?;
+    let bounds: Vec<(f64, f64)> = std::iter::once(0.0).chain(cuts.iter().copied()).zip(cuts.iter().copied().chain(std::iter::once(total))).collect();
+    let voice = project.settings.voice.clone().unwrap_or_default();
+    let mut outputs = Vec::new();
+    let mut tag_problems: Vec<String> = Vec::new();
+    for (k, (a, z)) in bounds.iter().enumerate() {
+        let name = if bounds.len() > 1 { format!("{base} ({})", t!("speech-part-n", n = (k + 1) as i64)) } else { base.clone() };
+        let within = |s: f64| s >= *a - 1e-6 && s < *z - 1e-6;
+        let part_chapters: Vec<(f64, f64, String)> = chapters.iter().filter(|c| within(c.0)).map(|(s, e, t)| (s - a, e.min(*z) - a, t.clone())).collect();
+        let part_cues: Vec<(f64, f64, String, String)> = cues.iter().filter(|c| within(c.0)).map(|(s, e, w, t)| (s - a, e - a, w.clone(), t.clone())).collect();
+        let part_timed: Vec<(f64, f64, String, String, Vec<(String, f64, f64)>)> = timed
+            .iter()
+            .filter(|t| within(t.0))
+            .map(|(s, e, w, t, words)| (s - a, e - a, w.clone(), t.clone(), words.iter().map(|(x, ws, we)| (x.clone(), ws - a, we - a)).collect()))
+            .collect();
+        let from = (a * SR as f64) as usize;
+        let to = ((z * SR as f64) as usize).min(mix.len());
+        let joined = work.path().join(format!("part-{k}.wav"));
+        crate::wavio::write_mono_f32(&joined, &mix[from..to], SR)?;
+        let file = format!("{name}.{}", opts.format);
+        let target = exports.join(&file);
+        let meta = crate::media::AudioMeta {
+            title: if bounds.len() > 1 { format!("{} ({})", project.name, t!("speech-part-n", n = (k + 1) as i64)) } else { project.name.clone() },
+            artist: project.book.as_ref().map(|b| b.author.clone()).filter(|a| !a.is_empty()).unwrap_or_else(|| voice.clone()),
+            album: project.book.as_ref().map(|b| b.title.clone()).unwrap_or_default(),
+            comment: format!("Speech Studio · {}", crate::engines::get(&project.settings.engine).map(|e| e.name).unwrap_or("")),
+            genre: if project.book.is_some() { "Audiobook".into() } else { String::new() },
+            chapters: if part_chapters.len() > 1 { part_chapters.clone() } else { Vec::new() },
+            cover: project.book.as_ref().and_then(|b| b.cover.as_ref()).map(|c| dir.join(c)),
+            lyrics: lrc(&part_timed),
+        };
+        progress(json!({ "type": "progress", "stage": "speech_export", "msg": t!("speech-export-encoding", n = (k + 1) as i64, total = bounds.len() as i64), "pct": 94 + (k * 5 / bounds.len()) as i64 }));
+        match opts.format.as_str() {
+            // FLAC and MP3 as the music studios write them: libFLAC 24-bit and LAME from audio-post, tags by lofty
+            "flac" | "mp3" => {
+                let part = mix[from..to].to_vec();
+                let stereo = audio_post::Stereo::new(part.clone(), part, SR);
+                let bytes = if opts.format == "mp3" {
+                    let rate = if acx { 44_100 } else { 48_000 };
+                    audio_post::encode::mp3(&stereo.resampled(rate).map_err(|e| e.to_string())?, MP3_KBPS)
+                } else {
+                    audio_post::encode::flac(&stereo)
+                }
+                .map_err(|e| e.to_string())?;
+                std::fs::write(&target, bytes).map_err(|e| format!("{}: {e}", target.display()))?;
+            }
+            _ => crate::media::encode_audio_meta(&joined, &target, &opts.format, acx, &meta)?,
+        }
+        if crate::tagging::taggable(&target) {
+            let cover = meta.cover.as_ref().and_then(|c| std::fs::read(c).ok().map(|bytes| (if c.extension().is_some_and(|e| e.eq_ignore_ascii_case("png")) { "image/png" } else { "image/jpeg" }.to_string(), bytes)));
+            let tags = crate::tagging::TrackTags {
+                title: meta.title.clone(),
+                album: if meta.album.is_empty() { "Speech Studio".into() } else { meta.album.clone() },
+                // as the studios name the engine the performer when nobody else is
+                artist: if meta.artist.is_empty() { crate::engines::get(&project.settings.engine).map(|e| e.name.to_string()).unwrap_or_default() } else { meta.artist.clone() },
+                genre: Some(meta.genre.clone()).filter(|g| !g.is_empty()),
+                lyrics: Some(meta.lyrics.clone()).filter(|l| !l.is_empty()),
+                bpm: None,
+                cover,
+            };
+            // as in the studios a tag never loses the file: the problem is logged and named in the answer
+            if let Err(e) = crate::tagging::write_tags(&target, &tags) {
+                tracing::error!("[ERROR] could not tag {}: {e:#}", target.display());
+                tag_problems.push(format!("{file}: {e:#}"));
+            }
+        }
+        let chapter_list = (part_chapters.len() > 1).then(|| format!("{name}.chapters.txt"));
+        if let Some(list) = &chapter_list {
+            let text: String = part_chapters.iter().map(|(s, _, t)| format!("{}\t{t}\n", hms(*s))).collect();
+            std::fs::write(exports.join(list), text).map_err(|e| format!("{list}: {e}"))?;
+        }
+        let subtitles = format!("{name}.srt");
+        std::fs::write(exports.join(&subtitles), srt(&part_cues)).map_err(|e| format!("{subtitles}: {e}"))?;
+        let timings = format!("{name}.timings.json");
+        let body = json!({ "file": file, "blocks": part_timed.iter().map(|(s, e, who, text, words)| json!({ "start": s, "end": e, "speaker": who, "text": text, "words": words.iter().map(|(w, ws, we)| json!({ "word": w, "start": ws, "end": we })).collect::<Vec<_>>() })).collect::<Vec<_>>() });
+        std::fs::write(exports.join(&timings), serde_json::to_vec_pretty(&body).map_err(|e| e.to_string())?).map_err(|e| format!("{timings}: {e}"))?;
+        outputs.push(json!({ "file": file, "subtitles": subtitles, "timings": timings, "chapters": chapter_list, "path": target.to_string_lossy(), "duration": z - a }));
     }
-    let subtitles = format!("{base}.srt");
-    std::fs::write(exports.join(&subtitles), srt(&cues)).map_err(|e| format!("{subtitles}: {e}"))?;
-    Ok(json!({ "file": file, "subtitles": subtitles, "chapters": chapter_list, "acx": acx_report, "path": target.to_string_lossy(), "duration": mix.len() as f64 / SR as f64, "marks": marks, "lufs_before": levelled.map(|l| l.before), "lufs": levelled.map(|l| l.after) }))
+    let first = outputs.first().cloned().unwrap_or(Value::Null);
+    Ok(json!({ "file": first["file"], "subtitles": first["subtitles"], "timings": first["timings"], "chapters": first["chapters"], "path": first["path"], "parts": if outputs.len() > 1 { Value::Array(outputs) } else { Value::Null }, "tag_problems": tag_problems, "acx": acx_report, "duration": total, "marks": marks, "lufs_before": levelled.map(|l| l.before), "lufs": levelled.map(|l| l.after) }))
+}
+
+/// Where a long export is cut into parts of at most `limit` seconds: at the last chapter start that keeps a part under
+/// it, else at the last block start; a single block longer than the limit stays whole.
+fn part_cuts(total: f64, limit: f64, chapters: &[f64], blocks: &[f64]) -> Vec<f64> {
+    let mut cuts = Vec::new();
+    let mut start = 0.0;
+    while total - start > limit {
+        let inside = |marks: &[f64]| marks.iter().copied().filter(|m| *m > start + 1e-6 && *m <= start + limit).fold(None, |best: Option<f64>, m| Some(best.map_or(m, |b| b.max(m))));
+        let cut = inside(chapters).or_else(|| inside(blocks)).or_else(|| blocks.iter().copied().find(|m| *m > start + 1e-6));
+        match cut {
+            Some(c) => {
+                cuts.push(c);
+                start = c;
+            }
+            None => break,
+        }
+    }
+    cuts
 }
 
 /// Пакет: каждый блок — отдельный файл `exports/<проект>/<NNN> <имя>.<формат>`, громкость — по пресету каждого.
@@ -939,6 +1035,25 @@ fn srt_time(t: f64) -> String {
     format!("{:02}:{:02}:{:02},{:03}", ms / 3_600_000, ms / 60_000 % 60, ms / 1000 % 60, ms % 1000)
 }
 
+/// Synced text in LRC: a line per block at its start, word by word (enhanced LRC `<mm:ss.xx>`) where its take was timed.
+fn lrc(timed: &[(f64, f64, String, String, Vec<(String, f64, f64)>)]) -> String {
+    let at = |s: f64| {
+        let cs = (s.max(0.0) * 100.0).round() as u64;
+        format!("{:02}:{:02}.{:02}", cs / 6000, cs / 100 % 60, cs % 100)
+    };
+    timed
+        .iter()
+        .map(|(a, _, _, text, words)| {
+            if words.is_empty() {
+                format!("[{}]{}", at(*a), text.replace('\n', " "))
+            } else {
+                format!("[{}]{}", at(*a), words.iter().map(|(w, s, _)| format!("<{}>{w}", at(*s))).collect::<Vec<_>>().join(" "))
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 fn srt(cues: &[(f64, f64, String, String)]) -> String {
     let many = cues.iter().map(|c| &c.2).collect::<std::collections::BTreeSet<_>>().len() > 1;
     cues.iter()
@@ -974,6 +1089,28 @@ pub fn file_stem(project: &str, chapter: Option<&str>) -> String {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn a_long_book_is_cut_at_chapters_then_blocks() {
+        // 3 h book, chapters at 0, 50, 100, 150 min; parts of at most 2 h cut at the 100 min chapter
+        let ch = [0.0, 3000.0, 6000.0, 9000.0];
+        let blocks: Vec<f64> = (0..108).map(|k| k as f64 * 100.0).collect();
+        assert_eq!(part_cuts(10800.0, 7200.0, &ch, &blocks), vec![6000.0]);
+        // no chapters: the last block start within the limit
+        assert_eq!(part_cuts(10800.0, 7200.0, &[], &blocks), vec![7200.0]);
+        // short enough: one part
+        assert!(part_cuts(3000.0, 7200.0, &ch, &blocks).is_empty());
+    }
+
+    #[test]
+    fn synced_text_is_lrc_with_words_where_timed() {
+        let timed = vec![
+            (1.5, 3.0, "A".to_string(), "Привет мир".to_string(), vec![("Привет".to_string(), 1.5, 2.0), ("мир".to_string(), 2.1, 2.6)]),
+            (65.25, 67.0, "B".to_string(), "Без слов".to_string(), Vec::new()),
+        ];
+        assert_eq!(lrc(&timed), "[00:01.50]<00:01.50>Привет <00:02.10>мир\n[01:05.25]Без слов");
+    }
+
     use super::*;
 
     #[test]

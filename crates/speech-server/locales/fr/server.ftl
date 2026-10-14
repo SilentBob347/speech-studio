@@ -1052,3 +1052,5 @@ dict-try-local-only = l’essai à l’oreille marche avec les moteurs de cet or
 dict-try-empty = saisissez une phrase à essayer
 dict-try-before = Essai à l’oreille : tel qu’écrit
 dict-try-after = Essai à l’oreille : avec la règle
+speech-part-n = partie { $n }
+speech-export-encoding = Encodage de la partie { $n } sur { $total }

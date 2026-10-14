@@ -313,6 +313,7 @@ pub async fn export(State(st): State<AppState>, AxPath(pid): AxPath<String>, Jso
         format: body.get("format").and_then(Value::as_str).unwrap_or("wav").to_string(),
         chapter: body.get("chapter").and_then(Value::as_str).map(str::to_string),
         per_block: body.get("per_block").and_then(Value::as_bool).unwrap_or(false),
+        part_minutes: body.get("part_minutes").and_then(Value::as_u64).map(|m| m.min(24 * 60) as u32),
     };
     if !crate::media::EXPORT_FORMATS.contains(&opts.format.as_str()) {
         return refuse(StatusCode::BAD_REQUEST, "bad_format", t!("media-bad-format", format = opts.format.clone()));

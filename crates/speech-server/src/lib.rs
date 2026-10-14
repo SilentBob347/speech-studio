@@ -47,6 +47,7 @@ pub mod service;
 mod setup;
 mod spa;
 mod studio_settings;
+mod tagging;
 mod tts_text;
 mod tts_trim;
 mod speech_api;

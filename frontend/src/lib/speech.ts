@@ -88,7 +88,7 @@ export const speechApi = {
   unqueue: (pid: string, n?: number) => sendCoded<{ removed: number }>("DELETE", n == null ? `/projects/${pid}/queue` : `/projects/${pid}/queue/${n}`),
   history: (pid?: string) => getCoded<{ takes: HistoryTake[] }>(pid ? `/history?pid=${pid}` : "/history"),
   exportCheck: (pid: string) => getCoded<{ problems: ExportProblem[] }>(`/projects/${pid}/export-check`),
-  export: (pid: string, format: ExportFormat, chapter?: string, perBlock = false) => postCoded<{ job_id: string }>(`/projects/${pid}/export`, { format, chapter, per_block: perBlock }),
+  export: (pid: string, format: ExportFormat, chapter?: string, perBlock = false, partMinutes = 0) => postCoded<{ job_id: string }>(`/projects/${pid}/export`, { format, chapter, per_block: perBlock, part_minutes: partMinutes || undefined }),
   exportsToFolder: (pid: string, files: string[]) => postCoded<{ folder: string | null; copied?: number }>(`/projects/${pid}/exports-to-folder`, { files }),
   fromSubtitles: (file: File, name?: string) => {
     const form = new FormData();

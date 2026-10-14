@@ -1058,3 +1058,5 @@ dict-try-local-only = the try by ear works with the engines on this computer (Hi
 dict-try-empty = enter a phrase to try
 dict-try-before = Try by ear: as written
 dict-try-after = Try by ear: with the rule
+speech-part-n = part { $n }
+speech-export-encoding = Encoding part { $n } of { $total }

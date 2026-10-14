@@ -1044,7 +1044,13 @@
     "qcIssue_gap": "a gap inside",
     "castCharacters": "Characters",
     "castCharactersHint": "The director model splits the text into the narrator and characters, word for word; each chapter in turn",
-    "castBlocks": "blocks: {{n}}"
+    "castBlocks": "blocks: {{n}}",
+    "parts": "Split into parts",
+    "partsNone": "one file",
+    "partsEvery": "parts of {{h}} h",
+    "partsHint": "Parts are cut at chapter boundaries, each with its own chapters, text and subtitles.",
+    "partN": "Part {{n}} · {{h}} h",
+    "saveTimings": "Text with timings (JSON)"
   },
   "tags": {
     "emotion": "Emotion",

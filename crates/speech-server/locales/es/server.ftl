@@ -1052,3 +1052,5 @@ dict-try-local-only = la prueba de oído funciona con los motores de este ordena
 dict-try-empty = escribe una frase para probar
 dict-try-before = Prueba de oído: tal como está escrito
 dict-try-after = Prueba de oído: con la regla
+speech-part-n = parte { $n }
+speech-export-encoding = Codificando la parte { $n } de { $total }

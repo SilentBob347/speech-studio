@@ -22,6 +22,9 @@ pub struct Check {
     /// Дефекты по словам распознавания: `tail` (звук после последнего слова), `stretched` (затянутое слово), `gap`
     /// (разрыв внутри фразы).
     pub issues: Vec<String>,
+    /// The words recognition heard with their start and end in the take, seconds: the export's word timings.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub timed: Vec<(String, f64, f64)>,
 }
 
 impl Check {
@@ -141,7 +144,7 @@ pub fn check(expected: &str, heard: &str, strictness: &str) -> Check {
     let h = normalize(heard);
     let (inserted, deleted, substituted) = word_ops(&e, &h);
     let wer = if e.is_empty() { if h.is_empty() { 0.0 } else { 1.0 } } else { (inserted + deleted + substituted) as f64 / e.len() as f64 };
-    Check { text_checked: true, wer, words: e.len(), inserted, deleted, substituted, heard: heard.to_string(), passed: wer <= threshold(e.len(), strictness), similarity: None, similar: None, issues: Vec::new() }
+    Check { text_checked: true, wer, words: e.len(), inserted, deleted, substituted, heard: heard.to_string(), passed: wer <= threshold(e.len(), strictness), similarity: None, similar: None, issues: Vec::new(), timed: Vec::new() }
 }
 
 #[cfg(test)]

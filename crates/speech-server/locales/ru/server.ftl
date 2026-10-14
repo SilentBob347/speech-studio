@@ -1078,3 +1078,5 @@ dict-try-local-only = проверка на слух работает с дви�
 dict-try-empty = введите фразу для проверки
 dict-try-before = Проверка на слух: как написано
 dict-try-after = Проверка на слух: с правилом
+speech-part-n = часть { $n }
+speech-export-encoding = Кодирую часть { $n } из { $total }

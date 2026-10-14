@@ -1044,7 +1044,13 @@
     "qcIssue_gap": "中间有断裂",
     "castCharacters": "角色",
     "castCharactersHint": "导演模型逐字将文本分为旁白和角色；逐章进行",
-    "castBlocks": "文本块：{{n}}"
+    "castBlocks": "文本块：{{n}}",
+    "parts": "分成多个部分",
+    "partsNone": "单个文件",
+    "partsEvery": "每部分 {{h}} 小时",
+    "partsHint": "按章节边界切分，每部分有自己的章节、文本和字幕。",
+    "partN": "第 {{n}} 部分 · {{h}} 小时",
+    "saveTimings": "带时间的文本（JSON）"
   },
   "tags": {
     "emotion": "情绪",

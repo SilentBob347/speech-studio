@@ -640,17 +640,18 @@ mod tests {
     #[test]
     fn every_window_tool_asks_the_window_and_no_other_tool_does() {
         const BUILT_IN: &[&str] = &["screenshot", "read_page", "click", "type", "select", "press_key", "scroll", "console"];
-        const APP: &[&str] = &["navigate", "open_settings", "open_help", "notify"];
+        const APP: &[&str] = &["navigate", "open_settings", "open_help", "notify", "editor_open", "editor_state", "editor_select"];
         for tool in super::super::tools() {
-            let windowed = tool.name.starts_with("ui_");
+            let windowed = tool.name.starts_with("ui_") || tool.name.starts_with("editor_");
             let schema = (tool.schema)();
             let args = json!({});
             match (tool.call)(&args) {
                 Ok(Call { payload: Payload::Window { command, seconds, .. }, .. }) => {
-                    assert!(windowed, "{} asks the window but is not named ui_", tool.name);
+                    assert!(windowed, "{} asks the window but is not named ui_ or editor_", tool.name);
                     assert!(seconds >= 15, "{} gives the window {seconds} s", tool.name);
                     assert!(BUILT_IN.contains(&command) || APP.contains(&command), "{} asks for {command}, which the page does not know", tool.name);
-                    assert!(schema["properties"].get("pid").is_none(), "{} works in the window, not on a pid", tool.name);
+                    // editor_open takes the project to open; the rest work on what the window shows
+                    assert!(tool.name == "editor_open" || schema["properties"].get("pid").is_none(), "{} works in the window, not on a pid", tool.name);
                 }
                 _ => assert!(!windowed, "{} is named for the window but does not ask it", tool.name),
             }

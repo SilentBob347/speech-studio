@@ -1044,7 +1044,13 @@
     "qcIssue_gap": "um corte no meio",
     "castCharacters": "Personagens",
     "castCharactersHint": "O modelo diretor divide o texto entre narrador e personagens, palavra por palavra; capítulo por capítulo",
-    "castBlocks": "blocos: {{n}}"
+    "castBlocks": "blocos: {{n}}",
+    "parts": "Dividir em partes",
+    "partsNone": "um único arquivo",
+    "partsEvery": "partes de {{h}} h",
+    "partsHint": "As partes são cortadas nos limites dos capítulos, cada uma com seus capítulos, texto e legendas.",
+    "partN": "Parte {{n}} · {{h}} h",
+    "saveTimings": "Texto com tempos (JSON)"
   },
   "tags": {
     "emotion": "Emoção",

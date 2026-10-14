@@ -1093,6 +1093,8 @@ pub struct AudioMeta {
     pub genre: String,
     pub chapters: Vec<(f64, f64, String)>,
     pub cover: Option<PathBuf>,
+    /// Synced text (LRC, word by word where timings are known): FLAC's LYRICS, MP4's ©lyr, MP3's USLT.
+    pub lyrics: String,
 }
 
 /// Значение ffmetadata: `= ; # \` и перевод строки экранируются обратной косой.
@@ -1109,7 +1111,7 @@ fn ffmeta_escape(v: &str) -> String {
 
 fn ffmetadata(meta: &AudioMeta) -> String {
     let mut s = String::from(";FFMETADATA1\n");
-    for (k, v) in [("title", &meta.title), ("artist", &meta.artist), ("album", &meta.album), ("comment", &meta.comment), ("genre", &meta.genre)] {
+    for (k, v) in [("title", &meta.title), ("artist", &meta.artist), ("album", &meta.album), ("comment", &meta.comment), ("genre", &meta.genre), ("lyrics", &meta.lyrics)] {
         if !v.is_empty() {
             s.push_str(&format!("{k}={}\n", ffmeta_escape(v)));
         }

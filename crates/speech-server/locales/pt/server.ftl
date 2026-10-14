@@ -1052,3 +1052,5 @@ dict-try-local-only = o teste de ouvido funciona com os motores deste computador
 dict-try-empty = digite uma frase para testar
 dict-try-before = Teste de ouvido: como está escrito
 dict-try-after = Teste de ouvido: com a regra
+speech-part-n = parte { $n }
+speech-export-encoding = Codificando a parte { $n } de { $total }
