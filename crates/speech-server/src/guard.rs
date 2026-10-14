@@ -104,11 +104,11 @@ mod tests {
             }
             local_host(&builder.body(Body::empty()).unwrap())
         };
-        assert!(host(Some("127.0.0.1:8793")) && host(Some("localhost:5173")) && host(Some("[::1]:8793")));
-        assert!(host(Some("tauri.localhost")) && host(Some("LOCALHOST:8793")) && host(Some("127.0.0.1")));
-        assert!(!host(Some("evil.example:8793")) && !host(Some("127.0.0.1.evil.com:8793")) && !host(Some("[::2]:8793")));
+        assert!(host(Some("127.0.0.1:8797")) && host(Some("localhost:5173")) && host(Some("[::1]:8797")));
+        assert!(host(Some("tauri.localhost")) && host(Some("LOCALHOST:8797")) && host(Some("127.0.0.1")));
+        assert!(!host(Some("evil.example:8797")) && !host(Some("127.0.0.1.evil.com:8797")) && !host(Some("[::2]:8797")));
         assert!(!host(None), "a request without any host is refused");
-        let absolute = Request::builder().uri("http://localhost:8793/x").body(Body::empty()).unwrap();
+        let absolute = Request::builder().uri("http://localhost:8797/x").body(Body::empty()).unwrap();
         assert!(local_host(&absolute), "HTTP/2 carries the host in the authority");
     }
 
@@ -133,12 +133,12 @@ mod tests {
             }
             builder.body(Body::empty()).unwrap()
         };
-        assert_eq!(status(request(Some("https://evil.example"), "127.0.0.1:8793")).await.0, StatusCode::FORBIDDEN);
-        assert_eq!(status(request(None, "evil.example:8793")).await.0, StatusCode::FORBIDDEN);
-        assert_eq!(status(request(Some("http://evil.example:8793"), "evil.example:8793")).await.0, StatusCode::FORBIDDEN);
-        assert_eq!(status(request(None, "127.0.0.1:8793")).await.0, StatusCode::OK);
+        assert_eq!(status(request(Some("https://evil.example"), "127.0.0.1:8797")).await.0, StatusCode::FORBIDDEN);
+        assert_eq!(status(request(None, "evil.example:8797")).await.0, StatusCode::FORBIDDEN);
+        assert_eq!(status(request(Some("http://evil.example:8797"), "evil.example:8797")).await.0, StatusCode::FORBIDDEN);
+        assert_eq!(status(request(None, "127.0.0.1:8797")).await.0, StatusCode::OK);
 
-        let (code, allowed) = status(request(Some("http://localhost:5173"), "127.0.0.1:8793")).await;
+        let (code, allowed) = status(request(Some("http://localhost:5173"), "127.0.0.1:8797")).await;
         assert_eq!(code, StatusCode::OK);
         assert_eq!(allowed.as_ref().and_then(|v| v.to_str().ok()), Some("http://localhost:5173"));
     }
@@ -149,7 +149,7 @@ mod tests {
             Request::builder()
                 .method("OPTIONS")
                 .uri("/probe")
-                .header(header::HOST, "127.0.0.1:8793")
+                .header(header::HOST, "127.0.0.1:8797")
                 .header(header::ORIGIN, origin)
                 .header(header::ACCESS_CONTROL_REQUEST_METHOD, "DELETE")
                 .body(Body::empty())
@@ -171,15 +171,15 @@ mod tests {
         for path in ["/engine/capabilities", "/", "/index.html"] {
             let foreign = Request::builder()
                 .uri(path)
-                .header(header::HOST, "127.0.0.1:8793")
+                .header(header::HOST, "127.0.0.1:8797")
                 .header(header::ORIGIN, "https://evil.example")
                 .body(Body::empty())
                 .unwrap();
             assert_eq!(app.clone().oneshot(foreign).await.unwrap().status(), StatusCode::FORBIDDEN, "{path}");
-            let rebound = Request::builder().uri(path).header(header::HOST, "evil.example:8793").body(Body::empty()).unwrap();
+            let rebound = Request::builder().uri(path).header(header::HOST, "evil.example:8797").body(Body::empty()).unwrap();
             assert_eq!(app.clone().oneshot(rebound).await.unwrap().status(), StatusCode::FORBIDDEN, "{path}");
         }
-        let agent = Request::builder().uri("/engine/capabilities").header(header::HOST, "127.0.0.1:8793").body(Body::empty()).unwrap();
+        let agent = Request::builder().uri("/engine/capabilities").header(header::HOST, "127.0.0.1:8797").body(Body::empty()).unwrap();
         assert_eq!(app.oneshot(agent).await.unwrap().status(), StatusCode::OK);
         std::fs::remove_dir_all(&root).unwrap();
     }

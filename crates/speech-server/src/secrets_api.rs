@@ -637,7 +637,7 @@ mod tests {
     }
 
     fn local(method: &str, uri: &str, body: Option<Value>) -> Request {
-        let builder = Request::builder().method(method).uri(uri).header(header::HOST, "127.0.0.1:8793");
+        let builder = Request::builder().method(method).uri(uri).header(header::HOST, "127.0.0.1:8797");
         match body {
             Some(body) => builder.header(header::CONTENT_TYPE, "application/json").body(Body::from(body.to_string())).unwrap(),
             None => builder.body(Body::empty()).unwrap(),

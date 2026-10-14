@@ -4,11 +4,8 @@
 
 use audiocpp::EngineError;
 use dub_asr::{AsrError, SpeakerMatchError};
-use dub_captions::CaptionsError;
 use dub_core::glossary::GlossaryError;
-use dub_faces::FacesError;
 use dub_llm::LlmError;
-use dub_ocr::OcrError;
 use dub_sep::SepError;
 use dub_translate::{AnswerProblem, LineFailure, Note, Reject, TranslateError};
 
@@ -102,26 +99,6 @@ impl Localize for SepError {
     }
 }
 
-impl Localize for FacesError {
-    fn localize(&self) -> String {
-        match self {
-            FacesError::ModelMissing(path) => t!("faces-model-missing", path = path.clone()),
-            FacesError::Ffmpeg(error) => t!("common-ffmpeg-start", error = error.clone()),
-            FacesError::FfmpegExit { code: Some(code), tail } => t!("ffmpeg-exit", code = *code, tail = tail.clone()),
-            FacesError::FfmpegExit { code: None, tail } => t!("ffmpeg-killed", tail = tail.clone()),
-            FacesError::Ort(error) => t!("onnx-runtime", error = error.clone()),
-            FacesError::Io(error) => t!("files-error", error = error.clone()),
-            FacesError::NoOutputs => t!("model-no-outputs"),
-            FacesError::OutputShape { model, shape } => t!("faces-output-shape", model = *model, shape = format!("{shape:?}")),
-            FacesError::OutputCount { model, expected, got } => {
-                t!("faces-output-count", model = *model, expected = *expected, got = *got)
-            }
-            FacesError::CropSize { width, height } => t!("faces-crop-size", width = *width, height = *height),
-            FacesError::SampleRate { expected, got } => t!("faces-sample-rate", expected = *expected, got = *got),
-            FacesError::ClipTooShort => t!("faces-clip-too-short"),
-        }
-    }
-}
 
 impl Localize for EngineError {
     fn localize(&self) -> String {
@@ -135,37 +112,7 @@ impl Localize for EngineError {
     }
 }
 
-impl Localize for CaptionsError {
-    fn localize(&self) -> String {
-        match self {
-            CaptionsError::WriteAss(error) => t!("captions-write-ass", error = error.clone()),
-            CaptionsError::FilterScript(error) => t!("captions-filter-script", error = error.clone()),
-            CaptionsError::Spawn(error) => t!("common-ffmpeg-start", error = error.clone()),
-            CaptionsError::Wait(error) => t!("captions-ffmpeg-wait", error = error.clone()),
-            CaptionsError::Timeout { secs, tail } => t!("captions-ffmpeg-timeout", secs = *secs, tail = tail.clone()),
-            CaptionsError::BurnFailed { tail } => match nvenc_driver_needed(tail) {
-                Some(need) => t!("captions-nvenc-driver-old", need = need),
-                None => t!("captions-burn-failed", tail = tail.clone()),
-            },
-            CaptionsError::FrameFailed { tail } => t!("captions-frame-failed", tail = tail.clone()),
-        }
-    }
-}
 
-impl Localize for OcrError {
-    fn localize(&self) -> String {
-        match self {
-            OcrError::Ort(error) => t!("onnx-runtime", error = error.clone()),
-            OcrError::Io(error) => t!("files-error", error = error.clone()),
-            OcrError::Ffmpeg(error) => t!("common-ffmpeg-start", error = error.clone()),
-            OcrError::FfmpegExit { code: Some(code), tail } => t!("ffmpeg-exit", code = *code, tail = tail.clone()),
-            OcrError::FfmpegExit { code: None, tail } => t!("ffmpeg-killed", tail = tail.clone()),
-            OcrError::NoOutputs => t!("model-no-outputs"),
-            OcrError::NoDictionary => t!("ocr-no-dictionary"),
-            OcrError::Internal(error) => t!("ocr-internal", error = error.clone()),
-        }
-    }
-}
 
 impl Localize for TranslateError {
     fn localize(&self) -> String {

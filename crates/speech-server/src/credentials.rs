@@ -9,7 +9,7 @@
 //!   response body — callers can only ask whether a key is configured.
 //!
 //! Где лежат секреты: в портативной раскладке — `<папка приложения>/secrets` (переезжают вместе с папкой),
-//! иначе — `%LOCALAPPDATA%\Dub Studio\secrets`. `DUB_STUDIO_SECRETS_DIR` перекрывает оба варианта.
+//! иначе — `%LOCALAPPDATA%\Speech Studio\secrets`. `SPEECH_STUDIO_SECRETS_DIR` перекрывает оба варианта.
 
 use std::{
     env, fs,
@@ -23,7 +23,7 @@ use serde_json::Value;
 pub const OPENROUTER_ENV_VAR: &str = "OPENROUTER_API_KEY";
 pub const GOOGLE_ENV_VAR: &str = "GEMINI_API_KEY";
 const GOOGLE_FILE: &str = "google-api-key";
-pub const SECRETS_DIR_ENV_VAR: &str = "DUB_STUDIO_SECRETS_DIR";
+pub const SECRETS_DIR_ENV_VAR: &str = "SPEECH_STUDIO_SECRETS_DIR";
 const OPENROUTER_FILE: &str = "openrouter-api-key";
 const PROXY_PASSWORD_FILE: &str = "proxy-password";
 const LOCAL_SERVER_FILE: &str = "local-server-key";
@@ -172,14 +172,14 @@ pub fn secrets_dir() -> Option<PathBuf> {
     #[cfg(windows)]
     {
         if let Some(root) = env::var_os("LOCALAPPDATA").or_else(|| env::var_os("APPDATA")) {
-            return Some(PathBuf::from(root).join("Dub Studio").join("secrets"));
+            return Some(PathBuf::from(root).join("Speech Studio").join("secrets"));
         }
     }
 
     #[cfg(not(windows))]
     {
         if let Some(root) = env::var_os("XDG_DATA_HOME") {
-            return Some(PathBuf::from(root).join("dub-studio").join("secrets"));
+            return Some(PathBuf::from(root).join("speech-studio").join("secrets"));
         }
         if let Some(home) = env::var_os("HOME") {
             return Some(PathBuf::from(home).join(".local/share/dub-studio/secrets"));

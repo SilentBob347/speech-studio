@@ -9,12 +9,12 @@
 
 ```powershell
 # проверка входов без сборки
-scripts\build-release.ps1 -DryRun -ModelsSource "F:\AI\Dub Studio"
+scripts\build-release.ps1 -DryRun -ModelsSource "F:\AI\Speech Studio"
 # тесты + фронт + staging, без tauri build
-scripts\build-release.ps1 -StopAfterStaging -ModelsSource "F:\AI\Dub Studio"
+scripts\build-release.ps1 -StopAfterStaging -ModelsSource "F:\AI\Speech Studio"
 # полный релиз (ключ и пароль — в окружении или в %USERPROFILE%\.tauri)
 $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = "..."
-scripts\build-release.ps1 -ReleaseNotes "..." -ModelsSource "F:\AI\Dub Studio"
+scripts\build-release.ps1 -ReleaseNotes "..." -ModelsSource "F:\AI\Speech Studio"
 ```
 
 На GitHub тот же скрипт запускает `.github/workflows/release.yml` при пуше в ветку `release/…`: VC++-рантайм он берёт
@@ -29,7 +29,7 @@ scripts\build-release.ps1 -ReleaseNotes "..." -ModelsSource "F:\AI\Dub Studio"
    оболочка вшивает `frontend/dist` при компиляции, а `dist` в git не лежит.
 2. Staging в `desktop/src-tauri/staging/` (каталог генерируется, в git не попадает): `frontend/dist`, `fonts`,
    `models/higgs-engine` (только VC++-рантайм), `models/ocr` (PP-OCR). Сервер встроен в
-   exe оболочки, отдельный `dub-server.exe` в бандл не кладётся.
+   exe оболочки, отдельный `speech-server.exe` в бандл не кладётся.
 3. `tauri build --config tauri.bundle.conf.json` (он добавляет `bundle.resources` на staging, то же: `npm run bundle`
    в `desktop/`): NSIS и MSI с подписью
    обновлений из `TAURI_SIGNING_PRIVATE_KEY` / `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Обычная сборка и `tauri dev`
@@ -40,7 +40,7 @@ scripts\build-release.ps1 -ReleaseNotes "..." -ModelsSource "F:\AI\Dub Studio"
 
 `models/higgs-engine` и `models/ocr` в git не лежат (gitignore): источник задаётся `-ModelsSource` (по умолчанию
 корень репозитория). Модели, движки, CUDA и ffmpeg в бандл не входят, их качает «Первый запуск»
-(`crates/dub-server/src/setup.rs`, `delivery: Download`).
+(`crates/speech-server/src/setup.rs`, `delivery: Download`).
 
 ## Раскладка и данные
 
@@ -49,7 +49,7 @@ scripts\build-release.ps1 -ReleaseNotes "..." -ModelsSource "F:\AI\Dub Studio"
 `tools`, профиль WebView2, `temp`):
 
 - рядом с exe, если туда можно писать (проверяется реальной записью);
-- иначе `%LOCALAPPDATA%\Dub Studio`; поставляемые ресурсы копируются туда при старте;
+- иначе `%LOCALAPPDATA%\Speech Studio`; поставляемые ресурсы копируются туда при старте;
 - портативная копия (файл `portable.flag` рядом с exe) запасного пути не имеет: недоступная для записи папка — ошибка.
 
 `TEMP`/`TMP` процесса переводятся в `<каталог данных>\temp`, `WEBVIEW2_USER_DATA_FOLDER` — в
@@ -71,5 +71,5 @@ scripts\build-release.ps1 -ReleaseNotes "..." -ModelsSource "F:\AI\Dub Studio"
 распакованного портатива) проверяется по манифесту:
 
 ```bash
-DUB_RELEASE_STAGING="$PWD/desktop/src-tauri/staging" cargo test -p dub-server --lib setup::tests::the_release_staging_carries_every_bundled_file -- --ignored
+DUB_RELEASE_STAGING="$PWD/desktop/src-tauri/staging" cargo test -p speech-server --lib setup::tests::the_release_staging_carries_every_bundled_file -- --ignored
 ```

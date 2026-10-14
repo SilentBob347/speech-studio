@@ -1,4 +1,4 @@
-//! Studio Hub in Dub Studio: anonymous statistics (only after the first-run screen showed its checkbox, off under
+//! Studio Hub in Speech Studio: anonymous statistics (only after the first-run screen showed its checkbox, off under
 //! DO_NOT_TRACK or STUDIO_TELEMETRY=0) and the news feed shown on top of the bundled news.
 
 use std::path::{Path, PathBuf};
@@ -42,7 +42,7 @@ pub fn start(repo_root: &Path) {
         )
         .to_ascii_lowercase();
         let config = studio_hub_client::HubConfig {
-            app: "dub".into(),
+            app: "speech".into(),
             version: crate::service::app_version().to_string(),
             data_dir: repo_root.to_path_buf(),
             http,
@@ -74,6 +74,15 @@ pub fn flush_on_exit() {
     match tokio::runtime::Builder::new_current_thread().enable_all().build() {
         Ok(runtime) => runtime.block_on(hub.flush(std::time::Duration::from_secs(8))),
         Err(e) => eprintln!("[ERROR] the statistics were not sent at exit, no runtime: {e}"),
+    }
+}
+
+/// Counts every call of the program's own API by its route template, an agent's calls included; unchanged when the
+/// hub did not start.
+pub fn track(router: axum::Router) -> axum::Router {
+    match HUB.get().and_then(Option::as_ref) {
+        Some(hub) => hub.track(router),
+        None => router,
     }
 }
 

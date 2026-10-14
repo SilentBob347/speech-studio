@@ -186,32 +186,6 @@ pub fn annotate(proj: &mut Project) {
     }
 }
 
-/// Проект для синтеза: tgt_text каждой фразы — текст для синтеза; фразы без слов после чистки — с пустым
-/// текстом (синтез их пропускает) и extra.tts_skip. Отсчёт — строкой в журнал.
-pub fn synthesis_view(proj: &Project, progress: &crate::analyze::Progress) -> Project {
-    let mut view = proj.clone();
-    let glossary = dub_core::glossary::for_target(&proj.glossary, &proj.tgt_lang);
-    let mut skipped: Vec<String> = Vec::new();
-    for s in &mut view.segments {
-        let keep_original = s.extra.get("keep_original").and_then(Value::as_bool).unwrap_or(false);
-        if keep_original || s.tgt_text.trim().is_empty() {
-            continue;
-        }
-        let t = tts_text(&s.tgt_text, &s.src_text, &proj.tgt_lang, &glossary);
-        if let Some(reason) = t.skip {
-            skipped.push(format!("{} «{}»", s.id, s.tgt_text.trim().chars().take(40).collect::<String>()));
-            s.extra.insert("tts_skip".into(), Value::String(reason.into()));
-        }
-        s.tgt_text = t.text;
-    }
-    if !skipped.is_empty() {
-        progress(serde_json::json!({
-            "stage": "tts",
-            "msg": t!("tts-silent-after-cleanup", count = skipped.len(), lines = skipped.join("; ")),
-        }));
-    }
-    view
-}
 
 #[cfg(test)]
 mod tests {

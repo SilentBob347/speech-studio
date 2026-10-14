@@ -566,11 +566,11 @@ impl AsrChoice {
     }
 }
 
-/// Путь к бинарю Whisper: env DUB_STUDIO_WHISPER_BIN, иначе приоритетом XXL-сборка
+/// Путь к бинарю Whisper: env SPEECH_STUDIO_WHISPER_BIN, иначе приоритетом XXL-сборка
 /// (<repo>/tools/whisper/Faster-Whisper-XXL/faster-whisper-xxl.exe — свежий движок, CUDA-DLL в
 /// комплекте (_xxl_data), умеет --batched), фолбэк — старый onefile whisper-faster.exe (CPU).
 pub fn whisper_bin(repo_root: &Path) -> PathBuf {
-    if let Ok(p) = std::env::var("DUB_STUDIO_WHISPER_BIN") {
+    if let Ok(p) = std::env::var("SPEECH_STUDIO_WHISPER_BIN") {
         return PathBuf::from(p);
     }
     let wdir = repo_root.join("tools").join("whisper");
@@ -691,9 +691,9 @@ pub fn build_engine(choice: &AsrChoice) -> Box<dyn dub_asr::AsrEngine> {
 }
 
 /// Higgs TTS: папки higgs-{q8_0,q6_k,q4_k_m}, внутри файл {q}.gguf. Возврат (каталог, квант-строка
-/// для audiocpp load_model). Env DUB_STUDIO_HIGGS_MODEL (портатив) имеет приоритет.
+/// для audiocpp load_model). Env SPEECH_STUDIO_HIGGS_MODEL (портатив) имеет приоритет.
 pub fn resolve_tts(mroot: &Path, sel: &Value) -> (PathBuf, String) {
-    if let Ok(env) = std::env::var("DUB_STUDIO_HIGGS_MODEL") {
+    if let Ok(env) = std::env::var("SPEECH_STUDIO_HIGGS_MODEL") {
         let d = PathBuf::from(env);
         let q = d
             .file_name()
@@ -721,9 +721,9 @@ pub fn resolve_tts(mroot: &Path, sel: &Value) -> (PathBuf, String) {
 }
 
 /// Roformer сепарация: models/bsroformer/voc_fv6-{Q8_0,Q5_0,Q4_0}.gguf (все в одном каталоге).
-/// Env DUB_STUDIO_BSROFORMER_MODEL имеет приоритет.
+/// Env SPEECH_STUDIO_BSROFORMER_MODEL имеет приоритет.
 pub fn resolve_sep(mroot: &Path, sel: &Value) -> PathBuf {
-    if let Ok(env) = std::env::var("DUB_STUDIO_BSROFORMER_MODEL") {
+    if let Ok(env) = std::env::var("SPEECH_STUDIO_BSROFORMER_MODEL") {
         return PathBuf::from(env);
     }
     let f = |q: &str| mroot.join("bsroformer").join(format!("voc_fv6-{q}.gguf"));
@@ -743,9 +743,9 @@ pub fn resolve_sep(mroot: &Path, sel: &Value) -> PathBuf {
 }
 
 /// Parakeet ASR: каталоги tdt (int8) / tdt-fp32 / tdt-ultra (Parakeet Ultra, fp32) / tdt-ultra-int8. from_pretrained сам
-/// различает имена файлов внутри. Без выбора — int8 (дефолт). Env DUB_STUDIO_TDT имеет приоритет.
+/// различает имена файлов внутри. Без выбора — int8 (дефолт). Env SPEECH_STUDIO_TDT имеет приоритет.
 pub fn resolve_asr(mroot: &Path, sel: &Value) -> PathBuf {
-    if let Ok(env) = std::env::var("DUB_STUDIO_TDT") {
+    if let Ok(env) = std::env::var("SPEECH_STUDIO_TDT") {
         return PathBuf::from(env);
     }
     resolve_asr_dir(mroot, sel)

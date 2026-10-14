@@ -1,8 +1,8 @@
-//! Tauri-оболочка Dub Studio. Ничего тяжёлого сама не делает: поднимает нативный `dub-server`
-//! (axum, тот же REST/SSE-контракт, что бэкенд-питон) на 127.0.0.1:8793 (`DUB_STUDIO_PORT`) и
+//! Tauri-оболочка Speech Studio. Ничего тяжёлого сама не делает: поднимает нативный `speech-server`
+//! (axum, тот же REST/SSE-контракт, что бэкенд-питон) на 127.0.0.1:8797 (`SPEECH_STUDIO_PORT`) и
 //! открывает окно на этот URL. Сервер сам раздаёт SPA (frontend/dist) и API на одном origin — фронт
 //! работает с относительными путями без правок, а постоянный порт держит origin, и с ним
-//! localStorage окна, одинаковым между запусками. Если на порту уже отвечает Dub Studio, второй
+//! localStorage окна, одинаковым между запусками. Если на порту уже отвечает Speech Studio, второй
 //! сервис не поднимается, а окно открывается на неё; второй запуск релизной сборки на порту по
 //! умолчанию отдаёт фокус уже открытому окну.
 //!
@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::time::{Duration, Instant};
 
-use dub_server::service::{self, Claim};
+use speech_server::service::{self, Claim};
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
 /// Ждать, пока встроенный сервер ответит на /health, или его поток не сообщит, что остановился.
@@ -25,16 +25,16 @@ fn wait_for_own_service(port: u16, stopped: &Receiver<Result<(), String>>) -> Re
             return Ok(());
         }
         match stopped.try_recv() {
-            Ok(Err(e)) => return Err(format!("Встроенный сервер Dub Studio не запустился: {e}")),
-            Ok(Ok(())) => return Err("Встроенный сервер Dub Studio остановился сразу после запуска.".into()),
+            Ok(Err(e)) => return Err(format!("Встроенный сервер Speech Studio не запустился: {e}")),
+            Ok(Ok(())) => return Err("Встроенный сервер Speech Studio остановился сразу после запуска.".into()),
             Err(TryRecvError::Disconnected) => {
-                return Err("Поток встроенного сервера Dub Studio аварийно завершился при запуске.".into())
+                return Err("Поток встроенного сервера Speech Studio аварийно завершился при запуске.".into())
             }
             Err(TryRecvError::Empty) => {}
         }
         if Instant::now() >= deadline {
             return Err(format!(
-                "Встроенный сервер Dub Studio не ответил на 127.0.0.1:{port} за 30 с."
+                "Встроенный сервер Speech Studio не ответил на 127.0.0.1:{port} за 30 с."
             ));
         }
     }
@@ -46,7 +46,7 @@ fn fatal(message: &str) {
     eprintln!("[ERROR] {message}");
     rfd::MessageDialog::new()
         .set_level(rfd::MessageLevel::Error)
-        .set_title("Dub Studio")
+        .set_title("Speech Studio")
         .set_description(message)
         .set_buttons(rfd::MessageButtons::Ok)
         .show();
@@ -62,7 +62,7 @@ fn open_in_browser(app: &tauri::AppHandle, url: &tauri::Url) {
 /// tauri-plugin-single-instance называет мьютекс и окно только по identifier, общему у установленной,
 /// портативной и дев-сборок: с ним дев-копия рядом с открытой установленной молча выходила бы, подняв
 /// старое окно. Замок нужен только релизной сборке на порту по умолчанию; дев-сборка и копия с явным
-/// `DUB_STUDIO_PORT` живут на своём порту, а на том же — открывают окно на уже работающий сервис.
+/// `SPEECH_STUDIO_PORT` живут на своём порту, а на том же — открывают окно на уже работающий сервис.
 fn single_instance_wanted() -> bool {
     !cfg!(debug_assertions) && !service::port_is_explicit()
 }
@@ -75,20 +75,20 @@ fn start_or_reuse_service(repo_root: &std::path::Path) -> Result<u16, String> {
             let root = repo_root.to_path_buf();
             let (tx, rx) = std::sync::mpsc::channel();
             std::thread::Builder::new()
-                .name("dub-server".into())
+                .name("speech-server".into())
                 .spawn(move || {
-                    let result = dub_server::serve_blocking(&root, listener).map_err(|e| format!("{e:#}"));
+                    let result = speech_server::serve_blocking(&root, listener).map_err(|e| format!("{e:#}"));
                     if let Err(e) = &result {
-                        eprintln!("[ERROR] встроенный dub-server остановился: {e}");
+                        eprintln!("[ERROR] встроенный speech-server остановился: {e}");
                     }
                     let _ = tx.send(result);
                 })
-                .map_err(|e| format!("Не удалось запустить поток сервера Dub Studio: {e}"))?;
+                .map_err(|e| format!("Не удалось запустить поток сервера Speech Studio: {e}"))?;
             wait_for_own_service(port, &rx)?;
         }
         Claim::AlreadyRunning(running) => {
             eprintln!(
-                "на 127.0.0.1:{port} уже работает Dub Studio {} ({}): окно откроется на неё",
+                "на 127.0.0.1:{port} уже работает Speech Studio {} ({}): окно откроется на неё",
                 running.version, running.service_executable
             );
         }
@@ -99,7 +99,7 @@ fn start_or_reuse_service(repo_root: &std::path::Path) -> Result<u16, String> {
 /// Окружение сервера до старта: путь к onnxruntime 1.28 (PATH под движок/инструменты добавит
 /// augment_path_for_tools внутри serve_blocking).
 fn setup_server_env(repo_root: &PathBuf) {
-    dub_server::set_ort_dylib_env(repo_root, &layout::executable_directory());
+    speech_server::set_ort_dylib_env(repo_root, &layout::executable_directory());
 }
 
 /// Проверка обновления на GitHub-релизе и (по согласию юзера) установка. Драйвится из Rust: фронт
@@ -108,7 +108,7 @@ fn setup_server_env(repo_root: &PathBuf) {
 /// копия из NSIS-установщика; портатив (нельзя перезаписать запущенный ~489-МБ каталог), MSI
 /// (msiexec не принимает /D=, а Program Files без повышения прав недоступен) и сборка без типа
 /// бандла получают предложение открыть страницу релиза.
-const RELEASES_URL: &str = "https://github.com/timoncool/dub-studio/releases/latest";
+const RELEASES_URL: &str = "https://github.com/timoncool/speech-studio/releases/latest";
 fn spawn_update_check(app: tauri::AppHandle, portable: bool) {
     use tauri::utils::config::BundleType;
     use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
@@ -117,10 +117,10 @@ fn spawn_update_check(app: tauri::AppHandle, portable: bool) {
         !portable && tauri::utils::platform::bundle_type() == Some(BundleType::Nsis);
     tauri::async_runtime::spawn(async move {
         // Прокси из настроек: GitHub, откуда обновления, — среди сайтов, ради которых прокси и ставят.
-        let builder = match dub_server::net::fixed() {
-            dub_server::net::Fixed::System => app.updater_builder(),
-            dub_server::net::Fixed::Direct => app.updater_builder().no_proxy(),
-            dub_server::net::Fixed::Through(proxy) => app.updater_builder().proxy(proxy),
+        let builder = match speech_server::net::fixed() {
+            speech_server::net::Fixed::System => app.updater_builder(),
+            speech_server::net::Fixed::Direct => app.updater_builder().no_proxy(),
+            speech_server::net::Fixed::Through(proxy) => app.updater_builder().proxy(proxy),
         };
         // Установщик — ребёнок этого процесса, а процесс сидит в своём job с kill-on-close: без
         // освобождения установщик умер бы вместе со студией, ничего не поставив. Свой хук заменяет
@@ -128,8 +128,8 @@ fn spawn_update_check(app: tauri::AppHandle, portable: bool) {
         let cleanup = app.clone();
         let mut builder = builder.on_before_exit(move || {
             cleanup.cleanup_before_exit();
-            dub_server::process_group::terminate_group_members();
-            if !dub_server::process_group::release_children() {
+            speech_server::process_group::terminate_group_members();
+            if !speech_server::process_group::release_children() {
                 eprintln!("[ERROR] установщик обновления не выведен из job object студии");
             }
         });
@@ -150,7 +150,7 @@ fn spawn_update_check(app: tauri::AppHandle, portable: bool) {
         // the window tells its language a moment after it loads; the question waits for it
         let _ = tauri::async_runtime::spawn_blocking(|| {
             for _ in 0..100 {
-                if dub_server::i18n::reported() {
+                if speech_server::i18n::reported() {
                     break;
                 }
                 std::thread::sleep(Duration::from_millis(200));
@@ -160,25 +160,25 @@ fn spawn_update_check(app: tauri::AppHandle, portable: bool) {
         if !install_in_place {
             let open = app
                 .dialog()
-                .message(dub_server::i18n::text("update-open-page", &[("version", ver.clone())]))
-                .title(dub_server::i18n::text("update-title", &[]))
+                .message(speech_server::i18n::text("update-open-page", &[("version", ver.clone())]))
+                .title(speech_server::i18n::text("update-title", &[]))
                 .kind(MessageDialogKind::Info)
                 .buttons(MessageDialogButtons::OkCancelCustom(
-                    dub_server::i18n::text("update-button-open", &[]),
-                    dub_server::i18n::text("update-button-later", &[]),
+                    speech_server::i18n::text("update-button-open", &[]),
+                    speech_server::i18n::text("update-button-later", &[]),
                 ))
                 .blocking_show();
             if open {
                 // Браузер, запущенный изнутри job студии, закрылся бы вместе с ней.
-                let opened = dub_server::process_group::detach_from_group(
+                let opened = speech_server::process_group::detach_from_group(
                     &mut std::process::Command::new(if cfg!(windows) { "explorer" } else { "xdg-open" }),
                 )
                 .arg(RELEASES_URL)
                 .spawn();
                 if let Err(e) = opened {
                     app.dialog()
-                        .message(dub_server::i18n::text("update-open-failed", &[("url", RELEASES_URL.to_string()), ("error", e.to_string())]))
-                        .title(dub_server::i18n::text("update-title", &[]))
+                        .message(speech_server::i18n::text("update-open-failed", &[("url", RELEASES_URL.to_string()), ("error", e.to_string())]))
+                        .title(speech_server::i18n::text("update-title", &[]))
                         .kind(MessageDialogKind::Error)
                         .blocking_show();
                 }
@@ -187,12 +187,12 @@ fn spawn_update_check(app: tauri::AppHandle, portable: bool) {
         }
         let yes = app
             .dialog()
-            .message(dub_server::i18n::text("update-install-now", &[("version", ver.clone())]))
-            .title(dub_server::i18n::text("update-title", &[]))
+            .message(speech_server::i18n::text("update-install-now", &[("version", ver.clone())]))
+            .title(speech_server::i18n::text("update-title", &[]))
             .kind(MessageDialogKind::Info)
             .buttons(MessageDialogButtons::OkCancelCustom(
-                dub_server::i18n::text("update-button-install", &[]),
-                dub_server::i18n::text("update-button-later", &[]),
+                speech_server::i18n::text("update-button-install", &[]),
+                speech_server::i18n::text("update-button-later", &[]),
             ))
             .blocking_show();
         if !yes {
@@ -204,8 +204,8 @@ fn spawn_update_check(app: tauri::AppHandle, portable: bool) {
             }
             Err(e) => {
                 app.dialog()
-                    .message(dub_server::i18n::text("update-failed", &[("error", e.to_string())]))
-                    .title(dub_server::i18n::text("update-title", &[]))
+                    .message(speech_server::i18n::text("update-failed", &[("error", e.to_string())]))
+                    .title(speech_server::i18n::text("update-title", &[]))
                     .kind(MessageDialogKind::Error)
                     .blocking_show();
             }
@@ -243,7 +243,7 @@ fn hide_console_window() {
 pub fn run() {
     // Что бы ни завершило процесс — окно, диспетчер задач, taskkill, падение, — llama-server,
     // bs_roformer-cli, whisper и ffmpeg уходят вместе с ним.
-    if !dub_server::process_group::bind_children_to_this_process() {
+    if !speech_server::process_group::bind_children_to_this_process() {
         eprintln!("[ERROR] процесс не встал в свой job object: сайдкары гасятся только своими деструкторами");
     }
     #[cfg(windows)]
@@ -253,10 +253,10 @@ pub fn run() {
         Err(e) => layout::fatal(&e),
     };
     let repo_root = placed.server_root;
-    dub_server::ensure_library_path(&repo_root);
+    speech_server::ensure_library_path(&repo_root);
     setup_server_env(&repo_root);
     // Маршрут прокси до проверки обновлений: сервер ставит его в своём потоке, без гарантии, что раньше.
-    dub_server::init_proxy_route(&repo_root);
+    speech_server::init_proxy_route(&repo_root);
 
     let context = tauri::generate_context!();
     service::set_app_version(context.package_info().version.to_string());
@@ -270,7 +270,7 @@ pub fn run() {
             if let Some(win) = app.get_webview_window("main") {
                 let shown = win.unminimize().and_then(|_| win.show()).and_then(|_| win.set_focus());
                 if let Err(e) = shown {
-                    eprintln!("[ERROR] повторный запуск: окно Dub Studio не вышло на передний план: {e}");
+                    eprintln!("[ERROR] повторный запуск: окно Speech Studio не вышло на передний план: {e}");
                 }
             }
         }));
@@ -282,7 +282,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(move |app| {
-            // axum-бэкенд поднимается В ЭТОМ ЖЕ процессе на фоновом потоке — ОДИН exe, без dub-server.exe-сайдкара.
+            // axum-бэкенд поднимается В ЭТОМ ЖЕ процессе на фоновом потоке — ОДИН exe, без speech-server.exe-сайдкара.
             // Окно открывается только после ответа /health, чтобы не встать на пустую страницу.
             let port = match start_or_reuse_service(&repo_root) {
                 Ok(p) => p,
@@ -302,7 +302,7 @@ pub fn run() {
                 "main",
                 WebviewUrl::External(url.parse().expect("валидный URL")),
             )
-            .title(format!("Dub Studio {}", app.package_info().version))
+            .title(format!("Speech Studio {}", app.package_info().version))
             .inner_size(1600.0, 1040.0)
             .min_inner_size(1280.0, 800.0)
             .resizable(true)
@@ -335,7 +335,7 @@ pub fn run() {
         .expect("ошибка запуска Tauri")
         .run(|_, event| {
             if let tauri::RunEvent::Exit = event {
-                dub_server::flush_hub_on_exit();
+                speech_server::flush_hub_on_exit();
             }
         });
 }

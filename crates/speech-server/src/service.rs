@@ -1,7 +1,7 @@
 //! Адрес сервиса и его опознание. Порт фиксированный (семейство студий: YuE2 8791, ACE 8792,
-//! MiniMax 8765, Dub 8793), чтобы origin окна, а с ним localStorage, и адрес для агентов не менялись
+//! MiniMax 8765, Dub 8797), чтобы origin окна, а с ним localStorage, и адрес для агентов не менялись
 //! между запусками. `/health` называет, чей сервис отвечает на порту: второй запуск переиспользует
-//! уже работающую Dub Studio, а чужой процесс на порту превращается в понятную ошибку, а не в зависание.
+//! уже работающую Speech Studio, а чужой процесс на порту превращается в понятную ошибку, а не в зависание.
 
 use std::io::{Read, Write};
 use std::net::{Ipv4Addr, SocketAddrV4, TcpListener, TcpStream};
@@ -18,9 +18,9 @@ use serde_json::{json, Value};
 
 use crate::AppState;
 
-pub const APP_ID: &str = "dub-studio";
-pub const DEFAULT_PORT: u16 = 8793;
-pub const PORT_ENV: &str = "DUB_STUDIO_PORT";
+pub const APP_ID: &str = "speech-studio";
+pub const DEFAULT_PORT: u16 = 8797;
+pub const PORT_ENV: &str = "SPEECH_STUDIO_PORT";
 
 static APP_VERSION: OnceLock<String> = OnceLock::new();
 static LISTEN_PORT: OnceLock<u16> = OnceLock::new();
@@ -30,12 +30,12 @@ pub fn set_app_version(version: impl Into<String>) {
     let _ = APP_VERSION.set(version.into());
 }
 
-/// Версия оболочки, а у standalone dub-server — версия воркспейса.
+/// Версия оболочки, а у standalone speech-server — версия воркспейса.
 pub fn app_version() -> &'static str {
     APP_VERSION.get().map(String::as_str).unwrap_or(env!("CARGO_PKG_VERSION"))
 }
 
-/// Порт сервиса: `DUB_STUDIO_PORT`, иначе 8793. Неразборчивое значение — ошибка, а не молчаливый дефолт.
+/// Порт сервиса: `SPEECH_STUDIO_PORT`, иначе 8797. Неразборчивое значение — ошибка, а не молчаливый дефолт.
 pub fn listen_port() -> Result<u16, String> {
     match std::env::var(PORT_ENV) {
         Ok(v) => parse_port(Some(&v)),
@@ -46,7 +46,7 @@ pub fn listen_port() -> Result<u16, String> {
     }
 }
 
-/// Порт задан явно: `DUB_STUDIO_PORT` непуст (пустое значение — тот же дефолт, что и отсутствие).
+/// Порт задан явно: `SPEECH_STUDIO_PORT` непуст (пустое значение — тот же дефолт, что и отсутствие).
 pub fn port_is_explicit() -> bool {
     match std::env::var(PORT_ENV) {
         Ok(v) => is_explicit(Some(&v)),
@@ -91,7 +91,7 @@ pub async fn health(State(st): State<AppState>) -> Response {
     }
 }
 
-/// Что ответил сервис Dub Studio на `/health`.
+/// Что ответил сервис Speech Studio на `/health`.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct Running {
     pub version: String,
@@ -106,7 +106,7 @@ pub enum Occupant {
     /// Соединение не принимается.
     Nobody,
     DubStudio(Running),
-    /// Порт принимает соединения, но это не Dub Studio; строка — что именно ответило.
+    /// Порт принимает соединения, но это не Speech Studio; строка — что именно ответило.
     Other(String),
 }
 
@@ -175,7 +175,7 @@ fn classify_response(raw: &[u8]) -> Occupant {
 pub enum Claim {
     /// Порт наш: сервис поднимается на этом слушателе.
     Bound(TcpListener),
-    /// На порту уже работает Dub Studio: второй сервис не нужен.
+    /// На порту уже работает Speech Studio: второй сервис не нужен.
     AlreadyRunning(Running),
 }
 
@@ -215,7 +215,7 @@ fn bind_loopback(port: u16) -> std::io::Result<TcpListener> {
 
 const PROBE_TIMEOUT: Duration = Duration::from_millis(1500);
 
-/// Занять порт сервиса. Если на нём уже отвечает Dub Studio — вернуть её. Если порт держит кто-то
+/// Занять порт сервиса. Если на нём уже отвечает Speech Studio — вернуть её. Если порт держит кто-то
 /// ещё, повторять до `patience`: закрытая только что студия отпускает порт не сразу.
 pub fn claim_port(port: u16, patience: Duration) -> Result<Claim, PortBusy> {
     let started = Instant::now();
@@ -236,7 +236,7 @@ pub fn claim_port(port: u16, patience: Duration) -> Result<Claim, PortBusy> {
     }
 }
 
-/// Ждать, пока на порту ответит Dub Studio.
+/// Ждать, пока на порту ответит Speech Studio.
 pub fn wait_until_serving(port: u16, timeout: Duration) -> bool {
     let started = Instant::now();
     while started.elapsed() < timeout {
@@ -259,8 +259,8 @@ mod tests {
 
     #[test]
     fn port_comes_from_the_variable_or_defaults_to_8793() {
-        assert_eq!(parse_port(None), Ok(8793));
-        assert_eq!(parse_port(Some("")), Ok(8793));
+        assert_eq!(parse_port(None), Ok(8797));
+        assert_eq!(parse_port(Some("")), Ok(8797));
         assert_eq!(parse_port(Some(" 18801 ")), Ok(18801));
         for bad in ["0", "abc", "70000", "-1", "8793x"] {
             let e = parse_port(Some(bad)).expect_err(bad);
@@ -273,7 +273,7 @@ mod tests {
         assert!(!is_explicit(None));
         assert!(!is_explicit(Some("")));
         assert!(!is_explicit(Some("  ")));
-        assert!(is_explicit(Some("8793")));
+        assert!(is_explicit(Some("8797")));
         assert!(is_explicit(Some(" 18801 ")));
         assert!(is_explicit(Some("abc")));
     }
@@ -312,8 +312,8 @@ mod tests {
     }
 
     fn dub_body(version: &str) -> String {
-        json!({"status":"ok","app":"dub-studio","version":version,
-               "service_executable":"C:\\Dub Studio\\Dub Studio.exe","repo_root":"C:\\Dub Studio","port":8793})
+        json!({"status":"ok","app":"speech-studio","version":version,
+               "service_executable":"C:\\Speech Studio\\Speech Studio.exe","repo_root":"C:\\Speech Studio","port":8797})
         .to_string()
     }
 
@@ -328,9 +328,9 @@ mod tests {
         match probe(dub, PROBE_TIMEOUT) {
             Occupant::DubStudio(r) => {
                 assert_eq!(r.version, "3.2.0");
-                assert_eq!(r.port, Some(8793));
+                assert_eq!(r.port, Some(8797));
             }
-            o => panic!("ожидалась Dub Studio: {o:?}"),
+            o => panic!("ожидалась Speech Studio: {o:?}"),
         }
 
         let other_app = fake_server(Some(http("200 OK", r#"{"status":"ok","app":"yue2-studio"}"#)));

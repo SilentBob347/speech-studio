@@ -2,7 +2,7 @@
 //! (модели, workspace, библиотека кастинга, профиль WebView2, временные файлы).
 //!
 //! Данные живут рядом с exe всегда, когда туда можно писать (модели весят десятки ГБ, и тот, кто
-//! поставил студию в F:\AI, не ждёт их на диске C:). Запасной путь %LOCALAPPDATA%\Dub Studio нужен
+//! поставил студию в F:\AI, не ждёт их на диске C:). Запасной путь %LOCALAPPDATA%\Speech Studio нужен
 //! только там, где каталог установки недоступен для записи (MSI в Program Files, общий ресурс
 //! только для чтения). Портативная копия (маркер `portable.flag` рядом с exe) запасного пути не имеет:
 //! ей нечем заменить свою папку, поэтому недоступная для записи папка — явная ошибка.
@@ -10,7 +10,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-pub const DATA_DIRECTORY_NAME: &str = "Dub Studio";
+pub const DATA_DIRECTORY_NAME: &str = "Speech Studio";
 pub const PORTABLE_MARKER: &str = "portable.flag";
 
 /// Ресурсы бандла (`bundle.resources` в tauri.bundle.conf.json): установщик кладёт их рядом с exe.
@@ -24,12 +24,12 @@ const BUNDLED_RESOURCES: [&str; 4] = [
 ];
 
 pub struct Layout {
-    /// Корень, который получает `dub_server::serve_blocking`: ресурсы, models/, workspace/ и остальные данные.
+    /// Корень, который получает `speech_server::serve_blocking`: ресурсы, models/, workspace/ и остальные данные.
     pub server_root: PathBuf,
     /// Где лежат профиль WebView2 и (если `redirect_temp`) временные файлы.
     pub state_root: PathBuf,
     /// TEMP/TMP переводятся в `<state_root>/temp`. Только для установленной и портативной раскладок:
-    /// dev-запуск и явный DUB_STUDIO_ROOT системный TEMP не трогают.
+    /// dev-запуск и явный SPEECH_STUDIO_ROOT системный TEMP не трогают.
     pub redirect_temp: bool,
 }
 
@@ -149,21 +149,21 @@ fn linux_package_resources(executable_dir: &Path) -> Option<PathBuf> {
     installed_layout(&resources).then_some(resources)
 }
 
-/// Данные Linux-пакета: $XDG_DATA_HOME/dub-studio, иначе ~/.local/share/dub-studio.
+/// Данные Linux-пакета: $XDG_DATA_HOME/speech-studio, иначе ~/.local/share/speech-studio.
 fn linux_data_directory() -> Result<PathBuf, String> {
     if let Some(root) = std::env::var_os("XDG_DATA_HOME").filter(|v| !v.is_empty()) {
-        return Ok(PathBuf::from(root).join("dub-studio"));
+        return Ok(PathBuf::from(root).join("speech-studio"));
     }
     std::env::var_os("HOME")
         .filter(|v| !v.is_empty())
-        .map(|home| PathBuf::from(home).join(".local").join("share").join("dub-studio"))
+        .map(|home| PathBuf::from(home).join(".local").join("share").join("speech-studio"))
         .ok_or_else(|| "Neither XDG_DATA_HOME nor HOME is set: there is nowhere to keep the models.\n\nНе заданы ни XDG_DATA_HOME, ни HOME: моделям негде лежать.".to_string())
 }
 
 pub fn resolve() -> Result<Layout, String> {
     let exe_dir = executable_directory();
 
-    if let Ok(root) = std::env::var("DUB_STUDIO_ROOT") {
+    if let Ok(root) = std::env::var("SPEECH_STUDIO_ROOT") {
         return Ok(Layout {
             server_root: PathBuf::from(root),
             state_root: exe_dir,
@@ -249,7 +249,7 @@ pub fn fatal(message: &str) -> ! {
     };
     eprintln!("[ERROR] {message}");
     let text = wide(message);
-    let caption = wide("Dub Studio");
+    let caption = wide("Speech Studio");
     unsafe {
         MessageBoxW(0, text.as_ptr(), caption.as_ptr(), 0x10);
     }
@@ -267,7 +267,7 @@ mod tests {
     use super::*;
 
     fn scratch(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("dub-layout-{name}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("speech-layout-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir

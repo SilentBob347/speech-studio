@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Права по умолчанию для окна Dub Studio",
+  "description": "Права по умолчанию для окна Speech Studio",
   "windows": ["main"],
   "permissions": ["core:default", "updater:default", "dialog:default", "opener:default"]
 }

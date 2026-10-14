@@ -1,23 +1,14 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/audiocpp",
-    "crates/dub-asr",
-    "crates/dub-core",
-    "crates/dub-llm",
-    "crates/dub-translate",
-    "crates/dub-sep",
-    "crates/dub-captions",
-    "crates/dub-ocr",
-    "crates/dub-faces",
-    "crates/dub-server",
+    "crates/speech-server",
 ]
 # Оболочка Tauri — отдельная единица сборки (тяжёлое дерево tauri), собирается своим
 # `npx tauri build --no-bundle`, не тянется в `cargo build --workspace`.
 exclude = ["desktop/src-tauri"]
 
 [workspace.package]
-version = "2.0.0"
+version = "0.1.0"
 edition = "2021"
 license = "MIT"
 

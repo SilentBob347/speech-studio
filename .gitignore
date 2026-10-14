@@ -57,3 +57,6 @@ release/
 HANDOFF.md
 NEXT_SESSION_PROMPT.md
 *.password
+
+# dev-данные локального запуска
+_devdata/

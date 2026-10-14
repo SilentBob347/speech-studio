@@ -18,7 +18,7 @@ LangString unableToUninstall ${LANG_RUSSIAN} "Не удалось удалить
 LangString uninstallApp ${LANG_RUSSIAN} "Удалить ${PRODUCTNAME}"
 LangString uninstallBeforeInstalling ${LANG_RUSSIAN} "Удалить перед установкой"
 LangString unknown ${LANG_RUSSIAN} "Неизвестная"
-LangString webview2AbortError ${LANG_RUSSIAN} "Не удалось установить Microsoft WebView2, а окно Dub Studio без него не работает. Скачайте автономный установщик WebView2 от Microsoft по адресу https://go.microsoft.com/fwlink/p/?LinkId=2124701 , запустите его и затем снова запустите этот установщик. Если и это не помогло, восстановите Microsoft Edge WebView2 Runtime в Параметры - Приложения."
+LangString webview2AbortError ${LANG_RUSSIAN} "Не удалось установить Microsoft WebView2, а окно Speech Studio без него не работает. Скачайте автономный установщик WebView2 от Microsoft по адресу https://go.microsoft.com/fwlink/p/?LinkId=2124701 , запустите его и затем снова запустите этот установщик. Если и это не помогло, восстановите Microsoft Edge WebView2 Runtime в Параметры - Приложения."
 LangString webview2DownloadError ${LANG_RUSSIAN} "Ошибка: Не удалось загрузить WebView2 - $0"
 LangString webview2DownloadSuccess ${LANG_RUSSIAN} "WebView2 успешно загружен"
 LangString webview2Downloading ${LANG_RUSSIAN} "Загрузка WebView2..."

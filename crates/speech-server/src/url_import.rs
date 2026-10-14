@@ -779,7 +779,7 @@ fn make_project(fetch_root: &Path, media: &Path, title: &str, subs: Option<&Path
             subs_imported = true;
         }
     }
-    crate::write_initial_project(&d).map_err(|e| UrlError::new("io", e))?;
+    crate::write_initial_listening(&d).map_err(|e| UrlError::new("io", e))?;
     Ok(Made { pid, subs_imported, warning })
 }
 

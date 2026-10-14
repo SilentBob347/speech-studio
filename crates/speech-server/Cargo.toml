@@ -1,22 +1,20 @@
 [package]
-name = "dub-server"
+name = "speech-server"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "axum-сервер Dub Studio: тот же REST/SSE контракт, что backend/app.py"
+description = "axum-сервис Speech Studio: озвучка (Speech) и распознавание (Listening)"
 
 [dependencies]
 fluent-templates = "0.15.1"
-dub-core = { path = "../dub-core" }
-dub-asr = { path = "../dub-asr", features = ["cuda"] }
-dub-llm = { path = "../dub-llm" }
-dub-translate = { path = "../dub-translate" }
-dub-sep = { path = "../dub-sep" }
-dub-captions = { path = "../dub-captions" }
-dub-ocr = { path = "../dub-ocr" }
-dub-faces = { path = "../dub-faces" }
+dub-core = { git = "https://github.com/timoncool/dub-studio", rev = "11f909a8e798d56f5f43e0b7ae959d77a05a1866" }
+dub-asr = { git = "https://github.com/timoncool/dub-studio", rev = "11f909a8e798d56f5f43e0b7ae959d77a05a1866", features = ["cuda"] }
+dub-llm = { git = "https://github.com/timoncool/dub-studio", rev = "11f909a8e798d56f5f43e0b7ae959d77a05a1866" }
+dub-translate = { git = "https://github.com/timoncool/dub-studio", rev = "11f909a8e798d56f5f43e0b7ae959d77a05a1866" }
+dub-captions = { git = "https://github.com/timoncool/dub-studio", rev = "11f909a8e798d56f5f43e0b7ae959d77a05a1866" }
+dub-sep = { git = "https://github.com/timoncool/dub-studio", rev = "11f909a8e798d56f5f43e0b7ae959d77a05a1866" }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
-audiocpp = { path = "../audiocpp" }
+audiocpp = { git = "https://github.com/timoncool/dub-studio", rev = "11f909a8e798d56f5f43e0b7ae959d77a05a1866" }
 hound = "3"
 axum = { version = "0.8", features = ["multipart"] }
 tower = { version = "0.5", features = ["util"] }
@@ -60,7 +58,8 @@ blake3 = "1"
 # SHA-256 скачанных моделей и движков против закреплённых хэшей (HF lfs.oid, digest GitHub, PyPI/NVIDIA).
 sha2 = "0.11"
 # Studio Hub: anonymous statistics and the news feed (telemetry only after the first-run screen showed its choice).
-studio-hub-client = { git = "https://github.com/timoncool/studio-hub-client", rev = "531327a64882580bd44f8e173908be0a046c7adc" }
+vs-providers = { git = "https://github.com/timoncool/videosos", rev = "106272591abd7d29193145b82b5528108f3db1a8" }
+studio-hub-client = { git = "https://github.com/timoncool/studio-hub-client", rev = "e44abf030d5a5acc48ef693a395a04109db8fa16" }
 # чистка текста перед синтезом (tts_text.rs): теги звуков, разметка, метки спикеров.
 regex = "1"
 rust-genai = { version = "=0.3.1", default-features = false }
@@ -76,4 +75,4 @@ libc = "0.2"
 [dev-dependencies]
 tempfile = "3"
 # Поддельный HTTP-сервер для тестов провайдеров.
-dub-llm = { path = "../dub-llm", features = ["test-support"] }
+dub-llm = { git = "https://github.com/timoncool/dub-studio", rev = "11f909a8e798d56f5f43e0b7ae959d77a05a1866", features = ["test-support"] }

@@ -862,37 +862,19 @@ pub fn manifest() -> Vec<Component> {
             external_url: None,
         },
         // ── КАСТИНГ ПЕРСОНАЖЕЙ (#115): лица + голос ──────────────────────────
-        // Полный набор моделей кастинга. Резолвятся dub_faces (<models>/faces/…). ВСЕ из первоисточников
-        // (сверено по точному размеру файла). Без них кастинг мёртв: «лиц привязано 0», все спикеры SPK0.
-        //   • det_10g (SCRFD-10GF) — детектор реальных лиц (insightface buffalo_l → immich-app/buffalo_l).
-        //   • LVFace-L_Glint360K — эмбеддер реального лица (bytedance-research/LVFace).
-        //   • ccip model_feat — эмбеддер нарисованного персонажа (deepghs/ccip_onnx, caformer-24).
-        //   • anime_face model — детектор аниме/мульт-лиц (deepghs/anime_face_detection v1.4_s).
-        //   • xseg_1 — окклюдер лица для чистого аватар-кропа (facefusion/models-3.1.0).
-        //   • WeSpeaker ResNet34-LM — голосовой эмбеддинг: cross-episode матч голосов (на Xet-CAS).
+        // WeSpeaker ResNet34-LM: голосовой эмбеддинг для похожести озвучки на голос рефа (тот же путь и файл, что у Dub
+        // Studio, чтобы модель бралась у неё).
         Component {
-            id: "casting",
-            name: t!("setup-comp-casting-name"),
-            purpose: t!("setup-comp-casting-purpose"),
+            id: "wespeaker",
+            name: t!("setup-comp-wespeaker-name"),
+            purpose: t!("setup-comp-wespeaker-purpose"),
             requirement: Requirement::Recommended,
             delivery: Delivery::Download,
-            size: 1_331_548_084,
+            size: 26_530_309,
             files: &[
-                FileSpec { url: "https://huggingface.co/immich-app/buffalo_l/resolve/d09715916a0778919a770c343533641e250b8699/detection/model.onnx", dest_rel: "models/faces/det_10g.onnx", size: 16_923_827, sha256: "5838f7fe053675b1c7a08b633df49e7af5495cee0493c7dcf6697200b85b5b91", extract: Extract::None },
-                FileSpec { url: "https://huggingface.co/bytedance-research/LVFace/resolve/b12702ab1f5c721748e054a66dc90e1edd1f0724/LVFace-L_Glint360K/LVFace-L_Glint360K.onnx", dest_rel: "models/faces/LVFace-L_Glint360K.onnx", size: 1_022_938_188, sha256: "49389036a4a5b69e0efcddfe34839ac72c7a71ce6b4dc1b6821e2ac368c87063", extract: Extract::None },
-                FileSpec { url: "https://huggingface.co/deepghs/ccip_onnx/resolve/eb2acdd29af1703388d3d0c04221add322bc9110/ccip-caformer-24-randaug-pruned/model_feat.onnx", dest_rel: "models/faces/ccip/model_feat.onnx", size: 150_248_245, sha256: "4ea118d16496274f4f6e08d3afc768cc592389e8f7f32f8732ce2215c228ac5f", extract: Extract::None },
-                FileSpec { url: "https://huggingface.co/deepghs/anime_face_detection/resolve/784dc4c0bb692351ddcdbe6131a050b17d3025d5/face_detect_v1.4_s/model.onnx", dest_rel: "models/faces/anime_face/model.onnx", size: 44_583_229, sha256: "403b5bc93b6ff789b7d183418df4a1364049bac00c24acd927604a7ff6891483", extract: Extract::None },
-                FileSpec { url: "https://huggingface.co/facefusion/models-3.1.0/resolve/c9e3a503d8e84e91c5cd89ee2d510fe5e793e570/xseg_1.onnx", dest_rel: "models/faces/occluder/xseg_1.onnx", size: 70_324_286, sha256: "c4d1498b8a03b5fe2a3a5d2ef2a0402ab03bd51edaf5b2d8d5fb764702a97dd3", extract: Extract::None },
                 FileSpec { url: "https://huggingface.co/Wespeaker/wespeaker-voxceleb-resnet34-LM/resolve/f0c48c298fd835726c27956a5d617bad7115627e/voxceleb_resnet34_LM.onnx", dest_rel: "models/faces/wespeaker/voxceleb_resnet34_LM.onnx", size: 26_530_309, sha256: "7bb2f06e9df17cdf1ef14ee8a15ab08ed28e8d0ef5054ee135741560df2ec068", extract: Extract::None },
             ],
-            markers: &[
-                Marker { rel: "models/faces/det_10g.onnx", expect: 16_923_827 },
-                Marker { rel: "models/faces/LVFace-L_Glint360K.onnx", expect: 1_022_938_188 },
-                Marker { rel: "models/faces/ccip/model_feat.onnx", expect: 150_248_245 },
-                Marker { rel: "models/faces/anime_face/model.onnx", expect: 44_583_229 },
-                Marker { rel: "models/faces/occluder/xseg_1.onnx", expect: 70_324_286 },
-                Marker { rel: "models/faces/wespeaker/voxceleb_resnet34_LM.onnx", expect: 26_530_309 },
-            ],
+            markers: &[Marker { rel: "models/faces/wespeaker/voxceleb_resnet34_LM.onnx", expect: 26_530_309 }],
             external_url: None,
         },
         // ── СAЙДКАРЫ / ДВИЖКИ ───────────────────────────────────────────────
@@ -1013,22 +995,6 @@ pub fn manifest() -> Vec<Component> {
                 Marker { rel: "models/higgs-engine/VCRUNTIME140.dll", expect: 0 },
                 Marker { rel: "models/higgs-engine/VCRUNTIME140_1.dll", expect: 0 },
                 Marker { rel: "models/higgs-engine/VCOMP140.DLL", expect: 0 },
-            ],
-            external_url: None,
-        },
-        Component {
-            id: "ocr",
-            name: t!("setup-comp-ocr-name"),
-            purpose: t!("setup-comp-ocr-purpose"),
-            requirement: Requirement::Recommended,
-            delivery: Delivery::Bundled,
-            size: 31_726_193,
-            files: &[],
-            markers: &[
-                Marker { rel: "models/ocr/det.onnx", expect: 0 },
-                Marker { rel: "models/ocr/cls.onnx", expect: 0 },
-                Marker { rel: "models/ocr/rec_cyrillic.onnx", expect: 0 },
-                Marker { rel: "models/ocr/rec_cyrillic.dict.txt", expect: 0 },
             ],
             external_url: None,
         },
@@ -3387,7 +3353,7 @@ mod tests {
     #[test]
     fn removal_refuses_what_the_app_does_not_install() {
         let root = temp_root("refuse");
-        assert_eq!(remove_components(&root, &["ocr".to_string()]).unwrap_err().code, "not_removable");
+        assert_eq!(remove_components(&root, &["vcruntime".to_string()]).unwrap_err().code, "not_removable");
         assert_eq!(remove_components(&root, &["nvidia-driver".to_string()]).unwrap_err().code, "not_removable");
         assert_eq!(remove_components(&root, &["nope".to_string()]).unwrap_err().code, "unknown_component");
         let _busy = try_claim(&["whisper-small".to_string()]).unwrap();
@@ -3459,9 +3425,9 @@ mod tests {
 
     #[test]
     fn all_installed_on_this_machine() {
-        // Манифест против реального диска. repo_root — из DUB_STUDIO_ROOT (задаётся в CI/приёмке), иначе
+        // Манифест против реального диска. repo_root — из SPEECH_STUDIO_ROOT (задаётся в CI/приёмке), иначе
         // CARGO_MANIFEST_DIR/../..; без models/ тест пропускается.
-        let repo_root = std::env::var("DUB_STUDIO_ROOT")
+        let repo_root = std::env::var("SPEECH_STUDIO_ROOT")
             .map(std::path::PathBuf::from)
             .unwrap_or_else(|_| {
                 std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("..")

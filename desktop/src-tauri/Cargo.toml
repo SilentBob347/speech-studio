@@ -1,11 +1,11 @@
 [package]
-name = "dub-studio-desktop"
+name = "speech-studio-desktop"
 version = "4.2.2"
 edition = "2021"
-description = "Tauri-оболочка Dub Studio: поднимает dub-server на 127.0.0.1:8793 (DUB_STUDIO_PORT) и открывает окно"
+description = "Tauri-оболочка Speech Studio: поднимает speech-server на 127.0.0.1:8797 (SPEECH_STUDIO_PORT) и открывает окно"
 
 [lib]
-name = "dub_studio_desktop_lib"
+name = "speech_studio_desktop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -20,8 +20,8 @@ tauri-plugin-single-instance = "2"  # второй запуск отдаёт ф�
 rfd = "0.17"                 # диалог ошибки старта, когда окна Tauri ещё нет
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-# axum-бэкенд встроен В ЭТОТ ЖЕ процесс (один exe, без dub-server.exe-сайдкара): serve_blocking с фонового потока.
-dub-server = { path = "../../crates/dub-server" }
+# axum-бэкенд встроен В ЭТОТ ЖЕ процесс (один exe, без speech-server.exe-сайдкара): serve_blocking с фонового потока.
+speech-server = { path = "../../crates/speech-server" }
 
 [profile.dev]
 debug = "line-tables-only"
