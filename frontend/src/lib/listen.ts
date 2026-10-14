@@ -148,5 +148,6 @@ export function newSpeaker(speakers: Record<string, string>, name: (n: number) =
   return [String(n), name(n + 1)];
 }
 
-export const SPEAKER_COLORS = ["#4cc2ff", "#ffc46b", "#7ee0c3", "#ff8fb1", "#b8a4ff", "#ff6b6b", "#9be15d", "#f0a6ff"];
+// readable on both themes: each hue is mixed with the theme's text colour
+export const SPEAKER_COLORS = ["color-mix(in oklab, #4cc2ff 60%, var(--color-text))", "color-mix(in oklab, #ffc46b 60%, var(--color-text))", "color-mix(in oklab, #7ee0c3 60%, var(--color-text))", "color-mix(in oklab, #ff8fb1 60%, var(--color-text))", "color-mix(in oklab, #b8a4ff 60%, var(--color-text))", "color-mix(in oklab, #ff6b6b 60%, var(--color-text))", "color-mix(in oklab, #9be15d 60%, var(--color-text))", "color-mix(in oklab, #f0a6ff 60%, var(--color-text))"];
 export const speakerColor = (key: string) => SPEAKER_COLORS[(Number.parseInt(key, 10) || 0) % SPEAKER_COLORS.length];

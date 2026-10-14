@@ -98,7 +98,12 @@
     "modelsDir": "Models and settings",
     "copyPath": "Copy path",
     "copied": "Copied",
-    "pathsFailed": "Couldn't get the data folder: {{error}}"
+    "pathsFailed": "Couldn't get the data folder: {{error}}",
+    "theme": "Theme",
+    "themeHint": "Dark, light, or as the system is",
+    "theme_system": "As the system",
+    "theme_dark": "Dark",
+    "theme_light": "Light"
   },
   "offline": {
     "title": "The studio service isn't responding",

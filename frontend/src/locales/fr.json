@@ -98,7 +98,12 @@
     "modelsDir": "Modèles et paramètres",
     "copyPath": "Copier le chemin",
     "copied": "Copié",
-    "pathsFailed": "Impossible d'obtenir le dossier de données : {{error}}"
+    "pathsFailed": "Impossible d'obtenir le dossier de données : {{error}}",
+    "theme": "Thème",
+    "themeHint": "Sombre, clair ou comme le système",
+    "theme_system": "Comme le système",
+    "theme_dark": "Sombre",
+    "theme_light": "Clair"
   },
   "offline": {
     "title": "Le service du studio ne répond pas",

@@ -133,7 +133,8 @@ export const activeTake = (b: Block): Take | null => (b.active == null ? null : 
 
 export const newId = () => crypto.randomUUID().replace(/-/g, "").slice(0, 10);
 
-export const SPEAKER_TINTS = ["#4cc2ff", "#f7a8c8", "#7ee0c3", "#ffc46b", "#b8a4ff", "#ff8b6b", "#a5b8ff", "#9be36e"];
+// readable on both themes: each hue is mixed with the theme's text colour
+export const SPEAKER_TINTS = ["color-mix(in oklab, #4cc2ff 60%, var(--color-text))", "color-mix(in oklab, #f7a8c8 60%, var(--color-text))", "color-mix(in oklab, #7ee0c3 60%, var(--color-text))", "color-mix(in oklab, #ffc46b 60%, var(--color-text))", "color-mix(in oklab, #b8a4ff 60%, var(--color-text))", "color-mix(in oklab, #ff8b6b 60%, var(--color-text))", "color-mix(in oklab, #a5b8ff 60%, var(--color-text))", "color-mix(in oklab, #9be36e 60%, var(--color-text))"];
 
 /** Words of a stress pass a person may want to choose: every homograph (the unsure ones first) and е/ё pairs. */
 export const stressDoubts = (words: StressWord[]) =>

@@ -98,7 +98,12 @@
     "modelsDir": "Modelos y ajustes",
     "copyPath": "Copiar ruta",
     "copied": "Copiado",
-    "pathsFailed": "No se pudo obtener la carpeta de datos: {{error}}"
+    "pathsFailed": "No se pudo obtener la carpeta de datos: {{error}}",
+    "theme": "Tema",
+    "themeHint": "Oscuro, claro o como el sistema",
+    "theme_system": "Como el sistema",
+    "theme_dark": "Oscuro",
+    "theme_light": "Claro"
   },
   "offline": {
     "title": "El servicio del estudio no responde",

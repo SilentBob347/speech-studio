@@ -98,7 +98,12 @@
     "modelsDir": "Modelos e configurações",
     "copyPath": "Copiar caminho",
     "copied": "Copiado",
-    "pathsFailed": "Não foi possível obter a pasta de dados: {{error}}"
+    "pathsFailed": "Não foi possível obter a pasta de dados: {{error}}",
+    "theme": "Tema",
+    "themeHint": "Escuro, claro ou como o sistema",
+    "theme_system": "Como o sistema",
+    "theme_dark": "Escuro",
+    "theme_light": "Claro"
   },
   "offline": {
     "title": "O serviço do estúdio não está respondendo",
