@@ -189,7 +189,7 @@ pub fn qwen() -> Engine {
         streaming: true,
         deterministic_seed: true,
         max_chars: 400,
-        reads: Reads { stress: false, yo: true, phonemes: false, accent: false },
+        reads: Reads { stress: true, yo: true, phonemes: false, accent: false },
         presets: crate::qwen_tts::SPEAKERS.iter().map(|(id, name, gender, native)| Preset { id, name, gender, native }).collect(),
         unavailable: None,
     }

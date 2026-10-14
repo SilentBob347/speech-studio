@@ -172,6 +172,12 @@ pub fn dir(models_root: &Path) -> PathBuf {
     models_root.join(DIR)
 }
 
+/// Whether the cloning talker reads the U+0301 stress marks: only a Base trained to follow them does (the stock one
+/// misreads the mark); none of the shipped talkers is such yet.
+pub fn follows_stress(_models_root: &Path) -> bool {
+    false
+}
+
 pub fn talker(models_root: &Path, quant: &str, clone: bool) -> Option<PathBuf> {
     QUANTS.iter().find(|(q, _, _)| *q == quant).map(|(_, custom, base)| dir(models_root).join(if clone { base } else { custom }))
 }

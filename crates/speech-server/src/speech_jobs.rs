@@ -307,6 +307,12 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
             Piece::Rate(r) => rate = r,
             Piece::Say(text) => {
                 let (say, ig) = stx::for_engine(&text, lang, &project.settings.engine);
+                // stress marks reach only a talker trained to follow them; the others misread the mark itself
+                let say = if project.settings.engine == crate::qwen_tts::ENGINE && !(preset.is_none() && crate::qwen_tts::follows_stress(&p.models_root)) {
+                    say.replace('\u{301}', "")
+                } else {
+                    say
+                };
                 ignored.accent |= ig.accent;
                 ignored.phonemes |= ig.phonemes;
                 ignored.stress |= ig.stress;

@@ -110,7 +110,12 @@ pub fn pieces(text: &str) -> Vec<Piece> {
 
 /// Фраза для движка проекта: у каждого своя разметка экспрессии.
 pub fn for_engine(say: &str, lang: &str, engine: &str) -> (String, Ignored) {
-    if engine == crate::models::DRAMA_TTS { for_drama(say, lang) } else { for_higgs(say, lang) }
+    match engine {
+        crate::models::DRAMA_TTS => for_drama(say, lang),
+        crate::qwen_tts::ENGINE => for_plain(say, lang, true),
+        crate::supertonic::ENGINE => for_plain(say, lang, false),
+        _ => for_higgs(say, lang),
+    }
 }
 
 /// Точечный тег Drama 3: событие в квадратных скобках по месту — `[laughs]`, `[sighs]`.
@@ -193,6 +198,43 @@ pub fn for_higgs(say: &str, lang: &str) -> (String, Ignored) {
     (text, ignored)
 }
 
+
+/// Фраза для движка без своей разметки (Supertonic, Qwen3-TTS): теги, фонемы и выделение снимаются, что снято — в
+/// `Ignored`. С `acute` ударение «+» перед гласной становится знаком U+0301 после неё — так его читает Qwen3-TTS.
+pub fn for_plain(say: &str, lang: &str, acute: bool) -> (String, Ignored) {
+    let mut ignored = Ignored::default();
+    let t = ACCENT.replace_all(say, |c: &regex::Captures| {
+        ignored.accent = true;
+        c[1].to_string()
+    });
+    let t = ACCENT_MARK.replace_all(&t, |_: &regex::Captures| {
+        ignored.accent = true;
+        String::new()
+    });
+    let t = PHONEMES.replace_all(&t, |c: &regex::Captures| {
+        ignored.phonemes = true;
+        c[1].to_string()
+    });
+    let t = STRESS.replace_all(&t, |c: &regex::Captures| {
+        if acute {
+            format!("{}\u{E002}", &c[1])
+        } else {
+            ignored.stress = true;
+            c[1].to_string()
+        }
+    });
+    let t = ANGLE.replace_all(&t, |c: &regex::Captures| {
+        ignored.unknown_tags.push(c[0].to_string());
+        String::new()
+    });
+    let t = DRAMA_TAG.replace_all(&t, |c: &regex::Captures| {
+        ignored.unknown_tags.push(c[0].to_string());
+        String::new()
+    });
+    let cleaned = crate::tts_text::tts_text(&t, &t, lang, &[]);
+    (cleaned.text.replace('\u{E002}', "\u{301}"), ignored)
+}
+
 /// Есть ли в тексте ручные ударения `+`.
 pub fn has_stress(text: &str) -> bool {
     STRESS.is_match(text)
@@ -217,6 +259,18 @@ mod tests {
         assert!(text.contains("[laughs]") && text.contains("[sighs]"), "{text}");
         assert!(!text.contains("<|") && !text.contains('+'), "{text}");
         assert!(ig.stress && ig.unknown_tags == vec!["<|emotion:awe|>".to_string()]);
+    }
+
+
+    #[test]
+    fn qwen_reads_stress_as_an_acute_after_the_vowel_and_supertonic_gets_plain_text() {
+        let (q, ignored) = for_engine("Он зашёл в з+амок <|emotion:happy|> [laughs] сразу.", "ru", crate::qwen_tts::ENGINE);
+        assert!(q.contains("за\u{301}мок"), "{q}");
+        assert!(!q.contains('+') && !q.contains("<|") && !q.contains("[laughs]"), "{q}");
+        assert!(!ignored.stress && ignored.unknown_tags.len() == 2, "{ignored:?}");
+        let (s, ignored) = for_engine("Он зашёл в з+амок <|emotion:happy|>.", "ru", crate::supertonic::ENGINE);
+        assert!(s.contains("замок") && !s.contains('\u{301}') && !s.contains('+') && !s.contains("<|"), "{s}");
+        assert!(ignored.stress);
     }
 
     use super::*;
