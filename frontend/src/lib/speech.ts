@@ -49,13 +49,17 @@ export type SpeechProject = {
   status?: Record<string, { state: BlockState; key: string; fit?: "fits" | "tight" | "impossible" }>;
 };
 export type ProjectCard = { pid: string; kind: string; name: string; mtime: number; created?: number; blocks?: number; ready?: number };
-export type ExportFormat = "wav" | "flac" | "mp3" | "ogg" | "m4a";
-export const EXPORT_FORMATS: ExportFormat[] = ["wav", "flac", "mp3", "ogg", "m4a"];
+export type ExportFormat = "wav" | "flac" | "mp3" | "ogg" | "m4a" | "m4b";
+export const EXPORT_FORMATS: ExportFormat[] = ["wav", "flac", "mp3", "ogg", "m4a", "m4b"];
 export type StressWord = {
   start: number; end: number; word: string; source: "manual" | "dictionary" | "model" | "omograph" | "yo";
   variants?: [string, number][]; doubt: boolean; yo_choice?: string;
 };
 export type StressResult = { text: string; words: StressWord[]; russian: boolean };
+export type BookPreview = {
+  id: string; title: string; author: string; lang: string; cover: boolean;
+  chapters: { index: number; title: string; chars: number; est_secs: number; head: string; skip: "cover" | "front" | "toc" | "empty" | null }[];
+};
 export type ExportProblem = { block: string; state: BlockState | "missing" };
 
 export const speechApi = {
@@ -77,6 +81,14 @@ export const speechApi = {
     form.append("file", file, file.name);
     return fetch(`${BASE}/projects/from-subtitles`, { method: "POST", body: form }).then(coded<{ project_id: string; project: SpeechProject }>);
   },
+  bookPreview: (file: File) => {
+    const form = new FormData();
+    form.append("file", file, file.name);
+    return fetch(`${BASE}/books/preview`, { method: "POST", body: form }).then(coded<BookPreview>);
+  },
+  bookChapter: (id: string, index: number) => getCoded<{ title: string; text: string }>(`/books/${id}/chapters/${index}`),
+  fromBook: (body: { id: string; name?: string; voice: string | null; chapters: { index: number; title?: string; text?: string }[] }) =>
+    postCoded<{ project_id: string; project: SpeechProject }>("/projects/from-book", body),
   pack: (pid: string, audio: boolean) => postCoded<{ file: string; bytes: number }>(`/projects/${pid}/package`, { audio }),
   importPackage: (file: File) => {
     const form = new FormData();

@@ -57,6 +57,7 @@ mod prep;
 mod dict_api;
 mod engines;
 mod speechproj;
+mod book_import;
 mod tts_host;
 mod url_import;
 mod voice_api;
@@ -465,6 +466,9 @@ pub fn build_router(state: AppState) -> Router {
         .route("/projects/{pid}/package", post(speech_api::package))
         .route("/speechproj/import", post(speech_api::import_package))
         .route("/projects/from-subtitles", post(speech_api::from_subtitles))
+        .route("/books/preview", post(speech_api::book_preview))
+        .route("/books/{id}/chapters/{index}", get(speech_api::book_chapter))
+        .route("/projects/from-book", post(speech_api::from_book))
         .route("/projects/{pid}/export-check", get(speech_api::export_check))
         .route("/projects/{pid}/save-export", post(speech_api::save_export))
         .route("/projects/{pid}/takes/{file}", get(speech_api::take_file))

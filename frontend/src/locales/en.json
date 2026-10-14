@@ -974,7 +974,9 @@
     "maxStretchHint": "How much a take may be sped up to fit its line (1.25 as in Dub Studio)",
     "leadIntoSilence": "Start earlier into silence",
     "saveSubs": "Subtitles .srt",
-    "subsHint": "Subtitles with the times where each block sounds in the file"
+    "subsHint": "Subtitles with the times where each block sounds in the file",
+    "saveChapters": "Chapter list",
+    "chaptersHint": "HH:MM:SS<TAB>Title for platforms without chapters"
   },
   "tags": {
     "emotion": "Emotion",
@@ -1097,5 +1099,26 @@
     "replaceAll": "Replace all",
     "count": "Found: {{n}} · blocks: {{blocks}}",
     "badRegex": "The regular expression is broken"
+  },
+  "book": {
+    "open": "From a book",
+    "openHint": "EPUB, FB2, PDF, DOCX, HTML, MD or TXT: chapters are found, the cover, title page and contents are left out",
+    "title": "Book structure",
+    "all": "All",
+    "suggested": "As suggested",
+    "voiceIt": "Voice this chapter",
+    "untitled": "Untitled",
+    "chapterTitle": "Chapter title",
+    "chapterText": "Chapter text",
+    "editText": "Edit the text",
+    "skipHint": "Likely not for voicing",
+    "skip_cover": "cover",
+    "skip_front": "front matter",
+    "skip_toc": "contents",
+    "skip_empty": "empty",
+    "summary": "Chapters: {{n}} of {{of}} · about {{time}}",
+    "create": "Create the project",
+    "minutes": "{{m}} min",
+    "hours": "{{h}} h {{m}} min"
   }
 }

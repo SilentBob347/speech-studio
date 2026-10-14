@@ -974,7 +974,9 @@
     "maxStretchHint": "Cuánto puede acelerarse una toma para caber en su línea (1,25 como en Dub Studio)",
     "leadIntoSilence": "Empezar antes, en el silencio",
     "saveSubs": "Subtítulos .srt",
-    "subsHint": "Subtítulos con los tiempos en que suena cada bloque en el archivo"
+    "subsHint": "Subtítulos con los tiempos en que suena cada bloque en el archivo",
+    "saveChapters": "Lista de capítulos",
+    "chaptersHint": "HH:MM:SS<TAB>Título para plataformas sin capítulos"
   },
   "tags": {
     "emotion": "Emoción",
@@ -1097,5 +1099,26 @@
     "replaceAll": "Reemplazar todo",
     "count": "Encontrado: {{n}} · bloques: {{blocks}}",
     "badRegex": "La expresión regular tiene un error"
+  },
+  "book": {
+    "open": "Desde un libro",
+    "openHint": "EPUB, FB2, PDF, DOCX, HTML, MD o TXT: se encuentran los capítulos y se omiten la portada, la portadilla y el índice",
+    "title": "Estructura del libro",
+    "all": "Todos",
+    "suggested": "Como se sugiere",
+    "voiceIt": "Locutar este capítulo",
+    "untitled": "Sin título",
+    "chapterTitle": "Título del capítulo",
+    "chapterText": "Texto del capítulo",
+    "editText": "Editar el texto",
+    "skipHint": "Probablemente no es para locutar",
+    "skip_cover": "portada",
+    "skip_front": "portadilla",
+    "skip_toc": "índice",
+    "skip_empty": "vacío",
+    "summary": "Capítulos: {{n}} de {{of}} · unos {{time}}",
+    "create": "Crear el proyecto",
+    "minutes": "{{m}} min",
+    "hours": "{{h}} h {{m}} min"
   }
 }

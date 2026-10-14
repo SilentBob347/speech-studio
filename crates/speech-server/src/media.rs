@@ -3,7 +3,7 @@
 
 use serde_json::Value;
 use std::ffi::{OsStr, OsString};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
 #[cfg(windows)]
@@ -1081,22 +1081,77 @@ mod lossless_tests {
 }
 
 /// Форматы экспорта и их кодеки: `acx` — MP3 192 кбит/с CBR 44,1 кГц, как требует ACX.
-pub const EXPORT_FORMATS: [&str; 5] = ["wav", "flac", "mp3", "ogg", "m4a"];
+pub const EXPORT_FORMATS: [&str; 6] = ["wav", "flac", "mp3", "ogg", "m4a", "m4b"];
+
+/// Что записать в файл экспорта: теги, главы (начало, конец в секундах, название) и обложка.
+#[derive(Default, Debug, Clone)]
+pub struct AudioMeta {
+    pub title: String,
+    pub artist: String,
+    pub album: String,
+    pub comment: String,
+    pub genre: String,
+    pub chapters: Vec<(f64, f64, String)>,
+    pub cover: Option<PathBuf>,
+}
+
+/// Значение ffmetadata: `= ; # \` и перевод строки экранируются обратной косой.
+fn ffmeta_escape(v: &str) -> String {
+    let mut out = String::with_capacity(v.len());
+    for c in v.chars() {
+        if matches!(c, '=' | ';' | '#' | '\\' | '\n') {
+            out.push('\\');
+        }
+        out.push(c);
+    }
+    out
+}
+
+fn ffmetadata(meta: &AudioMeta) -> String {
+    let mut s = String::from(";FFMETADATA1\n");
+    for (k, v) in [("title", &meta.title), ("artist", &meta.artist), ("album", &meta.album), ("comment", &meta.comment), ("genre", &meta.genre)] {
+        if !v.is_empty() {
+            s.push_str(&format!("{k}={}\n", ffmeta_escape(v)));
+        }
+    }
+    for (a, z, title) in &meta.chapters {
+        s.push_str(&format!("[CHAPTER]\nTIMEBASE=1/1000\nSTART={}\nEND={}\ntitle={}\n", (a * 1000.0).round() as u64, (z * 1000.0).round() as u64, ffmeta_escape(title)));
+    }
+    s
+}
 
 pub fn encode_audio(src: &Path, dst: &Path, format: &str, acx: bool) -> Result<(), String> {
+    encode_audio_meta(src, dst, format, acx, &AudioMeta::default())
+}
+
+/// Закодировать звук в формат экспорта с тегами; у M4B и M4A — ещё главы и обложка.
+pub fn encode_audio_meta(src: &Path, dst: &Path, format: &str, acx: bool, meta: &AudioMeta) -> Result<(), String> {
     let codec: &[&str] = match format {
         "wav" => &["-c:a", "pcm_s16le"],
         "flac" => &["-c:a", "flac"],
         "mp3" if acx => &["-c:a", "libmp3lame", "-b:a", "192k", "-ar", "44100"],
         "mp3" => &["-c:a", "libmp3lame", "-q:a", "2"],
         "ogg" => &["-c:a", "libvorbis", "-q:a", "6"],
-        "m4a" => &["-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart"],
+        "m4a" | "m4b" => &["-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart"],
         other => return Err(t!("media-bad-format", format = other.to_string())),
     };
+    let work = tempfile::Builder::new().prefix("meta-").tempdir().map_err(|e| e.to_string())?;
+    let meta_file = work.path().join("meta.txt");
+    std::fs::write(&meta_file, ffmetadata(meta)).map_err(|e| e.to_string())?;
+    let mp4 = matches!(format, "m4a" | "m4b");
+    let cover = meta.cover.as_ref().filter(|c| c.is_file() && matches!(format, "m4a" | "m4b" | "mp3" | "flac"));
     dub_core::atomic::write_with(dst, |tmp| {
-        let mut args: Vec<&OsStr> = vec![OsStr::new("-y"), OsStr::new("-i"), src.as_os_str(), OsStr::new("-vn"), OsStr::new("-af"), OsStr::new("aformat=channel_layouts=mono")];
+        let mut args: Vec<&OsStr> = vec![OsStr::new("-y"), OsStr::new("-i"), src.as_os_str(), OsStr::new("-i"), meta_file.as_os_str()];
+        if let Some(c) = cover {
+            args.extend([OsStr::new("-i"), c.as_os_str()]);
+        }
+        args.extend([OsStr::new("-map"), OsStr::new("0:a"), OsStr::new("-map_metadata"), OsStr::new("1"), OsStr::new("-map_chapters"), OsStr::new("1")]);
+        if cover.is_some() {
+            args.extend([OsStr::new("-map"), OsStr::new("2:v"), OsStr::new("-c:v"), OsStr::new(if mp4 { "copy" } else { "mjpeg" }), OsStr::new("-disposition:v:0"), OsStr::new("attached_pic")]);
+        }
+        args.extend([OsStr::new("-af"), OsStr::new("aformat=channel_layouts=mono")]);
         args.extend(codec.iter().map(OsStr::new));
-        args.extend([OsStr::new("-f"), OsStr::new(match format { "m4a" => "ipod", "ogg" => "ogg", f => f })]);
+        args.extend([OsStr::new("-f"), OsStr::new(match format { "m4a" | "m4b" => "ipod", "ogg" => "ogg", f => f })]);
         args.push(tmp.as_os_str());
         run_ff(&args)
     })

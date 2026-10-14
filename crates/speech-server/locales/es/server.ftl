@@ -976,3 +976,7 @@ speechproj-engine-missing = El proyecto necesita el motor { $engine }, que este 
 speechproj-asset-missing = Al archivo de proyecto le falta { $path }
 speechproj-asset-damaged = { $path } en el archivo de proyecto está dañado (el tamaño o el SHA-256 no coinciden)
 speech-subs-empty = No se encontraron líneas con tiempos en { $name } (se leen SRT, VTT y ASS)
+book-unknown-format = { $name }: los libros se leen de EPUB, FB2, PDF, DOCX, HTML, MD y TXT
+book-empty = No se encontró texto en { $name }
+book-damaged = El archivo del libro está dañado o no es lo que dice su nombre: { $detail }
+speech-chapter-n = Capítulo { $n }

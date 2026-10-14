@@ -18,7 +18,7 @@ export const ALLOW: Allow = {
  * spelled the same in the language. "*" applies to every language.
  */
 export const SAME_AS_EN: Record<"*" | "ru" | "zh" | "es" | "pt" | "fr", string[]> = {
-  "*": ["speech.takeWer", "modes.speech", "modes.listening", "app.name", "asrVariant.int8", "asrVariant.fp32", "asrVariant.ultra", "asrVariant.ultraInt8", "jobs.atStage", "downloads.speed", "providers.localGemma", "providers.serverUrlPlaceholder", "url.qHeight", "url.tool.version", "dict.kind_regex"],
+  "*": ["speech.takeWer", "modes.speech", "modes.listening", "app.name", "asrVariant.int8", "asrVariant.fp32", "asrVariant.ultra", "asrVariant.ultraInt8", "jobs.atStage", "downloads.speed", "providers.localGemma", "providers.serverUrlPlaceholder", "url.qHeight", "url.tool.version", "dict.kind_regex", "book.minutes", "book.hours"],
   ru: [],
   zh: ["units.gb", "units.mb", "units.kb", "units.b"],
   es: [

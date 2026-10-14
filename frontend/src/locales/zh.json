@@ -974,7 +974,9 @@
     "maxStretchHint": "为放进台词可将版本加速多少（1.25，同 Dub Studio）",
     "leadIntoSilence": "提前到静音处开始",
     "saveSubs": "字幕 .srt",
-    "subsHint": "带有每个文本块在文件中响起时间的字幕"
+    "subsHint": "带有每个文本块在文件中响起时间的字幕",
+    "saveChapters": "章节列表",
+    "chaptersHint": "HH:MM:SS<TAB>标题，用于不支持章节的平台"
   },
   "tags": {
     "emotion": "情绪",
@@ -1097,5 +1099,26 @@
     "replaceAll": "全部替换",
     "count": "找到：{{n}} · 文本块：{{blocks}}",
     "badRegex": "正则表达式有误"
+  },
+  "book": {
+    "open": "从书籍",
+    "openHint": "EPUB、FB2、PDF、DOCX、HTML、MD 或 TXT：自动识别章节，跳过封面、扉页和目录",
+    "title": "书籍结构",
+    "all": "全部",
+    "suggested": "按建议",
+    "voiceIt": "为此章配音",
+    "untitled": "无标题",
+    "chapterTitle": "章节标题",
+    "chapterText": "章节文本",
+    "editText": "编辑文本",
+    "skipHint": "可能不需要配音",
+    "skip_cover": "封面",
+    "skip_front": "扉页",
+    "skip_toc": "目录",
+    "skip_empty": "空",
+    "summary": "章节：{{n}} / {{of}} · 约 {{time}}",
+    "create": "创建项目",
+    "minutes": "{{m}} 分钟",
+    "hours": "{{h}} 小时 {{m}} 分钟"
   }
 }

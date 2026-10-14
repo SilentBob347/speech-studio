@@ -139,11 +139,21 @@ pub struct SpeechProject {
     pub chapters: Vec<Chapter>,
     /// Словарь произношения проекта: срабатывает раньше глобального.
     pub dictionary: Vec<crate::pron_dict::Entry>,
+    /// Проект из книги: название, автор и файл обложки в папке проекта — в метаданные и обложку аудиокниги.
+    pub book: Option<BookMeta>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+#[serde(default)]
+pub struct BookMeta {
+    pub title: String,
+    pub author: String,
+    pub cover: Option<String>,
 }
 
 impl Default for SpeechProject {
     fn default() -> Self {
-        SpeechProject { kind: KIND.into(), version: 1, name: String::new(), created: 0, settings: Settings::default(), cast: BTreeMap::new(), chapters: Vec::new(), dictionary: Vec::new() }
+        SpeechProject { kind: KIND.into(), version: 1, name: String::new(), created: 0, settings: Settings::default(), cast: BTreeMap::new(), chapters: Vec::new(), dictionary: Vec::new(), book: None }
     }
 }
 

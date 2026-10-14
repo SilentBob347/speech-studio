@@ -778,3 +778,7 @@ speechproj-engine-missing = 项目需要 { $engine } 引擎，本工作室没有
 speechproj-asset-missing = 项目文件缺少 { $path }
 speechproj-asset-damaged = 项目文件中的 { $path } 已损坏（大小或 SHA-256 不符）
 speech-subs-empty = 在 { $name } 中没有找到带时间轴的台词（支持 SRT、VTT 和 ASS）
+book-unknown-format = { $name }：支持从 EPUB、FB2、PDF、DOCX、HTML、MD 和 TXT 读取书籍
+book-empty = 在 { $name } 中没有找到文本
+book-damaged = 书籍文件已损坏或与扩展名不符：{ $detail }
+speech-chapter-n = 第 { $n } 章

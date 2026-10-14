@@ -1002,3 +1002,7 @@ speechproj-engine-missing = Проекту нужен движок { $engine }, 
 speechproj-asset-missing = В файле проекта нет { $path }
 speechproj-asset-damaged = { $path } в файле проекта повреждён (не сходится размер или SHA-256)
 speech-subs-empty = В { $name } не нашлось реплик с таймингом (читаются SRT, VTT и ASS)
+book-unknown-format = { $name }: книги читаются из EPUB, FB2, PDF, DOCX, HTML, MD и TXT
+book-empty = В { $name } не нашлось текста
+book-damaged = Файл книги повреждён или не то, что сказано в его имени: { $detail }
+speech-chapter-n = Глава { $n }

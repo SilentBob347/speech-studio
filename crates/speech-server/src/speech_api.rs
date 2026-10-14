@@ -374,3 +374,131 @@ pub async fn from_subtitles(State(st): State<AppState>, mut multipart: axum::ext
         Err(r) => r,
     }
 }
+
+fn import_dir(st: &AppState, id: &str) -> std::path::PathBuf {
+    st.workspace.join(".imports").join(id)
+}
+
+/// POST /books/preview (multipart `file`) — разобрать книгу и показать структуру до синтеза: главы с длиной,
+/// началом текста, оценкой длительности и пометкой «пропустить» (обложка, титул, оглавление).
+pub async fn book_preview(State(st): State<AppState>, mut multipart: axum::extract::Multipart) -> Response {
+    let mut got: Option<(String, Vec<u8>)> = None;
+    while let Ok(Some(field)) = multipart.next_field().await {
+        let name = field.file_name().unwrap_or("book.txt").to_string();
+        match field.bytes().await {
+            Ok(b) => got = Some((name, b.to_vec())),
+            Err(e) => return refuse(StatusCode::BAD_REQUEST, "bad_request", e.to_string()),
+        }
+    }
+    let Some((name, bytes)) = got else { return refuse(StatusCode::BAD_REQUEST, "bad_request", "no file") };
+    let id = sp::new_id();
+    let dir = import_dir(&st, &id);
+    let done = joined(
+        tokio::task::spawn_blocking(move || -> Result<Value, String> {
+            let book = crate::book_import::parse(&name, &bytes)?;
+            std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+            if let Some((cover, mime)) = &book.cover {
+                let ext = if mime.contains("png") { "png" } else { "jpg" };
+                std::fs::write(dir.join(format!("cover.{ext}")), cover).map_err(|e| e.to_string())?;
+            }
+            std::fs::write(dir.join("book.json"), serde_json::to_vec(&book).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+            let lang = book.lang.split(['-', '_']).next().unwrap_or("").to_lowercase();
+            let cps = dub_core::fit::table_cps(if lang.is_empty() { "ru" } else { &lang });
+            let chapters: Vec<Value> = book
+                .chapters
+                .iter()
+                .enumerate()
+                .map(|(i, c)| {
+                    let chars = c.text.chars().count();
+                    json!({ "index": i, "title": c.title, "chars": chars, "est_secs": dub_core::fit::estimate(&c.text, cps), "head": c.text.chars().take(240).collect::<String>(), "skip": c.skip })
+                })
+                .collect();
+            Ok(json!({ "id": id, "title": book.title, "author": book.author, "lang": lang, "cover": book.cover.is_some(), "chapters": chapters }))
+        })
+        .await,
+    );
+    match done {
+        Ok(Ok(v)) => Json(v).into_response(),
+        Ok(Err(e)) => refuse(StatusCode::BAD_REQUEST, "book-refused", e),
+        Err(r) => r,
+    }
+}
+
+/// GET /books/{id}/chapters/{index} — полный текст главы для правки в предпросмотре.
+pub async fn book_chapter(State(st): State<AppState>, AxPath((id, index)): AxPath<(String, usize)>) -> Response {
+    if !sp::is_pid(&id) {
+        return refuse(StatusCode::BAD_REQUEST, "bad_request", id);
+    }
+    let path = import_dir(&st, &id).join("book.json");
+    let book: Result<crate::book_import::Book, String> = std::fs::read(&path).map_err(|e| e.to_string()).and_then(|b| serde_json::from_slice(&b).map_err(|e| e.to_string()));
+    match book.ok().and_then(|b| b.chapters.into_iter().nth(index)) {
+        Some(c) => Json(json!({ "title": c.title, "text": c.text })).into_response(),
+        None => refuse(StatusCode::NOT_FOUND, "no_chapter", format!("{id}/{index}")),
+    }
+}
+
+#[derive(serde::Deserialize)]
+pub struct BookChoice {
+    index: usize,
+    #[serde(default)]
+    title: Option<String>,
+    #[serde(default)]
+    text: Option<String>,
+}
+
+#[derive(serde::Deserialize)]
+pub struct FromBook {
+    id: String,
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    voice: Option<String>,
+    chapters: Vec<BookChoice>,
+}
+
+/// POST /projects/from-book — проект из выбранных глав (с правками окна): глава книги — глава проекта.
+pub async fn from_book(State(st): State<AppState>, Json(req): Json<FromBook>) -> Response {
+    if !sp::is_pid(&req.id) || req.chapters.is_empty() {
+        return refuse(StatusCode::BAD_REQUEST, "bad_request", "id and chapters are needed");
+    }
+    let src = import_dir(&st, &req.id);
+    let p = paths(&st);
+    let done = joined(
+        tokio::task::spawn_blocking(move || -> Result<(String, Value), String> {
+            let book: crate::book_import::Book = serde_json::from_slice(&std::fs::read(src.join("book.json")).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+            let narrator = t!("speech-narrator");
+            let mut project = sp::SpeechProject { name: req.name.clone().filter(|n| !n.trim().is_empty()).unwrap_or_else(|| book.title.clone()), created: sp::now(), ..Default::default() };
+            project.settings.voice = req.voice.clone();
+            let lang = book.lang.split(['-', '_']).next().unwrap_or("").to_lowercase();
+            if crate::engines::get(&project.settings.engine).is_some_and(|e| e.languages.contains(&lang.as_str())) {
+                project.settings.lang = lang;
+            }
+            for choice in &req.chapters {
+                let Some(c) = book.chapters.get(choice.index) else { continue };
+                let text = choice.text.clone().unwrap_or_else(|| c.text.clone());
+                let blocks = sp::split_text(&text, &narrator)
+                    .into_iter()
+                    .map(|(speaker, text)| sp::Block { id: sp::new_id(), speaker, text, ..Default::default() })
+                    .collect();
+                project.chapters.push(sp::Chapter { id: sp::new_id(), title: choice.title.clone().unwrap_or_else(|| c.title.clone()), blocks });
+            }
+            let pid = sp::new_id();
+            let cover = ["cover.jpg", "cover.png"].into_iter().find(|f| src.join(f).is_file());
+            if let Some(f) = cover {
+                let dst = p.workspace.join(&pid);
+                std::fs::create_dir_all(&dst).map_err(|e| e.to_string())?;
+                std::fs::copy(src.join(f), dst.join(f)).map_err(|e| e.to_string())?;
+            }
+            project.book = Some(sp::BookMeta { title: book.title.clone(), author: book.author.clone(), cover: cover.map(str::to_string) });
+            sp::save(&p.workspace, &pid, &project)?;
+            let _ = std::fs::remove_dir_all(&src);
+            Ok((pid, shown(&p, &project)))
+        })
+        .await,
+    );
+    match done {
+        Ok(Ok((pid, project))) => Json(json!({ "project_id": pid, "project": project })).into_response(),
+        Ok(Err(e)) => refuse(StatusCode::BAD_REQUEST, "book-refused", e),
+        Err(r) => r,
+    }
+}

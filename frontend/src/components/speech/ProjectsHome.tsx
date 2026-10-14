@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AudioLines, Captions, FolderOpen, Loader2, Plus, Trash2 } from "lucide-react";
-import { speechApi, type ProjectCard } from "../../lib/speech";
+import { AudioLines, Captions, FolderOpen, Library, Loader2, Plus, Trash2 } from "lucide-react";
+import BookImport from "./BookImport";
+import { speechApi, type BookPreview, type ProjectCard } from "../../lib/speech";
 import { errorText } from "../../lib/voices";
 import { PROJECTS_CHANGED, useChanged } from "../../lib/mcpBridge";
 import { named } from "../../lib/a11y";
@@ -24,6 +25,13 @@ export default function ProjectsHome({ onOpen }: { onOpen: (pid: string) => void
   const [removing, setRemoving] = useState<ProjectCard | null>(null);
   const packFile = useRef<HTMLInputElement>(null);
   const subsFile = useRef<HTMLInputElement>(null);
+  const bookFile = useRef<HTMLInputElement>(null);
+  const [book, setBook] = useState<BookPreview | null>(null);
+  const openBook = async (f: File) => {
+    setBusy(true);
+    setError(null);
+    try { setBook(await speechApi.bookPreview(f)); } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
+  };
   const openSubs = async (f: File) => {
     setBusy(true);
     setError(null);
@@ -72,7 +80,9 @@ export default function ProjectsHome({ onOpen }: { onOpen: (pid: string) => void
         <section aria-labelledby="recent-title" className="space-y-2">
           <div className="flex items-center gap-2">
             <h2 id="recent-title" className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)]">{t("speech.recent")}</h2>
-            <button onClick={() => subsFile.current?.click()} disabled={busy} className="ml-auto inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--color-border)] text-[11px] hover:border-[var(--color-accent)] disabled:opacity-40" title={t("speech.fromSubsHint")}><Captions size={12} />{t("speech.fromSubs")}</button>
+            <button onClick={() => bookFile.current?.click()} disabled={busy} className="ml-auto inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--color-border)] text-[11px] hover:border-[var(--color-accent)] disabled:opacity-40" title={t("book.openHint")}><Library size={12} />{t("book.open")}</button>
+            <input ref={bookFile} type="file" accept=".epub,.fb2,.pdf,.docx,.html,.htm,.md,.txt" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void openBook(f); }} />
+            <button onClick={() => subsFile.current?.click()} disabled={busy} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--color-border)] text-[11px] hover:border-[var(--color-accent)] disabled:opacity-40" title={t("speech.fromSubsHint")}><Captions size={12} />{t("speech.fromSubs")}</button>
             <input ref={subsFile} type="file" accept=".srt,.vtt,.ass,.ssa" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void openSubs(f); }} />
             <button onClick={() => packFile.current?.click()} disabled={busy} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--color-border)] text-[11px] hover:border-[var(--color-accent)] disabled:opacity-40" title={t("speech.openPackHint")}><FolderOpen size={12} />{t("speech.openPack")}</button>
             <input ref={packFile} type="file" accept=".speechproj" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void openPack(f); }} />
@@ -96,6 +106,7 @@ export default function ProjectsHome({ onOpen }: { onOpen: (pid: string) => void
         <ConfirmDialog title={t("speech.deleteProject")} message={t("speech.deleteProjectMessage", { name: removing.name || t("speech.untitled") })} confirmLabel={t("speech.delete")} danger
           onCancel={() => setRemoving(null)} onConfirm={async () => { await speechApi.remove(removing.pid); setRemoving(null); load(); }} />
       )}
+      {book && <BookImport preview={book} onClose={() => setBook(null)} onCreated={(pid) => { setBook(null); onOpen(pid); }} />}
     </main>
   );
 }

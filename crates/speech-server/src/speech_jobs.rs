@@ -471,6 +471,8 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
     let mut marks = Vec::new();
     let mut prev_speaker: Option<&str> = None;
     let mut cues: Vec<(f64, f64, String, String)> = Vec::new();
+    let chapter_of: std::collections::HashMap<&str, usize> = project.chapters.iter().enumerate().flat_map(|(ci, c)| c.blocks.iter().map(move |b| (b.id.as_str(), ci))).collect();
+    let mut chapter_starts: Vec<(usize, f64)> = Vec::new();
     for (i, b) in blocks.iter().enumerate() {
         progress(json!({ "type": "progress", "stage": "speech_export", "msg": t!("speech-export-block", n = (i + 1) as i64, total = blocks.len() as i64), "pct": (i * 90 / blocks.len()) as i64 }));
         let take = b.active.and_then(|n| b.takes.iter().find(|t| t.n == n)).ok_or_else(|| t!("speech-export-not-ready", count = 1))?;
@@ -487,6 +489,11 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
             _ => cursor as usize,
         };
         marks.push(json!({ "block": b.id, "start": at as f64 / SR as f64, "end": (at + samples.len()) as f64 / SR as f64 }));
+        if let Some(ci) = chapter_of.get(b.id.as_str()) {
+            if chapter_starts.last().is_none_or(|(last, _)| last != ci) {
+                chapter_starts.push((*ci, at as f64 / SR as f64));
+            }
+        }
         cues.push((at as f64 / SR as f64, (at + samples.len()) as f64 / SR as f64, b.speaker.clone(), crate::speech_text::visible(&b.text)));
         if mix.len() < at + samples.len() {
             mix.resize(at + samples.len(), 0.0);
@@ -512,10 +519,40 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
     let base = file_stem(&project.name, opts.chapter.as_deref().and_then(|id| project.chapters.iter().find(|c| c.id == id)).map(|c| c.title.as_str()));
     let file = format!("{base}.{}", opts.format);
     let target = exports.join(&file);
-    crate::media::encode_audio(&joined, &target, &opts.format, project.settings.loudness == "acx")?;
+    let total = mix.len() as f64 / SR as f64;
+    let chapters: Vec<(f64, f64, String)> = chapter_starts
+        .iter()
+        .enumerate()
+        .map(|(k, (ci, a))| {
+            let z = chapter_starts.get(k + 1).map(|n| n.1).unwrap_or(total);
+            let title = project.chapters[*ci].title.trim();
+            (*a, z, if title.is_empty() { t!("speech-chapter-n", n = (k + 1) as i64) } else { title.to_string() })
+        })
+        .collect();
+    let voice = project.settings.voice.clone().unwrap_or_default();
+    let meta = crate::media::AudioMeta {
+        title: project.name.clone(),
+        artist: project.book.as_ref().map(|b| b.author.clone()).filter(|a| !a.is_empty()).unwrap_or(voice),
+        album: project.book.as_ref().map(|b| b.title.clone()).unwrap_or_default(),
+        comment: format!("Speech Studio · {}", crate::engines::get(&project.settings.engine).map(|e| e.name).unwrap_or("")),
+        genre: if project.book.is_some() { "Audiobook".into() } else { String::new() },
+        chapters: if chapters.len() > 1 { chapters.clone() } else { Vec::new() },
+        cover: project.book.as_ref().and_then(|b| b.cover.as_ref()).map(|c| dir.join(c)),
+    };
+    crate::media::encode_audio_meta(&joined, &target, &opts.format, project.settings.loudness == "acx", &meta)?;
+    let chapter_list = (chapters.len() > 1).then(|| format!("{base}.chapters.txt"));
+    if let Some(name) = &chapter_list {
+        let text: String = chapters.iter().map(|(a, _, t)| format!("{}\t{t}\n", hms(*a))).collect();
+        std::fs::write(exports.join(name), text).map_err(|e| format!("{name}: {e}"))?;
+    }
     let subtitles = format!("{base}.srt");
     std::fs::write(exports.join(&subtitles), srt(&cues)).map_err(|e| format!("{subtitles}: {e}"))?;
-    Ok(json!({ "file": file, "subtitles": subtitles, "path": target.to_string_lossy(), "duration": mix.len() as f64 / SR as f64, "marks": marks, "lufs_before": levelled.map(|l| l.before), "lufs": levelled.map(|l| l.after) }))
+    Ok(json!({ "file": file, "subtitles": subtitles, "chapters": chapter_list, "path": target.to_string_lossy(), "duration": mix.len() as f64 / SR as f64, "marks": marks, "lufs_before": levelled.map(|l| l.before), "lufs": levelled.map(|l| l.after) }))
+}
+
+fn hms(t: f64) -> String {
+    let s = t.max(0.0).round() as u64;
+    format!("{:02}:{:02}:{:02}", s / 3600, s / 60 % 60, s % 60)
 }
 
 fn srt_time(t: f64) -> String {
