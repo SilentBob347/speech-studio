@@ -103,6 +103,9 @@ pub struct ListenProject {
     /// Эталонный текст для проверки озвучки.
     pub reference: String,
     pub made: Option<Made>,
+    /// Ключ инструмента агента «одним вызовом» (файл и его размер и время): повторный вызов находит этот проект.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub key: String,
 }
 
 impl ListenProject {

@@ -81,6 +81,15 @@ pub async fn list(State(st): State<AppState>) -> Response {
     }
 }
 
+/// Проект Speech с ключом инструмента агента.
+fn keyed_project(workspace: &Path, key: &str) -> Option<(String, SpeechProject)> {
+    std::fs::read_dir(workspace).ok()?.flatten().find_map(|e| {
+        let pid = e.file_name().to_string_lossy().into_owned();
+        let project = sp::load(workspace, &pid).ok()?;
+        (project.key == key).then_some((pid, project))
+    })
+}
+
 /// POST /projects {name, text?, voice?, lang?} — новый проект Speech: текст режется на блоки (абзацы или диалог).
 pub async fn create(State(st): State<AppState>, Json(body): Json<Value>) -> Response {
     let name = body.get("name").and_then(Value::as_str).map(str::trim).filter(|n| !n.is_empty()).map(str::to_string).unwrap_or_else(|| t!("speech-untitled"));
@@ -89,6 +98,14 @@ pub async fn create(State(st): State<AppState>, Json(body): Json<Value>) -> Resp
     let lang = body.get("lang").and_then(Value::as_str).map(str::to_string);
     let p = paths(&st);
     let split = body.get("split").and_then(Value::as_str).unwrap_or("paragraphs").to_string();
+    let key = body.get("key").and_then(Value::as_str).unwrap_or("").to_string();
+    let engine = body.get("engine").and_then(Value::as_str).filter(|e| !e.is_empty()).map(str::to_string);
+    let direction = body.get("direction").and_then(Value::as_str).map(str::trim).unwrap_or("").to_string();
+    if !key.is_empty() {
+        if let Some((pid, project)) = keyed_project(&p.workspace, &key) {
+            return Json(json!({ "project_id": pid, "project": shown(&p, &project), "existing": true })).into_response();
+        }
+    }
     let files: Vec<(String, String)> = body
         .get("files")
         .and_then(Value::as_array)
@@ -109,6 +126,18 @@ pub async fn create(State(st): State<AppState>, Json(body): Json<Value>) -> Resp
         project.settings.voice = voice;
         if let Some(l) = lang {
             project.settings.lang = l;
+        }
+        if let Some(e) = engine {
+            if crate::engines::get(&e).is_none() {
+                return Err(t!("speech-engine-unknown", engine = e));
+            }
+            project.settings.engine = e;
+        }
+        project.key = key;
+        if !direction.is_empty() {
+            for b in project.chapters.iter_mut().flat_map(|c| c.blocks.iter_mut()) {
+                b.direction = direction.clone();
+            }
         }
         let pid = sp::new_id();
         sp::save(&p.workspace, &pid, &project)?;

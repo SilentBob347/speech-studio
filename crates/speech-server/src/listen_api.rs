@@ -329,3 +329,73 @@ pub fn summary(project: &ListenProject) -> Value {
         "transcribed": project.made.is_some(),
     })
 }
+
+/// Ключ файла для инструментов агента: путь, размер и время изменения.
+pub fn file_key(path: &Path, tool: &str) -> Result<String, String> {
+    let meta = std::fs::metadata(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let stamp = meta.modified().ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map_or(0, |d| d.as_secs());
+    Ok(blake3::hash(format!("{tool}|{}|{}|{stamp}", path.display(), meta.len()).as_bytes()).to_hex()[..16].to_string())
+}
+
+/// POST /listen/from-path {path} — проект Listening файла этого компьютера (для агента): тот же файл с теми же
+/// размером и временем находит прежний проект.
+pub async fn from_path(State(st): State<AppState>, Json(body): Json<Value>) -> Response {
+    let path = std::path::PathBuf::from(body.get("path").and_then(Value::as_str).unwrap_or_default());
+    let ws = st.workspace.clone();
+    let res = joined(tokio::task::spawn_blocking(crate::mcp::carry(move || -> Result<Value, String> {
+        if !path.is_file() || !lp::is_media(&path.to_string_lossy()) {
+            return Err(t!("listen-not-media", file = path.display().to_string()));
+        }
+        let key = file_key(&path, "listen")?;
+        let found = std::fs::read_dir(&ws).map_err(|e| e.to_string())?.flatten().find_map(|e| {
+            let pid = e.file_name().to_string_lossy().into_owned();
+            lp::load(&ws, &pid).ok().filter(|p| p.key == key).map(|_| pid)
+        });
+        if let Some(pid) = found {
+            return Ok(json!({ "pid": pid, "existing": true }));
+        }
+        let pid = sp::new_id();
+        let dir = lp::dir(&ws, &pid);
+        std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("wav").to_ascii_lowercase();
+        let source = format!("source.{ext}");
+        if let Err(e) = std::fs::copy(&path, dir.join(&source)) {
+            let _ = std::fs::remove_dir_all(&dir);
+            return Err(format!("{}: {e}", path.display()));
+        }
+        let made = make(&ws, &pid, &stem(&path.to_string_lossy()), &source, &path.to_string_lossy());
+        if made.is_err() {
+            let _ = std::fs::remove_dir_all(&dir);
+        }
+        made?;
+        let mut project = lp::load(&ws, &pid)?;
+        project.key = key;
+        lp::save(&ws, &pid, &project)?;
+        Ok(json!({ "pid": pid, "existing": false }))
+    }))
+    .await);
+    saved(res, StatusCode::BAD_REQUEST)
+}
+
+/// POST /separate {path} — голос файла отдельно от музыки и шума (Roformer) задачей; готовый — сразу путь.
+pub async fn separate_file(State(st): State<AppState>, Json(body): Json<Value>) -> Response {
+    let path = std::path::PathBuf::from(body.get("path").and_then(Value::as_str).unwrap_or_default());
+    if !path.is_file() || !lp::is_media(&path.to_string_lossy()) {
+        return refuse(StatusCode::BAD_REQUEST, "not_media", t!("listen-not-media", file = path.display().to_string()));
+    }
+    let key = match file_key(&path, "separate") {
+        Ok(k) => k,
+        Err(e) => return refuse(StatusCode::BAD_REQUEST, "bad_request", e),
+    };
+    let out = st.workspace.join(".separate").join(&key);
+    let vocals = out.join("vocals.flac");
+    if vocals.is_file() {
+        return Json(json!({ "done": true, "vocals": vocals, "instrumental": out.join("instrumental.flac") })).into_response();
+    }
+    let (repo_root, models_root) = (st.repo_root.clone(), st.models_root.clone());
+    let job: jobs::JobFn = Box::new(move |progress: jobs::ProgressFn| crate::listen_jobs::separate_to(&repo_root, &models_root, &path, &out, &|ev| progress(ev)));
+    match st.jobs.enqueue(jobs::JobMeta::new(jobs::JobKind::Separate, None), job).await {
+        Ok(job_id) => Json(json!({ "done": false, "job_id": job_id })).into_response(),
+        Err(e) => crate::enqueue_error(e),
+    }
+}

@@ -178,6 +178,29 @@ fn separate(p: &ListenPaths, src: &Path, work: &Path) -> Result<PathBuf, String>
     Ok(clean)
 }
 
+/// Голос и остальное файла отдельно (Roformer) — FLAC в `out`: vocals.flac и instrumental.flac.
+pub fn separate_to(repo_root: &Path, models_root: &Path, src: &Path, out: &Path, progress: &dyn Fn(Value)) -> Result<Value, String> {
+    crate::ensure_job_components(repo_root, models_root, false, false, &|ev| progress(ev))?;
+    let sel = crate::models::load_selection(models_root);
+    let cli = dub_sep::engine_cli(repo_root, crate::models::stage_backend(models_root, "sep_backend"));
+    let model = crate::models::resolve_sep(models_root, &sel);
+    if !cli.is_file() || !model.is_file() {
+        return Err(t!("listen-separate-missing"));
+    }
+    step(progress, t!("listen-step-separate"), 10);
+    let work = tempfile::Builder::new().prefix("separate-").tempdir().map_err(|e| e.to_string())?;
+    let hq = work.path().join("mix-44k.wav");
+    crate::media::extract_audio(src, &hq, 44_100, 2)?;
+    let res = dub_sep::separate(&hq, &work.path().join("stems"), &cli, &model).map_err(|e| e.localize())?;
+    std::fs::create_dir_all(out).map_err(|e| format!("{}: {e}", out.display()))?;
+    let vocals = out.join("vocals.flac");
+    let rest = out.join("instrumental.flac");
+    crate::media::encode_audio(&res.vocals, &vocals, "flac", false)?;
+    crate::media::encode_audio(&res.instrumental, &rest, "flac", false)?;
+    step(progress, t!("listen-step-done", lines = 0), 100);
+    Ok(json!({ "done": true, "vocals": vocals, "instrumental": rest }))
+}
+
 fn diarize(p: &ListenPaths, wav: &Path, speakers: u8) -> Result<Vec<dub_asr::Turn>, String> {
     std::env::set_var("DUB_ASR_BACKEND", crate::models::stage_backend(&p.models_root, "diar_backend"));
     let turns = match speakers {

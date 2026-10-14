@@ -60,6 +60,7 @@ mod cloud_tts;
 mod speechproj;
 mod book_import;
 mod acx;
+mod openai_api;
 mod director;
 mod director_api;
 mod listen_api;
@@ -456,7 +457,12 @@ pub fn build_router(state: AppState) -> Router {
         .route("/dictionary/import", post(dict_api::import))
         .route("/projects/{pid}/dictionary-counts", get(dict_api::counts))
         .route("/projects/{pid}/unknown-words", get(dict_api::unknown_words))
+        .route("/v1/models", get(openai_api::models))
+        .route("/v1/audio/speech", post(openai_api::speech))
+        .route("/v1/audio/transcriptions", post(openai_api::transcriptions))
         .route("/listen/upload", post(listen_api::upload))
+        .route("/listen/from-path", post(listen_api::from_path))
+        .route("/separate", post(listen_api::separate_file))
         .route("/listen/record/start", post(listen_api::record_start))
         .route("/listen/record/stop", post(listen_api::record_stop))
         .route("/listen/{pid}", get(listen_api::get).put(listen_api::put))

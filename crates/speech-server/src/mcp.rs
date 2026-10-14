@@ -17,6 +17,8 @@ use axum::{Json, Router};
 use serde_json::{json, Value};
 use tower::ServiceExt;
 
+mod atomic;
+mod speech_tools;
 mod window;
 
 pub(crate) use window::{carry, carry_job, save_with_revision, tell_windows, track, PROJECT_CHANGED, REV_HEADER};
@@ -91,6 +93,11 @@ fn send(method: Method, path: String, body: Value) -> Result<Call, String> {
 fn composite(kind: &'static str) -> Result<Call, String> {
     Ok(Call { method: Method::GET, path: format!("composite:{kind}"), payload: Payload::None,
     })
+}
+
+/// A one-call tool run from elsewhere in the studio (the OpenAI-compatible routes), waited for until `until`.
+pub(crate) async fn one_call(name: &str, args: &Value, until: std::time::Instant) -> Result<Value, String> {
+    atomic::run_until(name, args, until).await
 }
 
 /// A GET inside the process, as JSON; a route that refuses says why.
@@ -617,7 +624,7 @@ async fn wait_for(args: &Value) -> Result<Value, String> {
             Some(job) => {
                 let state = fetch(&format!("/jobs/{}", segment(job)))
                     .await
-                    .map_err(|why| format!("No job {job} ({why}): job_id is what project_analyze, project_dub_audio, project_render, project_export_lang, project_retranslate, project_remix, project_align, project_resume, voices_download_pack, segment_shorten, glossary_extract or a one-call tool answering done false returned, or the fetch.id of project_create_from_url (a models download is waited for with until download). Wait for other work with until."))?;
+                    .map_err(|why| format!("No job {job} ({why}): job_id is what project_synth, project_export, project_cast_characters, podcast_write, listen_transcribe, listen_cut, voice_transcribe, voice_clean, voices_download_pack or a one-call tool answering done false returned, or the fetch.id of a download by link (a models download is waited for with until download). Wait for other work with until."))?;
                 if state.get("status").and_then(Value::as_str).is_none() {
                     return Err(format!("The job {job} has no status: {state}"));
                 }
@@ -939,14 +946,14 @@ fn tools() -> &'static [Tool] {
             // ---------------------------------------------------------------- the studio
             Tool {
                 name: "studio_status",
-                description: "What the studio is doing now, in one short summary: the jobs running or waiting (analysis, voicing, render, another language, downloads) with their project, stage and percent, the last finished ones with their result or error, and whether the required models are there. Call it first, and use studio_wait to wait.",
+                description: "What the studio is doing now, in one short summary: the jobs running or waiting (voicing, export, recognition, cut by text, the director model, voice cleaning, downloads) with their project, stage and percent, the last finished ones with their result or error, and whether the required models are there. Call it first, and use studio_wait to wait.",
                 schema: nothing,
                 call: |_| composite("status"),
             },
             Tool {
                 name: "studio_wait",
-                description: "Wait for work to finish instead of polling: a job (job_id, as project_analyze, project_dub_audio, project_render, project_export_lang, project_retranslate, project_remix, project_align, project_resume, voices_download_pack, segment_shorten, glossary_extract or a one-call tool still at work returned it, or the fetch.id of project_create_from_url), or until one kind of work is over - analyze, dub_audio, render, export_lang, retranslate, remix, align, shorten, download (models and downloads by link), voices_pack, separate, detect_text, glossary - or everything (until: idle, the default). Returns when it is done or after seconds (30 by default, at most 55, under the minute clients allow a call) with how far it got; call it again to keep waiting.",
-                schema: || object(json!({ "job_id": { "type": "string" }, "until": { "type": "string", "enum": ["idle", "analyze", "dub_audio", "render", "export_lang", "retranslate", "remix", "align", "shorten", "download", "voices_pack", "separate", "detect_text", "glossary"] }, "seconds": { "type": "integer" } }), &[]),
+                description: "Wait for work to finish instead of polling: a job (job_id, as project_synth, project_export, project_cast_characters, podcast_write, listen_transcribe, listen_cut, voice_transcribe, voice_clean, voices_download_pack or a one-call tool answering done false returned it, or the fetch.id of a download by link), or until one kind of work is over - synth, export, analyze (recognition), remix (cut by text), write (podcast script), cast (characters), voice_transcript, voice_clean, separate, download, voices_pack - or everything (until: idle, the default). Returns when it is done or after seconds (30 by default, at most 55, under the minute clients allow a call) with how far it got; call it again to keep waiting.",
+                schema: || object(json!({ "job_id": { "type": "string" }, "until": { "type": "string", "enum": ["idle", "synth", "export", "analyze", "remix", "write", "cast", "voice_transcript", "voice_clean", "separate", "download", "voices_pack"] }, "seconds": { "type": "integer" } }), &[]),
                 call: |_| composite("wait"),
             },
             Tool {
@@ -1455,6 +1462,8 @@ fn tools() -> &'static [Tool] {
                 },
             },
         ];
+        all.extend(speech_tools::tools());
+        all.extend(atomic::tools());
         all.extend(window::tools());
         all
     })
@@ -1838,6 +1847,10 @@ pub async fn handle(headers: HeaderMap, body: axum::body::Bytes) -> Response {
                     tool_json(id, status_summary().await)
                 }
                 Ok(call) if call.path == "composite:wait" => match wait_for(&args).await {
+                    Ok(state) => tool_json(id, state),
+                    Err(problem) => answer(problem, true),
+                },
+                Ok(call) if call.path.starts_with(atomic::PREFIX) => match atomic::run(&call.path[atomic::PREFIX.len()..], &args).await {
                     Ok(state) => tool_json(id, state),
                     Err(problem) => answer(problem, true),
                 },

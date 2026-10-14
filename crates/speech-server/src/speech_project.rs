@@ -156,6 +156,9 @@ pub struct SpeechProject {
     pub dictionary: Vec<crate::pron_dict::Entry>,
     /// Проект из книги: название, автор и файл обложки в папке проекта — в метаданные и обложку аудиокниги.
     pub book: Option<BookMeta>,
+    /// Ключ инструмента агента «одним вызовом»: повторный вызов с теми же входами находит этот проект.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub key: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
@@ -168,7 +171,7 @@ pub struct BookMeta {
 
 impl Default for SpeechProject {
     fn default() -> Self {
-        SpeechProject { kind: KIND.into(), version: 1, name: String::new(), created: 0, settings: Settings::default(), cast: BTreeMap::new(), chapters: Vec::new(), dictionary: Vec::new(), book: None }
+        SpeechProject { kind: KIND.into(), version: 1, name: String::new(), created: 0, settings: Settings::default(), cast: BTreeMap::new(), chapters: Vec::new(), dictionary: Vec::new(), book: None, key: String::new() }
     }
 }
 
