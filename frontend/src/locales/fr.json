@@ -1008,7 +1008,7 @@
     "splitMode": "Comment découper le texte",
     "continuation": "Intonation continue",
     "continuationHint": "Chaque bloc prend comme référence la prise précédente de la même voix avec son texte (continuation Higgs) : le ton et le rythme se prolongent. Changer une prise fait redire les blocs suivants.",
-    "drag": "Glissez pour déplacer ; les blocs sélectionnés bougent ensemble",
+    "drag": "Déplacer le bloc : glissez, ou Espace puis flèches ; les blocs sélectionnés bougent ensemble",
     "selectBlock": "Sélectionner le bloc (Maj — une plage)",
     "selection": "Blocs sélectionnés",
     "selectedCount": "Sélectionnés : {{n}}",
@@ -1017,7 +1017,13 @@
     "deleteSelected": "Supprimer",
     "selectAll": "Tout sélectionner",
     "selectNone": "Désélectionner",
-    "narrator": "Narrateur"
+    "narrator": "Narrateur",
+    "dragBlock": "bloc {{n}}",
+    "dragPicked": "Le {{block}} est saisi",
+    "dragOver": "Le {{block}} est au-dessus du {{target}}",
+    "dragDropped": "Le {{block}} a été déplacé à la place du {{target}}",
+    "dragCancelled": "Déplacement du {{block}} annulé",
+    "dragInstructions": "Pour déplacer un bloc, appuyez sur Espace ou Entrée, déplacez-le avec les flèches puis appuyez à nouveau sur Espace ou Entrée ; Échap annule."
   },
   "tags": {
     "emotion": "Émotion",

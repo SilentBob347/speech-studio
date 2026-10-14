@@ -1008,7 +1008,7 @@
     "splitMode": "How to cut the text",
     "continuation": "Continuous intonation",
     "continuationHint": "Each block takes the previous take of the same voice with its text as the reference (Higgs speech continuation): tone and pace carry over. Changing a take re-voices the blocks after it.",
-    "drag": "Drag to move; selected blocks move together",
+    "drag": "Move the block: drag, or Space then arrows; selected blocks move together",
     "selectBlock": "Select the block (Shift — a range)",
     "selection": "Selected blocks",
     "selectedCount": "Selected: {{n}}",
@@ -1017,7 +1017,13 @@
     "deleteSelected": "Delete",
     "selectAll": "Select all",
     "selectNone": "Clear the selection",
-    "narrator": "Narrator"
+    "narrator": "Narrator",
+    "dragBlock": "block {{n}}",
+    "dragPicked": "Picked up {{block}}",
+    "dragOver": "{{block}} is over {{target}}",
+    "dragDropped": "{{block}} was moved to {{target}}",
+    "dragCancelled": "Moving {{block}} was cancelled",
+    "dragInstructions": "To move a block, press Space or Enter, move it with the arrow keys, then press Space or Enter again; Escape cancels."
   },
   "tags": {
     "emotion": "Emotion",

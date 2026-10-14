@@ -9,6 +9,8 @@ import { followJob } from "../../lib/followJob";
 import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
 import { useStore } from "../../store";
+import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type Announcements, type DragEndEvent, type UniqueIdentifier } from "@dnd-kit/core";
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import BlockRow, { type BlockActions } from "./BlockRow";
 import VoicePicker from "./VoicePicker";
 import ProjectSettings from "./ProjectSettings";
@@ -44,8 +46,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   const [history, setHistory] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [anchor, setAnchor] = useState<string | null>(null);
-  const [dragging, setDragging] = useState<string[] | null>(null);
-  const [dropAt, setDropAt] = useState<string | null>(null);
+
   const [synthQueue, setQueueList] = useState<QueuedSynth[]>([]);
   const [queueOpen, setQueueOpen] = useState(false);
   const [notes, setNotes] = useState<Record<string, { text: string; words: StressWord[] }>>({});
@@ -194,8 +195,8 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
       setAnchor(id);
     }
   };
-  /** Move the dragged blocks (in their order) before `target`, across chapters if needed. */
-  const moveBefore = useCallback((ids: string[], target: string) => {
+  /** Move blocks (in their order) next to `target`: after it when dragged down, before it when dragged up; across chapters too. */
+  const moveTo = useCallback((ids: string[], target: string, after: boolean) => {
     if (ids.includes(target)) return;
     edit((p) => {
       const moving: Block[] = [];
@@ -205,33 +206,36 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
       moving.sort((x, y) => ids.indexOf(x.id) - ids.indexOf(y.id));
       const at = locate(p, target);
       if (!at) return p;
-      p.chapters[at[0]].blocks.splice(at[1], 0, ...moving);
+      p.chapters[at[0]].blocks.splice(at[1] + (after ? 1 : 0), 0, ...moving);
       return p;
     });
   }, [edit]);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  const onDragEnd = ({ active, over }: DragEndEvent) => {
+    if (!over || active.id === over.id) return;
+    const order = blocks.map((x) => x.id);
+    const from = order.indexOf(String(active.id));
+    const to = order.indexOf(String(over.id));
+    const ids = selected.includes(String(active.id)) ? order.filter((id) => selected.includes(id)) : [String(active.id)];
+    moveTo(ids, String(over.id), from < to);
+  };
+  const blockLabel = (id: UniqueIdentifier) => {
+    const i = blocks.findIndex((x) => x.id === id);
+    return i < 0 ? "" : t("speech.dragBlock", { n: i + 1 });
+  };
+  const announcements: Announcements = {
+    onDragStart: ({ active }) => t("speech.dragPicked", { block: blockLabel(active.id) }),
+    onDragOver: ({ active, over }) => (over ? t("speech.dragOver", { block: blockLabel(active.id), target: blockLabel(over.id) }) : undefined),
+    onDragEnd: ({ active, over }) => (over ? t("speech.dragDropped", { block: blockLabel(active.id), target: blockLabel(over.id) }) : t("speech.dragCancelled", { block: blockLabel(active.id) })),
+    onDragCancel: ({ active }) => t("speech.dragCancelled", { block: blockLabel(active.id) }),
+  };
 
-  useEffect(() => {
-    if (!dragging) return;
-    const over = (e: PointerEvent) => {
-      const li = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest<HTMLElement>("[data-block]");
-      setDropAt(li?.dataset.block ?? null);
-    };
-    const up = (e: PointerEvent) => {
-      const li = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest<HTMLElement>("[data-block]");
-      if (li?.dataset.block) moveBefore(dragging, li.dataset.block);
-      setDragging(null);
-      setDropAt(null);
-    };
-    const cancel = (e: KeyboardEvent) => { if (e.key === "Escape") { setDragging(null); setDropAt(null); } };
-    window.addEventListener("pointermove", over);
-    window.addEventListener("pointerup", up, { once: true });
-    window.addEventListener("keydown", cancel);
-    return () => { window.removeEventListener("pointermove", over); window.removeEventListener("pointerup", up); window.removeEventListener("keydown", cancel); };
-  }, [dragging, moveBefore]);
 
   const actions = (b: Block): BlockActions => ({
     select: (range) => selectBlock(b.id, range),
-    dragStart: () => setDragging(selected.includes(b.id) ? blocks.filter((x) => selected.includes(x.id)).map((x) => x.id) : [b.id]),
     setText: (text) => edit((p) => { const at = locate(p, b.id); if (at) p.chapters[at[0]].blocks[at[1]].text = text; return p; }),
     patch: (change) => edit((p) => { const at = locate(p, b.id); if (at) Object.assign(p.chapters[at[0]].blocks[at[1]], change); return p; }),
     split: (pos) => edit((p) => {
@@ -367,8 +371,11 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
             </div>
           )}
           <datalist id="speech-speakers">{speakers.map((s) => <option key={s} value={s} />)}</datalist>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}
+            accessibility={{ announcements, screenReaderInstructions: { draggable: t("speech.dragInstructions") } }}>
           {project.chapters.map((c) => (
-            <section key={c.id} className="max-w-4xl mx-auto">
+            <SortableContext key={c.id} items={c.blocks.map((b) => b.id)} strategy={verticalListSortingStrategy}>
+            <section className="max-w-4xl mx-auto">
               {project.chapters.length > 1 && <h2 className="mt-4 mb-2 text-[13px] font-semibold text-[var(--color-muted)]">{c.title || t("speech.chapter")}</h2>}
               <ol className="space-y-0.5">
                 {c.blocks.map((b) => {
@@ -377,11 +384,13 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
                   const note = notes[b.id];
                   return <BlockRow key={b.id} pid={pid} block={b} index={index} state={stateOf(b)} fit={project.status?.[b.id]?.fit} rendering={rendering} playing={playing === b.id} tint={tintOf(b.speaker)}
                     stressing={!!stressing?.includes(b.id)} doubts={note && note.text === b.text ? note.words : []}
-                    selected={selected.includes(b.id)} selecting={selected.length > 0} dropping={!!dragging && dropAt === b.id} a={actions(b)} />;
+                    selected={selected.includes(b.id)} selecting={selected.length > 0} a={actions(b)} />;
                 })}
               </ol>
             </section>
+            </SortableContext>
           ))}
+          </DndContext>
         </div>
       </div>
       {history && <HistoryDialog pid={pid} onClose={() => setHistory(false)} onRepeat={(block, seed) => { setHistory(false); void runSynth({ ids: [block], force: true, seed }); }} />}

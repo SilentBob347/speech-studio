@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, ChevronDown, Combine, Eye, EyeOff, GripVertical, Loader2, Pause, Pin, Play, Plus, RefreshCw, Scissors, SlidersHorizontal, SpellCheck, Trash2 } from "lucide-react";
 import { activeTake, cueTime, MARKERS, withCase, type Block, type BlockState, type Marker, type StressWord } from "../../lib/speech";
 import { named } from "../../lib/a11y";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import VoicePicker from "./VoicePicker";
 import TagPalette from "./TagPalette";
 import PrepareView from "./PrepareView";
@@ -28,7 +30,6 @@ export type BlockActions = {
   play: () => void;
   playFrom: () => void;
   select: (range: boolean) => void;
-  dragStart: () => void;
   stress: () => void;
   pick: (w: StressWord, value: string) => void;
 };
@@ -53,11 +54,10 @@ function AutoText({ value, onCommit, label, inputRef, stale }: { value: string; 
   );
 }
 
-export default function BlockRow({ pid, block, index, state, fit, rendering, playing, tint, stressing, doubts, selected, selecting, dropping, a }: {
+export default function BlockRow({ pid, block, index, state, fit, rendering, playing, tint, stressing, doubts, selected, selecting, a }: {
   pid: string;
   selected: boolean;
   selecting: boolean;
-  dropping: boolean;
   fit?: "fits" | "tight" | "impossible";
   block: Block;
   stressing: boolean;
@@ -70,6 +70,7 @@ export default function BlockRow({ pid, block, index, state, fit, rendering, pla
   a: BlockActions;
 }) {
   const { t } = useTranslation();
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: block.id });
   const [open, setOpen] = useState(false);
   const [howRead, setHowRead] = useState(false);
   const text = useRef<HTMLTextAreaElement>(null);
@@ -84,12 +85,12 @@ export default function BlockRow({ pid, block, index, state, fit, rendering, pla
   const shown: BlockState | "rendering" = rendering ? "rendering" : state;
   const icon = "p-1.5 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)] disabled:opacity-30";
   return (
-    <li id={`block-${block.id}`} data-block={block.id}
-      className={`group rounded-xl border transition-colors ${playing ? "border-[var(--color-accent)]" : selected ? "border-[var(--color-accent)]/60 bg-[color-mix(in_oklab,var(--color-accent)_6%,transparent)]" : "border-transparent hover:border-[var(--color-border)]"} ${block.hidden ? "opacity-50" : ""} ${dropping ? "shadow-[inset_0_2px_0_var(--color-accent)]" : ""}`}>
+    <li id={`block-${block.id}`} ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={`group rounded-xl border transition-colors ${playing ? "border-[var(--color-accent)]" : selected ? "border-[var(--color-accent)]/60 bg-[color-mix(in_oklab,var(--color-accent)_6%,transparent)]" : "border-transparent hover:border-[var(--color-border)]"} ${block.hidden ? "opacity-50" : ""} ${isDragging ? "relative z-10 bg-[var(--color-surface)] shadow-lg" : ""}`}>
       <div className="flex gap-3 px-2 py-2">
         <div className="flex flex-col items-center gap-1 pt-1 -mr-1">
-          <span onPointerDown={(e) => { e.preventDefault(); a.dragStart(); }}
-            className="cursor-grab touch-none text-[var(--color-muted)] opacity-0 group-hover:opacity-100 focus-visible:opacity-100" title={t("speech.drag")} aria-hidden="true"><GripVertical size={13} /></span>
+          <button type="button" ref={setActivatorNodeRef} {...attributes} {...listeners} aria-label={t("speech.drag")} title={t("speech.drag")}
+            className="cursor-grab touch-none rounded text-[var(--color-muted)] opacity-0 group-hover:opacity-100 focus-visible:opacity-100"><GripVertical size={13} /></button>
           <input type="checkbox" checked={selected} onChange={() => undefined} onClick={(e) => a.select(e.shiftKey)} {...named(t("speech.selectBlock"))}
             className={`w-3.5 h-3.5 accent-[var(--color-accent)] ${selecting || selected ? "" : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100"}`} />
         </div>

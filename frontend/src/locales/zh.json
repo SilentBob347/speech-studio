@@ -1008,7 +1008,7 @@
     "splitMode": "如何切分文本",
     "continuation": "连贯语调",
     "continuationHint": "每个文本块以同一声音的上一个版本及其文本为参考（Higgs 语音续写）：语调和节奏得以延续。更换版本会重新配音其后的文本块。",
-    "drag": "拖动以移动；选中的文本块一起移动",
+    "drag": "移动文本块：拖动，或按空格键后用方向键；选中的文本块一起移动",
     "selectBlock": "选择文本块（Shift — 范围）",
     "selection": "已选文本块",
     "selectedCount": "已选：{{n}}",
@@ -1017,7 +1017,13 @@
     "deleteSelected": "删除",
     "selectAll": "全选",
     "selectNone": "取消选择",
-    "narrator": "旁白"
+    "narrator": "旁白",
+    "dragBlock": "文本块 {{n}}",
+    "dragPicked": "已拿起{{block}}",
+    "dragOver": "{{block}}位于{{target}}上方",
+    "dragDropped": "{{block}}已移到{{target}}",
+    "dragCancelled": "已取消移动{{block}}",
+    "dragInstructions": "要移动文本块，请按空格或回车，用方向键移动，再按空格或回车；Esc 取消。"
   },
   "tags": {
     "emotion": "情绪",

@@ -1008,7 +1008,7 @@
     "splitMode": "Como cortar o texto",
     "continuation": "Entonação contínua",
     "continuationHint": "Cada bloco usa como referência a tomada anterior da mesma voz com o seu texto (continuação do Higgs): tom e ritmo seguem adiante. Trocar uma tomada narra de novo os blocos seguintes.",
-    "drag": "Arraste para mover; os blocos selecionados vão juntos",
+    "drag": "Mover o bloco: arraste, ou Espaço e setas; os selecionados vão juntos",
     "selectBlock": "Selecionar o bloco (Shift — um intervalo)",
     "selection": "Blocos selecionados",
     "selectedCount": "Selecionados: {{n}}",
@@ -1017,7 +1017,13 @@
     "deleteSelected": "Excluir",
     "selectAll": "Selecionar tudo",
     "selectNone": "Limpar a seleção",
-    "narrator": "Narrador"
+    "narrator": "Narrador",
+    "dragBlock": "bloco {{n}}",
+    "dragPicked": "O {{block}} foi pego",
+    "dragOver": "O {{block}} está sobre o {{target}}",
+    "dragDropped": "O {{block}} foi movido para o lugar do {{target}}",
+    "dragCancelled": "Mover o {{block}} foi cancelado",
+    "dragInstructions": "Para mover um bloco, pressione Espaço ou Enter, mova com as setas e pressione Espaço ou Enter de novo; Esc cancela."
   },
   "tags": {
     "emotion": "Emoção",
