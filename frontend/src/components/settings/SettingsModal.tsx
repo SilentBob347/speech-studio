@@ -77,7 +77,7 @@ export default function SettingsModal({ target, request, panes, onClose }: { tar
   const [label, hint] = LABEL[section];
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center glass-scrim anim-fade" onClick={onClose}>
+    <div className="fixed inset-0 z-[68] grid place-items-center glass-scrim anim-fade" onClick={onClose}>
       <div role="dialog" aria-modal="true" aria-labelledby={titleId}
         className="w-[min(94vw,900px)] h-[min(88vh,760px)] flex rounded-xl glass-panel anim-pop overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <nav aria-label={t("prefs.title")} className="hidden sm:flex w-56 shrink-0 flex-col gap-1 border-r border-[var(--color-border)] p-3 overflow-y-auto">

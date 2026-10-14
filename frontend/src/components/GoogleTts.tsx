@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Trash2 } from "lucide-react";
 import { api, type OpenRouterSettings } from "../lib/api";
+import { errorText } from "../lib/voices";
 
 export function GoogleKey({ onSaved }: { onSaved: () => void }) {
   const { t } = useTranslation();
@@ -37,7 +38,9 @@ export default function GoogleTts({model,mode,onChange}: {model:string;mode:stri
   const { t } = useTranslation();
   const [models,setModels] = useState<{name:string;displayName?:string;supportedGenerationMethods?:string[]}[]>([]);
   const [error,setError] = useState("");
-  useEffect(() => { api.googleModels().then(r=>setModels(r.models)).catch((e:unknown)=>setError(e instanceof Error ? e.message : String(e))); },[]);
+  useEffect(() => {
+    api.googleSettings().then(s => s.configured ? api.googleModels().then(r=>setModels(r.models)) : undefined).catch((e:unknown)=>setError(errorText(e)));
+  },[]);
   const choice = models.find(m=>m.name === `models/${model}`);
   const supportsBatch = choice?.supportedGenerationMethods?.includes("batchGenerateContent");
   return <div className="space-y-2">

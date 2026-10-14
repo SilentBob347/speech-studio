@@ -29,6 +29,7 @@ mod llm_provider;
 mod localize;
 mod loudness;
 mod media;
+mod google_speech;
 mod google_tts;
 mod subimport;
 mod mcp;

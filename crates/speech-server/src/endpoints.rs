@@ -1,18 +1,14 @@
-//! Остаток REST-контракта (раунд 5): каталоги (/fonts /voices /presets), PATCH /engine/opts,
-//! POST /remix (Gemma переписывает весь транскрипт), PUT /projects/{pid} (undo/redo снапшот),
-//! GET /waveform (пики аудио), GET /preview?t&rev + GET /original?t (ОДИН PNG-кадр через GPU-воркер).
-//! Порт соответствующих ручек backend/app.py 1:1.
+//! Ручки движков и облака: модели и голоса OpenRouter, локальные серверы моделей, прокси, пресеты, PATCH /engine/opts,
+//! выбор модели.
 
-use axum::extract::{Path as AxPath, Query, State};
+use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
-use dub_core::Project;
 use serde_json::{json, Value};
 use std::collections::HashMap;
-use std::path::PathBuf;
 
-use crate::{jobs, AppState};
+use crate::AppState;
 
 // ─── GET /fonts ─────────────────────────────────────────────────────────────
 

@@ -8,6 +8,7 @@ import { LANG_CHOICES } from "./langs";
 import OpenRouterModelSelect from "../OpenRouterModelSelect";
 import CloudModelPicker from "../cloud/CloudModelPicker";
 import CloudForm from "../cloud/CloudForm";
+import GoogleTts from "../GoogleTts";
 import { api } from "../../lib/api";
 import { openSettings } from "../../lib/settingsNav";
 
@@ -35,18 +36,36 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
     speechApi.engines().then((r) => { enginesCache = r.engines; setEngines(r.engines); }, () => undefined);
   }, []);
   const engine = engines?.find((e) => e.id === s.engine) ?? null;
-  const local = !["openrouter", "fal", "runware"].includes(s.engine);
+  const local = !["openrouter", "google", "fal", "runware"].includes(s.engine);
   const blocks = project.chapters.flatMap((c) => c.blocks).filter((b) => !b.hidden && b.text.trim());
   const catalogEngine = s.engine === "fal" || s.engine === "runware" ? s.engine : null;
   const continuable = engine?.continuation ?? false;
   const [cloudVoices, setCloudVoices] = useState<{ name: string; gender: string; ru: boolean }[]>([]);
   const [hasKey, setHasKey] = useState<boolean | null>(null);
-  useEffect(() => {
-    if (s.engine !== "openrouter") return;
-    api.openrouterSettings().then((r) => setHasKey(r.configured), () => setHasKey(null));
-    if (s.cloud_model) api.openrouterVoices(s.cloud_model).then((r) => setCloudVoices(r.voices), () => setCloudVoices([]));
-  }, [s.engine, s.cloud_model]);
   const set = (f: (p: SpeechProject) => void) => onChange((p) => { f(p); return p; });
+  const [studioGoogle, setStudioGoogle] = useState<{ model: string; mode: string }>({ model: "", mode: "standard" });
+  const voiceModel = s.engine === "google" ? s.cloud_model || studioGoogle.model : s.cloud_model;
+  useEffect(() => {
+    if (s.engine === "openrouter") api.openrouterSettings().then((r) => setHasKey(r.configured), () => setHasKey(null));
+    if (s.engine !== "google") return;
+    api.googleSettings().then((r) => setHasKey(r.configured), () => setHasKey(null));
+    api.capabilities().then((c) => setStudioGoogle({ model: String(c.selection?.google_tts_model ?? ""), mode: String(c.selection?.google_tts_mode || "standard") }), () => undefined);
+  }, [s.engine]);
+  useEffect(() => {
+    if ((s.engine === "openrouter" || s.engine === "google") && voiceModel) api.openrouterVoices(voiceModel).then((r) => setCloudVoices(r.voices), () => setCloudVoices([]));
+  }, [s.engine, voiceModel]);
+  const setGoogle = (key: string, value: string) => {
+    if (key === "google_tts_model") set((p) => { p.settings.cloud_model = value; p.settings.cloud_voice = ""; });
+    else void api.setSelection(key, value).then(() => setStudioGoogle((g) => ({ ...g, mode: value })));
+  };
+  const voiceField = (
+    <label className={label}>{t("speech.cloudVoice")}
+      <input list="cloud-voices" value={s.cloud_voice} onChange={(e) => set((p) => { p.settings.cloud_voice = e.target.value; })} placeholder={t(s.engine === "google" ? "speech.googleVoicePick" : "speech.cloudVoiceDefault")} className={field} />
+      <datalist id="cloud-voices">
+        {cloudVoices.map((v) => <option key={v.name} value={v.name}>{[v.gender, v.ru ? RU_MARK : ""].filter(Boolean).join(" · ")}</option>)}
+      </datalist>
+    </label>
+  );
   const num = (v: string, lo: number, hi: number, fallback: number) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : fallback; };
   return (
     <div className="fixed inset-0 z-[60] grid place-items-center glass-scrim anim-fade" onClick={onClose}>
@@ -59,6 +78,9 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
           <label className={label}>{t("speech.engine")}
             <select value={s.engine} onChange={(e) => set((p) => {
               p.settings.engine = e.target.value;
+              p.settings.cloud_model = "";
+              p.settings.cloud_voice = "";
+              p.settings.cloud_values = {};
               const next = engines?.find((en) => en.id === e.target.value);
               for (const spec of next?.params ?? []) p.settings.params[spec.key] = spec.default;
             })} className={field}>
@@ -85,13 +107,18 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
                 <p className="text-[11px] text-[var(--color-warn)]">{t("speech.cloudNoKey")} <button onClick={() => openSettings("cloud:key")} className="underline">{t("speech.cloudOpenKey")}</button></p>
               )}
               <OpenRouterModelSelect kind="tts" value={s.cloud_model} onChange={(id) => set((p) => { p.settings.cloud_model = id; p.settings.cloud_voice = ""; })} placeholder={t("speech.cloudModelDefault")} />
-              <label className={label}>{t("speech.cloudVoice")}
-                <input list="cloud-voices" value={s.cloud_voice} onChange={(e) => set((p) => { p.settings.cloud_voice = e.target.value; })} placeholder={t("speech.cloudVoiceDefault")} className={field} />
-                <datalist id="cloud-voices">
-                  {cloudVoices.map((v) => <option key={v.name} value={v.name}>{[v.gender, v.ru ? RU_MARK : ""].filter(Boolean).join(" · ")}</option>)}
-                </datalist>
-              </label>
+              {voiceField}
               <p className="text-[11px] text-[var(--color-muted)]">{t("speech.cloudHint")}</p>
+            </div>
+          )}
+          {s.engine === "google" && (
+            <div className="space-y-2 rounded-lg border border-[var(--color-border)] p-2.5">
+              {hasKey === false && (
+                <p className="text-[11px] text-[var(--color-warn)]">{t("speech.googleNoKey")} <button onClick={() => openSettings("cloud")} className="underline">{t("speech.cloudOpenKey")}</button></p>
+              )}
+              <GoogleTts model={s.cloud_model || studioGoogle.model} mode={studioGoogle.mode} onChange={setGoogle} />
+              {voiceField}
+              <p className="text-[11px] text-[var(--color-muted)]">{t("speech.googleHint")}</p>
             </div>
           )}
         </div>

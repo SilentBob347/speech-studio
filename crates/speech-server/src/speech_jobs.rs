@@ -58,6 +58,9 @@ fn engine_tag(p: &SpeechPaths, project: &SpeechProject) -> String {
     if project.settings.engine == "openrouter" {
         let (m, v) = crate::cloud_tts::model_and_voice(&p.models_root, &project.settings.cloud_model, &project.settings.cloud_voice).unwrap_or_default();
         format!("openrouter:{m}:{v}")
+    } else if project.settings.engine == "google" {
+        let g = crate::google_speech::setup(&p.models_root, &project.settings.cloud_model, &project.settings.cloud_voice);
+        g.map(|g| format!("google:{}:{}", g.model, g.voice)).unwrap_or_else(|_| "google".into())
     } else if matches!(project.settings.engine.as_str(), "fal" | "runware") {
         let values = serde_json::to_string(&project.settings.cloud_values).unwrap_or_default();
         format!("{}:{}:{}", project.settings.engine, project.settings.cloud_model, &blake3::hash(values.as_bytes()).to_hex()[..10])
@@ -119,7 +122,10 @@ fn resample_to(samples: Vec<f32>, sr: i32) -> Vec<f32> {
 /// каталог (`cloud`), с ручкой задачи на диске до ответа и ценой в журнале расходов.
 fn synth_block_cloud(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Block, n: u32) -> Result<(Vec<f32>, Value, Take), String> {
     let provider = project.settings.engine.as_str();
-    let (model, voice) = if provider == "openrouter" {
+    let google = if provider == "google" { Some(crate::google_speech::setup(&p.models_root, &project.settings.cloud_model, &project.settings.cloud_voice)?) } else { None };
+    let (model, voice) = if let Some(g) = &google {
+        (g.model.clone(), g.voice.clone())
+    } else if provider == "openrouter" {
         crate::cloud_tts::model_and_voice(&p.models_root, &project.settings.cloud_model, &project.settings.cloud_voice)?
     } else {
         let model = project.settings.cloud_model.trim().to_string();
@@ -143,7 +149,11 @@ fn synth_block_cloud(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Bl
                 if say.trim().is_empty() {
                     continue;
                 }
-                let samples = if provider == "openrouter" {
+                let samples = if let Some(g) = &google {
+                    let (samples, est) = crate::google_speech::phrase(&p.repo_root, &p.models_root, &p.workspace.join(pid), pid, g, &say, b.direction.trim())?;
+                    estimate = match (estimate, est) { (Some(a), Some(b)) => Some(a + b), (a, b) => a.or(b) };
+                    samples
+                } else if provider == "openrouter" {
                     crate::cloud::check_limit(&p.repo_root, &p.models_root, None)?;
                     let samples = crate::cloud_tts::synth(&say, &model, &voice, b.direction.trim())?;
                     crate::cloud::record(&p.repo_root, crate::cloud::Spent { at: chrono::Utc::now().timestamp_millis(), day: chrono::Local::now().format("%Y-%m-%d").to_string(), project: pid.to_string(), provider: "openrouter".into(), model: model.clone(), task: "speech".into(), cost_source: "unknown".into(), origin: crate::mcp::current_actor(), ..Default::default() });
@@ -184,8 +194,38 @@ fn synth_block_cloud(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Bl
     Ok((fitted.samples, serde_json::to_value(&prepared.ignored).unwrap_or(Value::Null), take))
 }
 
+/// Режим Batch Google: фразы всех блоков задачи, которые будут озвучены, одной пачкой заранее — синтез блоков потом
+/// берёт их из кэша. Фразы собираются тем же разбором, что и в `synth_block_cloud`.
+fn google_batch(p: &SpeechPaths, pid: &str, ids: &[String], force: bool, progress: &dyn Fn(Value)) -> Result<(), String> {
+    let project = sp::load(&p.workspace, pid)?;
+    let g = crate::google_speech::setup(&p.models_root, &project.settings.cloud_model, &project.settings.cloud_voice)?;
+    if !g.batch {
+        return Ok(());
+    }
+    let entries = dictionary(p, &project);
+    let mut keys = keys(p, &project);
+    let mut phrases = Vec::new();
+    for b in project.blocks().filter(|b| ids.contains(&b.id)) {
+        let state = sp::status(b, &keys.remove(&b.id).unwrap_or_default());
+        if state == "skipped" || (!force && state == "ready") {
+            continue;
+        }
+        let stress = project.settings.auto_stress && crate::stress::is_russian(&b.text, &project.settings.lang);
+        let prepared = crate::prep::prepare(&b.text, &prep_opts(p, &project, Some(g.voice.as_str()), &entries, stress)).map_err(|e| t!("stress-failed", detail = e))?;
+        for piece in stx::pieces(&prepared.text) {
+            if let Piece::Say(text) = piece {
+                let say = stx::visible(&text);
+                if !say.trim().is_empty() {
+                    phrases.push((say, b.direction.trim().to_string()));
+                }
+            }
+        }
+    }
+    crate::google_speech::batch(&p.repo_root, &p.models_root, &p.workspace.join(pid), pid, &g, &phrases, progress)
+}
+
 fn synth_block(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Block, n: u32) -> Result<(Vec<f32>, Value, Take), String> {
-    if matches!(project.settings.engine.as_str(), "openrouter" | "fal" | "runware") {
+    if matches!(project.settings.engine.as_str(), "openrouter" | "google" | "fal" | "runware") {
         return synth_block_cloud(p, pid, project, b, n);
     }
     let drama = project.settings.engine == crate::models::DRAMA_TTS;
@@ -598,6 +638,9 @@ fn synth_scope(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Valu
     }
     if project.settings.auto_stress && wanted.iter().any(|id| project.blocks().any(|b| &b.id == id && crate::stress::is_russian(&b.text, &project.settings.lang))) {
         crate::ensure_components(&p.repo_root, &[crate::stress::COMPONENT, "onnxruntime"], &|ev| progress(ev))?;
+    }
+    if project.settings.engine == "google" {
+        google_batch(p, pid, &wanted, scope.force, progress)?;
     }
     let checking = qc.asr_check || qc.takes > 1 || qc.similarity;
     let (mut done, mut failed, mut skipped) = (0usize, Vec::new(), 0usize);

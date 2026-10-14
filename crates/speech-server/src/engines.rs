@@ -126,13 +126,13 @@ pub fn drama() -> Engine {
     }
 }
 
-/// fal и Runware: модель из каталога, её голоса и параметры — в форме модели; языки — у модели.
+/// fal, Runware и Google Gemini: модель из каталога или настроек, голоса — у модели; языки — у модели.
 pub fn catalog(id: &'static str, name: &'static str) -> Engine {
     Engine { id, name, ..openrouter() }
 }
 
 pub fn all() -> Vec<Engine> {
-    vec![higgs(), drama(), openrouter(), catalog("fal", "fal.ai"), catalog("runware", "Runware")]
+    vec![higgs(), drama(), openrouter(), catalog("google", "Google Gemini"), catalog("fal", "fal.ai"), catalog("runware", "Runware")]
 }
 
 /// Движки для окна: у Drama 3 — почему она здесь не пойдёт (видеокарта или нескачанные файлы).

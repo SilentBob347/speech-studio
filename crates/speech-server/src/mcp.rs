@@ -1804,9 +1804,6 @@ pub async fn handle(headers: HeaderMap, body: axum::body::Bytes) -> Response {
         ),
         "prompts/get" => {
             let name = params.get("name").and_then(Value::as_str).unwrap_or_default();
-            let argument = |key: &str| {
-                params.get("arguments").and_then(|arguments| arguments.get(key)).and_then(Value::as_str).unwrap_or_default().trim().to_string()
-            };
             let text = match name {
                 "studio" => Some(SKILL.to_string()),
                 _ => None,

@@ -49,7 +49,9 @@ connected and the address to paste.
   `project_synth` (new and stale blocks, or `ids`, `force`, `from`), `project_export` (one file with subtitles, M4B with
   chapters, or `per_block`), `project_exports`, `project_delete`.
 - **Engines**: `engines_list` says what each engine understands (languages, sampling, tags, cloning) and why one is not
-  available here (Drama 3 needs a 24 GB card).
+  available here (Drama 3 needs a 24 GB card). Cloud engines cost money: `openrouter`, `google` (Gemini; the project's
+  `cloud_model` and `cloud_voice`, Batch mode from the studio setting `google_tts_mode` voices the whole job as one
+  half-price batch that can take hours), `fal`, `runware`. Ask the user before a paid run.
 - **Text**: `text_prepare` shows how a text will be read (dictionary, Russian normalisation, stress marks, the engine's
   text), `text_stress` gives stress marks and ё with unsure homographs, `dictionary_get` / `dictionary_set` /
   `dictionary_import` (Balabolka .dic, .rex, .bxd).

@@ -2,11 +2,7 @@
 
 use base64::Engine;
 use serde_json::{json, Value};
-use std::{
-    collections::HashMap,
-    path::Path,
-    time::{Duration, Instant},
-};
+use std::{path::Path, time::Duration};
 
 const BASE: &str = "https://generativelanguage.googleapis.com/v1beta";
 
@@ -123,7 +119,7 @@ impl Client {
         )
     }
 
-    fn batch_get(&self, name: &str) -> Result<Value, String> {
+    pub(crate) fn batch_get(&self, name: &str) -> Result<Value, String> {
         validate_batch(name)?;
         // The SDK's typed BatchJob only recognizes JOB_STATE_*; Operation preserves Google's BATCH_STATE_* and raw usage.
         let operation = self
@@ -156,7 +152,7 @@ impl Client {
         Ok(op)
     }
 
-    fn upload_requests(&self, requests: &Value) -> Result<String, String> {
+    pub(crate) fn upload_requests(&self, requests: &Value) -> Result<String, String> {
         let mut jsonl = String::new();
         for row in requests
             .as_array()
@@ -179,7 +175,7 @@ impl Client {
     }
 
     /// `Err((refused, message))`: `refused` when Google answered 4xx, so no batch exists and a new submission is safe.
-    fn batch_create(&self, model: &str, display: &str, file: &str) -> Result<String, (bool, String)> {
+    pub(crate) fn batch_create(&self, model: &str, display: &str, file: &str) -> Result<String, (bool, String)> {
         let src = rust_genai::types::batches::BatchJobSource {
             file_name: Some(file.into()),
             ..Default::default()
