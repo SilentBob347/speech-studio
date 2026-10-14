@@ -222,7 +222,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
   const orModelSelect = (kind: "tts" | "asr", k: string, empty: string) => (
     <OpenRouterModelSelect kind={kind} value={selv(k)} onChange={(id) => { if (id) setSel(k, id); }} placeholder={empty} />
   );
-  const needsGemma = llmProviderOf(cap?.selection, "llm") === "local" || llmProviderOf(cap?.selection, "vision") === "local";
+  const needsGemma = llmProviderOf(cap?.selection, "llm") === "local";
 
   const browse = async () => {
     if (prog) return;

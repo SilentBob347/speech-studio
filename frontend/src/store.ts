@@ -52,7 +52,7 @@ export const useStore = create<State>((set) => ({
   setProgress: (stage, msg, pct = null) => set((s) => {
     const progress = { stage, msg: msg || s.progress.msg, pct: pct ?? null };
     const kind: Activity["kind"] = stage === "error" ? "error" : stage === "done" ? "done" : "work";
-    const activities = withActivity(s.activities, msg || stage || "", kind);
+    const activities = withActivity(s.activities, msg || "", kind);
     return activities ? { progress, activities } : { progress };
   }),
   pushActivity: (text, kind = "work") => set((s) => {

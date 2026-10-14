@@ -495,7 +495,7 @@ pub fn manifest() -> Vec<Component> {
             id: "gemma",
             name: "Gemma-4 12B QAT q4_0 + vision".into(),
             purpose: t!("setup-comp-gemma-purpose"),
-            requirement: Requirement::Required,
+            requirement: Requirement::Optional,
             delivery: Delivery::Download,
             size: 7_150_992_992,
             files: &[
@@ -904,7 +904,7 @@ pub fn manifest() -> Vec<Component> {
             id: "llama",
             name: t!("setup-comp-llama-name"),
             purpose: t!("setup-comp-llama-purpose"),
-            requirement: Requirement::Required,
+            requirement: Requirement::Optional,
             delivery: Delivery::Download,
             // Размер сжатого zip (для прогресса закачки); распакованный footprint ~183 МБ.
             size: platform::LLAMA.size,

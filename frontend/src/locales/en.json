@@ -64,7 +64,7 @@
       "cloud": "Cloud",
       "cloudHint": "OpenRouter key and parallel requests",
       "quality": "Quality",
-      "qualityHint": "Voice checks, takes and diagnostics",
+      "qualityHint": "Diagnostics and stage timings",
       "network": "Network",
       "networkHint": "Proxy for model downloads and the cloud",
       "interface": "Language & sounds",
@@ -124,7 +124,7 @@
     "redownload": "Re-download",
     "roleTts": "Voice · TTS",
     "roleAsr": "Speech · ASR",
-    "roleMt": "Translate + Vision",
+    "roleMt": "Script assistant",
     "roleSep": "Voice cleanup · separation",
     "roleDiar": "Diarization",
     "roleRuntime": "Engines & runtime",
@@ -146,7 +146,7 @@
   },
   "secrets": {
     "orTitle": "OpenRouter key",
-    "orHint": "for cloud engines (translation / TTS)",
+    "orHint": "for cloud engines (voicing, recognition, assistant)",
     "orPlaceholder": "Paste your key (sk-or-v1-…)",
     "orSavedPlaceholder": "Key saved — paste a new one to replace it",
     "orFromEnv": "Key comes from the {{name}} environment variable",
@@ -170,7 +170,7 @@
     "proxyTest": "Check",
     "proxyTestFailed": "Could not test the proxy: {{detail}}",
     "proxySaveFailed": "Could not save the proxy: {{detail}}",
-    "proxyNote": "HTTP, HTTPS, SOCKS5 and SOCKS4. Applies at once to model downloads and the cloud. Local translation and your server on the network always bypass the proxy.",
+    "proxyNote": "HTTP, HTTPS, SOCKS5 and SOCKS4. Applies at once to model downloads and the cloud. The local assistant and your server on the network always bypass the proxy.",
     "proxyTitle": "Proxy",
     "proxyModeSystem": "As in Windows",
     "proxyModeCustom": "My own",
@@ -188,14 +188,14 @@
     "proxyProblem": "The saved address cannot be read ({{detail}}) — requests go direct until you fix it"
   },
   "providers": {
-    "translate": "Translation",
-    "translateHint": "the dub and subtitle text",
+    "translate": "Script assistant",
+    "translateHint": "prepares a text for voicing and suggests styles",
     "vision": "Frame analysis (vision)",
     "visionHint": "subtitle style, titles, scene context; without it translation still runs",
     "localGemma": "Gemma-4 12B",
     "server": "Local server",
     "needKey": "Enter an OpenRouter key below (Cloud settings)",
-    "pickTranslateModel": "— choose a translation model —",
+    "pickTranslateModel": "— choose the assistant's model —",
     "pickVisionModel": "— choose a vision model —",
     "visionAsTranslate": "same as the translation model",
     "pickTtsModel": "— choose a TTS model —",
@@ -209,7 +209,7 @@
     "contextK": "{{k}}k context",
     "catalogTitle": "OpenRouter catalog",
     "catalogCount": "OpenRouter catalog: {{count}} models",
-    "catalogCounts": "translation {{llm}} · vision {{vision}} · TTS {{tts}} · STT {{asr}} · updated {{when}}",
+    "catalogCounts": "assistant {{llm}} · vision {{vision}} · TTS {{tts}} · STT {{asr}} · updated {{when}}",
     "catalogRefresh": "Refresh catalog",
     "catalogFailed": "OpenRouter catalog is unavailable: {{detail}}",
     "serverTitle": "Local server (OpenAI-compatible)",
@@ -226,12 +226,12 @@
     "serverModelCount": "Models on the server: {{count}}",
     "serverNoModels": "The server lists no models — load a model in Ollama or LM Studio",
     "serverUnreachable": "The server did not answer: {{detail}}",
-    "serverQuality": "Translation quality depends on the model you run on the server.",
+    "serverQuality": "The assistant's quality depends on the model you run on the server.",
     "save": "Save",
     "saveFailed": "Could not save: {{detail}}",
     "cloudTitle": "Cloud settings · OpenRouter",
     "concurrency": "Parallel requests",
-    "concurrencyHint": "chunks over N connections — faster cloud ASR/TTS/translation (1 = one at a time)"
+    "concurrencyHint": "chunks over N connections — faster cloud ASR/TTS (1 = one at a time)"
   },
   "help": {
     "title": "About Speech Studio",
@@ -421,7 +421,7 @@
   },
   "cloud": {
     "needKey": "Needs an OpenRouter key — click to open the Cloud section",
-    "ttsNoRussian": "⚠ This model does not support Russian — pick another one for Russian dubbing.",
+    "ttsNoRussian": "⚠ This model does not support Russian — pick another one for Russian voicing.",
     "autocast": "Auto-cast voices",
     "beta": "beta",
     "autocastHint": "The voice is picked automatically by the speaker's gender; different speakers get different voices.",
@@ -434,7 +434,7 @@
     "visionSameAsMt": "same as the translation model",
     "title": "Cloud settings · OpenRouter",
     "threads": "Parallel threads",
-    "threadsHint": "chunks over N connections — faster cloud ASR/TTS/translation (1 = no multithreading)"
+    "threadsHint": "chunks over N connections — faster cloud ASR/TTS (1 = no multithreading)"
   },
   "hwPreset": {
     "title": "Hardware preset",

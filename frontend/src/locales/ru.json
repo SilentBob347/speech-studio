@@ -64,7 +64,7 @@
       "cloud": "Облако",
       "cloudHint": "Ключ OpenRouter и параллельные запросы",
       "quality": "Качество",
-      "qualityHint": "Проверки озвучки, дубли и диагностика",
+      "qualityHint": "Диагностика и замеры стадий",
       "network": "Сеть",
       "networkHint": "Прокси для закачки моделей и облака",
       "interface": "Язык и звуки",
@@ -124,7 +124,7 @@
     "redownload": "Перекачать",
     "roleTts": "Озвучка · TTS",
     "roleAsr": "Распознавание · ASR",
-    "roleMt": "Перевод + Vision",
+    "roleMt": "Помощник по сценарию",
     "roleSep": "Очистка голоса · сепарация",
     "roleDiar": "Диаризация",
     "roleRuntime": "Движки и рантайм",
@@ -146,7 +146,7 @@
   },
   "secrets": {
     "orTitle": "Ключ OpenRouter",
-    "orHint": "для облачных движков (перевод / TTS)",
+    "orHint": "для облачных движков (озвучка, распознавание, помощник)",
     "orPlaceholder": "Вставьте ключ (sk-or-v1-…)",
     "orSavedPlaceholder": "Ключ сохранён — вставьте новый, чтобы заменить",
     "orFromEnv": "Ключ берётся из переменной окружения {{name}}",
@@ -170,7 +170,7 @@
     "proxyTest": "Проверить",
     "proxyTestFailed": "Не удалось проверить прокси: {{detail}}",
     "proxySaveFailed": "Не удалось сохранить прокси: {{detail}}",
-    "proxyNote": "HTTP, HTTPS, SOCKS5 и SOCKS4. Действует сразу для закачки моделей и облака. Локальный перевод и свой сервер в сети всегда идут мимо прокси.",
+    "proxyNote": "HTTP, HTTPS, SOCKS5 и SOCKS4. Действует сразу на закачку моделей и облако. Локальный помощник и ваш сервер в сети всегда идут мимо прокси.",
     "proxyTitle": "Прокси",
     "proxyModeSystem": "Как в Windows",
     "proxyModeCustom": "Свой",
@@ -188,14 +188,14 @@
     "proxyProblem": "Сохранённый адрес не читается ({{detail}}) — запросы идут напрямую, пока его не исправить"
   },
   "providers": {
-    "translate": "Перевод",
-    "translateHint": "текст дубляжа и субтитров",
+    "translate": "Помощник по сценарию",
+    "translateHint": "готовит текст к озвучке и подсказывает стили",
     "vision": "Анализ кадров (vision)",
     "visionHint": "стиль субтитров, титры, контекст сцены; без него перевод всё равно идёт",
     "localGemma": "Gemma-4 12B",
     "server": "Локальный сервер",
     "needKey": "Введите ключ OpenRouter ниже (Облачные настройки)",
-    "pickTranslateModel": "— выбрать модель перевода —",
+    "pickTranslateModel": "— выберите модель помощника —",
     "pickVisionModel": "— выбрать vision-модель —",
     "visionAsTranslate": "как модель перевода",
     "pickTtsModel": "— выбрать TTS-модель —",
@@ -209,7 +209,7 @@
     "contextK": "контекст {{k}}k",
     "catalogTitle": "Каталог OpenRouter",
     "catalogCount": "Каталог OpenRouter: моделей {{count}}",
-    "catalogCounts": "перевод {{llm}} · vision {{vision}} · TTS {{tts}} · STT {{asr}} · обновлён {{when}}",
+    "catalogCounts": "помощник {{llm}} · vision {{vision}} · TTS {{tts}} · STT {{asr}} · обновлено {{when}}",
     "catalogRefresh": "Обновить каталог",
     "catalogFailed": "Каталог OpenRouter недоступен: {{detail}}",
     "serverTitle": "Локальный сервер (OpenAI-совместимый)",
@@ -226,12 +226,12 @@
     "serverModelCount": "Моделей на сервере: {{count}}",
     "serverNoModels": "Сервер не отдал ни одной модели — загрузите модель в Ollama или LM Studio",
     "serverUnreachable": "Сервер не ответил: {{detail}}",
-    "serverQuality": "Качество перевода зависит от модели, запущенной на сервере.",
+    "serverQuality": "Качество помощника зависит от модели, запущенной на сервере.",
     "save": "Сохранить",
     "saveFailed": "Не удалось сохранить: {{detail}}",
     "cloudTitle": "Облачные настройки · OpenRouter",
     "concurrency": "Параллельные потоки",
-    "concurrencyHint": "чанки в N коннектов — быстрее облачные ASR/TTS/перевод (1 = без многопоточности)"
+    "concurrencyHint": "куски в N соединений — быстрее облачные ASR/TTS (1 = по одному)"
   },
   "help": {
     "title": "О Speech Studio",
@@ -421,7 +421,7 @@
   },
   "cloud": {
     "needKey": "Нужен ключ OpenRouter — нажмите, чтобы открыть раздел «Облако»",
-    "ttsNoRussian": "⚠ Модель не поддерживает русский — выберите другую для русского дубляжа.",
+    "ttsNoRussian": "⚠ Эта модель не поддерживает русский — для русской озвучки выберите другую.",
     "autocast": "Автокастинг голосов",
     "beta": "бета",
     "autocastHint": "Голос по полу спикера автоматически, разным спикерам — разные.",
@@ -434,7 +434,7 @@
     "visionSameAsMt": "как модель перевода",
     "title": "Облачные настройки · OpenRouter",
     "threads": "Параллельные потоки",
-    "threadsHint": "чанки в N коннектов — быстрее облачные ASR/TTS/перевод (1 = без многопоточности)"
+    "threadsHint": "куски в N соединений — быстрее облачные ASR/TTS (1 = без многопоточности)"
   },
   "hwPreset": {
     "title": "Пресет под железо",

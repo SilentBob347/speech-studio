@@ -1,11 +1,11 @@
 // Внешние ссылки студии: репозиторий, ишью, лицензии, автор и поддержка.
-const REPO = "https://github.com/timoncool/dub-studio";
+const REPO = "https://github.com/timoncool/speech-studio";
 
 export const LINKS = {
   repo: REPO,
   issues: `${REPO}/issues`,
   releases: `${REPO}/releases`,
-  license: `${REPO}/blob/master/LICENSE`,
+  license: `${REPO}/blob/main/LICENSE`,
   modelLicenses: `${REPO}#license`,
 };
 

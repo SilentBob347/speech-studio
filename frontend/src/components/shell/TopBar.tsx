@@ -5,6 +5,8 @@ import { LANGS, setLang, type Lang } from "../../lib/i18n";
 import { OPEN_HELP_EVENT, OPEN_SETTINGS_EVENT, SETTINGS_SECTIONS } from "../../lib/settingsNav";
 import { bridgeError, takeArgs, textArg, useBridgeCommand } from "../../lib/mcpBridge";
 import { useStore, type Mode } from "../../store";
+import type { JobKind } from "../../lib/api";
+import en from "../../locales/en.json";
 import SettingsModal from "../settings/SettingsModal";
 import WhatsNew from "../WhatsNew";
 import ProxySection from "../ProxySection";
@@ -57,7 +59,9 @@ function StatusBar() {
   const [open, setOpen] = useState(false);
   const last = activities[activities.length - 1];
   const busy = progress.pct != null || (!!progress.stage && !["", "done", "error"].includes(progress.stage));
-  const text = busy ? (progress.msg || last?.text || t("status.working")) : (last?.text || t(firstRun ? "status.setupNeeded" : "status.idle"));
+  const stageText = progress.stage in en.jobs.kind ? t(`jobs.kind.${progress.stage as JobKind}`) : t("status.working");
+  const busyText = `${progress.msg || stageText}${progress.pct != null ? ` · ${progress.pct}%` : ""}`;
+  const text = busy ? busyText : (last?.text || t(firstRun ? "status.setupNeeded" : "status.idle"));
   const errored = !busy && last?.kind === "error";
   const fmt = (ms: number) => new Date(ms).toLocaleTimeString();
   return (

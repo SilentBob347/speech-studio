@@ -4,10 +4,6 @@ import { Eye, EyeOff, RefreshCw, Trash2 } from "lucide-react";
 import { api, llmProviderOf, slot, type LlmProviderKind, type Selection } from "../lib/api";
 import OpenRouterModelSelect from "./OpenRouterModelSelect";
 
-type Stage = "llm" | "vision";
-const PROVIDER_KEY: Record<Stage, string> = { llm: "llm_provider", vision: "vision_provider" };
-const OPENROUTER_MODEL_KEY: Record<Stage, string> = { llm: "or_llm", vision: "or_vision" };
-const SERVER_MODEL_KEY: Record<Stage, string> = { llm: "srv_llm", vision: "srv_vision" };
 const DEFAULT_SERVER_URL = "http://127.0.0.1:11434";
 
 const errorText = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -57,8 +53,8 @@ function ServerKey({ url, typedUrl }: { url: string; typedUrl: string }) {
   );
 }
 
-// Провайдеры перевода и vision: своя Gemma, локальный OpenAI-совместимый сервер (Ollama, LM Studio, vLLM) или
-// OpenRouter — независимо для каждой стадии. Модель сервера — только из его /v1/models.
+// Провайдер помощника по сценарию: своя Gemma, локальный OpenAI-совместимый сервер (Ollama, LM Studio, vLLM) или
+// OpenRouter. Модель сервера — только из его /v1/models.
 export default function LlmProviders({ selection, hasOrKey, onChanged }: {
   selection: Selection | undefined; hasOrKey: boolean; onChanged: () => void;
 }) {
@@ -75,7 +71,8 @@ export default function LlmProviders({ selection, hasOrKey, onChanged }: {
       (e: unknown) => { setErr(t("providers.saveFailed", { detail: errorText(e) })); return false; },
     );
   const savedUrl = sel("srv_url") || DEFAULT_SERVER_URL;
-  const usesServer = llmProviderOf(selection, "llm") === "server" || llmProviderOf(selection, "vision") === "server";
+  const provider = llmProviderOf(selection, "llm");
+  const usesServer = provider === "server";
 
   useEffect(() => {
     if (!usesServer) return;
@@ -94,47 +91,40 @@ export default function LlmProviders({ selection, hasOrKey, onChanged }: {
     void set("srv_url", next).then((saved) => { if (saved) setUrlDraft(null); });
   };
 
-  const stageBlock = (stage: Stage) => {
-    const provider = llmProviderOf(selection, stage);
-    const serverModel = sel(SERVER_MODEL_KEY[stage]);
-    const tabs: { id: LlmProviderKind; label: string; disabled?: boolean; title?: string }[] = [
-      { id: "local", label: t("providers.localGemma") },
-      { id: "server", label: t("providers.server") },
-      { id: "openrouter", label: "OpenRouter", disabled: !hasOrKey, title: hasOrKey ? "" : t("providers.needKey") },
-    ];
-    return (
-      <div key={stage} className={`${rowCls} space-y-1.5`}>
+  const serverModel = sel("srv_llm");
+  const tabs: { id: LlmProviderKind; label: string; disabled?: boolean; title?: string }[] = [
+    { id: "local", label: t("providers.localGemma") },
+    { id: "server", label: t("providers.server") },
+    { id: "openrouter", label: "OpenRouter", disabled: !hasOrKey, title: hasOrKey ? "" : t("providers.needKey") },
+  ];
+
+  return (
+    <div className="space-y-1.5">
+      <div className={`${rowCls} space-y-1.5`}>
         <div className="flex items-baseline gap-2">
-          <span className="text-[12px] font-medium">{stage === "llm" ? t("providers.translate") : t("providers.vision")}</span>
-          <span className="mono text-[10px] text-[var(--color-muted)] truncate">{stage === "llm" ? t("providers.translateHint") : t("providers.visionHint")}</span>
+          <span className="text-[12px] font-medium">{t("providers.translate")}</span>
+          <span className="mono text-[10px] text-[var(--color-muted)] truncate">{t("providers.translateHint")}</span>
         </div>
         <div className="flex gap-1">
           {tabs.map((tab) => (
             <button key={tab.id} disabled={tab.disabled} title={tab.title} className={tabCls(provider === tab.id)}
-              onClick={() => { if (provider !== tab.id) set(PROVIDER_KEY[stage], tab.id); }}>{tab.label}</button>
+              onClick={() => { if (provider !== tab.id) set("llm_provider", tab.id); }}>{tab.label}</button>
           ))}
         </div>
         {provider === "server" && (
-          <select value={serverModel} onChange={(e) => { if (e.target.value) set(SERVER_MODEL_KEY[stage], e.target.value); }} className={selectCls}
-            aria-label={stage === "llm" ? t("providers.pickTranslateModel") : t("providers.pickVisionModel")}>
-            <option value="">{serverModels === null && !serverErr ? t("providers.loadingModels") : stage === "llm" ? t("providers.pickTranslateModel") : t("providers.pickVisionModel")}</option>
+          <select value={serverModel} onChange={(e) => { if (e.target.value) set("srv_llm", e.target.value); }} className={selectCls}
+            aria-label={t("providers.pickTranslateModel")}>
+            <option value="">{serverModels === null && !serverErr ? t("providers.loadingModels") : t("providers.pickTranslateModel")}</option>
             {serverModel && !(serverModels ?? []).includes(serverModel) && <option value={serverModel}>{t("providers.modelMissing", { id: serverModel })}</option>}
             {(serverModels ?? []).map((m) => <option key={m} value={m}>{m}</option>)}
           </select>
         )}
         {provider === "openrouter" && (
-          <OpenRouterModelSelect kind={stage} value={sel(OPENROUTER_MODEL_KEY[stage])}
-            onChange={(id) => { if (id) set(OPENROUTER_MODEL_KEY[stage], id); }}
-            placeholder={stage === "llm" ? t("providers.pickTranslateModel") : t("providers.visionAsTranslate")} />
+          <OpenRouterModelSelect kind="llm" value={sel("or_llm")}
+            onChange={(id) => { if (id) set("or_llm", id); }}
+            placeholder={t("providers.pickTranslateModel")} />
         )}
       </div>
-    );
-  };
-
-  return (
-    <div className="space-y-1.5">
-      {stageBlock("llm")}
-      {stageBlock("vision")}
       {usesServer && (
         <div className={`${rowCls} space-y-2`}>
           <div>

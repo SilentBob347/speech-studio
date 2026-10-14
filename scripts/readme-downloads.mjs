@@ -1,5 +1,5 @@
 // Checks (default) or rewrites (--write) the download tables of README.md and its five
-// translations against manifest() of crates/dub-server/src/setup.rs.
+// translations against manifest() of crates/speech-server/src/setup.rs.
 // A table sits between <!-- downloads:start --> and <!-- downloads:end -->.
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -121,7 +121,7 @@ const NAMES = {
 };
 
 function readManifest() {
-  const src = readFileSync(join(root, "crates/dub-server/src/setup.rs"), "utf8").replace(/\r\n/g, "\n");
+  const src = readFileSync(join(root, "crates/speech-server/src/setup.rs"), "utf8").replace(/\r\n/g, "\n");
   const consts = {};
   for (const m of src.matchAll(/const (\w+): &str =\s*"([^"]+)";/g)) consts[m[1]] = m[2];
   const at = src.indexOf("pub fn manifest()");

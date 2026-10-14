@@ -64,7 +64,7 @@
       "cloud": "Nube",
       "cloudHint": "Clave de OpenRouter y solicitudes en paralelo",
       "quality": "Calidad",
-      "qualityHint": "Comprobaciones de voz, tomas y diagnóstico",
+      "qualityHint": "Diagnóstico y tiempos por etapa",
       "network": "Red",
       "networkHint": "Proxy para descargar modelos y para la nube",
       "interface": "Idioma y sonidos",
@@ -124,7 +124,7 @@
     "redownload": "Re-descargar",
     "roleTts": "Voz · TTS",
     "roleAsr": "Habla · ASR",
-    "roleMt": "Traducción + Visión",
+    "roleMt": "Asistente de guion",
     "roleSep": "Limpieza de voz",
     "roleDiar": "Diarización",
     "roleRuntime": "Motores y runtime",
@@ -146,7 +146,7 @@
   },
   "secrets": {
     "orTitle": "Clave de OpenRouter",
-    "orHint": "para motores en la nube (traducción / TTS)",
+    "orHint": "para motores en la nube (locución, reconocimiento, asistente)",
     "orPlaceholder": "Pega tu clave (sk-or-v1-…)",
     "orSavedPlaceholder": "Clave guardada: pega una nueva para reemplazarla",
     "orFromEnv": "La clave viene de la variable de entorno {{name}}",
@@ -170,7 +170,7 @@
     "proxyTest": "Comprobar",
     "proxyTestFailed": "No se pudo comprobar el proxy: {{detail}}",
     "proxySaveFailed": "No se pudo guardar el proxy: {{detail}}",
-    "proxyNote": "HTTP, HTTPS, SOCKS5 y SOCKS4. Se aplica al instante a la descarga de modelos y a la nube. La traducción local y tu servidor en la red nunca pasan por el proxy.",
+    "proxyNote": "HTTP, HTTPS, SOCKS5 y SOCKS4. Se aplica a la vez a las descargas de modelos y a la nube. El asistente local y tu servidor en la red siempre evitan el proxy.",
     "proxyTitle": "Proxy",
     "proxyModeSystem": "Como en Windows",
     "proxyModeCustom": "Propio",
@@ -188,14 +188,14 @@
     "proxyProblem": "No se puede leer la dirección guardada ({{detail}}): las solicitudes van directas hasta que la corrijas"
   },
   "providers": {
-    "translate": "Traducción",
-    "translateHint": "texto del doblaje y de los subtítulos",
+    "translate": "Asistente de guion",
+    "translateHint": "prepara el texto para la locución y sugiere estilos",
     "vision": "Análisis de fotogramas (visión)",
     "visionHint": "estilo de subtítulos, títulos, contexto de escena; sin él la traducción sigue",
     "localGemma": "Gemma-4 12B",
     "server": "Servidor local",
     "needKey": "Introduce una clave de OpenRouter abajo (Ajustes de la nube)",
-    "pickTranslateModel": "— elige un modelo de traducción —",
+    "pickTranslateModel": "— elige el modelo del asistente —",
     "pickVisionModel": "— elige un modelo de visión —",
     "visionAsTranslate": "el mismo que el de traducción",
     "pickTtsModel": "— elige un modelo TTS —",
@@ -209,7 +209,7 @@
     "contextK": "contexto {{k}}k",
     "catalogTitle": "Catálogo de OpenRouter",
     "catalogCount": "Catálogo de OpenRouter: {{count}} modelos",
-    "catalogCounts": "traducción {{llm}} · visión {{vision}} · TTS {{tts}} · STT {{asr}} · actualizado {{when}}",
+    "catalogCounts": "asistente {{llm}} · visión {{vision}} · TTS {{tts}} · STT {{asr}} · actualizado {{when}}",
     "catalogRefresh": "Actualizar catálogo",
     "catalogFailed": "El catálogo de OpenRouter no está disponible: {{detail}}",
     "serverTitle": "Servidor local (compatible con OpenAI)",
@@ -226,12 +226,12 @@
     "serverModelCount": "Modelos en el servidor: {{count}}",
     "serverNoModels": "El servidor no lista ningún modelo: carga un modelo en Ollama o LM Studio",
     "serverUnreachable": "El servidor no respondió: {{detail}}",
-    "serverQuality": "La calidad de la traducción depende del modelo que ejecutes en el servidor.",
+    "serverQuality": "La calidad del asistente depende del modelo que ejecutes en el servidor.",
     "save": "Guardar",
     "saveFailed": "No se pudo guardar: {{detail}}",
     "cloudTitle": "Ajustes de la nube · OpenRouter",
     "concurrency": "Solicitudes en paralelo",
-    "concurrencyHint": "fragmentos por N conexiones: ASR/TTS/traducción en la nube más rápidos (1 = de uno en uno)"
+    "concurrencyHint": "fragmentos por N conexiones — ASR/TTS en la nube más rápidos (1 = de uno en uno)"
   },
   "help": {
     "title": "Acerca de Speech Studio",
@@ -421,7 +421,7 @@
   },
   "cloud": {
     "needKey": "Hace falta una clave de OpenRouter: haz clic para abrir la sección Nube",
-    "ttsNoRussian": "⚠ Este modelo no admite ruso: elige otro para el doblaje en ruso.",
+    "ttsNoRussian": "⚠ Este modelo no admite ruso: elige otro para la locución en ruso.",
     "autocast": "Reparto automático de voces",
     "beta": "beta",
     "autocastHint": "La voz se elige automáticamente según el género del hablante; cada hablante recibe una voz distinta.",
@@ -434,7 +434,7 @@
     "visionSameAsMt": "igual que el modelo de traducción",
     "title": "Ajustes de la nube · OpenRouter",
     "threads": "Hilos paralelos",
-    "threadsHint": "fragmentos en N conexiones: ASR/TTS/traducción en la nube más rápidos (1 = sin multihilo)"
+    "threadsHint": "fragmentos por N conexiones — ASR/TTS en la nube más rápidos (1 = sin multihilo)"
   },
   "hwPreset": {
     "title": "Preajuste según el hardware",

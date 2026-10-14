@@ -64,7 +64,7 @@
       "cloud": "云端",
       "cloudHint": "OpenRouter 密钥与并行请求",
       "quality": "质量",
-      "qualityHint": "配音检查、多次生成与诊断",
+      "qualityHint": "诊断与各阶段计时",
       "network": "网络",
       "networkHint": "用于下载模型和云端的代理",
       "interface": "语言与声音",
@@ -124,7 +124,7 @@
     "redownload": "重新下载",
     "roleTts": "配音 · TTS",
     "roleAsr": "识别 · ASR",
-    "roleMt": "翻译 + 视觉",
+    "roleMt": "脚本助手",
     "roleSep": "人声清理 · 分离",
     "roleDiar": "说话人分离",
     "roleRuntime": "引擎与运行时",
@@ -146,7 +146,7 @@
   },
   "secrets": {
     "orTitle": "OpenRouter 密钥",
-    "orHint": "用于云端引擎（翻译 / 语音合成）",
+    "orHint": "用于云端引擎（配音、识别、助手）",
     "orPlaceholder": "粘贴密钥（sk-or-v1-…）",
     "orSavedPlaceholder": "密钥已保存 — 粘贴新密钥即可替换",
     "orFromEnv": "密钥来自环境变量 {{name}}",
@@ -170,7 +170,7 @@
     "proxyTest": "检测",
     "proxyTestFailed": "无法测试代理：{{detail}}",
     "proxySaveFailed": "无法保存代理：{{detail}}",
-    "proxyNote": "支持 HTTP、HTTPS、SOCKS5 和 SOCKS4。对模型下载和云端立即生效。本地翻译和局域网中的服务器始终不经过代理。",
+    "proxyNote": "HTTP、HTTPS、SOCKS5 和 SOCKS4。同时作用于模型下载和云端。本地助手和你网络中的服务器始终绕过代理。",
     "proxyTitle": "代理",
     "proxyModeSystem": "同 Windows",
     "proxyModeCustom": "自定义",
@@ -188,14 +188,14 @@
     "proxyProblem": "已保存的地址无法识别（{{detail}}）——修正之前请求将直连"
   },
   "providers": {
-    "translate": "翻译",
-    "translateHint": "配音和字幕文本",
+    "translate": "脚本助手",
+    "translateHint": "为配音准备文本并建议风格",
     "vision": "画面分析（视觉）",
     "visionHint": "字幕样式、标题、场景上下文；没有它翻译照常进行",
     "localGemma": "Gemma-4 12B",
     "server": "本地服务器",
     "needKey": "请在下方输入 OpenRouter 密钥（云端设置）",
-    "pickTranslateModel": "— 选择翻译模型 —",
+    "pickTranslateModel": "— 选择助手模型 —",
     "pickVisionModel": "— 选择视觉模型 —",
     "visionAsTranslate": "与翻译模型相同",
     "pickTtsModel": "— 选择 TTS 模型 —",
@@ -209,7 +209,7 @@
     "contextK": "上下文 {{k}}k",
     "catalogTitle": "OpenRouter 目录",
     "catalogCount": "OpenRouter 目录：{{count}} 个模型",
-    "catalogCounts": "翻译 {{llm}} · 视觉 {{vision}} · TTS {{tts}} · STT {{asr}} · 更新于 {{when}}",
+    "catalogCounts": "助手 {{llm}} · 视觉 {{vision}} · TTS {{tts}} · STT {{asr}} · 更新于 {{when}}",
     "catalogRefresh": "刷新目录",
     "catalogFailed": "OpenRouter 目录不可用：{{detail}}",
     "serverTitle": "本地服务器（兼容 OpenAI）",
@@ -226,12 +226,12 @@
     "serverModelCount": "服务器上的模型：{{count}}",
     "serverNoModels": "服务器没有列出任何模型——请在 Ollama 或 LM Studio 中加载模型",
     "serverUnreachable": "服务器没有响应：{{detail}}",
-    "serverQuality": "翻译质量取决于服务器上运行的模型。",
+    "serverQuality": "助手的质量取决于你在服务器上运行的模型。",
     "save": "保存",
     "saveFailed": "无法保存：{{detail}}",
     "cloudTitle": "云端设置 · OpenRouter",
     "concurrency": "并行请求",
-    "concurrencyHint": "分块通过 N 个连接并行——云端 ASR/TTS/翻译更快（1 = 不并行）"
+    "concurrencyHint": "分块通过 N 个连接 — 云端 ASR/TTS 更快（1 = 逐个）"
   },
   "help": {
     "title": "关于 Speech Studio",
@@ -421,7 +421,7 @@
   },
   "cloud": {
     "needKey": "需要 OpenRouter 密钥——点击打开“云端”分区",
-    "ttsNoRussian": "⚠ 该模型不支持俄语——请为俄语配音选择其他模型。",
+    "ttsNoRussian": "⚠ 该模型不支持俄语 — 俄语配音请选择其他模型。",
     "autocast": "自动分配声音",
     "beta": "测试版",
     "autocastHint": "根据说话人性别自动选择声音，不同说话人使用不同声音。",
@@ -434,7 +434,7 @@
     "visionSameAsMt": "与翻译模型相同",
     "title": "云端设置 · OpenRouter",
     "threads": "并行线程",
-    "threadsHint": "分块通过 N 个连接并发——云端 ASR/TTS/翻译更快（1 = 不使用多线程）"
+    "threadsHint": "分块通过 N 个连接 — 云端 ASR/TTS 更快（1 = 不使用多线程）"
   },
   "hwPreset": {
     "title": "硬件预设",

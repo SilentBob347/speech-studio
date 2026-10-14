@@ -14,8 +14,12 @@ type Shown = (typeof SHOWN)[number];
 
 function actionLabel(t: TFunction<"t">, command: string, args: BridgeArgs): string | null {
   if (!(SHOWN as readonly string[]).includes(command)) return null;
+  if (command === "navigate") {
+    const view = args.view;
+    return typeof view === "string" && (MODES as readonly string[]).includes(view) ? t("bridge.do.navigate", { name: t(`modes.${view as Mode}`) }) : null;
+  }
   const target = typeof args.ref === "string" ? document.querySelector(`[data-mcp-ref="${CSS.escape(args.ref)}"]`) : null;
-  const name = target ? label(target) : typeof args.text === "string" ? args.text : typeof args.view === "string" ? args.view : "";
+  const name = target ? label(target) : typeof args.text === "string" ? args.text : "";
   return t(`bridge.do.${command as Shown}`, { name });
 }
 
