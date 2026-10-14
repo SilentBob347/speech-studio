@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Timer } from "lucide-react";
 import { api } from "../../lib/api";
 import SettingSwitch from "./SettingSwitch";
+import DiagnosticsPanel from "./DiagnosticsPanel";
 import { SETTINGS_CHANGED, useChanged } from "../../lib/mcpBridge";
 
 // Тумблеры — слоты active.json. defaultOn: слот, которого ещё нет в файле, считается включённым.
@@ -61,6 +62,7 @@ export default function QualitySection() {
     <div className="max-w-2xl">
       {error && <p role="alert" className="mb-3 mono text-[11px] text-[var(--color-warn)] break-words">{error}</p>}
       {group(t("prefs.diagnostics"), DIAGNOSTICS)}
+      <DiagnosticsPanel />
     </div>
   );
 }

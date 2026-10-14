@@ -11,7 +11,7 @@ pub mod i18n;
 mod asr_util;
 mod bench;
 mod credentials;
-#[cfg(test)]
+pub mod diagnostics;
 #[cfg(windows)]
 mod dll_imports;
 mod cloud_voices;
@@ -514,6 +514,9 @@ pub fn build_router(state: AppState) -> Router {
         .route("/projects/{pid}/exports/{file}/save-as", post(speech_api::export_save_as))
         .route("/chat", post(chat::chat))
         .route("/chat/models", get(chat::models))
+        .route("/diagnostics", get(diagnostics::get))
+        .route("/diagnostics/report", post(diagnostics::make_report))
+        .route("/diagnostics/report/reveal", post(diagnostics::reveal_report))
         .route("/journal", get(journal::read).post(journal::write).delete(journal::clear))
         .route("/journal/{id}", axum::routing::delete(journal::remove))
         .route("/jobs", get(jobs_list))

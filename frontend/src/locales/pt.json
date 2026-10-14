@@ -1482,5 +1482,15 @@
     "logStatus": "Resposta",
     "logMs": "ms",
     "sampleText": "Olá! Este é o Speech Studio."
+  },
+  "diag": {
+    "title": "Diagnóstico do sistema",
+    "hint": "O que o estúdio vê: a placa de vídeo, o driver e a CUDA, o ffmpeg, quais componentes estão presentes, quais bibliotecas faltam aos motores e as últimas linhas do log. Chaves nunca entram.",
+    "copy": "Copiar diagnóstico",
+    "pack": "Criar pacote para relatório de erro",
+    "report": "Relatar um problema",
+    "refresh": "Atualizar",
+    "packed": "Pacote salvo:",
+    "show": "Mostrar na pasta"
   }
 }

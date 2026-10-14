@@ -1482,5 +1482,15 @@
     "logStatus": "Respuesta",
     "logMs": "ms",
     "sampleText": "¡Hola! Este es Speech Studio."
+  },
+  "diag": {
+    "title": "Diagnóstico del sistema",
+    "hint": "Lo que ve el estudio: la tarjeta gráfica, el controlador y CUDA, ffmpeg, qué componentes están, qué bibliotecas faltan a los motores y las últimas líneas del registro. Las claves nunca se incluyen.",
+    "copy": "Copiar diagnóstico",
+    "pack": "Crear paquete para informe de error",
+    "report": "Informar de un problema",
+    "refresh": "Actualizar",
+    "packed": "Paquete guardado:",
+    "show": "Mostrar en la carpeta"
   }
 }

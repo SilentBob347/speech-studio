@@ -183,6 +183,11 @@ fn manifest_basenames(root: &Path) -> Vec<(String, PathBuf, &'static str)> {
 /// Bundled-компонент (VC++ runtime кладёт установщик, а не закачка).
 /// seen получает каждую библиотеку, найденную в каталоге поиска (для разбора, откуда что берётся).
 pub fn check_root(root: &Path, seen: &mut dyn FnMut(&str, &(String, PathBuf))) -> Result<Vec<String>, String> {
+    check_components(root, &|_| true, seen)
+}
+
+/// The same check for the components `include` names (the diagnostics: those installed on this computer).
+pub fn check_components(root: &Path, include: &dyn Fn(&str) -> bool, seen: &mut dyn FnMut(&str, &(String, PathBuf))) -> Result<Vec<String>, String> {
     let dirs = search_dirs(root);
     let manifest = setup::manifest();
     let bundled: Vec<(String, PathBuf)> = manifest_basenames(root)
@@ -191,7 +196,7 @@ pub fn check_root(root: &Path, seen: &mut dyn FnMut(&str, &(String, PathBuf))) -
         .map(|(n, d, _)| (n, d))
         .collect();
     let mut problems = Vec::new();
-    for (component, rel) in ENTRY_POINTS {
+    for (component, rel) in ENTRY_POINTS.iter().filter(|(component, _)| include(component)) {
         let entry = root.join(rel);
         if !entry.is_file() {
             problems.push(format!("{component}: no {rel} after installation"));
