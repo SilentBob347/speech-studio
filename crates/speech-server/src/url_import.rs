@@ -1092,7 +1092,7 @@ mod tests {
         assert_eq!(std::fs::read_to_string(p.join("name.txt")).unwrap(), "My clip.mp4");
         assert!(p.join("import_subs.srt").is_file());
         let project: Value = serde_json::from_str(&std::fs::read_to_string(p.join("project.json")).unwrap()).unwrap();
-        assert_eq!(project["segments"][0]["src_text"], "Hello there");
+        assert_eq!((project["kind"].as_str(), project["transcript"].is_null()), (Some("listening"), true));
         std::fs::write(dir.join("source.m4a"), b"x").unwrap();
         std::fs::write(dir.join("empty.srt"), "garbage").unwrap();
         let made = make_project(&fetch_root, &dir.join("source.m4a"), "a", Some(&dir.join("empty.srt"))).unwrap();

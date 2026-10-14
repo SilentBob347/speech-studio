@@ -227,7 +227,7 @@ mod tests {
             let place = path.file_name().unwrap().to_string_lossy().to_string();
             all.extend(calls(&std::fs::read_to_string(&path).unwrap()).into_iter().map(|(key, names)| (place.clone(), key, names)));
         }
-        assert!(all.len() > 500, "the calls were not found: {}", all.len());
+        assert!(all.len() > 300, "the calls were not found: {}", all.len());
         let catalogues = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("locales");
         let mut problems = Vec::new();
         for code in LANGUAGES {

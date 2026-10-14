@@ -1,5 +1,5 @@
 //! The studio's window as an agent's second way in, next to the tools that call routes: the agent
-//! works in the editor the user watches. The page subscribes to a stream of commands (GET
+//! works in the window the user watches. The page subscribes to a stream of commands (GET
 //! /mcp/window), executes each and posts its answer back by the command's id (POST
 //! /mcp/window/result); the window the person turned to last is the one asked (POST
 //! /mcp/window/focus). The same stream tells every window what changed behind it - a project
@@ -35,7 +35,7 @@ pub(crate) const REV_HEADER: &str = "x-project-rev";
 /// The error code of a PUT whose state someone else's later save would be lost under.
 pub(crate) const PROJECT_CHANGED: &str = "project_changed";
 
-const NO_WINDOW: &str = "The studio's window is not open, so there is nothing on screen to work in. Open Speech Studio (or its address in a browser) and call the tool again; every tool that is not ui_* or editor_* works without the window.";
+const NO_WINDOW: &str = "The studio's window is not open, so there is nothing on screen to work in. Open Speech Studio (or its address in a browser) and call the tool again; every tool that is not ui_* works without the window.";
 
 /// Kinds of work a POST starts as a job, by the last part of its route.
 const JOB_ROUTES: &[&str] = &["analyze", "render", "dub-audio", "export-lang", "retranslate", "remix", "resume", "align", "separate", "detect-text", "shorten"];
@@ -466,8 +466,8 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "ui_navigate",
-            description: "Open a screen of the studio: home (a new video and the recent projects) or editor (the project pid, the one open when left out).",
-            schema: || object(json!({ "view": { "type": "string", "enum": ["home", "editor"] }, "pid": pid() }), &["view"]),
+            description: "Open a mode of the studio: speech (voicing text) or listening (recognising speech and checking a voicing).",
+            schema: || object(json!({ "view": { "type": "string", "enum": ["speech", "listening"] } }), &["view"]),
             call: |args| window("navigate", args, 15),
         },
         Tool {
@@ -494,7 +494,6 @@ pub(super) fn tools() -> Vec<Tool> {
             schema: nothing,
             call: |args| window("console", args, 15),
         },
-        // ---------------------------------------------------------------- the editor, in front of the user
     ]
 }
 
@@ -527,10 +526,10 @@ mod tests {
         let mut page = bridge().commands.subscribe();
         let window = u64::MAX - 100;
         open_windows().push(window);
-        let asked = tokio::spawn(ask_window("editor_state", json!({ "x": 1 }), 5));
+        let asked = tokio::spawn(ask_window("probe", json!({ "x": 1 }), 5));
         let command = loop {
             let message = next(&mut page).await;
-            if message["command"] == "editor_state" {
+            if message["command"] == "probe" {
                 break message;
             }
         };
@@ -543,10 +542,10 @@ mod tests {
         assert_eq!(asked.await.unwrap().unwrap(), json!({ "pid": "p1" }));
         assert!(!pending().contains_key(&id));
 
-        let failing = tokio::spawn(ask_window("editor_undo", json!({}), 5));
+        let failing = tokio::spawn(ask_window("refuse", json!({}), 5));
         let command = loop {
             let message = next(&mut page).await;
-            if message["command"] == "editor_undo" {
+            if message["command"] == "refuse" {
                 break message;
             }
         };
@@ -560,14 +559,14 @@ mod tests {
         let _turn = TURN.lock().await;
         let saved: Vec<u64> = std::mem::take(&mut *open_windows());
         let started = std::time::Instant::now();
-        let none = ask_window("editor_state", json!({}), 30).await.unwrap_err();
+        let none = ask_window("probe", json!({}), 30).await.unwrap_err();
         assert!(none.contains("window is not open") && started.elapsed() < Duration::from_secs(1), "{none}");
 
         let _page = bridge().commands.subscribe();
         let window = u64::MAX - 101;
         open_windows().push(window);
-        let silent = ask_window("editor_frame", json!({}), 1).await.unwrap_err();
-        assert!(silent.contains("did not answer 'editor_frame' within 1 s"), "{silent}");
+        let silent = ask_window("probe", json!({}), 1).await.unwrap_err();
+        assert!(silent.contains("did not answer 'probe' within 1 s"), "{silent}");
         assert!(pending().is_empty(), "a command given up on is not left waiting");
         open_windows().retain(|open| *open != window);
         open_windows().extend(saved);
@@ -620,19 +619,15 @@ mod tests {
         const BUILT_IN: &[&str] = &["screenshot", "read_page", "click", "type", "select", "press_key", "scroll", "console"];
         const APP: &[&str] = &["navigate", "open_settings", "open_help", "notify"];
         for tool in super::super::tools() {
-            let windowed = tool.name.starts_with("ui_") || tool.name.starts_with("editor_");
+            let windowed = tool.name.starts_with("ui_");
             let schema = (tool.schema)();
             let args = json!({});
             match (tool.call)(&args) {
                 Ok(Call { payload: Payload::Window { command, seconds, .. }, .. }) => {
-                    assert!(windowed, "{} asks the window but is not named ui_ or editor_", tool.name);
+                    assert!(windowed, "{} asks the window but is not named ui_", tool.name);
                     assert!(seconds >= 15, "{} gives the window {seconds} s", tool.name);
-                    if tool.name.starts_with("ui_") {
-                        assert!(BUILT_IN.contains(&command) || APP.contains(&command), "{} asks for {command}, which the page does not know", tool.name);
-                    } else {
-                        assert_eq!(command, tool.name, "an editor tool asks for its own name");
-                    }
-                    assert!(schema["properties"].get("pid").is_none() || tool.name == "editor_open" || tool.name == "ui_navigate", "{} works on the open project, not a pid", tool.name);
+                    assert!(BUILT_IN.contains(&command) || APP.contains(&command), "{} asks for {command}, which the page does not know", tool.name);
+                    assert!(schema["properties"].get("pid").is_none(), "{} works in the window, not on a pid", tool.name);
                 }
                 _ => assert!(!windowed, "{} is named for the window but does not ask it", tool.name),
             }
@@ -641,25 +636,12 @@ mod tests {
 
     #[test]
     fn window_tools_that_only_look_are_read_only() {
-        for name in ["ui_screenshot", "ui_read_page", "ui_console", "editor_state", "editor_frame", "project_transcript"] {
+        for name in ["ui_screenshot", "ui_read_page", "ui_console"] {
             assert_eq!(annotations(name)["readOnlyHint"], true, "{name}");
         }
-        for name in ["ui_click", "ui_type", "editor_open", "editor_segment_update", "editor_segment_split", "editor_export", "editor_undo", "segment_split"] {
+        for name in ["ui_click", "ui_type", "ui_navigate"] {
             assert_eq!(annotations(name)["readOnlyHint"], false, "{name}");
         }
-        for name in ["editor_segments_delete", "editor_segment_update", "editor_segments_merge", "segments_merge"] {
-            assert_eq!(annotations(name)["destructiveHint"], true, "{name}");
-        }
-    }
-
-    #[test]
-    fn an_editor_tool_takes_the_fields_of_its_atomic_twin() {
-        let find = |name: &str| super::super::tools().iter().find(|tool| tool.name == name).unwrap();
-        let update = (find("editor_segment_update").schema)();
-        assert!(update["properties"]["tgt_text"].is_object() && update["properties"].get("pid").is_none());
-        assert_eq!(update["required"], json!(["id"]));
-        let split = (find("editor_segment_split").schema)();
-        assert_eq!(split["required"], json!(["id"]), "the playhead is the moment when at is left out");
     }
 
     /// A studio in miniature behind the middleware: a project saved by PATCH and PUT, and a job.

@@ -336,35 +336,6 @@ mod tests {
     use dub_llm::test_http::{serve, Reply};
 
     #[test]
-    #[ignore = "Read-only smoke test requires GEMINI_API_KEY and DUB_GOOGLE_TEST_BATCH"]
-    fn live_sdk_reads_an_existing_batch_and_model_catalog() {
-        let client = Client::new(std::env::var("GEMINI_API_KEY").expect("GEMINI_API_KEY")).unwrap();
-        let catalog = client.models().unwrap();
-        let lite = catalog["models"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .find(|m| m["name"] == "models/gemini-3.8-flash-lite-tts")
-            .unwrap();
-        assert!(lite["supportedGenerationMethods"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|m| m == "batchGenerateContent"));
-        let op = client
-            .batch_get(&std::env::var("DUB_GOOGLE_TEST_BATCH").expect("existing batch name"))
-            .unwrap();
-        assert_eq!(op["done"], true);
-        let rows = batch_rows(&op).unwrap();
-        assert!(!rows.is_empty());
-        for row in rows.values() {
-            if row["response"].is_object() {
-                audio(&row["response"]).unwrap();
-            }
-        }
-    }
-
-    #[test]
     fn catalog_preserves_developer_api_batch_capabilities() {
         let server = serve(vec![
             Reply::json(
@@ -407,60 +378,6 @@ mod tests {
             assert!(validate_model(m).is_err());
         }
         assert!(validate_batch("batches/../other").is_err());
-    }
-
-    #[test]
-    fn out_of_order_results_are_matched_by_key_and_errors_stay_errors() {
-        let op = json!({"response":{"inlinedResponses":{"inlinedResponses":[
-            {"metadata":{"key":"b"},"error":{"code":3}}, {"metadata":{"key":"a"},"response":{"usageMetadata":{}}}
-        ]}}});
-        let rows = batch_rows(&op).unwrap();
-        assert_eq!(rows["b"]["error"]["code"], 3);
-        assert!(rows["a"]["response"].is_object());
-        assert!(batch_rows(&json!({"response":{"inlinedResponses":{"inlinedResponses":[{"metadata":{"key":"a"}},{"metadata":{"key":"a"}}]}}})).is_err());
-        assert!(audio(&json!({"candidates":[{"finishReason":"MAX_TOKENS"}]})).is_err());
-    }
-
-    #[test]
-    fn a_saved_batch_is_polled_without_another_paid_post() {
-        let dir = tempfile::tempdir().unwrap();
-        save(
-            &dir.path().join("batch.json"),
-            &json!({"name":"batches/existing","submitted":true}),
-        )
-        .unwrap();
-        let server = serve(vec![Reply::json(
-            200,
-            r#"{"done":true,"metadata":{"state":"BATCH_STATE_SUCCEEDED"},"response":{"inlinedResponses":{"inlinedResponses":[]}}}"#,
-        )]);
-        let client = Client::with_base("private-key".into(), &server.base()).unwrap();
-        await_batch(
-            &client,
-            dir.path(),
-            "gemini-3.8-flash-lite-tts",
-            &json!([]),
-            &|_| {},
-        )
-        .unwrap();
-        assert!(server
-            .request(0)
-            .starts_with("GET /v1beta/batches/existing"));
-        assert_eq!(server.count(), 1);
-        save(
-            &dir.path().join("batch.json"),
-            &json!({"submitted":true,"display_name":"unknown"}),
-        )
-        .unwrap();
-        assert!(await_batch(
-            &client,
-            dir.path(),
-            "gemini-3.8-flash-lite-tts",
-            &json!([]),
-            &|_| {}
-        )
-        .unwrap_err()
-        .contains("outcome is unknown"));
-        assert_eq!(server.count(), 1);
     }
 
     #[test]

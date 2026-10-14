@@ -2,11 +2,8 @@
 //!
 //! Every tool is a route of the studio's own API, called inside the process
 //! through the same router the page talks to, so an agent does exactly what
-//! the page does through the same code: make a project of a video, analyze it,
-//! edit the transcript and the translation line by line, cast the voices,
-//! render, export more languages, save the result to a folder. A file an agent
-//! names by its path is sent to the route as the multipart upload the page
-//! would send.
+//! the page does through the same code. A file an agent names by its path is
+//! sent to the route as the multipart upload the page would send.
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -57,7 +54,7 @@ enum Payload {
     /// Multipart form fields and files, as the page uploads them.
     Form { fields: Vec<(String, String)>, files: Vec<(String, PathBuf, String)>,
     },
-    /// A command for the studio's window: what is on screen, the controls, the editor. Answered by
+    /// A command for the studio's window: what is on screen and its controls. Answered by
     /// the page itself.
     Window { command: &'static str, args: Value, seconds: u64,
     },
@@ -670,16 +667,9 @@ fn annotations(name: &str) -> Value {
         "shorten", "pin",
     ];
     // reads whose names the rules above miss
-    const READ_NAMES: &[&str] = &["studio_wait", "proxy_test", "openrouter_verify", "project_transcript", "ui_screenshot", "ui_read_page", "ui_console", "editor_state", "url_probe",
-        "project_google_tts_report",
-    ];
+    const READ_NAMES: &[&str] = &["studio_wait", "proxy_test", "openrouter_verify", "ui_screenshot", "ui_read_page", "ui_console", "url_probe"];
     // writes over what was stored, so the earlier content is gone: a client asks first
-    const OVERWRITES: &[&str] = &[
-        "project_put", "project_analyze", "project_retranslate", "project_remix", "project_align", "segment_update", "segments_reorder", "segments_regen_all",
-        "project_mode_set", "translation_target_set", "translation_style_set", "rewrite_set", "voice_set", "caption_style_set", "casting_update",
-        "voice_slots_assign", "openrouter_set_key", "segments_merge", "editor_segment_update", "editor_segments_merge", "editor_mode", "editor_style",
-        "segment_shorten", "take_select", "glossary_set", "series_glossary_set",
-    ];
+    const OVERWRITES: &[&str] = &["openrouter_set_key"];
     let changes = CHANGES.iter().any(|verb| name.split('_').any(|word| word == *verb));
     let read_only = READ_NAMES.contains(&name) || !changes && READS.iter().any(|part| name.ends_with(part) || name.contains(&format!("{part}_")));
     let destructive = name.ends_with("_delete") || name.ends_with("_cancel") || name.contains("_cancel_") || name.ends_with("_delete_key") || OVERWRITES.contains(&name);
@@ -1366,13 +1356,8 @@ fn tools() -> &'static [Tool] {
 
 // ---------------------------------------------------------------- calling a route
 
-/// The router the tools call; the tests' own stands in for it, whichever
-/// router another test of this crate installs.
+/// The router the tools call.
 fn studio_api() -> Result<Router, String> {
-    #[cfg(test)]
-    if let Some(stub) = tests::STUB.get() {
-        return Ok(stub.clone());
-    }
     API.get().cloned().ok_or_else(|| "the studio is still starting".to_string())
 }
 
@@ -1700,11 +1685,6 @@ pub async fn handle(headers: HeaderMap, body: axum::body::Bytes) -> Response {
         }
         "prompts/list" => rpc(id, cacheable(json!({ "prompts": [
             { "name": "studio", "title": "Studio skill", "description": "Load the studio's skill: the tools, the ground rules and the recipes." },
-            { "name": "dub_video", "title": "Dub a video", "description": "Dub a video file on this computer into a language, from the file to the finished video.", "arguments": [
-                { "name": "path", "description": "the video file", "required": true },
-                { "name": "lang", "description": "the language to dub into, a code such as ru, en, es", "required": true },
-                { "name": "mode", "description": "dub (default), voiceover, nodub (subtitles only) or transcribe", "required": false },
-            ] },
         ] })),
         ),
         "prompts/get" => {
@@ -1714,14 +1694,6 @@ pub async fn handle(headers: HeaderMap, body: axum::body::Bytes) -> Response {
             };
             let text = match name {
                 "studio" => Some(SKILL.to_string()),
-                "dub_video" => {
-                    let mode = Some(argument("mode")).filter(|mode| !mode.is_empty()).unwrap_or_else(|| "dub".into());
-                    Some(format!(
-                        "Dub the video {path} into {lang} (mode {mode}) with Speech Studio. Read the skill first (prompt studio, resource {SKILL_URI}).\n\n1. studio_status: the models must be ready and no job running.\n2. project_create with path {path}; keep its project_id.\n3. project_analyze with that pid, tgt_lang {lang} and mode {mode}; studio_wait with its job_id until done.\n4. project_get: read the translation line by line and fix what reads wrong with segment_update.\n5. project_render; studio_wait with its job_id.\n6. project_frame at a moment with speech to see the subtitles as they are burned in.\n7. project_save_output into the folder the user named (ask when they did not), then tell the user the path.",
-                        path = argument("path"),
-                        lang = argument("lang"),
-                    ))
-                }
                 _ => None,
             };
             match text {
@@ -1815,4 +1787,4 @@ fn moment(text: &str, end: bool) -> Result<i64, String> {
 }
 
 /// What an agent is told when it connects.
-const INSTRUCTIONS: &str = "You drive Speech Studio on this computer: it dubs, voices over, subtitles and transcribes videos. Every tool runs the same code as a button of the studio, through the routes its window calls. Start with studio_status. For one result from a file, without working in the studio, one call does it: transcribe_file (the transcript), translate_file (translated subtitles), dub_file (the dubbed video), separate_file (voice and background apart), detect_text_file (the text in the picture); export_subtitles writes a project's subtitles. Long work - project_analyze, project_dub_audio, project_render, project_export_lang, project_retranslate, project_remix, downloads - is a job: start it, then studio_wait with its job_id instead of polling. The graphics card runs one job at a time and a preview frame (project_frame) waits behind it, so look at frames while the studio is idle. Edits (segment_update, caption_style_set and the rest) are instant and saved; a line whose words, timing, speaker or voice changed is dirty, and project_dub_audio and project_render voice only the dirty lines again. Look ids up instead of guessing them: projects_list, project_get, voices_list, casting_get, casting_library_list, models_status. Files on this computer are passed by path. To work in front of the user, open the project in the studio's window with editor_open and use the editor_* tools (the user watches the lines, the timeline, the frame and the export change) and ui_* for anything else on screen; they need the window open, the rest works without it. The whole guide is the resource studio://skill (prompt 'studio').";
+const INSTRUCTIONS: &str = "You drive Speech Studio on this computer: it voices text (Speech) and recognises speech and checks a voicing (Listening). Every tool runs the same code as a control of the studio, through the routes its window calls. Start with studio_status. Long work - downloads and link fetches - is a job: start it, then studio_wait with its job_id instead of polling. Look ids up instead of guessing them: voices_list, models_status, url_fetches_list. Files on this computer are passed by path. To work in front of the user, use the ui_* tools (ui_navigate opens speech or listening); they need the window open, the rest works without it. The whole guide is the resource studio://skill (prompt 'studio').";

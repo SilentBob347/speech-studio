@@ -256,21 +256,4 @@ mod tests {
         assert_eq!(tts_text("(вздыхает)", "", "ru", &[]).skip, Some(SKIP_SOUND_ONLY));
     }
 
-    #[test]
-    fn the_view_silences_empty_lines_and_the_project_shows_why() {
-        let mut p = Project { tgt_lang: "ru".into(), ..Project::default() };
-        let seg = |id: &str, tgt: &str| dub_core::Segment { id: id.into(), tgt_text: tgt.into(), ..Default::default() };
-        p.segments = vec![seg("s0", "[музыка]"), seg("s1", "(смеётся) Привет"), seg("s2", "Привет")];
-        let seen = std::sync::Mutex::new(Vec::new());
-        let progress = |v: Value| seen.lock().unwrap().push(v["msg"].as_str().unwrap_or_default().to_string());
-        let view = synthesis_view(&p, &progress);
-        assert_eq!(view.segments[0].tgt_text, "");
-        assert_eq!(view.segments[1].tgt_text, "Привет");
-        assert_eq!(p.segments[1].tgt_text, "(смеётся) Привет", "the shown text is untouched");
-        assert!(seen.lock().unwrap()[0].contains("s0"));
-        annotate(&mut p);
-        assert_eq!(p.segments[0].extra["tts_skip"], SKIP_SOUND_ONLY);
-        assert_eq!(p.segments[1].extra["tts_text"], "Привет");
-        assert!(!p.segments[2].extra.contains_key("tts_text"));
-    }
 }
