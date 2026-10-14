@@ -60,6 +60,7 @@ mod cloud_tts;
 mod speechproj;
 mod book_import;
 mod acx;
+mod cloud;
 mod openai_api;
 mod director;
 mod director_api;
@@ -457,6 +458,13 @@ pub fn build_router(state: AppState) -> Router {
         .route("/dictionary/import", post(dict_api::import))
         .route("/projects/{pid}/dictionary-counts", get(dict_api::counts))
         .route("/projects/{pid}/unknown-words", get(dict_api::unknown_words))
+        .route("/cloud/catalog", get(cloud::catalog))
+        .route("/cloud/catalog/refresh", post(cloud::refresh))
+        .route("/cloud/form", get(cloud::form))
+        .route("/cloud/estimate", post(cloud::estimate))
+        .route("/cloud/keys", get(cloud::keys))
+        .route("/cloud/keys/{provider}", axum::routing::put(cloud::set_key).delete(cloud::delete_key))
+        .route("/cloud/spend", get(cloud::spend))
         .route("/v1/models", get(openai_api::models))
         .route("/v1/audio/speech", post(openai_api::speech))
         .route("/v1/audio/transcriptions", post(openai_api::transcriptions))

@@ -44,7 +44,7 @@ pub struct Line {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(default)]
 pub struct Settings {
-    /// `""` — распознаватель из настроек студии; `parakeet`, `whisper`, `openrouter`.
+    /// `""` — распознаватель из настроек студии; `parakeet`, `whisper`, `openrouter`, `fal`.
     pub engine: String,
     /// Модель OpenRouter; пусто — выбранная в «Облаке».
     pub cloud_model: String,
@@ -120,8 +120,8 @@ impl ListenProject {
         if self.settings.speakers > MAX_SPEAKERS {
             return Err(format!("speakers {} is outside 0..{MAX_SPEAKERS}", self.settings.speakers));
         }
-        if !matches!(self.settings.engine.as_str(), "" | "parakeet" | "whisper" | "openrouter") {
-            return Err(format!("engine {} is not one of parakeet, whisper, openrouter", self.settings.engine));
+        if !matches!(self.settings.engine.as_str(), "" | "parakeet" | "whisper" | "openrouter" | "fal") {
+            return Err(format!("engine {} is not one of parakeet, whisper, openrouter, fal", self.settings.engine));
         }
         if self.source.contains(['/', '\\']) || self.source.contains("..") {
             return Err(format!("source {} must be a file name in the project folder", self.source));

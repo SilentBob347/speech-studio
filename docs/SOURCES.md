@@ -9,7 +9,7 @@ taken at, so a fix made there can be carried over here and the other way round.
 | Crate | Repository | Revision |
 |---|---|---|
 | `dub-core`, `dub-asr` (feature `cuda`), `dub-llm`, `dub-translate`, `dub-captions`, `dub-sep`, `dub-faces`, `audiocpp`, `drama` | `timoncool/dub-studio` | `a21ae6cefe1ce86b39e1b3524686b4082c36732c` |
-| `vs-providers` | `timoncool/videosos` | `106272591abd7d29193145b82b5528108f3db1a8` |
+| `vs-providers` | `timoncool/videosos` | `29b47ce7f0dfcf7601415a099687556e79fe9b43` |
 | `studio-hub-client` | `timoncool/studio-hub` | `e44abf030d5a5acc48ef693a395a04109db8fa16` |
 
 ## Copies from Dub Studio
@@ -33,6 +33,6 @@ Taken from `timoncool/dub-studio` at `11f909a8e798d56f5f43e0b7ae959d77a05a1866`.
 
 ## Patterns from VideoSOS
 
-| Here | There (`timoncool/videosos` at `106272591abd7d29193145b82b5528108f3db1a8`) |
+| Here | There (`timoncool/videosos` at `29b47ce7f0dfcf7601415a099687556e79fe9b43`) |
 |---|---|
 | the mode switch of `frontend/src/components/shell/TopBar.tsx` | `frontend/src/features/editor/components/workspace-switcher.tsx` |

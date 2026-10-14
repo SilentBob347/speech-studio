@@ -76,6 +76,32 @@ pub fn store_google_api_key(api_key: Option<&str>) -> Result<Option<CredentialSo
     .then_some(CredentialSource::LocalStore))
 }
 
+/// Ключ облачного провайдера каталога (fal, Runware): переменная окружения главнее сохранённого файла.
+pub fn provider_env(provider: vs_providers::Provider) -> Option<(&'static str, &'static str)> {
+    match provider {
+        vs_providers::Provider::Fal => Some(("FAL_KEY", "fal-api-key")),
+        vs_providers::Provider::Runware => Some(("RUNWARE_API_KEY", "runware-api-key")),
+        _ => None,
+    }
+}
+
+pub fn provider_key(provider: vs_providers::Provider) -> Option<(String, CredentialSource)> {
+    let (var, file) = provider_env(provider)?;
+    if let Some(key) = env::var(var).ok().map(|key| key.trim().to_owned()).filter(|key| !key.is_empty()) {
+        return Some((key, CredentialSource::Environment));
+    }
+    Some((read_secret(&secrets_dir()?, file)?, CredentialSource::LocalStore))
+}
+
+pub fn store_provider_key(provider: vs_providers::Provider, api_key: Option<&str>) -> Result<Option<CredentialSource>> {
+    let (var, file) = provider_env(provider).context("this provider keeps no key here")?;
+    if env::var(var).is_ok_and(|key| !key.trim().is_empty()) {
+        bail!("{var} is set in this environment and takes priority; unset it before storing a key in Studio");
+    }
+    let dir = secrets_dir().context("no per-user application data directory for credential storage")?;
+    Ok(write_secret(&dir, file, api_key, "an API key must be a single line")?.then_some(CredentialSource::LocalStore))
+}
+
 /// Stores or clears the key. Refuses to shadow an environment credential so a
 /// user never believes they replaced a key that the process is not using.
 pub fn store_openrouter_api_key(api_key: Option<&str>) -> Result<Option<CredentialSource>> {

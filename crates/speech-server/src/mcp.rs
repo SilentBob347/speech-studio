@@ -21,7 +21,7 @@ mod atomic;
 mod speech_tools;
 mod window;
 
-pub(crate) use window::{carry, carry_job, save_with_revision, tell_windows, track, PROJECT_CHANGED, REV_HEADER};
+pub(crate) use window::{carry, carry_job, current_actor, save_with_revision, tell_windows, track, PROJECT_CHANGED, REV_HEADER};
 pub use window::{window_events, window_focus, window_result};
 
 /// The studio's API router, set once the service has built it.

@@ -143,7 +143,8 @@
     "sec": "s",
     "bench": "Stage benchmark",
     "benchHint": "Measure time/GPU/VRAM per pipeline stage -> bench.json + ⏱ lines in the log. Light background sampling once per second.",
-    "roleText": "Text preparation · stress"
+    "roleText": "Text preparation · stress",
+    "dramaNote": "Drama 3 is only for 24 GB+ graphics cards; a project picks it in its settings, engine."
   },
   "secrets": {
     "orTitle": "OpenRouter key",
@@ -1302,7 +1303,9 @@
     "flag_subtitle_word": "a subtitles credit",
     "flag_shouted": "shouted caps",
     "flag_known_phrase": "a typical hallucination",
-    "removeMessage": "“{{name}}” goes to the recycle bin with its recording, transcript and exports."
+    "removeMessage": "“{{name}}” goes to the recycle bin with its recording, transcript and exports.",
+    "engine_fal": "fal.ai (cloud)",
+    "engineHint_fal": "A fal.ai recognition model (Whisper, ElevenLabs Scribe…): paid, needs the key; word times are approximate."
   },
   "podcast": {
     "open": "Podcast script",
@@ -1325,5 +1328,40 @@
     "guest": "Guest",
     "hostManner": "calm, asks short questions",
     "guestManner": "lively, tells stories with examples"
+  },
+  "cloud2": {
+    "noKey": "{{provider}} has no key yet.",
+    "addKey": "Add the key",
+    "search": "Search models…",
+    "refresh": "Read the catalogue again",
+    "catalogError": "Kept the last catalogue: {{error}}",
+    "models": "Models",
+    "favourite": "Add to favourites",
+    "unfavourite": "Remove from favourites",
+    "priceAfter": "price after the run",
+    "none": "No models match.",
+    "byDefault": "By default",
+    "more": "More settings",
+    "fewer": "Fewer settings",
+    "cost": "About {{usd}} USD for {{runs}} runs",
+    "costAbout": "Roughly {{usd}} USD for {{runs}} runs (the variant is guessed)",
+    "costAfter": "The price will be known after the run",
+    "providersTitle": "fal.ai and Runware",
+    "providersHint": "Speech and recognition models of these clouds, with their prices; a key is checked by a free balance call and kept on this computer. Every cloud call goes into the spending log.",
+    "keyFromEnv": "from {{name}}",
+    "keySaved": "saved",
+    "keyNone": "no key",
+    "keyRemove": "Remove the {{name}} key",
+    "keyPlaceholder": "API key",
+    "keyFor": "{{name}} API key",
+    "keyCheck": "Check and save",
+    "keyOk": "The key works.",
+    "keyOkBalance": "The key works; balance {{balance}}.",
+    "spendTitle": "Cloud spending",
+    "spendTotals": "Total {{total}}, today {{today}}",
+    "spendUnpriced": "unpriced runs: {{n}}",
+    "runs": "runs: {{n}}",
+    "limit": "Daily limit for agents and programs, USD",
+    "limitHint": "0 — no limit; a run without a price is refused while a limit is set"
   }
 }

@@ -272,6 +272,11 @@ pub(crate) fn carry<T>(work: impl FnOnce() -> T + Send + 'static) -> impl FnOnce
     }
 }
 
+/// Who the current request or job is for: `window:<mark>`, `agent`, `api`, or `studio` outside both.
+pub(crate) fn current_actor() -> String {
+    REQUEST.try_with(|scope| scope.actor.clone()).unwrap_or_else(|_| "studio".into())
+}
+
 /// A job, taken when a request queues it and run as that request author's job: its saves are
 /// theirs, marked `job`, whoever queued the project's next job before it ran. JobQueue::enqueue
 /// wraps every job in it.

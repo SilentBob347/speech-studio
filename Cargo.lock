@@ -5503,13 +5503,15 @@ dependencies = [
 
 [[package]]
 name = "vs-providers"
-version = "2.0.0"
-source = "git+https://github.com/timoncool/videosos?rev=106272591abd7d29193145b82b5528108f3db1a8#106272591abd7d29193145b82b5528108f3db1a8"
+version = "2.1.0"
+source = "git+https://github.com/timoncool/videosos?rev=29b47ce7f0dfcf7601415a099687556e79fe9b43#29b47ce7f0dfcf7601415a099687556e79fe9b43"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
  "chrono",
  "futures-util",
+ "http",
+ "hyper-util",
  "jsonschema",
  "reqwest 0.13.5",
  "serde",

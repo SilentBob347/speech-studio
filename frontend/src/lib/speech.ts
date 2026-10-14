@@ -3,7 +3,7 @@ import { BASE, coded, postCoded, sendCoded, getCoded } from "./api";
 export type Take = {
   n: number; file: string; duration: number; seed: number; temperature: number; key: string; created: number;
   source: string; synth_secs: number; retried: string[];
-  qc: QcCheck | null; text: string; direction: string; fit_stretch: number; fit_lead: number; fit_over: boolean;
+  qc: QcCheck | null; cost: number | null; estimate: number | null; text: string; direction: string; fit_stretch: number; fit_lead: number; fit_over: boolean;
 };
 export type QcCheck = { text_checked: boolean; wer: number; words: number; inserted: number; deleted: number; substituted: number; heard: string; passed: boolean; similarity: number | null; similar: boolean | null; issues: QcIssue[] };
 export type QcIssue = "tail" | "stretched" | "gap";
@@ -29,7 +29,7 @@ export type Loudness = "off" | "video" | "podcast" | "acx";
 export type SpeechSettings = {
   lang: string; engine: string; params: SpeechParams; voice: string | null;
   pause_same_ms: number; pause_switch_ms: number; loudness: Loudness; qc: QcSettings; auto_stress: boolean; normalize: boolean;
-  timeline: boolean; max_stretch: number; lead_into_silence: boolean; room_tone: boolean; continuation: boolean; cloud_model: string; cloud_voice: string;
+  timeline: boolean; max_stretch: number; lead_into_silence: boolean; room_tone: boolean; continuation: boolean; cloud_model: string; cloud_voice: string; cloud_values: Record<string, unknown>;
 };
 export type AcxReport = { passed: boolean; checks: { name: "rms" | "peak" | "noise_floor" | "head" | "tail" | "inner_silence" | "length"; value: number; passed: boolean }[] };
 export type DictKind = "word" | "regex" | "phonemes";

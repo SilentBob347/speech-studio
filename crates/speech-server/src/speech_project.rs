@@ -46,6 +46,10 @@ pub struct Take {
     pub fit_stretch: f64,
     pub fit_lead: f64,
     pub fit_over: bool,
+    /// Цена облачного дубля из ответа провайдера (USD), если он её назвал.
+    pub cost: Option<f64>,
+    /// Оценка цены облачного дубля до запуска (USD).
+    pub estimate: Option<f64>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
@@ -134,11 +138,13 @@ pub struct Settings {
     /// Движок `openrouter`: модель и голос (пусто — из «Облака»).
     pub cloud_model: String,
     pub cloud_voice: String,
+    /// Значения формы облачной модели fal или Runware (голос, скорость…), кроме текста.
+    pub cloud_values: serde_json::Map<String, Value>,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { lang: "auto".into(), engine: "higgs".into(), params: Params::default(), voice: None, pause_same_ms: 300, pause_switch_ms: 600, loudness: "video".into(), qc: QcSettings::default(), auto_stress: true, normalize: true, timeline: false, max_stretch: 1.25, lead_into_silence: true, room_tone: false, continuation: false, cloud_model: String::new(), cloud_voice: String::new() }
+        Settings { lang: "auto".into(), engine: "higgs".into(), params: Params::default(), voice: None, pause_same_ms: 300, pause_switch_ms: 600, loudness: "video".into(), qc: QcSettings::default(), auto_stress: true, normalize: true, timeline: false, max_stretch: 1.25, lead_into_silence: true, room_tone: false, continuation: false, cloud_model: String::new(), cloud_voice: String::new(), cloud_values: serde_json::Map::new() }
     }
 }
 

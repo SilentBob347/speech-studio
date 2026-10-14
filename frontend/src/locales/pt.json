@@ -143,7 +143,8 @@
     "sec": "s",
     "bench": "Benchmark de etapas",
     "benchHint": "Mede tempo/GPU/VRAM por etapa -> bench.json + linhas ⏱ no registro. Amostragem leve em segundo plano a cada segundo.",
-    "roleText": "Preparação do texto · acentos"
+    "roleText": "Preparação do texto · acentos",
+    "dramaNote": "Drama 3 é só para placas de vídeo de 24 GB ou mais; um projeto a escolhe nas configurações, Motor."
   },
   "secrets": {
     "orTitle": "Chave do OpenRouter",
@@ -1302,7 +1303,9 @@
     "flag_subtitle_word": "um crédito de legendas",
     "flag_shouted": "grito em maiúsculas",
     "flag_known_phrase": "uma alucinação típica",
-    "removeMessage": "«{{name}}» vai para a lixeira com a gravação, a transcrição e as exportações."
+    "removeMessage": "«{{name}}» vai para a lixeira com a gravação, a transcrição e as exportações.",
+    "engine_fal": "fal.ai (nuvem)",
+    "engineHint_fal": "Um modelo de reconhecimento da fal.ai (Whisper, ElevenLabs Scribe…): pago, precisa da chave; tempos de palavras aproximados."
   },
   "podcast": {
     "open": "Roteiro de podcast",
@@ -1325,5 +1328,40 @@
     "guest": "Convidado",
     "hostManner": "calmo, faz perguntas curtas",
     "guestManner": "animado, conta com exemplos"
+  },
+  "cloud2": {
+    "noKey": "{{provider}} ainda não tem chave.",
+    "addKey": "Adicionar a chave",
+    "search": "Buscar modelos…",
+    "refresh": "Ler o catálogo de novo",
+    "catalogError": "Mantido o catálogo anterior: {{error}}",
+    "models": "Modelos",
+    "favourite": "Adicionar aos favoritos",
+    "unfavourite": "Remover dos favoritos",
+    "priceAfter": "preço após rodar",
+    "none": "Nenhum modelo corresponde.",
+    "byDefault": "Padrão",
+    "more": "Mais configurações",
+    "fewer": "Menos configurações",
+    "cost": "Cerca de {{usd}} USD por {{runs}} execuções",
+    "costAbout": "Aproximadamente {{usd}} USD por {{runs}} execuções (variante suposta)",
+    "costAfter": "O preço será conhecido após a execução",
+    "providersTitle": "fal.ai e Runware",
+    "providersHint": "Modelos de voz e reconhecimento dessas nuvens, com preços; a chave é verificada por uma consulta gratuita de saldo e guardada neste computador. Cada chamada à nuvem entra no registro de gastos.",
+    "keyFromEnv": "de {{name}}",
+    "keySaved": "salva",
+    "keyNone": "sem chave",
+    "keyRemove": "Remover a chave de {{name}}",
+    "keyPlaceholder": "Chave de API",
+    "keyFor": "Chave de API de {{name}}",
+    "keyCheck": "Verificar e salvar",
+    "keyOk": "A chave funciona.",
+    "keyOkBalance": "A chave funciona; saldo {{balance}}.",
+    "spendTitle": "Gastos na nuvem",
+    "spendTotals": "Total {{total}}, hoje {{today}}",
+    "spendUnpriced": "execuções sem preço: {{n}}",
+    "runs": "execuções: {{n}}",
+    "limit": "Limite diário para agentes e programas, USD",
+    "limitHint": "0 — sem limite; com um limite, uma execução sem preço é recusada"
   }
 }

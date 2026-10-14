@@ -58,6 +58,9 @@ fn engine_tag(p: &SpeechPaths, project: &SpeechProject) -> String {
     if project.settings.engine == "openrouter" {
         let (m, v) = crate::cloud_tts::model_and_voice(&p.models_root, &project.settings.cloud_model, &project.settings.cloud_voice).unwrap_or_default();
         format!("openrouter:{m}:{v}")
+    } else if matches!(project.settings.engine.as_str(), "fal" | "runware") {
+        let values = serde_json::to_string(&project.settings.cloud_values).unwrap_or_default();
+        format!("{}:{}:{}", project.settings.engine, project.settings.cloud_model, &blake3::hash(values.as_bytes()).to_hex()[..10])
     } else if project.settings.engine == crate::models::DRAMA_TTS {
         crate::models::DRAMA_TTS.to_string()
     } else {
@@ -112,14 +115,26 @@ fn resample_to(samples: Vec<f32>, sr: i32) -> Vec<f32> {
 }
 
 /// Звук одного блока: фразы синтезом, паузы тишиной. Возвращает сэмплы (SR), что разметки проигнорировано и сводку.
-/// Блок облаком: фраза за фразой, паузы и темп — как у Higgs.
-fn synth_block_cloud(p: &SpeechPaths, project: &SpeechProject, b: &Block, n: u32) -> Result<(Vec<f32>, Value, Take), String> {
-    let (model, voice) = crate::cloud_tts::model_and_voice(&p.models_root, &project.settings.cloud_model, &project.settings.cloud_voice)?;
+/// Блок облаком: фраза за фразой, паузы и темп — как у Higgs. OpenRouter — своим клиентом, fal и Runware — через
+/// каталог (`cloud`), с ручкой задачи на диске до ответа и ценой в журнале расходов.
+fn synth_block_cloud(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Block, n: u32) -> Result<(Vec<f32>, Value, Take), String> {
+    let provider = project.settings.engine.as_str();
+    let (model, voice) = if provider == "openrouter" {
+        crate::cloud_tts::model_and_voice(&p.models_root, &project.settings.cloud_model, &project.settings.cloud_voice)?
+    } else {
+        let model = project.settings.cloud_model.trim().to_string();
+        if model.is_empty() {
+            return Err(t!("cloud-no-model-chosen", provider = provider.to_string()));
+        }
+        let voice = project.settings.cloud_values.iter().find(|(k, _)| k.to_lowercase().contains("voice")).and_then(|(_, v)| v.as_str()).unwrap_or_default().to_string();
+        (model, voice)
+    };
     let entries = dictionary(p, project);
     let stress = project.settings.auto_stress && crate::stress::is_russian(&b.text, &project.settings.lang);
     let prepared = crate::prep::prepare(&b.text, &prep_opts(p, project, Some(voice.as_str()), &entries, stress)).map_err(|e| t!("stress-failed", detail = e))?;
     let (mut out, mut rate, started) = (Vec::new(), 1.0f64, std::time::Instant::now());
-    for piece in stx::pieces(&prepared.text) {
+    let (mut cost, mut estimate) = (None::<f64>, None::<f64>);
+    for (k, piece) in stx::pieces(&prepared.text).into_iter().enumerate() {
         match piece {
             Piece::Pause(ms) => out.extend(std::iter::repeat_n(0.0, (SR as u64 * ms as u64 / 1000) as usize)),
             Piece::Rate(r) => rate = r,
@@ -128,7 +143,19 @@ fn synth_block_cloud(p: &SpeechPaths, project: &SpeechProject, b: &Block, n: u32
                 if say.trim().is_empty() {
                     continue;
                 }
-                let samples = crate::cloud_tts::synth(&say, &model, &voice, b.direction.trim())?;
+                let samples = if provider == "openrouter" {
+                    crate::cloud::check_limit(&p.repo_root, &p.models_root, None)?;
+                    let samples = crate::cloud_tts::synth(&say, &model, &voice, b.direction.trim())?;
+                    crate::cloud::record(&p.repo_root, crate::cloud::Spent { at: chrono::Utc::now().timestamp_millis(), day: chrono::Local::now().format("%Y-%m-%d").to_string(), project: pid.to_string(), provider: "openrouter".into(), model: model.clone(), task: "speech".into(), cost_source: "unknown".into(), origin: crate::mcp::current_actor(), ..Default::default() });
+                    samples
+                } else {
+                    let handle = p.workspace.join(pid).join("cloud").join(format!("{}-{n}-{k}.json", b.id));
+                    let run = crate::cloud::Run { repo_root: &p.repo_root, models_root: &p.models_root, project: pid, task: vs_providers::Task::Speech, handle_file: &handle };
+                    let (samples, done) = crate::cloud::speak(&run, provider, &model, &project.settings.cloud_values, &say)?;
+                    cost = match (cost, done.cost) { (Some(a), Some(b)) => Some(a + b), (a, b) => a.or(b) };
+                    estimate = match (estimate, done.estimate) { (Some(a), Some(b)) => Some(a + b), (a, b) => a.or(b) };
+                    samples
+                };
                 out.extend(if (rate - 1.0).abs() > 1e-3 { at_rate(&samples, rate)? } else { samples });
             }
         }
@@ -146,18 +173,20 @@ fn synth_block_cloud(p: &SpeechPaths, project: &SpeechProject, b: &Block, n: u32
         text: b.text.clone(),
         direction: b.direction.clone(),
         voice: voice.clone(),
-        engine: format!("openrouter:{model}"),
+        engine: format!("{provider}:{model}"),
         fit_stretch: fitted.stretch,
         fit_lead: fitted.lead,
         fit_over: fitted.over,
+        cost,
+        estimate,
         ..Default::default()
     };
     Ok((fitted.samples, serde_json::to_value(&prepared.ignored).unwrap_or(Value::Null), take))
 }
 
 fn synth_block(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Block, n: u32) -> Result<(Vec<f32>, Value, Take), String> {
-    if project.settings.engine == "openrouter" {
-        return synth_block_cloud(p, project, b, n);
+    if matches!(project.settings.engine.as_str(), "openrouter" | "fal" | "runware") {
+        return synth_block_cloud(p, pid, project, b, n);
     }
     let drama = project.settings.engine == crate::models::DRAMA_TTS;
     let voice = project.voice_of(b);

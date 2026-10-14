@@ -143,7 +143,8 @@
     "sec": "s",
     "bench": "Benchmark de etapas",
     "benchHint": "Mide tiempo/GPU/VRAM por etapa -> bench.json + líneas ⏱ en el registro. Muestreo ligero en segundo plano cada segundo.",
-    "roleText": "Preparación del texto · acentos"
+    "roleText": "Preparación del texto · acentos",
+    "dramaNote": "Drama 3 es solo para tarjetas gráficas de 24 GB o más; un proyecto la elige en sus ajustes, Motor."
   },
   "secrets": {
     "orTitle": "Clave de OpenRouter",
@@ -1302,7 +1303,9 @@
     "flag_subtitle_word": "un crédito de subtítulos",
     "flag_shouted": "gritos en mayúsculas",
     "flag_known_phrase": "una alucinación típica",
-    "removeMessage": "«{{name}}» irá a la papelera con su grabación, transcripción y exportaciones."
+    "removeMessage": "«{{name}}» irá a la papelera con su grabación, transcripción y exportaciones.",
+    "engine_fal": "fal.ai (nube)",
+    "engineHint_fal": "Un modelo de reconocimiento de fal.ai (Whisper, ElevenLabs Scribe…): de pago, requiere la clave; los tiempos de palabras son aproximados."
   },
   "podcast": {
     "open": "Guion de pódcast",
@@ -1325,5 +1328,40 @@
     "guest": "Invitado",
     "hostManner": "tranquilo, hace preguntas breves",
     "guestManner": "vivo, cuenta con ejemplos"
+  },
+  "cloud2": {
+    "noKey": "{{provider}} aún no tiene clave.",
+    "addKey": "Añadir la clave",
+    "search": "Buscar modelos…",
+    "refresh": "Leer el catálogo de nuevo",
+    "catalogError": "Se mantuvo el catálogo anterior: {{error}}",
+    "models": "Modelos",
+    "favourite": "Añadir a favoritos",
+    "unfavourite": "Quitar de favoritos",
+    "priceAfter": "precio tras ejecutar",
+    "none": "Ningún modelo coincide.",
+    "byDefault": "Por defecto",
+    "more": "Más ajustes",
+    "fewer": "Menos ajustes",
+    "cost": "Unos {{usd}} USD por {{runs}} ejecuciones",
+    "costAbout": "Aproximadamente {{usd}} USD por {{runs}} ejecuciones (variante supuesta)",
+    "costAfter": "El precio se sabrá tras la ejecución",
+    "providersTitle": "fal.ai y Runware",
+    "providersHint": "Modelos de voz y reconocimiento de estas nubes, con sus precios; la clave se comprueba con una consulta gratuita del saldo y se guarda en este equipo. Cada llamada a la nube va al registro de gastos.",
+    "keyFromEnv": "de {{name}}",
+    "keySaved": "guardada",
+    "keyNone": "sin clave",
+    "keyRemove": "Eliminar la clave de {{name}}",
+    "keyPlaceholder": "Clave de API",
+    "keyFor": "Clave de API de {{name}}",
+    "keyCheck": "Comprobar y guardar",
+    "keyOk": "La clave funciona.",
+    "keyOkBalance": "La clave funciona; saldo {{balance}}.",
+    "spendTitle": "Gastos en la nube",
+    "spendTotals": "Total {{total}}, hoy {{today}}",
+    "spendUnpriced": "ejecuciones sin precio: {{n}}",
+    "runs": "ejecuciones: {{n}}",
+    "limit": "Límite diario para agentes y programas, USD",
+    "limitHint": "0 — sin límite; con un límite, una ejecución sin precio se rechaza"
   }
 }

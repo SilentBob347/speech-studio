@@ -143,7 +143,8 @@
     "sec": "秒",
     "bench": "阶段基准测试",
     "benchHint": "按阶段测量时间/GPU/显存 -> bench.json + 日志中的 ⏱ 行。每秒一次的轻量后台采样。",
-    "roleText": "文本准备 · 重音"
+    "roleText": "文本准备 · 重音",
+    "dramaNote": "Drama 3 仅适用于 24 GB 及以上显卡；项目在其设置的“引擎”中选择它。"
   },
   "secrets": {
     "orTitle": "OpenRouter 密钥",
@@ -1302,7 +1303,9 @@
     "flag_subtitle_word": "字幕署名",
     "flag_shouted": "大写喊叫",
     "flag_known_phrase": "典型幻觉",
-    "removeMessage": "“{{name}}”将连同录音、转录和导出一起移到回收站。"
+    "removeMessage": "“{{name}}”将连同录音、转录和导出一起移到回收站。",
+    "engine_fal": "fal.ai（云端）",
+    "engineHint_fal": "fal.ai 的识别模型（Whisper、ElevenLabs Scribe…）：付费，需要密钥；词时间为近似值。"
   },
   "podcast": {
     "open": "播客脚本",
@@ -1325,5 +1328,40 @@
     "guest": "嘉宾",
     "hostManner": "平静，提简短的问题",
     "guestManner": "生动，举例讲述"
+  },
+  "cloud2": {
+    "noKey": "{{provider}} 还没有密钥。",
+    "addKey": "添加密钥",
+    "search": "搜索模型…",
+    "refresh": "重新读取目录",
+    "catalogError": "保留了上一份目录：{{error}}",
+    "models": "模型",
+    "favourite": "加入收藏",
+    "unfavourite": "取消收藏",
+    "priceAfter": "运行后得知价格",
+    "none": "没有匹配的模型。",
+    "byDefault": "默认",
+    "more": "更多设置",
+    "fewer": "更少设置",
+    "cost": "{{runs}} 次运行约 {{usd}} USD",
+    "costAbout": "{{runs}} 次运行大约 {{usd}} USD（变体为推测）",
+    "costAfter": "运行后才能知道价格",
+    "providersTitle": "fal.ai 和 Runware",
+    "providersHint": "这些云的语音和识别模型及其价格；密钥通过免费的余额查询验证并保存在本机。每次云端调用都会记入开销记录。",
+    "keyFromEnv": "来自 {{name}}",
+    "keySaved": "已保存",
+    "keyNone": "没有密钥",
+    "keyRemove": "删除 {{name}} 密钥",
+    "keyPlaceholder": "API 密钥",
+    "keyFor": "{{name}} API 密钥",
+    "keyCheck": "验证并保存",
+    "keyOk": "密钥可用。",
+    "keyOkBalance": "密钥可用；余额 {{balance}}。",
+    "spendTitle": "云端开销",
+    "spendTotals": "总计 {{total}}，今天 {{today}}",
+    "spendUnpriced": "无价格的运行：{{n}}",
+    "runs": "运行：{{n}}",
+    "limit": "代理和程序的每日限额，USD",
+    "limitHint": "0 — 无限额；设置限额时，没有价格的运行会被拒绝"
   }
 }

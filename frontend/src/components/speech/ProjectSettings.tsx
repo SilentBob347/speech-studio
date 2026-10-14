@@ -6,6 +6,8 @@ import { named } from "../../lib/a11y";
 import { useEscapeLayer } from "../../lib/escape";
 import { LANG_CHOICES } from "./langs";
 import OpenRouterModelSelect from "../OpenRouterModelSelect";
+import CloudModelPicker from "../cloud/CloudModelPicker";
+import CloudForm from "../cloud/CloudForm";
 import { api } from "../../lib/api";
 import { openSettings } from "../../lib/settingsNav";
 
@@ -33,7 +35,9 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
     speechApi.engines().then((r) => { enginesCache = r.engines; setEngines(r.engines); }, () => undefined);
   }, []);
   const engine = engines?.find((e) => e.id === s.engine) ?? null;
-  const local = s.engine !== "openrouter";
+  const local = !["openrouter", "fal", "runware"].includes(s.engine);
+  const blocks = project.chapters.flatMap((c) => c.blocks).filter((b) => !b.hidden && b.text.trim());
+  const catalogEngine = s.engine === "fal" || s.engine === "runware" ? s.engine : null;
   const continuable = engine?.continuation ?? false;
   const [cloudVoices, setCloudVoices] = useState<{ name: string; gender: string; ru: boolean }[]>([]);
   const [hasKey, setHasKey] = useState<boolean | null>(null);
@@ -64,6 +68,16 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
           {engine?.unavailable && <p role="alert" className="text-[11px] text-[var(--color-warn)]">{engine.unavailable}</p>}
           {!engine?.unavailable && engines?.some((en) => en.unavailable) && (
             <p className="text-[11px] text-[var(--color-muted)]">{engines.filter((en) => en.unavailable).map((en) => `${en.name}: ${en.unavailable}`).join(" ")}</p>
+          )}
+          {catalogEngine && (
+            <div className="space-y-2 rounded-lg border border-[var(--color-border)] p-2.5">
+              <CloudModelPicker task="speech" provider={catalogEngine} value={s.cloud_model} onChange={(id) => set((p) => { p.settings.cloud_model = id; p.settings.cloud_values = {}; })} />
+              {s.cloud_model && (
+                <CloudForm provider={catalogEngine} id={s.cloud_model} values={s.cloud_values ?? {}} onChange={(v) => set((p) => { p.settings.cloud_values = v; })}
+                  runs={blocks.length} chars={blocks.reduce((n, b) => n + b.text.length, 0)} />
+              )}
+              <p className="text-[11px] text-[var(--color-muted)]">{t("speech.cloudHint")}</p>
+            </div>
           )}
           {s.engine === "openrouter" && (
             <div className="space-y-2 rounded-lg border border-[var(--color-border)] p-2.5">

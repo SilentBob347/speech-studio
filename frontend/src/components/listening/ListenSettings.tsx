@@ -4,9 +4,10 @@ import type { ListenEngine, ListenProject } from "../../lib/listen";
 import { named } from "../../lib/a11y";
 import { useEscapeLayer } from "../../lib/escape";
 import OpenRouterModelSelect from "../OpenRouterModelSelect";
+import CloudModelPicker from "../cloud/CloudModelPicker";
 import { LANG_CHOICES } from "../speech/langs";
 
-const ENGINES: ListenEngine[] = ["", "parakeet", "whisper", "openrouter"];
+const ENGINES: ListenEngine[] = ["", "parakeet", "whisper", "openrouter", "fal"];
 const SPEAKERS = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 
 /** How the recording is recognised: engine, language, speakers, voice separation, hallucination filter, corrections. */
@@ -33,6 +34,7 @@ export default function ListenSettings({ project, onChange, onClose }: { project
           </select>
           <span className="block text-[11px] leading-relaxed">{t(`listen.engineHint_${s.engine || "default"}`)}</span>
         </label>
+        {s.engine === "fal" && <CloudModelPicker task="transcribe" provider="fal" value={s.cloud_model} onChange={(id) => set({ cloud_model: id })} />}
         {s.engine === "openrouter" && (
           <OpenRouterModelSelect kind="asr" value={s.cloud_model} onChange={(id) => set({ cloud_model: id })} placeholder={t("listen.cloudModelDefault")} />
         )}

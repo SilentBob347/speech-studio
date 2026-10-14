@@ -11,6 +11,7 @@ import SettingsModal from "../settings/SettingsModal";
 import WhatsNew from "../WhatsNew";
 import ProxySection from "../ProxySection";
 import AgentPanel from "../AgentPanel";
+import CloudProviders from "../cloud/CloudProviders";
 import ModelsSection from "../setup/ModelsSection";
 import PresetsSection from "../setup/PresetsSection";
 import HelpModal from "./HelpModal";
@@ -164,7 +165,7 @@ export default function TopBar() {
       {voices && <VoiceLibrary onClose={() => setVoices(false)} />}
       {settings !== null && (
         <SettingsModal target={settings.target} request={settings.request} onClose={() => setSettings(null)}
-          panes={{ models: <><PresetsSection /><ModelsSection /></>, cloud: <ModelsSection part="cloud" />, network: <ProxySection />, agent: <AgentPanel /> }} />
+          panes={{ models: <><PresetsSection /><ModelsSection /></>, cloud: <><ModelsSection part="cloud" /><CloudProviders /></>, network: <ProxySection />, agent: <AgentPanel /> }} />
       )}
     </header>
   );

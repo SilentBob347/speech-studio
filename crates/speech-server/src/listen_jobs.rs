@@ -26,6 +26,7 @@ const VOICE_MIN_COVER: f64 = 0.3;
 enum Engine {
     Local(crate::models::AsrChoice, &'static str),
     Cloud(String),
+    Fal(String),
 }
 
 fn engine_for(p: &ListenPaths, project: &ListenProject) -> Result<Engine, String> {
@@ -34,6 +35,13 @@ fn engine_for(p: &ListenPaths, project: &ListenProject) -> Result<Engine, String
         "" => sel.get("asr_engine").and_then(Value::as_str).unwrap_or("parakeet").to_string(),
         e => e.to_string(),
     };
+    if picked == "fal" {
+        let model = project.settings.cloud_model.trim().to_string();
+        if model.is_empty() {
+            return Err(t!("cloud-no-model-chosen", provider = "fal"));
+        }
+        return Ok(Engine::Fal(model));
+    }
     if picked == "openrouter" {
         let model = if project.settings.cloud_model.trim().is_empty() { crate::models::openrouter_model(&p.models_root, "asr") } else { project.settings.cloud_model.trim().to_string() };
         if model.is_empty() {
@@ -232,13 +240,26 @@ fn recognise(p: &ListenPaths, engine: &Engine, wav: &Path, work: &Path, lang: &s
                 })
                 .collect()
         }
+        Engine::Fal(model) => {
+            let packed = work.join("upload.mp3");
+            crate::media::encode_audio(wav, &packed, "mp3", false)?;
+            let handle = work.join("cloud-asr.json");
+            let pid = work.parent().and_then(|d| d.file_name()).map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+            let run = crate::cloud::Run { repo_root: &p.repo_root, models_root: &p.models_root, project: &pid, task: vs_providers::Task::Transcribe, handle_file: &handle };
+            let (text, _) = crate::cloud::transcribe(&run, model, &packed, lang)?;
+            let end = crate::media::duration(wav)?;
+            vec![Line { start: 0.0, end, speaker: "0".into(), words: lp::spread_words(text.trim(), 0.0, end), text: text.trim().to_string(), approx: true, ..Default::default() }]
+        }
         Engine::Cloud(model) => {
             let key = crate::models::openrouter_key().ok_or_else(|| t!("cloud-asr-no-key"))?;
+            crate::cloud::check_limit(&p.repo_root, &p.models_root, None)?;
             let packed = work.join("upload.mp3");
             crate::media::encode_audio(wav, &packed, "mp3", false)?;
             let audio = std::fs::read(&packed).map_err(|e| format!("{}: {e}", packed.display()))?;
             let client = dub_llm::openrouter::OpenRouter::new(Some(key)).map_err(|e| t!("cloud-asr-failed", error = format!("{e:#}")))?;
             let heard = client.transcribe(model, &audio, "mp3", lang).map_err(|e| t!("cloud-asr-failed", error = format!("{e:#}")))?;
+            let pid = work.parent().and_then(|d| d.file_name()).map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+            crate::cloud::record(&p.repo_root, crate::cloud::Spent { at: chrono::Utc::now().timestamp_millis(), day: chrono::Local::now().format("%Y-%m-%d").to_string(), project: pid, provider: "openrouter".into(), model: model.clone(), task: "transcribe".into(), cost_source: "unknown".into(), origin: crate::mcp::current_actor(), ..Default::default() });
             let mut segments: Vec<(f64, f64, String)> = heard.segments.into_iter().map(|s| (s.start, s.end, s.text)).collect();
             if segments.is_empty() {
                 if heard.text.trim().is_empty() {
@@ -322,6 +343,7 @@ pub fn transcribe(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Resul
         Engine::Local(crate::models::AsrChoice::Whisper { model, .. }, _) => format!("whisper:{model}"),
         Engine::Local(_, _) => "parakeet".to_string(),
         Engine::Cloud(model) => format!("openrouter:{model}"),
+        Engine::Fal(model) => format!("fal:{model}"),
     };
     project.duration = crate::media::duration(&mix).unwrap_or(project.duration);
     project.speakers = speakers;

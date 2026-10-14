@@ -283,6 +283,8 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
           <>
             {variantPicker("Higgs Audio v3", ["higgs", "higgs-q6_k", "higgs-q4_k_m"])}
             {rowOf("higgs-engine")}
+            {rowOf("drama3")}
+            {get("drama3") && <p className="text-[11px] text-[var(--color-muted)] px-1">{t("settings.dramaNote")}</p>}
           </>
         )}
       </>)}

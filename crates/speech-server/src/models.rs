@@ -171,6 +171,7 @@ pub fn is_selection_key(key: &str) -> bool {
             // (Sortformer onnx CUDA-EP/CPU), asr=локальный ASR (Parakeet onnx / Whisper CTranslate2).
             | "local_backend" | "sep_backend" | "diar_backend" | "asr_backend"
             // Лимиты RAM (видимые контролы в настройках, НЕ авто-магия): против OOM на слабой памяти.
+            | "cloud_daily_limit_usd" // дневной лимит облака для агентов и программ, USD; 0 — без лимита
             | "llama_ubatch"    // размер prefill-батча Gemma (меньше = меньше пиковый буфер графа prefill)
             | "higgs_ref_secs"  // длина реф-клипа клона голоса (меньше = меньше prefill Higgs; <12с спасает 32ГБ)
             | "bench"           // пер-стадийный бенчмарк (bench.json + ⏱ в журнале); галка в настройках, ВЫКЛ по умолчанию
@@ -218,6 +219,7 @@ pub fn is_selection_value(key: &str, value: &str) -> bool {
         "tts_provider" => matches!(value, "local" | "openrouter" | "google"),
         "google_tts_mode" => matches!(value, "standard" | "batch"),
         "voice_clean" => matches!(value, "0" | "1"),
+        "cloud_daily_limit_usd" => value.parse::<f64>().is_ok_and(|v| (0.0..=10_000.0).contains(&v)),
         "google_tts_model" => {
             !value.is_empty()
                 && value
