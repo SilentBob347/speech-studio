@@ -512,6 +512,19 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         Some((i, tp, _)) => Some(crate::loudness::level(&mut mix, SR, i, tp)?),
         None => None,
     };
+    let acx = project.settings.loudness == "acx";
+    if acx {
+        let head = 0.8;
+        crate::acx::room_tone(&mut mix, SR, head, 2.0);
+        chapter_starts.iter_mut().for_each(|c| c.1 += head);
+        cues.iter_mut().for_each(|c| {
+            c.0 += head;
+            c.1 += head;
+        });
+    } else if project.settings.room_tone {
+        crate::acx::room_tone(&mut mix, SR, 0.0, 0.0);
+    }
+    let acx_report = acx.then(|| crate::acx::report(&mix, SR));
     let joined = work.path().join("joined.wav");
     crate::wavio::write_mono_f32(&joined, &mix, SR)?;
     let exports = dir.join("exports");
@@ -547,7 +560,7 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
     }
     let subtitles = format!("{base}.srt");
     std::fs::write(exports.join(&subtitles), srt(&cues)).map_err(|e| format!("{subtitles}: {e}"))?;
-    Ok(json!({ "file": file, "subtitles": subtitles, "chapters": chapter_list, "path": target.to_string_lossy(), "duration": mix.len() as f64 / SR as f64, "marks": marks, "lufs_before": levelled.map(|l| l.before), "lufs": levelled.map(|l| l.after) }))
+    Ok(json!({ "file": file, "subtitles": subtitles, "chapters": chapter_list, "acx": acx_report, "path": target.to_string_lossy(), "duration": mix.len() as f64 / SR as f64, "marks": marks, "lufs_before": levelled.map(|l| l.before), "lufs": levelled.map(|l| l.after) }))
 }
 
 fn hms(t: f64) -> String {

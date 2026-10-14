@@ -976,7 +976,18 @@
     "saveSubs": "字幕 .srt",
     "subsHint": "带有每个文本块在文件中响起时间的字幕",
     "saveChapters": "章节列表",
-    "chaptersHint": "HH:MM:SS<TAB>标题，用于不支持章节的平台"
+    "chaptersHint": "HH:MM:SS<TAB>标题，用于不支持章节的平台",
+    "roomTone": "用环境底噪代替数字静音",
+    "roomToneHint": "停顿处加入轻微底噪；ACX 预设总是如此，并在开头和结尾加入静音",
+    "acxPassed": "文件符合 ACX（Audible）要求",
+    "acxFailed": "文件尚不符合 ACX（Audible）要求",
+    "acx_rms": "平均电平 {{v}} dB（需 −23…−18）",
+    "acx_peak": "峰值 {{v}} dB（需 −3 或更低）",
+    "acx_noise_floor": "底噪 {{v}} dB（需 −60 或更低，且非数字零）",
+    "acx_head": "开头：{{v}} 秒环境底噪（需 0.5–1）",
+    "acx_tail": "结尾：{{v}} 秒环境底噪（需 1–5）",
+    "acx_inner_silence": "最长停顿 {{v}} 秒（需不超过 5）",
+    "acx_length": "时长 {{v}} 分钟（每个文件需不超过 120）"
   },
   "tags": {
     "emotion": "情绪",

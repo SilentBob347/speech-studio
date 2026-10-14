@@ -119,11 +119,13 @@ pub struct Settings {
     pub max_stretch: f64,
     /// Не влезающая реплика сначала начинается раньше, в тишину перед ней (до 1 с), и только потом ускоряется.
     pub lead_into_silence: bool,
+    /// Паузы склейки — тихий room tone, а не цифровой ноль (у пресета ACX — всегда, с тишиной по краям).
+    pub room_tone: bool,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { lang: "auto".into(), engine: "higgs".into(), params: Params::default(), voice: None, pause_same_ms: 300, pause_switch_ms: 600, loudness: "video".into(), qc: QcSettings::default(), auto_stress: true, normalize: true, timeline: false, max_stretch: 1.25, lead_into_silence: true }
+        Settings { lang: "auto".into(), engine: "higgs".into(), params: Params::default(), voice: None, pause_same_ms: 300, pause_switch_ms: 600, loudness: "video".into(), qc: QcSettings::default(), auto_stress: true, normalize: true, timeline: false, max_stretch: 1.25, lead_into_silence: true, room_tone: false }
     }
 }
 

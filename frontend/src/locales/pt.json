@@ -976,7 +976,18 @@
     "saveSubs": "Legendas .srt",
     "subsHint": "Legendas com os tempos em que cada bloco soa no arquivo",
     "saveChapters": "Lista de capítulos",
-    "chaptersHint": "HH:MM:SS<TAB>Título para plataformas sem capítulos"
+    "chaptersHint": "HH:MM:SS<TAB>Título para plataformas sem capítulos",
+    "roomTone": "Tom de sala em vez de silêncio digital",
+    "roomToneHint": "As pausas recebem um fundo suave; o preset ACX sempre faz isso e adiciona silêncio no início e no fim",
+    "acxPassed": "O arquivo atende aos requisitos da ACX (Audible)",
+    "acxFailed": "O arquivo ainda não atende aos requisitos da ACX (Audible)",
+    "acx_rms": "Nível médio {{v}} dB (precisa −23…−18)",
+    "acx_peak": "Picos {{v}} dB (precisa −3 ou menos)",
+    "acx_noise_floor": "Ruído de fundo {{v}} dB (precisa −60 ou menos, sem zero digital)",
+    "acx_head": "Início: {{v}} s de tom de sala (precisa 0,5–1)",
+    "acx_tail": "Fim: {{v}} s de tom de sala (precisa 1–5)",
+    "acx_inner_silence": "Maior pausa {{v}} s (precisa 5 ou menos)",
+    "acx_length": "Duração {{v}} min (precisa 120 ou menos por arquivo)"
   },
   "tags": {
     "emotion": "Emoção",

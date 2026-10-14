@@ -58,6 +58,7 @@ mod dict_api;
 mod engines;
 mod speechproj;
 mod book_import;
+mod acx;
 mod tts_host;
 mod url_import;
 mod voice_api;

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, Download, Loader2, Package, Sparkles, X } from "lucide-react";
-import { EXPORT_FORMATS, speechApi, type ExportFormat, type ExportProblem, type SpeechProject } from "../../lib/speech";
+import { EXPORT_FORMATS, speechApi, type AcxReport, type ExportFormat, type ExportProblem, type SpeechProject } from "../../lib/speech";
 import { followJob } from "../../lib/followJob";
 import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
@@ -22,6 +22,7 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
   const [file, setFile] = useState<string | null>(null);
   const [subs, setSubs] = useState<string | null>(null);
   const [chapterList, setChapterList] = useState<string | null>(null);
+  const [acx, setAcx] = useState<AcxReport | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [withAudio, setWithAudio] = useState(true);
   const [pack, setPack] = useState<{ file: string; bytes: number } | null>(null);
@@ -39,7 +40,8 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
     setError(null);
     try {
       const { job_id } = await speechApi.export(pid, format);
-      const r = (await followJob(job_id, "export")) as { file: string; subtitles?: string; chapters?: string | null };
+      const r = (await followJob(job_id, "export")) as { file: string; subtitles?: string; chapters?: string | null; acx?: AcxReport | null };
+      setAcx(r.acx ?? null);
       setFile(r.file);
       setSubs(r.subtitles ?? null);
       setChapterList(r.chapters ?? null);
@@ -85,6 +87,18 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
               </button>
             )}
           </>
+        )}
+        {acx && (
+          <div role="status" className={`rounded-lg border p-3 space-y-1 ${acx.passed ? "border-[var(--color-accent)]/40" : "border-[var(--color-warn)]/40"}`}>
+            <p className="text-[12px] font-semibold">{acx.passed ? t("speech.acxPassed") : t("speech.acxFailed")}</p>
+            <ul className="text-[11px] space-y-0.5">
+              {acx.checks.map((c) => (
+                <li key={c.name} className={c.passed ? "text-[var(--color-muted)]" : "text-[var(--color-warn)]"}>
+                  {c.passed ? "✓" : "✗"} {t(`speech.acx_${c.name}`, { v: ["rms", "peak", "noise_floor"].includes(c.name) ? c.value.toFixed(1) : c.name === "length" ? (c.value / 60).toFixed(1) : c.value.toFixed(2) })}
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
         <div className="pt-3 border-t border-[var(--color-border)] space-y-2">
           <h3 className="text-[12px] font-semibold">{t("speech.packTitle")}</h3>

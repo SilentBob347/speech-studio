@@ -27,8 +27,9 @@ export type Loudness = "off" | "video" | "podcast" | "acx";
 export type SpeechSettings = {
   lang: string; engine: string; params: SpeechParams; voice: string | null;
   pause_same_ms: number; pause_switch_ms: number; loudness: Loudness; qc: QcSettings; auto_stress: boolean; normalize: boolean;
-  timeline: boolean; max_stretch: number; lead_into_silence: boolean;
+  timeline: boolean; max_stretch: number; lead_into_silence: boolean; room_tone: boolean;
 };
+export type AcxReport = { passed: boolean; checks: { name: "rms" | "peak" | "noise_floor" | "head" | "tail" | "inner_silence" | "length"; value: number; passed: boolean }[] };
 export type DictKind = "word" | "regex" | "phonemes";
 export type DictEntry = {
   id: string; enabled: boolean; kind: DictKind; find: string; say: string; case_sensitive: boolean; whole_word: boolean;

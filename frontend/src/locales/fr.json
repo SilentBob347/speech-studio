@@ -976,7 +976,18 @@
     "saveSubs": "Sous-titres .srt",
     "subsHint": "Sous-titres avec le moment où chaque bloc sonne dans le fichier",
     "saveChapters": "Liste des chapitres",
-    "chaptersHint": "HH:MM:SS<TAB>Titre pour les plateformes sans chapitres"
+    "chaptersHint": "HH:MM:SS<TAB>Titre pour les plateformes sans chapitres",
+    "roomTone": "Ambiance de pièce au lieu du silence numérique",
+    "roomToneHint": "Les pauses reçoivent un léger fond ; le préréglage ACX le fait toujours et ajoute du silence au début et à la fin",
+    "acxPassed": "Le fichier respecte les exigences ACX (Audible)",
+    "acxFailed": "Le fichier ne respecte pas encore les exigences ACX (Audible)",
+    "acx_rms": "Niveau moyen {{v}} dB (requis −23…−18)",
+    "acx_peak": "Crêtes {{v}} dB (requis −3 ou moins)",
+    "acx_noise_floor": "Bruit de fond {{v}} dB (requis −60 ou moins, pas de zéro numérique)",
+    "acx_head": "Début : {{v}} s d’ambiance (requis 0,5–1)",
+    "acx_tail": "Fin : {{v}} s d’ambiance (requis 1–5)",
+    "acx_inner_silence": "Pause la plus longue {{v}} s (requis 5 ou moins)",
+    "acx_length": "Durée {{v}} min (requis 120 ou moins par fichier)"
   },
   "tags": {
     "emotion": "Émotion",

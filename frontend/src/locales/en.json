@@ -976,7 +976,18 @@
     "saveSubs": "Subtitles .srt",
     "subsHint": "Subtitles with the times where each block sounds in the file",
     "saveChapters": "Chapter list",
-    "chaptersHint": "HH:MM:SS<TAB>Title for platforms without chapters"
+    "chaptersHint": "HH:MM:SS<TAB>Title for platforms without chapters",
+    "roomTone": "Room tone instead of digital silence",
+    "roomToneHint": "Pauses get a quiet floor; the ACX preset always does this and adds silence at the start and end",
+    "acxPassed": "The file meets ACX (Audible) requirements",
+    "acxFailed": "The file does not meet ACX (Audible) requirements yet",
+    "acx_rms": "Average level {{v}} dB (needed −23…−18)",
+    "acx_peak": "Peaks {{v}} dB (needed −3 or lower)",
+    "acx_noise_floor": "Noise floor {{v}} dB (needed −60 or lower, not digital zero)",
+    "acx_head": "Start: {{v}} s of room tone (needed 0.5–1)",
+    "acx_tail": "End: {{v}} s of room tone (needed 1–5)",
+    "acx_inner_silence": "Longest pause {{v}} s (needed 5 or less)",
+    "acx_length": "Length {{v}} min (needed 120 or less per file)"
   },
   "tags": {
     "emotion": "Emotion",
