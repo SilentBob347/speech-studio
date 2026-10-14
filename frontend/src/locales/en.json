@@ -1138,7 +1138,13 @@
     "from": "from {{source}}",
     "why_unread": "Left unread (Latin or digits)",
     "why_no_stress": "Not in the stress dictionary",
-    "addWord": "Add «{{word}}» to the project dictionary"
+    "addWord": "Add «{{word}}» to the project dictionary",
+    "tryTitle": "By ear",
+    "tryPhrase": "A phrase to try",
+    "tryProjectVoice": "the project voice",
+    "tryRun": "Compare",
+    "tryBefore": "As written",
+    "tryAfter": "With the rule"
   },
   "prep": {
     "layer_dictionary": "dictionary",

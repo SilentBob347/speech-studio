@@ -1054,3 +1054,7 @@ chat-no-model = choose the assistant's model
 chat-too-many-turns = the assistant took { $turns } steps and stopped; say whether to go on
 assistant-no-agent = the assistant is the connected agent, but no agent is connected now: connect one (Settings, Agent) or make an OpenRouter model the assistant
 assistant-no-answer = the agent did not answer within { $minutes } min
+dict-try-local-only = the try by ear works with the engines on this computer (Higgs, Drama 3); the project's cloud engine is paid for every run
+dict-try-empty = enter a phrase to try
+dict-try-before = Try by ear: as written
+dict-try-after = Try by ear: with the rule

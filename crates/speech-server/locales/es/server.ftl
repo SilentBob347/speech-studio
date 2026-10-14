@@ -1048,3 +1048,7 @@ chat-no-model = elige el modelo del asistente
 chat-too-many-turns = el asistente dio { $turns } pasos y se detuvo; di si debe continuar
 assistant-no-agent = el asistente es el agente conectado, pero ahora no hay ninguno: conecta uno (Ajustes, Agente) o elige un modelo de OpenRouter como asistente
 assistant-no-answer = el agente no respondió en { $minutes } min
+dict-try-local-only = la prueba de oído funciona con los motores de este ordenador (Higgs, Drama 3); el motor en la nube del proyecto se paga en cada ejecución
+dict-try-empty = escribe una frase para probar
+dict-try-before = Prueba de oído: tal como está escrito
+dict-try-after = Prueba de oído: con la regla

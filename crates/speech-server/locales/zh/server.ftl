@@ -850,3 +850,7 @@ chat-no-model = 请选择助手的模型
 chat-too-many-turns = 助手已执行 { $turns } 步并停止；请说明是否继续
 assistant-no-agent = 助手设为已连接的智能体，但当前没有智能体连接：请连接一个（设置 → 智能体），或选择 OpenRouter 模型作为助手
 assistant-no-answer = 智能体在 { $minutes } 分钟内没有回答
+dict-try-local-only = 试听仅适用于本机引擎（Higgs、Drama 3）；项目的云端引擎每次运行都要付费
+dict-try-empty = 请输入要试听的句子
+dict-try-before = 试听：按原文
+dict-try-after = 试听：应用规则

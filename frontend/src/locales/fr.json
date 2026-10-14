@@ -1138,7 +1138,13 @@
     "from": "de {{source}}",
     "why_unread": "Resté illisible (latin ou chiffres)",
     "why_no_stress": "Absent du dictionnaire d’accents",
-    "addWord": "Ajouter « {{word}} » au dictionnaire du projet"
+    "addWord": "Ajouter « {{word}} » au dictionnaire du projet",
+    "tryTitle": "À l’oreille",
+    "tryPhrase": "Phrase à essayer",
+    "tryProjectVoice": "la voix du projet",
+    "tryRun": "Comparer",
+    "tryBefore": "Tel qu’écrit",
+    "tryAfter": "Avec la règle"
   },
   "prep": {
     "layer_dictionary": "dictionnaire",

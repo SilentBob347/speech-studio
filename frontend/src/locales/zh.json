@@ -1138,7 +1138,13 @@
     "from": "来自 {{source}}",
     "why_unread": "未能读出（拉丁字母或数字）",
     "why_no_stress": "不在重音词典中",
-    "addWord": "将“{{word}}”加入项目词典"
+    "addWord": "将“{{word}}”加入项目词典",
+    "tryTitle": "试听",
+    "tryPhrase": "用于试听的句子",
+    "tryProjectVoice": "项目声音",
+    "tryRun": "对比",
+    "tryBefore": "按原文",
+    "tryAfter": "应用规则"
   },
   "prep": {
     "layer_dictionary": "词典",

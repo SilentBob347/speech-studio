@@ -1,12 +1,72 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowDown, ArrowUp, BookOpen, ChevronDown, FileUp, Loader2, Plus, SearchCheck, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, BookOpen, ChevronDown, Ear, FileUp, Loader2, Plus, SearchCheck, Trash2, X } from "lucide-react";
 import { newEntry, speechApi, type DictEntry, type DictKind, type SpeechProject, type UnknownWord } from "../../lib/speech";
 import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
 import { useEscapeLayer } from "../../lib/escape";
 import VoicePicker from "./VoicePicker";
 import { LANG_CHOICES } from "./langs";
+import { followJob } from "../../lib/followJob";
+
+type Tried = { before: { file: string; text: string }; after: { file: string; text: string } };
+
+/** The first sentence of the project with the rule's word, for trying the rule in context. */
+function phraseWith(project: SpeechProject, find: string): string {
+  const word = find.trim().toLowerCase();
+  if (!word) return "";
+  for (const b of project.chapters.flatMap((c) => c.blocks)) {
+    const at = b.text.toLowerCase().indexOf(word);
+    if (at < 0) continue;
+    const start = Math.max(0, ...[".", "!", "?", "\n"].map((m) => b.text.lastIndexOf(m, at) + 1));
+    const ends = [".", "!", "?", "\n"].map((m) => b.text.indexOf(m, at)).filter((i) => i >= 0);
+    let end = ends.length ? Math.min(...ends) + 1 : b.text.length;
+    while (end < b.text.length && "»\"”’)".includes(b.text[end])) end += 1;
+    return b.text.slice(start, end).trim();
+  }
+  return find.trim();
+}
+
+/** A rule by ear (ElevenLabs, TTS-Story): the phrase as written and with the rule, in the chosen voice. */
+function TryByEar({ pid, project, entry }: { pid: string; project: SpeechProject; entry: DictEntry }) {
+  const { t } = useTranslation();
+  const [phrase, setPhrase] = useState("");
+  const fallback = phraseWith(project, entry.find);
+  const effective = phrase.trim() || fallback;
+  const [voice, setVoice] = useState<string | null>(entry.voice || null);
+  const [busy, setBusy] = useState(false);
+  const [tried, setTried] = useState<Tried | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const run = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const { job_id } = await speechApi.tryRule(pid, { phrase: effective, rule: entry, voice });
+      setTried((await followJob(job_id, "synth")) as Tried);
+    } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
+  };
+  return (
+    <div className="sm:col-span-4 space-y-1.5 rounded-md border border-[var(--color-border)] p-2">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Ear size={13} className="text-[var(--color-accent)]" />
+        <span className="font-medium text-[var(--color-text)]">{t("dict.tryTitle")}</span>
+        <input value={phrase} onChange={(ev) => setPhrase(ev.target.value)} placeholder={fallback || t("dict.tryPhrase")} aria-label={t("dict.tryPhrase")} className={`${field} flex-1 min-w-[12rem]`} />
+        <VoicePicker value={voice} onChange={setVoice} inherit={t("dict.tryProjectVoice")} label={t("dict.voice")} className={`${field} w-40`} />
+        <button onClick={() => void run()} disabled={busy || !effective} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[12px] font-medium disabled:opacity-40">
+          {busy && <Loader2 size={12} className="animate-spin" />}{t("dict.tryRun")}
+        </button>
+      </div>
+      {error && <p role="alert" className="text-[var(--color-warn)] break-words">{error}</p>}
+      {tried && (["before", "after"] as const).map((k) => (
+        <div key={k} className="flex flex-wrap items-center gap-2">
+          <span className="w-28 shrink-0">{t(k === "before" ? "dict.tryBefore" : "dict.tryAfter")}</span>
+          <audio controls preload="none" src={speechApi.tryUrl(pid, tried[k].file)} className="h-8" />
+          <span className="mono break-all text-[var(--color-text)]">{tried[k].text}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 type Tab = "project" | "global";
 const KINDS: DictKind[] = ["word", "regex", "phonemes"];
@@ -156,6 +216,7 @@ export default function DictionaryDialog({ pid, project, onChange, onClose }: {
                         <label>{t("dict.voice")}
                           <VoicePicker value={e.voice || null} onChange={(v) => patch(e.id, { voice: v ?? "" })} inherit={t("dict.any")} label={t("dict.voice")} className={`${field} mt-1 w-full`} />
                         </label>
+                        <TryByEar pid={pid} project={project} entry={e} />
                         <label className="sm:col-span-4">{t("dict.note")}
                           <input value={e.note} onChange={(ev) => patch(e.id, { note: ev.target.value })} className={`${field} mt-1 w-full`} />
                         </label>

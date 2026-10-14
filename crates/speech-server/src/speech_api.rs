@@ -345,6 +345,43 @@ pub async fn take_file(State(st): State<AppState>, AxPath((pid, file)): AxPath<(
     crate::serve_file_range(&path, req, None).await
 }
 
+/// POST /projects/{pid}/dictionary/try {phrase, rule, voice?} — правило словаря на слух: фраза как написана и с этим
+/// правилом, движком проекта; задача озвучки отвечает файлами и тем, что движок прочтёт.
+pub async fn try_rule(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<Value>) -> Response {
+    if let Err(e) = sp::load(&st.workspace, &pid) {
+        return refuse(StatusCode::NOT_FOUND, "no_project", e);
+    }
+    let phrase = body.get("phrase").and_then(Value::as_str).unwrap_or_default().to_string();
+    let rule: crate::pron_dict::Entry = match body.get("rule").cloned().map(serde_json::from_value) {
+        Some(Ok(rule)) => rule,
+        Some(Err(e)) => return refuse(StatusCode::BAD_REQUEST, "bad_rule", e.to_string()),
+        None => return refuse(StatusCode::BAD_REQUEST, "bad_rule", "rule is required"),
+    };
+    let voice = body.get("voice").and_then(Value::as_str).map(str::to_string);
+    let p = paths(&st);
+    let pid2 = pid.clone();
+    let job: jobs::JobFn = Box::new(move |progress: jobs::ProgressFn| {
+        let cb = |ev: Value| progress(ev);
+        speech_jobs::try_rule(&p, &pid2, &phrase, rule, voice, &cb)
+    });
+    match st.jobs.enqueue(jobs::JobMeta::new(jobs::JobKind::Synth, Some(&pid)), job).await {
+        Ok(job_id) => Json(json!({ "job_id": job_id })).into_response(),
+        Err(e) => crate::enqueue_error(e),
+    }
+}
+
+/// GET /projects/{pid}/tries/{file} — звук проверки правила на слух.
+pub async fn try_file(State(st): State<AppState>, AxPath((pid, file)): AxPath<(String, String)>, req: axum::http::Request<axum::body::Body>) -> Response {
+    if !sp::is_pid(&pid) || !safe_file(&file) {
+        return refuse(StatusCode::BAD_REQUEST, "bad_request", file);
+    }
+    let path = st.workspace.join(&pid).join("tries").join(&file);
+    if !path.is_file() {
+        return refuse(StatusCode::NOT_FOUND, "no_file", file);
+    }
+    crate::serve_file_range(&path, req, None).await
+}
+
 /// GET /projects/{pid}/exports/{file} — файл экспорта (скачивание).
 pub async fn export_file(State(st): State<AppState>, AxPath((pid, file)): AxPath<(String, String)>, req: axum::http::Request<axum::body::Body>) -> Response {
     if !sp::is_pid(&pid) || !safe_file(&file) {

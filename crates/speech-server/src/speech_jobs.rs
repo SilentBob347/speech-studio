@@ -228,6 +228,11 @@ fn synth_block(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Block, n
     if matches!(project.settings.engine.as_str(), "openrouter" | "google" | "fal" | "runware") {
         return synth_block_cloud(p, pid, project, b, n);
     }
+    synth_block_with(p, pid, project, b, n, &dictionary(p, project))
+}
+
+/// A block voiced locally with these dictionary rules.
+fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Block, n: u32, entries: &[crate::pron_dict::Entry]) -> Result<(Vec<f32>, Value, Take), String> {
     let drama = project.settings.engine == crate::models::DRAMA_TTS;
     let voice = project.voice_of(b);
     if drama && voice.is_none() {
@@ -252,9 +257,8 @@ fn synth_block(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Block, n
         params.seed = seed % tts_host::SEED_RANGE;
     }
     let mut rate = 1.0f64;
-    let entries = dictionary(p, project);
     let stress = project.settings.auto_stress && crate::stress::is_russian(&b.text, &project.settings.lang);
-    let text = crate::prep::prepare(&b.text, &prep_opts(p, project, voice.as_deref(), &entries, stress)).map_err(|e| t!("stress-failed", detail = e))?.text;
+    let text = crate::prep::prepare(&b.text, &prep_opts(p, project, voice.as_deref(), entries, stress)).map_err(|e| t!("stress-failed", detail = e))?.text;
     for (k, piece) in stx::pieces(&text).into_iter().enumerate() {
         match piece {
             Piece::Pause(ms) => out.extend(std::iter::repeat_n(0.0, (SR as u64 * ms as u64 / 1000) as usize)),
@@ -387,6 +391,37 @@ fn take_params(base: &tts_host::Params, n: u32) -> tts_host::Params {
         _ => {}
     }
     p
+}
+
+/// A dictionary rule tried by ear: the phrase as written (no dictionaries) and with this one rule, in the voice asked or
+/// the project's, by the project's local engine. The audio is kept in the project's `tries/` by what it was made of.
+pub fn try_rule(p: &SpeechPaths, pid: &str, phrase: &str, rule: crate::pron_dict::Entry, voice: Option<String>, progress: &dyn Fn(Value)) -> Result<Value, String> {
+    let project = sp::load(&p.workspace, pid)?;
+    if matches!(project.settings.engine.as_str(), "openrouter" | "google" | "fal" | "runware") {
+        return Err(t!("dict-try-local-only"));
+    }
+    let b = Block { id: "try".into(), voice: voice.filter(|v| !v.trim().is_empty()), text: phrase.trim().to_string(), ..Default::default() };
+    if b.text.is_empty() {
+        return Err(t!("dict-try-empty"));
+    }
+    let rule = crate::pron_dict::Entry { enabled: true, ..rule };
+    let dir = p.workspace.join(pid).join("tries");
+    let voice_of = project.voice_of(&b).unwrap_or_default();
+    let mut out = json!({});
+    for (name, entries) in [("before", Vec::new()), ("after", vec![rule])] {
+        let stress = project.settings.auto_stress && crate::stress::is_russian(&b.text, &project.settings.lang);
+        let read = crate::prep::prepare(&b.text, &prep_opts(p, &project, Some(voice_of.as_str()).filter(|v| !v.is_empty()), &entries, stress)).map_err(|e| t!("stress-failed", detail = e))?.text;
+        let made_of = format!("{read}|{voice_of}|{}|{}|{}", project.settings.engine, higgs_config(p).quant, serde_json::to_string(&project.settings.params).unwrap_or_default());
+        let file = format!("{}.flac", &blake3::hash(made_of.as_bytes()).to_hex()[..20]);
+        let path = dir.join(&file);
+        if !path.is_file() {
+            progress(json!({ "type": "progress", "stage": "speech_synth", "msg": if name == "before" { t!("dict-try-before") } else { t!("dict-try-after") } }));
+            let (samples, _, _) = synth_block_with(p, pid, &project, &b, 1, &entries)?;
+            write_flac(&samples, &path)?;
+        }
+        out[name] = json!({ "file": file, "text": read });
+    }
+    Ok(out)
 }
 
 fn write_flac(samples: &[f32], dst: &Path) -> Result<(), String> {
