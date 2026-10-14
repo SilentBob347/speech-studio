@@ -476,6 +476,24 @@ pub(super) fn tools() -> Vec<Tool> {
             call: |args| window("navigate", args, 15),
         },
         Tool {
+            name: "editor_open",
+            description: "Open a project in the window in front of the user: a Speech project in Speech, a Listening recording in Listening (the mode switches to it). pid from projects_list.",
+            schema: || object(json!({ "pid": { "type": "string" } }), &["pid"]),
+            call: |args| window("editor_open", args, 15),
+        },
+        Tool {
+            name: "editor_state",
+            description: "What the window shows now: the mode and the open project - its name, its blocks (Speech: id, speaker, text, state, hidden) or lines (Listening: id, speaker, start, end, text), what is selected and playing, whether it is voicing or working. open is null on a start screen.",
+            schema: nothing,
+            call: |args| window("editor_state", args, 15),
+        },
+        Tool {
+            name: "editor_select",
+            description: "Select a block (Speech) or a line (Listening) of the open project by its id and bring it into view, highlighted for the user: show them what you are talking about or about to change.",
+            schema: || id_only("id", "the block's or line's id from editor_state"),
+            call: |args| window("editor_select", args, 15),
+        },
+        Tool {
             name: "ui_open_settings",
             description: "Open the settings window at a section: models (default), cloud (the OpenRouter key and models), quality, network (the proxy), interface, agent (this connection), about.",
             schema: || object(json!({ "section": { "type": "string", "enum": ["models", "cloud", "quality", "network", "interface", "agent", "about"] } }), &[]),

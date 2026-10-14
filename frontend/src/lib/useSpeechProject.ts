@@ -101,6 +101,8 @@ function useEditedProject<T>(pid: string, doc: Doc<T>) {
     if (n.pid !== pid) return;
     if (isMine(n) && !n.job) return;
     if (timer.current) return;
+    // the project was changed by an agent or another window: the old snapshots would undo their change too
+    if (!isMine(n)) { past.current = []; future.current = []; counted(); }
     load();
   });
 

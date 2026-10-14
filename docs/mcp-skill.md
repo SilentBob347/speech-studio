@@ -36,7 +36,8 @@ connected and the address to paste.
   `url_fetch_cancel`, `url_fetch_resume`, `url_fetch_delete`, `url_tool_status`, `url_tool_update`.
 - **The window**: `ui_screenshot`, `ui_read_page`, `ui_click`, `ui_type`, `ui_select`, `ui_press_key`, `ui_scroll`,
   `ui_navigate`, `ui_open_settings`, `ui_notify`, `ui_console` work in the studio's window in front of the user; a key or
-  password field reads only as filled or empty.
+  password field reads only as filled or empty. `editor_open` opens a project in the window, `editor_state` says what is
+  open (its blocks or lines, what is selected and playing), `editor_select` shows the user a block or a line.
 - **The journal**: every change you make (create, update, delete, voice, export...) is written into the window's
   activity log with the name of what it changed, and stays there after a restart.
 - **Being the assistant**: when the user chose «Agent (MCP)» as the assistant (Settings, Agent), what they write in the

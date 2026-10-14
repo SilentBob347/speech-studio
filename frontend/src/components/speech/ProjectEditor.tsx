@@ -9,6 +9,8 @@ import { followJob } from "../../lib/followJob";
 import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
 import { useStore } from "../../store";
+import { usePublishEditor } from "../../lib/editorBridge";
+import { flash } from "../../lib/mcpBridge";
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type Announcements, type DragEndEvent, type UniqueIdentifier } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import BlockRow, { type BlockActions } from "./BlockRow";
@@ -87,6 +89,26 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   const stateOf = (b: Block): BlockState => project?.status?.[b.id]?.state ?? "pending";
   const counts = blocks.reduce<Record<string, number>>((acc, b) => { const s = stateOf(b); acc[s] = (acc[s] ?? 0) + 1; return acc; }, {});
   const dirty = (counts.pending ?? 0) + (counts.stale ?? 0) + (counts.failed ?? 0);
+  usePublishEditor({
+    kind: "speech",
+    pid,
+    state: () => ({
+      name: project?.name ?? null,
+      blocks: blocks.map((b) => ({ id: b.id, speaker: b.speaker, text: b.text.slice(0, 160), state: stateOf(b), hidden: b.hidden })),
+      selected,
+      playing,
+      voicing: !!job,
+    }),
+    select: (id) => {
+      if (!blocks.some((b) => b.id === id)) return false;
+      setSelected([id]);
+      setAnchor(id);
+      const row = document.getElementById(`block-${id}`);
+      row?.scrollIntoView({ block: "center", behavior: "smooth" });
+      flash(row);
+      return true;
+    },
+  });
 
   const stopAudio = useCallback(() => { audio.current?.pause(); setPlaying(null); setQueue([]); }, []);
   const playBlock = useCallback((b: Block, rest: string[]) => {

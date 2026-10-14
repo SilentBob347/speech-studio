@@ -497,7 +497,9 @@
       "scroll": "rola a página",
       "navigate": "muda para {{name}}",
       "open_settings": "abre as configurações",
-      "open_help": "abre a ajuda"
+      "open_help": "abre a ajuda",
+      "editor_open": "abre um projeto",
+      "editor_select": "mostra um ponto do projeto"
     }
   },
   "jobs": {

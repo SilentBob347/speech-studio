@@ -497,7 +497,9 @@
       "scroll": "滚动页面",
       "navigate": "切换到 {{name}}",
       "open_settings": "打开设置",
-      "open_help": "打开帮助"
+      "open_help": "打开帮助",
+      "editor_open": "打开项目",
+      "editor_select": "指出项目中的位置"
     }
   },
   "jobs": {

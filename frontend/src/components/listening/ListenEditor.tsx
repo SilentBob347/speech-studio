@@ -10,6 +10,8 @@ import { followJob } from "../../lib/followJob";
 import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
 import { useStore } from "../../store";
+import { usePublishEditor } from "../../lib/editorBridge";
+import { flash } from "../../lib/mcpBridge";
 import Transcript, { type Selection } from "./Transcript";
 import ListenSettings from "./ListenSettings";
 import ListenExport from "./ListenExport";
@@ -42,6 +44,29 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
   const active = useMemo(() => activeToken(tokens, time), [tokens, time]);
   const found = useMemo(() => findTranscriptWordMatches(tokens.map((x) => x.text), query), [tokens, query]);
   const cutSecs = useMemo(() => cutSeconds(lines), [lines]);
+  usePublishEditor({
+    kind: "listening",
+    pid,
+    state: () => ({
+      name: project?.name ?? null,
+      duration: project?.duration ?? null,
+      lines: lines.map((l) => ({ id: l.id, speaker: project?.speakers[l.speaker] ?? l.speaker, start: l.start, end: l.end, text: l.text.slice(0, 160), hidden: l.hidden })),
+      selected_words: selection ? Math.abs(selection.focus - selection.anchor) + 1 : 0,
+      time,
+      playing,
+      working: busy,
+    }),
+    select: (id) => {
+      const index = lines.findIndex((l) => l.id === id);
+      if (index < 0) return false;
+      const words = tokens.filter((x) => x.line === index);
+      if (words.length) setSelection({ anchor: words[0].index, focus: words[words.length - 1].index });
+      const row = document.querySelector(`[data-line="${index}"]`);
+      row?.scrollIntoView({ block: "center", behavior: "smooth" });
+      flash(row);
+      return true;
+    },
+  });
 
   useEffect(() => {
     if (!playing) return;

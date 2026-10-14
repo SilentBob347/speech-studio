@@ -6,10 +6,13 @@ import { api, type JobKind } from "../lib/api";
 import en from "../locales/en.json";
 import { useStore, MODES, type Mode } from "../store";
 import { playSfx } from "../lib/sfx";
+import { speechApi } from "../lib/speech";
+import { requestOpen } from "../lib/openProject";
+import { openEditor } from "../lib/editorBridge";
 import { AGENT_ACTION, JOBS_CHANGED, bridgeError, isMine, label, takeArgs, textArg, useBridgeCommand, type BridgeArgs, type ChangeNotice } from "../lib/mcpBridge";
 
 // Команды агента, которые пользователь видит подписью «Агент: …» (что только смотрит — не показываем).
-const SHOWN = ["screenshot", "click", "type", "select", "press_key", "scroll", "navigate", "open_settings", "open_help"] as const;
+const SHOWN = ["screenshot", "click", "type", "select", "press_key", "scroll", "navigate", "open_settings", "open_help", "editor_open", "editor_select"] as const;
 type Shown = (typeof SHOWN)[number];
 
 function actionLabel(t: TFunction<"t">, command: string, args: BridgeArgs): string | null {
@@ -81,6 +84,36 @@ export default function BridgeHost() {
     if (s.stage !== "ready") throw bridgeError("bad_value", { command: "ui_navigate", field: "view", expected: `the studio to be past ${s.stage}` });
     s.setMode(view as Mode);
     return { screen: view };
+  });
+
+  useBridgeCommand("editor_open", async (args) => {
+    takeArgs("editor_open", args, ["pid"]);
+    const pid = textArg("editor_open", args, "pid");
+    if (!pid) throw bridgeError("missing", { command: "editor_open", field: "pid" });
+    const s = useStore.getState();
+    if (s.stage !== "ready") throw bridgeError("bad_value", { command: "editor_open", field: "pid", expected: `the studio to be past ${s.stage}` });
+    const card = (await speechApi.list()).projects.find((p) => p.pid === pid);
+    if (!card) throw bridgeError("no_project", { pid, reason: "there is no such project" });
+    const mode: Mode = card.kind === "listening" ? "listening" : "speech";
+    s.setMode(mode);
+    requestOpen(mode, pid);
+    return { opened: pid, kind: mode, name: card.name };
+  });
+
+  useBridgeCommand("editor_state", (args) => {
+    takeArgs("editor_state", args, []);
+    const editor = openEditor();
+    return { mode: useStore.getState().mode, open: editor ? { kind: editor.kind, pid: editor.pid, ...editor.state() } : null };
+  });
+
+  useBridgeCommand("editor_select", (args) => {
+    takeArgs("editor_select", args, ["id"]);
+    const id = textArg("editor_select", args, "id");
+    if (!id) throw bridgeError("missing", { command: "editor_select", field: "id" });
+    const editor = openEditor();
+    if (!editor) throw bridgeError("no_screen", { command: "editor_select" });
+    if (!editor.select(id)) throw bridgeError("no_line", { id });
+    return { selected: id, pid: editor.pid };
   });
 
   useBridgeCommand("notify", (args) => {

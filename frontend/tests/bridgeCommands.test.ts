@@ -9,7 +9,7 @@ const WINDOW_TOOLS = readFileSync(join(SERVER, "mcp", "window.rs"), "utf8");
 const TOOLS = readFileSync(join(SERVER, "mcp.rs"), "utf8");
 
 /** Each tool of the window: its name and the command it asks the page for. */
-const windowTools = [...WINDOW_TOOLS.matchAll(/name: "(ui_\w+)",[\s\S]*?call: \|args\| window\("(\w+)"/g)].map((m) => ({ name: m[1], command: m[2] }));
+const windowTools = [...WINDOW_TOOLS.matchAll(/name: "((?:ui|editor)_\w+)",[\s\S]*?call: \|args\| window\("(\w+)"/g)].map((m) => ({ name: m[1], command: m[2] }));
 
 /** The commands the page registers with useBridgeCommand. */
 const pageCommands = new Set(listSources().flatMap((file) => [...readFileSync(file, "utf8").matchAll(/useBridgeCommand\("(\w+)"/g)].map((m) => m[1])));
@@ -23,6 +23,8 @@ function schemaFields(source: string, tool: string): string[] {
   if (twin) return schemaFields(TOOLS, twin[1]).filter((field) => field !== "pid" && field !== "response_format");
   if (/schema: nothing/.test(block)) return [];
   if (/schema: project_only/.test(block)) return ["pid"];
+  const single = /schema: \|\| id_only\("(\w+)"/.exec(block);
+  if (single) return [single[1]];
   const open = block.indexOf("json!({");
   if (open < 0) throw new Error(`${tool}: its schema is not written out`);
   const fields: string[] = [];
@@ -60,5 +62,11 @@ describe("the window's MCP tools and the page", () => {
 
   it("ui_navigate takes the mode it opens", () => {
     expect(schemaFields(WINDOW_TOOLS, "ui_navigate")).toEqual(["view"]);
+  });
+
+  it("the editor's tools take what the page reads", () => {
+    expect(schemaFields(WINDOW_TOOLS, "editor_open")).toEqual(["pid"]);
+    expect(schemaFields(WINDOW_TOOLS, "editor_state")).toEqual([]);
+    expect(schemaFields(WINDOW_TOOLS, "editor_select")).toEqual(["id"]);
   });
 });
