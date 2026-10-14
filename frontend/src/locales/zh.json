@@ -1061,7 +1061,9 @@
     "native_en": "母语英语",
     "native_zh": "母语中文",
     "native_ja": "母语日语",
-    "native_ko": "母语韩语"
+    "native_ko": "母语韩语",
+    "engineVoices": "模型自带声音",
+    "libraryClone": "声音库 — 克隆"
   },
   "tags": {
     "emotion": "情绪",

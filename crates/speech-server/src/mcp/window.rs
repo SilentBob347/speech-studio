@@ -607,6 +607,7 @@ mod tests {
     #[tokio::test]
     async fn a_command_to_a_window_that_closed_fails_at_once() {
         let _turn = TURN.lock().await;
+        let _stream = bridge().commands.subscribe();
         let window = bridge().sequence.fetch_add(1, Ordering::Relaxed);
         open_windows().push(window);
         let listening = Listening(window);

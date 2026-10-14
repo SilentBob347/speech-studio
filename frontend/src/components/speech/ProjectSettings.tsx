@@ -81,8 +81,13 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
               p.settings.cloud_values = {};
               const next = engines?.find((en) => en.id === e.target.value);
               for (const spec of next?.params ?? []) p.settings.params[spec.key] = spec.default;
+              const before = new Set((engine?.presets ?? []).map((v) => v.id));
               const own = next?.presets ?? [];
-              if (own.length && !own.some((v) => v.id === p.settings.voice)) p.settings.voice = own[0].id;
+              const stale = (v: string | null | undefined) => !!v && before.has(v) && !own.some((o) => o.id === v);
+              if (stale(p.settings.voice)) p.settings.voice = null;
+              for (const speaker of Object.keys(p.cast)) if (stale(p.cast[speaker])) delete p.cast[speaker];
+              for (const b of p.chapters.flatMap((c) => c.blocks)) if (stale(b.voice)) b.voice = null;
+              if (own.length && (!p.settings.voice || (next?.clone === "none" && !own.some((v) => v.id === p.settings.voice)))) p.settings.voice = own[0].id;
             })} className={field}>
               {(engines ?? []).map((en) => <option key={en.id} value={en.id} disabled={!!en.unavailable && en.id !== s.engine}>{en.name}{en.unavailable ? ` — ${t("speech.engineUnavailable")}` : ""}</option>)}
             </select>

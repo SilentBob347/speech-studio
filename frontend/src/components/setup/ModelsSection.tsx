@@ -307,6 +307,8 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
             {rowOf("drama3")}
             {get("drama3") && <p className="text-[11px] text-[var(--color-muted)] px-1">{t("settings.dramaNote")}</p>}
             {rowOf("supertonic3")}
+            {variantPicker("Qwen3-TTS 1.7B", ["qwen3-tts", "qwen3-tts-q8_0"])}
+            {rowOf("qwen3-tts-engine")}
           </>
         )}
       </>)}

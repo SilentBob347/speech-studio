@@ -21,6 +21,17 @@ pub fn load_selection(mroot: &Path) -> Value {
         .unwrap_or_else(|| Value::Object(Default::default()))
 }
 
+
+/// The chosen Qwen3-TTS talker quantisation; the first of `qwen_tts::QUANTS` when none is chosen.
+pub fn qwen_quant(mroot: &Path) -> String {
+    load_selection(mroot)
+        .get("qwen_tts_quant")
+        .and_then(|v| v.as_str())
+        .filter(|v| crate::qwen_tts::QUANTS.iter().any(|(q, _, _)| q == v))
+        .unwrap_or(crate::qwen_tts::QUANTS[0].0)
+        .to_string()
+}
+
 /// Записать/обновить один слот выбора (engine -> variant) атомарно.
 pub fn set_selection(mroot: &Path, engine: &str, variant: &str) -> std::io::Result<()> {
     let _held = selection_writes();
@@ -128,6 +139,8 @@ pub fn component_selection(id: &str) -> Vec<(&'static str, String)> {
         "higgs" => vec![("tts", "q8_0".into())],
         "higgs-q6_k" => vec![("tts", "q6_k".into())],
         "higgs-q4_k_m" => vec![("tts", "q4_k_m".into())],
+        "qwen3-tts" => vec![("qwen_tts_quant", "Q4_K_M".into())],
+        "qwen3-tts-q8_0" => vec![("qwen_tts_quant", "Q8_0".into())],
         "parakeet" => vec![("asr_engine", "parakeet".into()), ("asr", "int8".into())],
         "parakeet-ultra-int8" => vec![("asr_engine", "parakeet".into()), ("asr", "ultra-int8".into())],
         "whisper-tiny" => vec![("asr_engine", "whisper".into()), ("whisper_model", "tiny".into()),
@@ -204,6 +217,7 @@ pub fn is_selection_key(key: &str) -> bool {
             | "assistant"       // кто отвечает в панели «Ассистент»: openrouter (модель на ключе) или agent (подключённый MCP-агент)
             | "assistant_model" // модель OpenRouter ассистента
             | "tts_idle_unload_min" // через сколько минут простоя выгружать модель озвучки (0 — никогда)
+            | "qwen_tts_quant"  // квант Qwen3-TTS CustomVoice: Q4_K_M или Q8_0
             | "cloud_ok_speech" | "cloud_ok_listening" | "cloud_ok_director" | "cloud_ok_assistant" // разрешил ли человек отправлять стадию в облако
             | "or_tts_model"    // id TTS-модели OpenRouter (напр. "openai/gpt-4o-mini-tts")
             | "or_tts_voice"    // голос по умолчанию для облачного TTS (напр. "alloy")
@@ -225,6 +239,7 @@ pub fn is_selection_value(key: &str, value: &str) -> bool {
         "assistant" => matches!(value, "openrouter" | "agent"),
         "cloud_ok_speech" | "cloud_ok_listening" | "cloud_ok_director" | "cloud_ok_assistant" => matches!(value, "0" | "1"),
         "tts_idle_unload_min" => matches!(value, "0" | "5" | "15" | "30" | "60"),
+        "qwen_tts_quant" => crate::qwen_tts::QUANTS.iter().any(|(q, _, _)| *q == value),
         "voice_clean" => matches!(value, "0" | "1"),
         "cloud_daily_limit_usd" => value.parse::<f64>().is_ok_and(|v| (0.0..=10_000.0).contains(&v)),
         "google_tts_model" => {

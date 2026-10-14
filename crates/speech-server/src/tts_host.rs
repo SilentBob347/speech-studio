@@ -42,6 +42,7 @@ pub enum Tts {
     Higgs(Arc<AudiocppEngine>),
     Drama(Arc<drama::DramaEngine>),
     Supertonic(Arc<crate::supertonic::Model>),
+    Qwen(Arc<crate::qwen_tts::Engine>),
 }
 
 impl Tts {
@@ -51,6 +52,7 @@ impl Tts {
             Tts::Higgs(e) => e.cancel(),
             Tts::Drama(e) => e.cancel(),
             Tts::Supertonic(_) => {}
+            Tts::Qwen(e) => e.cancel(),
         }
     }
 
@@ -59,6 +61,7 @@ impl Tts {
             Tts::Higgs(e) => Arc::strong_count(e) > 1,
             Tts::Drama(e) => Arc::strong_count(e) > 1,
             Tts::Supertonic(e) => Arc::strong_count(e) > 1,
+            Tts::Qwen(e) => Arc::strong_count(e) > 1,
         }
     }
 }
@@ -207,6 +210,39 @@ pub fn supertonic(models_root: &Path) -> Result<Tts, String> {
     Ok(Tts::Supertonic(e))
 }
 
+
+/// Загруженный Qwen3-TTS выбранного кванта: CustomVoice для голосов модели, Base для клона (`clone`); другой
+/// квант, другой чекпоинт или другой движок выгружаются. Только на видеокарте NVIDIA с CUDA 13: на неподходящей —
+/// ошибка с причиной.
+pub fn qwen(models_root: &Path, clone: bool) -> Result<Tts, String> {
+    let quant = crate::models::qwen_quant(models_root);
+    let key = format!("{}:{}:{quant}", crate::qwen_tts::ENGINE, if clone { "base" } else { "custom" });
+    let mut slot = host();
+    if let Some((k, Tts::Qwen(e))) = slot.as_ref() {
+        if *k == key {
+            touch();
+            return Ok(Tts::Qwen(e.clone()));
+        }
+    }
+    *slot = None;
+    if !crate::qwen_tts::installed(models_root, &quant, clone) {
+        return Err(if clone { t!("render-qwen-clone-missing") } else { t!("render-qwen-missing") });
+    }
+    let gpu = crate::hw::gpu_report();
+    if !gpu.cuda13_ok {
+        let card = gpu.summary().unwrap_or_else(|| "-".to_string());
+        return Err(match gpu.reason {
+            Some("gpu_old") => t!("render-higgs-gpu-old", card = card, min = gpu.min_compute.clone()),
+            Some("driver_old") => t!("render-higgs-driver-old", card = card, min = gpu.min_driver),
+            _ => t!("render-higgs-no-gpu", card = card),
+        });
+    }
+    let e = Arc::new(crate::qwen_tts::Engine::load(models_root, &quant, clone).map_err(|e| t!("render-qwen-load-failed", error = e))?);
+    *slot = Some((key, Tts::Qwen(e.clone())));
+    touch();
+    Ok(Tts::Qwen(e))
+}
+
 /// Выгрузить модель озвучки и освободить видеопамять.
 pub fn unload() {
     if let Some((_, e)) = host().take() {
@@ -217,7 +253,7 @@ pub fn unload() {
 pub fn loaded() -> bool {
     host().as_ref().is_some_and(|(_, e)| match e {
         Tts::Higgs(h) => h.is_model_loaded(),
-        Tts::Drama(_) | Tts::Supertonic(_) => true,
+        Tts::Drama(_) | Tts::Supertonic(_) | Tts::Qwen(_) => true,
     })
 }
 
@@ -397,8 +433,10 @@ pub struct Request<'a> {
     pub lang: &'a str,
     pub ref_wav: Option<&'a Path>,
     pub ref_text: Option<&'a str>,
-    /// Голос движка без клона (Supertonic).
+    /// Голос движка без клона (Supertonic, Qwen3-TTS).
     pub preset: Option<&'a str>,
+    /// Как говорить — указание движку, который его читает (Qwen3-TTS).
+    pub instruct: Option<&'a str>,
     pub params: &'a Params,
     /// Сид случайного режима: вызывающий даёт разный на каждый дубль.
     pub fresh_seed: u64,
@@ -413,8 +451,10 @@ struct Call {
     ref_wav: Option<PathBuf>,
     ref_text: Option<String>,
     preset: Option<String>,
+    instruct: Option<String>,
     opts: String,
     drama: drama::Params,
+    max_tokens: u32,
     steps: u32,
     speed: f64,
     seed: u64,
@@ -424,7 +464,7 @@ fn run_guarded(engine: &Tts, call: Call, timeout: Duration, live: Option<Arc<cra
     let (tx, rx) = mpsc::channel();
     let eng = engine.clone();
     std::thread::spawn(move || {
-        let Call { text: t, lang, ref_wav: rw, ref_text: rt, preset, opts: op, drama: dp, steps, speed, seed } = call;
+        let Call { text: t, lang, ref_wav: rw, ref_text: rt, preset, instruct, opts: op, drama: dp, max_tokens, steps, speed, seed } = call;
         // an engine that does not stream gives the window the whole take once it is done
         let mut streamed = false;
         let r = match (&eng, rw) {
@@ -466,6 +506,26 @@ fn run_guarded(engine: &Tts, call: Call, timeout: Duration, live: Option<Arc<cra
                 Some(voice) => e.speak(&t, &lang, voice, steps, speed, seed).map(|a| (a, e.sample_rate() as i32)),
                 None => Err(t!("speech-voice-preset-needed")),
             },
+            (Tts::Qwen(e), rw) => match qwen_reference(preset.as_deref(), rw.as_deref()) {
+                Ok(reference) => {
+                    let say = crate::qwen_tts::Say {
+                        text: &t,
+                        lang: &lang,
+                        speaker: preset.as_deref(),
+                        reference: reference.as_deref().map(|a| (a, rt.as_deref())),
+                        instruct: instruct.as_deref().filter(|_| preset.is_some()),
+                        seed,
+                        temperature: dp.temperature,
+                        top_k: dp.top_k,
+                        top_p: dp.top_p,
+                        max_new_tokens: max_tokens as i32,
+                    };
+                    streamed = live.is_some();
+                    let sink = live.clone().map(|phrase| move |a: &[f32]| phrase.chunk(a, crate::qwen_tts::SAMPLE_RATE));
+                    e.speak(&say, sink.as_ref().map(|f| f as &(dyn Fn(&[f32]) + Sync))).map(|a| (a, crate::qwen_tts::SAMPLE_RATE as i32))
+                }
+                Err(err) => Err(err),
+            },
         };
         if let (Some(phrase), Ok((samples, sr)), false) = (&live, &r, streamed) {
             phrase.chunk(samples, *sr as u32);
@@ -495,6 +555,20 @@ fn run_guarded(engine: &Tts, call: Call, timeout: Duration, live: Option<Arc<cra
             unload();
             Err(format!("{ENGINE_STUCK}: {}", t!("render-engine-stuck", seconds = timeout.as_secs() + GUARD_GRACE_SECS)))
         }
+    }
+}
+
+
+/// What Qwen3-TTS speaks with: a voice of the model needs nothing more; a clone needs its reference as mono 24 kHz.
+fn qwen_reference(preset: Option<&str>, reference: Option<&Path>) -> Result<Option<Vec<f32>>, String> {
+    match (preset, reference) {
+        (Some(_), _) => Ok(None),
+        (None, Some(wav)) => {
+            let tmp = tempfile::Builder::new().suffix(".wav").tempfile().map_err(|e| e.to_string())?;
+            crate::media::extract_audio(wav, tmp.path(), crate::qwen_tts::SAMPLE_RATE, 1)?;
+            Ok(Some(crate::wavio::read_mono_f32(tmp.path())?.0))
+        }
+        (None, None) => Err(t!("speech-voice-preset-needed")),
     }
 }
 
@@ -536,8 +610,10 @@ pub fn synth(engine: &Tts, req: &Request) -> Result<Synth, String> {
             ref_wav: req.ref_wav.map(Path::to_path_buf),
             ref_text: req.ref_text.map(str::to_string),
             preset: req.preset.map(str::to_string),
+            instruct: req.instruct.map(str::to_string),
             opts,
             drama: drama::Params { temperature: temperature as f32, top_k: req.params.top_k as i32, top_p: req.params.top_p as f32, seed, max_new: drama_frames(expected, req.params.max_tokens) },
+            max_tokens: req.params.max_tokens,
             steps: req.params.steps,
             speed: req.params.speed,
             seed,

@@ -556,6 +556,14 @@ const SUPERTONIC3_FILES: &[FileSpec] = &[
     FileSpec { url: "https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/voice_styles/M5.json", dest_rel: "models/supertonic3/voice_styles/M5.json", size: 291_469, sha256: "dd22b92740314321f8ae11c5e87f8dd60d060f15dd3a632b5adf77f471f77af2", extract: Extract::None },
 ];
 const SUPERTONIC3_SIZE: u64 = 108_241_231;
+/// Qwen3-TTS 1.7B GGUF (Serveurperso/Qwen3-TTS-GGUF, Apache 2.0): the 12 Hz codec and the CustomVoice and Base talkers
+/// of each quantisation.
+const QWEN_CODEC: FileSpec = FileSpec { url: "https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF/resolve/b7ee2e8c7459c3bea99da23e3d178125a7d1713c/qwen-tokenizer-12hz-Q8_0.gguf", dest_rel: "models/qwen3-tts/qwen-tokenizer-12hz-Q8_0.gguf", size: 291_150_624, sha256: "1883beeed99348fc35e23dd225e9082f93f6f8c109330a33d935baa8acdbfd94", extract: Extract::None };
+const QWEN_Q4_K_M: FileSpec = FileSpec { url: "https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF/resolve/b7ee2e8c7459c3bea99da23e3d178125a7d1713c/qwen-talker-1.7b-customvoice-Q4_K_M.gguf", dest_rel: "models/qwen3-tts/qwen-talker-1.7b-customvoice-Q4_K_M.gguf", size: 1_182_631_296, sha256: "cc328834a631bc08bf9f43e62fa23f8a1383d9b429864ce6690cfb172077fc4a", extract: Extract::None };
+const QWEN_Q8_0: FileSpec = FileSpec { url: "https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF/resolve/b7ee2e8c7459c3bea99da23e3d178125a7d1713c/qwen-talker-1.7b-customvoice-Q8_0.gguf", dest_rel: "models/qwen3-tts/qwen-talker-1.7b-customvoice-Q8_0.gguf", size: 2_042_834_304, sha256: "cab2cff67a0a557310febe558dc83076b28ed790e491867eb2751759f4cd89fa", extract: Extract::None };
+
+const QWEN_BASE_Q4_K_M: FileSpec = FileSpec { url: "https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF/resolve/b7ee2e8c7459c3bea99da23e3d178125a7d1713c/qwen-talker-1.7b-base-Q4_K_M.gguf", dest_rel: "models/qwen3-tts/qwen-talker-1.7b-base-Q4_K_M.gguf", size: 1_219_245_248, sha256: "ea393ebaf2167ea23ce9fc18b093822851358a950d7075cd47ab4f6ce23e887d", extract: Extract::None };
+const QWEN_BASE_Q8_0: FileSpec = FileSpec { url: "https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF/resolve/b7ee2e8c7459c3bea99da23e3d178125a7d1713c/qwen-talker-1.7b-base-Q8_0.gguf", dest_rel: "models/qwen3-tts/qwen-talker-1.7b-base-Q8_0.gguf", size: 2_079_448_256, sha256: "4b9a33a236908dd9435a42f7a396e38038329d053b704342a6413c08544c4fda", extract: Extract::None };
 const SUPERTONIC3_MARKERS: &[Marker] = &[
     Marker { rel: "models/supertonic3/onnx/vector_estimator.onnx", expect: 65_769_855 },
     Marker { rel: "models/supertonic3/onnx/vocoder.onnx", expect: 25_820_373 },
@@ -739,6 +747,41 @@ pub fn manifest() -> Vec<Component> {
             size: SUPERTONIC3_SIZE,
             files: SUPERTONIC3_FILES,
             markers: SUPERTONIC3_MARKERS,
+            external_url: None,
+        },
+        // Qwen3-TTS: the engine (the 12 Hz codec; qwentts.cpp joins it at release) and the talkers of each
+        // quantisation — CustomVoice for the model's own voices, Base for cloning.
+        Component {
+            id: "qwen3-tts-engine",
+            name: t!("setup-comp-qwen3-tts-engine-name"),
+            purpose: t!("setup-comp-qwen3-tts-engine-purpose"),
+            requirement: Requirement::Optional,
+            delivery: Delivery::Download,
+            size: QWEN_CODEC.size,
+            files: &[QWEN_CODEC],
+            markers: &[Marker { rel: QWEN_CODEC.dest_rel, expect: QWEN_CODEC.size }],
+            external_url: None,
+        },
+        Component {
+            id: "qwen3-tts",
+            name: "Qwen3-TTS 1.7B (Q4_K_M)".into(),
+            purpose: t!("setup-comp-qwen3-tts-purpose"),
+            requirement: Requirement::Optional,
+            delivery: Delivery::Download,
+            size: QWEN_Q4_K_M.size + QWEN_BASE_Q4_K_M.size,
+            files: &[QWEN_Q4_K_M, QWEN_BASE_Q4_K_M],
+            markers: &[Marker { rel: QWEN_Q4_K_M.dest_rel, expect: QWEN_Q4_K_M.size }, Marker { rel: QWEN_BASE_Q4_K_M.dest_rel, expect: QWEN_BASE_Q4_K_M.size }],
+            external_url: None,
+        },
+        Component {
+            id: "qwen3-tts-q8_0",
+            name: "Qwen3-TTS 1.7B (Q8_0)".into(),
+            purpose: t!("setup-comp-qwen3-tts-purpose"),
+            requirement: Requirement::Optional,
+            delivery: Delivery::Download,
+            size: QWEN_Q8_0.size + QWEN_BASE_Q8_0.size,
+            files: &[QWEN_Q8_0, QWEN_BASE_Q8_0],
+            markers: &[Marker { rel: QWEN_Q8_0.dest_rel, expect: QWEN_Q8_0.size }, Marker { rel: QWEN_BASE_Q8_0.dest_rel, expect: QWEN_BASE_Q8_0.size }],
             external_url: None,
         },
         // Parakeet Ultra int8 (Masterx): та же дообученная Moondream модель, квантованная тем же рецептом, что
@@ -1174,6 +1217,8 @@ fn vram_estimate(id: &str) -> u64 {
         "parakeet" => gb(1.1),
         "parakeet-ultra-int8" => gb(1.1),
         "supertonic3" => gb(0.6),
+        "qwen3-tts" => gb(2.8),
+        "qwen3-tts-q8_0" => gb(3.7),
         "sortformer" => gb(0.5),
         "roformer" => gb(0.5),
         "roformer-q5" => gb(0.45),

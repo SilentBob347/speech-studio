@@ -1061,7 +1061,9 @@
     "native_en": "native English",
     "native_zh": "native Chinese",
     "native_ja": "native Japanese",
-    "native_ko": "native Korean"
+    "native_ko": "native Korean",
+    "engineVoices": "The model's voices",
+    "libraryClone": "Library — clone"
   },
   "tags": {
     "emotion": "Emotion",

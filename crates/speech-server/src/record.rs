@@ -408,6 +408,7 @@ mod tests {
     fn a_download_is_checked_before_it_takes_its_name() {
         use dub_llm::test_http::{serve, Reply};
         use sha2::{Digest, Sha256};
+        let _lang = crate::i18n::test_language("ru");
         let body = b"voice bytes".to_vec();
         let sha: String = Sha256::digest(&body).iter().map(|b| format!("{b:02x}")).collect();
         let server = serve(vec![Reply::bytes(200, "audio/mpeg", body.clone()), Reply::bytes(200, "audio/mpeg", body.clone()), Reply::bytes(200, "audio/mpeg", body.clone())]);
@@ -419,7 +420,8 @@ mod tests {
         assert_eq!(std::fs::read(&dest).unwrap(), body);
         let other = dir.path().join("w.mp3");
         assert!(fetch_checked(&client, &format!("{}/v", server.base()), &other, n, Some(&"0".repeat(64)), &|_| {}).unwrap_err().contains("SHA-256"));
-        assert!(fetch_checked(&client, &format!("{}/v", server.base()), &other, n + 1, None, &|_| {}).unwrap_err().contains("закреплено"));
+        let short = fetch_checked(&client, &format!("{}/v", server.base()), &other, n + 1, None, &|_| {}).unwrap_err();
+        assert!(short.contains("закреплено"), "{short}");
         assert!(!other.exists(), "a file that failed its check never appears");
         assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1, "no .part is left");
     }

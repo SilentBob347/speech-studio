@@ -49,6 +49,7 @@ mod spa;
 mod studio_settings;
 mod live;
 mod supertonic;
+mod qwen_tts;
 mod tagging;
 mod tts_text;
 mod tts_trim;

@@ -167,13 +167,41 @@ pub fn supertonic() -> Engine {
     }
 }
 
+
+/// Qwen3-TTS 1.7B через qwentts.cpp: девять голосов модели (CustomVoice) и клон голоса из библиотеки по рефу с
+/// текстом (Base), десять языков; пометка блока идёт голосам модели указанием, как говорить. Сэмплинг по умолчанию — из портативки Qwen3-TTS_portable_rus (0,7 / 0,9).
+pub fn qwen() -> Engine {
+    Engine {
+        id: crate::qwen_tts::ENGINE,
+        name: "Qwen3-TTS",
+        languages: crate::qwen_tts::LANGS,
+        params: vec![
+            ParamSpec { key: "temperature", kind: "float", min: 0.05, max: 2.0, step: 0.05, default: 0.7 },
+            ParamSpec { key: "top_k", kind: "int", min: 1.0, max: 500.0, step: 1.0, default: 50.0 },
+            ParamSpec { key: "top_p", kind: "float", min: 0.05, max: 1.0, step: 0.01, default: 0.9 },
+            ParamSpec { key: "max_tokens", kind: "int", min: 0.0, max: 2048.0, step: 64.0, default: 0.0 },
+        ],
+        seed_modes: &["random", "fixed", "inc", "dec"],
+        tag_format: "",
+        tags: Vec::new(),
+        clone: "ref_text",
+        continuation: false,
+        streaming: true,
+        deterministic_seed: true,
+        max_chars: 400,
+        reads: Reads { stress: false, yo: true, phonemes: false, accent: false },
+        presets: crate::qwen_tts::SPEAKERS.iter().map(|(id, name, gender, native)| Preset { id, name, gender, native }).collect(),
+        unavailable: None,
+    }
+}
+
 /// fal, Runware и Google Gemini: модель из каталога или настроек, голоса — у модели; языки — у модели.
 pub fn catalog(id: &'static str, name: &'static str) -> Engine {
     Engine { id, name, ..openrouter() }
 }
 
 pub fn all() -> Vec<Engine> {
-    vec![higgs(), drama(), supertonic(), openrouter(), catalog("google", "Google Gemini"), catalog("fal", "fal.ai"), catalog("runware", "Runware")]
+    vec![higgs(), drama(), supertonic(), qwen(), openrouter(), catalog("google", "Google Gemini"), catalog("fal", "fal.ai"), catalog("runware", "Runware")]
 }
 
 /// Движки для окна: у Drama 3 и Supertonic — почему они здесь не пойдут (видеокарта или нескачанные файлы).
@@ -184,6 +212,8 @@ pub fn for_window(models_root: &std::path::Path) -> Vec<Engine> {
             e.unavailable = crate::models::drama_unavailable().or_else(|| (!crate::models::drama_installed(models_root)).then(|| t!("render-drama-missing")));
         } else if e.id == crate::supertonic::ENGINE && !crate::supertonic::installed(models_root) {
             e.unavailable = Some(t!("render-supertonic-missing"));
+        } else if e.id == crate::qwen_tts::ENGINE && !crate::qwen_tts::installed(models_root, &crate::models::qwen_quant(models_root), false) {
+            e.unavailable = Some(t!("render-qwen-missing"));
         }
     }
     all

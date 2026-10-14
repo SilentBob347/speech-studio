@@ -5,6 +5,7 @@ import type { Selection } from "./api";
 // резолвится при генерации.
 const VARIANT_SLOT: Record<string, [string, string]> = {
   higgs: ["tts", "q8_0"], "higgs-q6_k": ["tts", "q6_k"], "higgs-q4_k_m": ["tts", "q4_k_m"],
+  "qwen3-tts": ["qwen_tts_quant", "Q4_K_M"], "qwen3-tts-q8_0": ["qwen_tts_quant", "Q8_0"],
   parakeet: ["asr", "int8"],
   "parakeet-ultra-int8": ["asr", "ultra-int8"],
   gemma: ["mt", "q4_0"], "gemma-q5_0": ["mt", "q5_0"], "gemma-q6_k": ["mt", "q6_k"], "gemma-q8_0": ["mt", "q8_0"],
