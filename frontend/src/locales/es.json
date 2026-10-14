@@ -103,7 +103,12 @@
     "themeHint": "Oscuro, claro o como el sistema",
     "theme_system": "Como el sistema",
     "theme_dark": "Oscuro",
-    "theme_light": "Claro"
+    "theme_light": "Claro",
+    "vram": "Memoria de vídeo",
+    "idleUnload": "Descargar el modelo de locución tras inactividad",
+    "idleUnloadHint": "Libera la tarjeta gráfica para otros programas; la siguiente locución vuelve a cargar el modelo (unos segundos).",
+    "idleNever": "Nunca",
+    "idleMinutes": "{{n}} min"
   },
   "offline": {
     "title": "El servicio del estudio no responde",
@@ -118,7 +123,8 @@
     "log": "Registro de actividad",
     "clear": "Borrar",
     "backendOffline": "backend sin conexión",
-    "journalFailed": "El registro no se cargó: {{error}}"
+    "journalFailed": "El registro no se cargó: {{error}}",
+    "eta": "quedan ~{{time}}"
   },
   "settings": {
     "sounds": "Sonidos de notificación",
@@ -1530,5 +1536,10 @@
     "route_local": "Limpieza de voz, acentos y ё, separación de hablantes, similitud de voz, corte por pausas, exportación.",
     "askAgain": "Volver a preguntar",
     "willAsk": "pregunta antes de enviar"
+  },
+  "errors": {
+    "whatToDo": "Qué hacer: copia el texto, mira el diagnóstico o informa del problema.",
+    "copy": "Copiar",
+    "diagnostics": "Diagnóstico"
   }
 }

@@ -103,7 +103,12 @@
     "themeHint": "Dark, light, or as the system is",
     "theme_system": "As the system",
     "theme_dark": "Dark",
-    "theme_light": "Light"
+    "theme_light": "Light",
+    "vram": "Video memory",
+    "idleUnload": "Unload the voicing model after idle",
+    "idleUnloadHint": "Frees the graphics card for other programs; the next voicing loads the model again (a few seconds).",
+    "idleNever": "Never",
+    "idleMinutes": "{{n}} min"
   },
   "offline": {
     "title": "The studio service isn't responding",
@@ -118,7 +123,8 @@
     "log": "Activity log",
     "clear": "Clear",
     "backendOffline": "backend offline",
-    "journalFailed": "The journal did not load: {{error}}"
+    "journalFailed": "The journal did not load: {{error}}",
+    "eta": "~{{time}} left"
   },
   "settings": {
     "sounds": "Notification sounds",
@@ -1530,5 +1536,10 @@
     "route_local": "Voice cleaning, stress marks and ё, speaker separation, voice similarity, splitting by pauses, export.",
     "askAgain": "Ask again",
     "willAsk": "asks before sending"
+  },
+  "errors": {
+    "whatToDo": "What to do: copy the text, look at the diagnostics or report the problem.",
+    "copy": "Copy",
+    "diagnostics": "Diagnostics"
   }
 }

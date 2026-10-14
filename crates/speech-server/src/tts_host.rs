@@ -53,9 +53,58 @@ impl Tts {
 }
 
 static HOST: Mutex<Option<(String, Tts)>> = Mutex::new(None);
+/// When the voicing model was last taken for a phrase: the idle watcher unloads it after the set minutes.
+static LAST_USE: Mutex<Option<Instant>> = Mutex::new(None);
+/// A card this small does not hold the voicing model next to recognition or separation.
+const SHARED_VRAM: u64 = 12 * 1024 * 1024 * 1024;
 
 fn host() -> std::sync::MutexGuard<'static, Option<(String, Tts)>> {
     HOST.lock().unwrap_or_else(|p| p.into_inner())
+}
+
+fn touch() {
+    *LAST_USE.lock().unwrap_or_else(|p| p.into_inner()) = Some(Instant::now());
+}
+
+/// Room for another heavy model (recognition, separation, similarity): on a card under 12 GB the voicing model goes.
+pub fn make_room() {
+    if crate::hw::total_vram() < SHARED_VRAM {
+        unload();
+    }
+}
+
+/// Unloads the voicing model once it has not been used for `idle`; one voicing a phrase now (its engine held by the
+/// synthesis) stays. True when it went.
+pub fn unload_if_idle(idle: Duration) -> bool {
+    let last = *LAST_USE.lock().unwrap_or_else(|p| p.into_inner());
+    if !last.is_some_and(|at| at.elapsed() >= idle) {
+        return false;
+    }
+    let mut slot = host();
+    let busy = match slot.as_ref() {
+        None => return false,
+        Some((_, Tts::Higgs(e))) => Arc::strong_count(e) > 1,
+        Some((_, Tts::Drama(e))) => Arc::strong_count(e) > 1,
+    };
+    if busy {
+        return false;
+    }
+    *slot = None;
+    true
+}
+
+/// Watches the voicing model and unloads it after the idle minutes of the setting `tts_idle_unload_min` (0 never).
+pub fn watch_idle(models_root: PathBuf) {
+    std::thread::Builder::new()
+        .name("tts-idle".into())
+        .spawn(move || loop {
+            std::thread::sleep(Duration::from_secs(30));
+            let minutes = crate::models::load_selection(&models_root).get("tts_idle_unload_min").and_then(|v| v.as_str()).and_then(|v| v.parse::<u64>().ok()).unwrap_or(15);
+            if minutes > 0 && unload_if_idle(Duration::from_secs(minutes * 60)) {
+                tracing::info!("the voicing model was unloaded after {minutes} min idle");
+            }
+        })
+        .expect("tts idle watcher thread");
 }
 
 /// Загруженный Higgs под эту конфигурацию; другая конфигурация или Drama 3 выгружаются.
@@ -63,6 +112,7 @@ pub fn engine(cfg: &HiggsConfig) -> Result<Tts, String> {
     let mut slot = host();
     if let Some((key, Tts::Higgs(e))) = slot.as_ref() {
         if *key == cfg.key() && e.is_model_loaded() {
+            touch();
             return Ok(Tts::Higgs(e.clone()));
         }
     }
@@ -85,6 +135,7 @@ pub fn engine(cfg: &HiggsConfig) -> Result<Tts, String> {
     e.load_model(&cfg.model_root, &cfg.backend, 0, cfg.threads, Some(cfg.quant.as_str()))
         .map_err(|e| t!("render-higgs-model-failed", error = e.localize()))?;
     *slot = Some((cfg.key(), Tts::Higgs(e.clone())));
+    touch();
     Ok(Tts::Higgs(e))
 }
 
@@ -97,6 +148,7 @@ pub fn drama(models_root: &Path) -> Result<Tts, String> {
     let mut slot = host();
     if let Some((key, Tts::Drama(e))) = slot.as_ref() {
         if key == crate::models::DRAMA_TTS {
+            touch();
             return Ok(Tts::Drama(e.clone()));
         }
     }
@@ -111,6 +163,7 @@ pub fn drama(models_root: &Path) -> Result<Tts, String> {
         .map_err(|e| t!("render-drama-load-failed", error = e.to_string()))?;
     let e = Arc::new(e);
     *slot = Some((crate::models::DRAMA_TTS.to_string(), Tts::Drama(e.clone())));
+    touch();
     Ok(Tts::Drama(e))
 }
 

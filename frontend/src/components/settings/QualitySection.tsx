@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Timer } from "lucide-react";
+import { MemoryStick, Timer } from "lucide-react";
 import { api } from "../../lib/api";
 import SettingSwitch from "./SettingSwitch";
 import DiagnosticsPanel from "./DiagnosticsPanel";
@@ -12,6 +12,7 @@ const DIAGNOSTICS = [
 ] as const;
 
 type Row = (typeof DIAGNOSTICS)[number];
+const IDLE_MINUTES = ["0", "5", "15", "30", "60"] as const;
 
 type Selection = Record<string, unknown>;
 
@@ -61,6 +62,21 @@ export default function QualitySection() {
   return (
     <div className="max-w-2xl">
       {error && <p role="alert" className="mb-3 mono text-[11px] text-[var(--color-warn)] break-words">{error}</p>}
+      <section className="mb-5">
+        <h4 className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)] mb-2">{t("prefs.vram")}</h4>
+        <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)]/40">
+          <MemoryStick size={15} className="shrink-0 text-[var(--color-accent-2)]" />
+          <label htmlFor="tts-idle" className="min-w-0 flex-1">
+            <span className="block text-[13px] font-medium">{t("prefs.idleUnload")}</span>
+            <span className="block text-[11px] leading-snug text-[var(--color-muted)]">{t("prefs.idleUnloadHint")}</span>
+          </label>
+          <select id="tts-idle" value={String(sel?.tts_idle_unload_min ?? "15")} disabled={!sel || saving !== null}
+            onChange={(e) => { const v = e.target.value; setSaving("tts_idle_unload_min"); api.setSelection("tts_idle_unload_min", v).then(setSel, (er: unknown) => setError(t("prefs.saveFailed", { error: er instanceof Error ? er.message : String(er) }))).finally(() => setSaving(null)); }}
+            className="shrink-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px] focus:border-[var(--color-accent)] focus:outline-none">
+            {IDLE_MINUTES.map((m) => <option key={m} value={m}>{m === "0" ? t("prefs.idleNever") : t("prefs.idleMinutes", { n: Number(m) })}</option>)}
+          </select>
+        </div>
+      </section>
       {group(t("prefs.diagnostics"), DIAGNOSTICS)}
       <DiagnosticsPanel />
     </div>

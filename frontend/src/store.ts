@@ -22,7 +22,7 @@ type State = {
   stage: Stage;
   mode: Mode;
   fresh: number;                     // растёт на каждое «Новое»: открытый режим начинает с чистого листа
-  progress: { stage: string; msg: string; pct: number | null };
+  progress: { stage: string; msg: string; pct: number | null; since: number; eta: number | null };   // since — начало стадии; eta — сколько секунд осталось по её скорости
   activities: Activity[];            // журнал «что делает приложение» — статус-строка в шапке + разворот в лог; хранится сервером
   setStage: (s: Stage) => void;
   setMode: (m: Mode) => void;
@@ -53,7 +53,7 @@ export const useStore = create<State>((set) => ({
   stage: "boot",
   mode: savedMode(),
   fresh: 0,
-  progress: { stage: "", msg: "", pct: null },
+  progress: { stage: "", msg: "", pct: null, since: 0, eta: null },
   activities: [],
   setStage: (stage) => set({ stage }),
   setMode: (mode) => {
@@ -62,7 +62,12 @@ export const useStore = create<State>((set) => ({
   },
   startFresh: () => set((s) => ({ fresh: s.fresh + 1 })),
   setProgress: (stage, msg, pct = null) => set((s) => {
-    const progress = { stage, msg: msg || s.progress.msg, pct: pct ?? null };
+    const restarted = stage !== s.progress.stage || (pct ?? 0) < (s.progress.pct ?? 0);
+    const now = Date.now();
+    const since = restarted ? now : s.progress.since;
+    const spent = (now - since) / 1000;
+    const eta = pct != null && pct >= 3 && pct < 99 && spent >= 5 ? Math.round((spent * (100 - pct)) / pct) : null;
+    const progress = { stage, msg: msg || s.progress.msg, pct: pct ?? null, since, eta };
     const kind: Activity["kind"] = stage === "error" ? "error" : stage === "done" ? "done" : "work";
     const activities = withActivity(s.activities, msg || "", kind);
     if (activities) keep(msg, kind);

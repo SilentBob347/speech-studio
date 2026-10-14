@@ -383,6 +383,7 @@ fn clean_partials(dir: &Path) {
 
 pub fn build_router(state: AppState) -> Router {
     journal::open(&state.repo_root);
+    tts_host::watch_idle(state.models_root.clone());
     let api = Router::new()
         .route("/health", get(service::health))
         .route("/engine/capabilities", get(capabilities))

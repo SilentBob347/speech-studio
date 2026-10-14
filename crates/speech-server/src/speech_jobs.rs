@@ -502,9 +502,7 @@ fn voice_embedding(embedder: &mut dub_faces::VoiceEmbedder, audio: &Path) -> Res
 /// Проверить новые дубли блоков: текст — распознаванием (WER), голос — похожестью на реф; лучший по
 /// «прошёл всё → WER → похожесть» становится активным; блоки, где не прошёл ни один, — в ответе.
 fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, progress: &dyn Fn(Value)) -> Result<Vec<String>, String> {
-    if crate::hw::total_vram() < 12 * 1024 * 1024 * 1024 {
-        tts_host::unload();
-    }
+    tts_host::make_room();
     let settings = sp::load(&p.workspace, pid)?.settings;
     let asr_on = settings.qc.asr_check || settings.qc.takes > 1;
     let sim_on = settings.qc.similarity;

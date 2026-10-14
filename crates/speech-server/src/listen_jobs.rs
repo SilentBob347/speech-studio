@@ -170,6 +170,7 @@ fn join_words(words: &[Word]) -> String {
 
 /// Отделённый голос записи в 16 кГц (Roformer); ошибка — явная, без тихого перехода на сырую запись.
 fn separate(p: &ListenPaths, src: &Path, work: &Path) -> Result<PathBuf, String> {
+    crate::tts_host::make_room();
     let sel = crate::models::load_selection(&p.models_root);
     let cli = dub_sep::engine_cli(&p.repo_root, crate::models::stage_backend(&p.models_root, "sep_backend"));
     let model = crate::models::resolve_sep(&p.models_root, &sel);
@@ -188,6 +189,7 @@ fn separate(p: &ListenPaths, src: &Path, work: &Path) -> Result<PathBuf, String>
 
 /// Голос и остальное файла отдельно (Roformer) — FLAC в `out`: vocals.flac и instrumental.flac.
 pub fn separate_to(repo_root: &Path, models_root: &Path, src: &Path, out: &Path, progress: &dyn Fn(Value)) -> Result<Value, String> {
+    crate::tts_host::make_room();
     crate::ensure_job_components(repo_root, models_root, false, false, &|ev| progress(ev))?;
     let sel = crate::models::load_selection(models_root);
     let cli = dub_sep::engine_cli(repo_root, crate::models::stage_backend(models_root, "sep_backend"));
@@ -282,6 +284,7 @@ fn recognise(p: &ListenPaths, engine: &Engine, wav: &Path, work: &Path, lang: &s
 
 /// Распознать запись проекта заново (прежний транскрипт заменяется; имена спикеров по ключам сохраняются).
 pub fn transcribe(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Result<Value, String> {
+    crate::tts_host::make_room();
     let mut project = lp::load(&p.workspace, pid)?;
     let src = lp::source_path(&p.workspace, pid, &project)?;
     let s = project.settings.clone();

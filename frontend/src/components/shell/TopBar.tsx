@@ -78,7 +78,12 @@ function StatusBar() {
   const last = activities[activities.length - 1];
   const busy = progress.pct != null || (!!progress.stage && !["", "done", "error"].includes(progress.stage));
   const stageText = progress.stage in en.jobs.kind ? t(`jobs.kind.${progress.stage as JobKind}`) : t("status.working");
-  const busyText = `${progress.msg || stageText}${progress.pct != null ? ` · ${progress.pct}%` : ""}`;
+  const eta = (() => {
+    const left = progress.eta;
+    if (left == null) return "";
+    return ` · ${t("status.eta", { time: left >= 3600 ? `${Math.floor(left / 3600)}:${String(Math.floor((left % 3600) / 60)).padStart(2, "0")}:${String(left % 60).padStart(2, "0")}` : `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}` })}`;
+  })();
+  const busyText = `${progress.msg || stageText}${progress.pct != null ? ` · ${progress.pct}%` : ""}${eta}`;
   const text = busy ? busyText : (last ? words(last) : t(firstRun ? "status.setupNeeded" : "status.idle"));
   const errored = !busy && last?.kind === "error";
   const fmt = (ms: number) => new Date(ms).toLocaleTimeString();

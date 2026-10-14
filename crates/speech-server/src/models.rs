@@ -203,6 +203,7 @@ pub fn is_selection_key(key: &str) -> bool {
             | "tts_provider" | "google_tts_model" | "google_tts_mode"
             | "assistant"       // кто отвечает в панели «Ассистент»: openrouter (модель на ключе) или agent (подключённый MCP-агент)
             | "assistant_model" // модель OpenRouter ассистента
+            | "tts_idle_unload_min" // через сколько минут простоя выгружать модель озвучки (0 — никогда)
             | "cloud_ok_speech" | "cloud_ok_listening" | "cloud_ok_director" | "cloud_ok_assistant" // разрешил ли человек отправлять стадию в облако
             | "or_tts_model"    // id TTS-модели OpenRouter (напр. "openai/gpt-4o-mini-tts")
             | "or_tts_voice"    // голос по умолчанию для облачного TTS (напр. "alloy")
@@ -223,6 +224,7 @@ pub fn is_selection_value(key: &str, value: &str) -> bool {
         "google_tts_mode" => matches!(value, "standard" | "batch"),
         "assistant" => matches!(value, "openrouter" | "agent"),
         "cloud_ok_speech" | "cloud_ok_listening" | "cloud_ok_director" | "cloud_ok_assistant" => matches!(value, "0" | "1"),
+        "tts_idle_unload_min" => matches!(value, "0" | "5" | "15" | "30" | "60"),
         "voice_clean" => matches!(value, "0" | "1"),
         "cloud_daily_limit_usd" => value.parse::<f64>().is_ok_and(|v| (0.0..=10_000.0).contains(&v)),
         "google_tts_model" => {

@@ -25,6 +25,7 @@ pub fn transcribe(p: &VoicePaths, name: &str, progress: &dyn Fn(Value)) -> Resul
     let audio = lib::audio_path(&p.voices_dir, name).ok_or_else(|| t!("voice-missing", name = name.to_string()))?;
     let card = lib::read_card(&p.voices_dir, name)?;
     progress(json!({ "type": "progress", "stage": "voice_transcript", "msg": t!("voice-transcribing", name = name.to_string()) }));
+    crate::tts_host::make_room();
     crate::ensure_job_components(&p.repo_root, &p.models_root, false, false, &|ev| progress(ev))?;
     let heard = crate::asr_util::transcribe(&p.repo_root, &p.models_root, &audio, &card.lang, name)?;
     let text = heard.text;
@@ -42,6 +43,7 @@ pub fn transcribe(p: &VoicePaths, name: &str, progress: &dyn Fn(Value)) -> Resul
 /// Голос без музыки и шума: Roformer отделяет вокал, он заменяет звук голоса, исходник остаётся в `.originals`.
 pub fn clean(p: &VoicePaths, name: &str, progress: &dyn Fn(Value)) -> Result<Value, String> {
     let audio = lib::audio_path(&p.voices_dir, name).ok_or_else(|| t!("voice-missing", name = name.to_string()))?;
+    crate::tts_host::make_room();
     crate::ensure_job_components(&p.repo_root, &p.models_root, false, false, &|ev| progress(ev))?;
     let sel = crate::models::load_selection(&p.models_root);
     let cli = dub_sep::engine_cli(&p.repo_root, crate::models::stage_backend(&p.models_root, "sep_backend"));

@@ -103,7 +103,12 @@
     "themeHint": "深色、浅色或跟随系统",
     "theme_system": "跟随系统",
     "theme_dark": "深色",
-    "theme_light": "浅色"
+    "theme_light": "浅色",
+    "vram": "显存",
+    "idleUnload": "空闲后卸载配音模型",
+    "idleUnloadHint": "为其他程序释放显卡；下次配音会重新加载模型（几秒钟）。",
+    "idleNever": "从不",
+    "idleMinutes": "{{n}} 分钟"
   },
   "offline": {
     "title": "工作室服务没有响应",
@@ -118,7 +123,8 @@
     "log": "活动日志",
     "clear": "清除",
     "backendOffline": "后端不可用",
-    "journalFailed": "日志未能加载：{{error}}"
+    "journalFailed": "日志未能加载：{{error}}",
+    "eta": "剩余约 {{time}}"
   },
   "settings": {
     "sounds": "通知音效",
@@ -1530,5 +1536,10 @@
     "route_local": "人声清理、重音和 ё、说话人分离、声音相似度、按停顿切分、导出。",
     "askAgain": "重新询问",
     "willAsk": "发送前会询问"
+  },
+  "errors": {
+    "whatToDo": "怎么办：复制文本、查看诊断或报告问题。",
+    "copy": "复制",
+    "diagnostics": "诊断"
   }
 }

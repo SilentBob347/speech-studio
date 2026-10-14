@@ -11,6 +11,7 @@ import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
 import { useStore } from "../../store";
 import { usePublishEditor } from "../../lib/editorBridge";
+import ErrorNote from "../ErrorNote";
 import { CLOUD_ENGINE_NAMES, askCloud } from "../../lib/cloudConsent";
 import { flash } from "../../lib/mcpBridge";
 import Transcript, { type Selection } from "./Transcript";
@@ -33,6 +34,7 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
   const [selection, setSelection] = useState<Selection>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [failure, setFailure] = useState<string | null>(null);
   const [dialog, setDialog] = useState<"settings" | "export" | "check" | null>(null);
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
@@ -132,6 +134,7 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
   const run = async (what: "transcribe" | "cut") => {
     setBusy(what);
     setNotice(null);
+    setFailure(null);
     try {
       if (what === "transcribe") {
         const provider = project ? CLOUD_ENGINE_NAMES[project.settings.engine] : undefined;
@@ -143,7 +146,7 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
         const r = (await followJob(job_id, "remix")) as { pid: string };
         onOpen(r.pid);
       }
-    } catch (e) { setNotice(errorText(e)); } finally { setBusy(null); }
+    } catch (e) { setFailure(errorText(e)); } finally { setBusy(null); }
   };
   const toSpeech = async () => {
     setBusy("speech");
@@ -151,15 +154,16 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
       const r = await listenApi.toSpeech(pid);
       try { localStorage.setItem("speech-studio:speech-project", r.pid); } catch { /* Speech opens on its start screen then */ }
       useStore.getState().setMode("speech");
-    } catch (e) { setNotice(errorText(e)); } finally { setBusy(null); }
+    } catch (e) { setFailure(errorText(e)); } finally { setBusy(null); }
   };
   const makeVoices = async (speaker?: string) => {
     setBusy("voices");
     setNotice(null);
+    setFailure(null);
     try {
       const r = await listenApi.voices(pid, speaker);
       setNotice([r.made.length ? t("listen.voicesMade", { names: r.made.map((m) => m.voice).join(", ") }) : "", r.skipped.length ? t("listen.voicesSkipped", { names: r.skipped.join(", ") }) : ""].filter(Boolean).join(" "));
-    } catch (e) { setNotice(errorText(e)); } finally { setBusy(null); }
+    } catch (e) { setFailure(errorText(e)); } finally { setBusy(null); }
   };
 
   useEffect(() => {
@@ -261,7 +265,8 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
         </div>
       )}
 
-      {(notice || error) && <p role="alert" className="px-5 py-1.5 text-[12px] text-[var(--color-warn)] border-b border-[var(--color-border)] break-words">{notice || error}</p>}
+      {notice && <p role="status" className="px-5 py-1.5 text-[12px] text-[var(--color-muted)] border-b border-[var(--color-border)] break-words">{notice}</p>}
+      {(failure || error) && <div className="px-5 pt-2"><ErrorNote text={(failure || error) ?? ""} onClose={failure ? () => setFailure(null) : undefined} /></div>}
 
       <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3">
         {lines.length === 0 ? (

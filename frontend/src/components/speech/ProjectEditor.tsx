@@ -10,6 +10,7 @@ import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
 import { useStore } from "../../store";
 import { usePublishEditor } from "../../lib/editorBridge";
+import ErrorNote from "../ErrorNote";
 import { CLOUD_ENGINE_NAMES, askCloud, askDirector } from "../../lib/cloudConsent";
 import { flash } from "../../lib/mcpBridge";
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type Announcements, type DragEndEvent, type UniqueIdentifier } from "@dnd-kit/core";
@@ -404,7 +405,8 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           ))}
         </aside>
         <div className="flex-1 min-w-0 overflow-y-auto px-4 py-4">
-          {(error || jobError) && <p role="alert" className="mb-3 px-3 py-2 rounded-lg border border-[var(--color-warn)]/40 text-[12px] text-[var(--color-warn)] break-words">{error ?? jobError}</p>}
+          {error && <ErrorNote text={error} />}
+          {jobError && <ErrorNote text={jobError} onClose={() => setJobError(null)} />}
           {stressMissing && (
             <div role="alert" className="mb-3 px-3 py-2 rounded-lg border border-[var(--color-warn)]/40 text-[12px] text-[var(--color-warn)] flex flex-wrap items-center gap-2">
               <span className="flex-1 min-w-0">{t("speech.stressMissing")}</span>

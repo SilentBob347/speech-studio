@@ -103,7 +103,12 @@
     "themeHint": "Sombre, clair ou comme le système",
     "theme_system": "Comme le système",
     "theme_dark": "Sombre",
-    "theme_light": "Clair"
+    "theme_light": "Clair",
+    "vram": "Mémoire vidéo",
+    "idleUnload": "Décharger le modèle de voix après inactivité",
+    "idleUnloadHint": "Libère la carte graphique pour d’autres programmes ; la voix suivante recharge le modèle (quelques secondes).",
+    "idleNever": "Jamais",
+    "idleMinutes": "{{n}} min"
   },
   "offline": {
     "title": "Le service du studio ne répond pas",
@@ -118,7 +123,8 @@
     "log": "Journal d'activité",
     "clear": "Effacer",
     "backendOffline": "backend hors ligne",
-    "journalFailed": "Le journal ne s’est pas chargé : {{error}}"
+    "journalFailed": "Le journal ne s’est pas chargé : {{error}}",
+    "eta": "encore ~{{time}}"
   },
   "settings": {
     "sounds": "Sons de notification",
@@ -1530,5 +1536,10 @@
     "route_local": "Nettoyage de la voix, accents et ё, séparation des locuteurs, similarité de voix, découpe aux pauses, export.",
     "askAgain": "Redemander",
     "willAsk": "demande avant l’envoi"
+  },
+  "errors": {
+    "whatToDo": "Que faire : copiez le texte, consultez le diagnostic ou signalez le problème.",
+    "copy": "Copier",
+    "diagnostics": "Diagnostic"
   }
 }
