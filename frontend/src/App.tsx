@@ -8,6 +8,7 @@ import { HubBars } from "./components/HubBars";
 import ServerOffline from "./components/ServerOffline";
 import ResourceMonitor from "./components/ResourceMonitor";
 import BridgeHost from "./components/BridgeHost";
+import CloudConsentHost from "./components/CloudConsentHost";
 import TopBar from "./components/shell/TopBar";
 import Hotkeys from "./components/shell/Hotkeys";
 import FirstRun from "./components/setup/FirstRun";
@@ -63,6 +64,7 @@ export default function App() {
         <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] shrink-0" /><span className="truncate" title={capOffline ? t("status.backendOffline") : cap}>{capOffline ? t("status.backendOffline") : cap}</span>
       </footer>
       <BridgeHost />
+      <CloudConsentHost />
       <Hotkeys />
       {stage === "ready" && <ResourceMonitor />}
     </div>

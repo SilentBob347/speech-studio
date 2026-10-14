@@ -73,8 +73,8 @@
       "agentHint": "Conectar un agente de IA y elegir el asistente",
       "about": "Acerca de",
       "aboutHint": "Versión, enlaces y carpeta de datos",
-      "privacy": "Estadísticas anónimas",
-      "privacyHint": "Estadísticas anónimas y noticias del autor",
+      "privacy": "Privacidad",
+      "privacyHint": "Adónde van los datos, estadísticas anónimas y noticias",
       "api": "API",
       "apiHint": "API compatible con OpenAI para otros programas"
     },
@@ -1497,5 +1497,33 @@
     "refresh": "Actualizar",
     "packed": "Paquete guardado:",
     "show": "Mostrar en la carpeta"
+  },
+  "consent": {
+    "title": "¿Enviar a {{provider}}?",
+    "allow": "Permitir",
+    "what_speech": "El texto de los bloques y sus indicaciones irán a {{provider}} para la locución, y el audio volverá de allí; se paga con tu clave.",
+    "what_listening": "La grabación irá a {{provider}} para el reconocimiento, y el texto volverá de allí; se paga con tu clave.",
+    "what_director": "El tema del pódcast o el texto del capítulo irán a {{provider}}, cuyo modelo escribirá el guion o repartirá los personajes; se paga con tu clave.",
+    "what_assistant": "Tus mensajes y las respuestas de las herramientas del estudio (proyectos, textos de bloques) irán al modelo de {{provider}}; se paga con tu clave.",
+    "once": "El estudio pregunta una vez por etapa; puedes retirarlo en Ajustes, Privacidad."
+  },
+  "privacy": {
+    "title": "Adónde van los datos",
+    "hint": "Todo lo que no se indica como nube se queda en este ordenador. Antes de que una etapa vaya a la nube por primera vez, el estudio pregunta.",
+    "stage_speech": "Locución",
+    "route_speech": "Higgs y Drama 3 funcionan en este ordenador; OpenRouter, Google Gemini, fal.ai y Runware reciben el texto de los bloques (el motor se elige en el proyecto).",
+    "stage_listening": "Reconocimiento",
+    "route_listening": "Parakeet y Whisper funcionan en este ordenador; OpenRouter y fal.ai reciben la grabación (el motor se elige en el proyecto).",
+    "stage_director": "Director (pódcast, personajes)",
+    "route_director_local": "Ahora: Gemma en este ordenador.",
+    "route_director_server": "Ahora: tu servidor de modelos (su dirección está en Modelos).",
+    "route_director_cloud": "Ahora: OpenRouter, así que el tema y los capítulos van a la nube.",
+    "stage_assistant": "Asistente",
+    "route_assistant_openrouter": "Un modelo de OpenRouter: los mensajes y las respuestas de herramientas van a la nube.",
+    "route_assistant_agent": "El agente conectado (MCP) en este ordenador; adónde envía datos lo decide él.",
+    "stage_local": "Siempre en este ordenador",
+    "route_local": "Limpieza de voz, acentos y ё, separación de hablantes, similitud de voz, corte por pausas, exportación.",
+    "askAgain": "Volver a preguntar",
+    "willAsk": "pregunta antes de enviar"
   }
 }

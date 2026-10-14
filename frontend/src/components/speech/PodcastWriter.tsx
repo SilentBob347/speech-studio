@@ -5,6 +5,7 @@ import { speechApi } from "../../lib/speech";
 import { followJob } from "../../lib/followJob";
 import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
+import { askDirector } from "../../lib/cloudConsent";
 import { useEscapeLayer } from "../../lib/escape";
 import { LANG_CHOICES } from "./langs";
 
@@ -25,6 +26,7 @@ export default function PodcastWriter({ onClose, onCreated }: { onClose: () => v
     setBusy(true);
     setError(null);
     try {
+      if (!(await askDirector())) return;
       const { job_id } = await speechApi.podcast({ topic: topic.trim(), speakers, minutes, lang });
       const r = (await followJob(job_id, "write")) as { project_id: string };
       onCreated(r.project_id);

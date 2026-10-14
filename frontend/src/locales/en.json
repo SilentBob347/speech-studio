@@ -73,8 +73,8 @@
       "agentHint": "Connect an AI agent and choose the assistant",
       "about": "About",
       "aboutHint": "Version, links and the data folder",
-      "privacy": "Anonymous statistics",
-      "privacyHint": "Anonymous statistics and news from the author",
+      "privacy": "Privacy",
+      "privacyHint": "Where data goes, anonymous statistics and news",
       "api": "API",
       "apiHint": "OpenAI-compatible API for other programs"
     },
@@ -1497,5 +1497,33 @@
     "refresh": "Refresh",
     "packed": "Pack saved:",
     "show": "Show in folder"
+  },
+  "consent": {
+    "title": "Send to {{provider}}?",
+    "allow": "Allow",
+    "what_speech": "The blocks' text and directions go to {{provider}} to be voiced, and the audio comes back from there; it is paid with your key.",
+    "what_listening": "The recording goes to {{provider}} to be recognised, and the text comes back from there; it is paid with your key.",
+    "what_director": "The podcast's topic or the chapter's text goes to {{provider}}, whose model writes the script or casts the characters; it is paid with your key.",
+    "what_assistant": "Your messages and the studio tools' answers (projects, block texts) go to the model at {{provider}}; it is paid with your key.",
+    "once": "The studio asks once for this stage; you can take it back in Settings, Privacy."
+  },
+  "privacy": {
+    "title": "Where data goes",
+    "hint": "Everything not named cloud stays on this computer. Before a stage first goes to the cloud, the studio asks.",
+    "stage_speech": "Voicing",
+    "route_speech": "Higgs and Drama 3 run on this computer; OpenRouter, Google Gemini, fal.ai and Runware get the blocks' text (the engine is chosen in the project).",
+    "stage_listening": "Recognition",
+    "route_listening": "Parakeet and Whisper run on this computer; OpenRouter and fal.ai get the recording (the engine is chosen in the project).",
+    "stage_director": "Director (podcast, characters)",
+    "route_director_local": "Now: Gemma on this computer.",
+    "route_director_server": "Now: your model server (its address is in Models).",
+    "route_director_cloud": "Now: OpenRouter, so the topic and chapter texts go to the cloud.",
+    "stage_assistant": "Assistant",
+    "route_assistant_openrouter": "An OpenRouter model: messages and tool answers go to the cloud.",
+    "route_assistant_agent": "The connected agent (MCP) on this computer; where it sends data is its own choice.",
+    "stage_local": "Always on this computer",
+    "route_local": "Voice cleaning, stress marks and ё, speaker separation, voice similarity, splitting by pauses, export.",
+    "askAgain": "Ask again",
+    "willAsk": "asks before sending"
   }
 }

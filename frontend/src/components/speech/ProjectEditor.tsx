@@ -10,6 +10,7 @@ import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
 import { useStore } from "../../store";
 import { usePublishEditor } from "../../lib/editorBridge";
+import { CLOUD_ENGINE_NAMES, askCloud, askDirector } from "../../lib/cloudConsent";
 import { flash } from "../../lib/mcpBridge";
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type Announcements, type DragEndEvent, type UniqueIdentifier } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -52,6 +53,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
     if (!project) return;
     setCasting(true);
     try {
+      if (!(await askDirector())) return;
       flush();
       for (const c of project.chapters) {
         const { job_id } = await speechApi.castChapter(pid, c.id);
@@ -151,6 +153,8 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   const runSynth = async (scope: { ids?: string[]; from?: string; force?: boolean; seed?: number }) => {
     setJobError(null);
     try {
+      const provider = project ? CLOUD_ENGINE_NAMES[project.settings.engine] : undefined;
+      if (provider && !(await askCloud("speech", provider))) return;
       await flush();
       const r = await speechApi.synth(pid, scope);
       if (r.queued != null) {

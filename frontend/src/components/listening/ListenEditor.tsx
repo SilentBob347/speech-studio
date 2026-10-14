@@ -11,6 +11,7 @@ import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
 import { useStore } from "../../store";
 import { usePublishEditor } from "../../lib/editorBridge";
+import { CLOUD_ENGINE_NAMES, askCloud } from "../../lib/cloudConsent";
 import { flash } from "../../lib/mcpBridge";
 import Transcript, { type Selection } from "./Transcript";
 import ListenSettings from "./ListenSettings";
@@ -133,6 +134,8 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
     setNotice(null);
     try {
       if (what === "transcribe") {
+        const provider = project ? CLOUD_ENGINE_NAMES[project.settings.engine] : undefined;
+        if (provider && !(await askCloud("listening", provider))) return;
         const { job_id } = await listenApi.transcribe(pid);
         await followJob(job_id, "analyze");
       } else {

@@ -73,8 +73,8 @@
       "agentHint": "连接 AI 智能体并选择助手",
       "about": "关于",
       "aboutHint": "版本、链接与数据文件夹",
-      "privacy": "匿名统计",
-      "privacyHint": "匿名统计与来自作者的新闻",
+      "privacy": "隐私",
+      "privacyHint": "数据去向、匿名统计和新闻",
       "api": "API",
       "apiHint": "供其他程序使用的 OpenAI 兼容 API"
     },
@@ -1497,5 +1497,33 @@
     "refresh": "刷新",
     "packed": "报告包已保存：",
     "show": "在文件夹中显示"
+  },
+  "consent": {
+    "title": "发送到 {{provider}}？",
+    "allow": "允许",
+    "what_speech": "文本块的文字和指示将发送到 {{provider}} 进行配音，音频从那里返回；使用你的密钥付费。",
+    "what_listening": "录音将发送到 {{provider}} 进行识别，文字从那里返回；使用你的密钥付费。",
+    "what_director": "播客主题或章节文本将发送到 {{provider}}，由其模型撰写脚本或分配角色；使用你的密钥付费。",
+    "what_assistant": "你的消息和工作室工具的回答（项目、文本块内容）将发送给 {{provider}} 的模型；使用你的密钥付费。",
+    "once": "每个阶段只询问一次；可在“设置 → 隐私”中撤销。"
+  },
+  "privacy": {
+    "title": "数据去向",
+    "hint": "未标为云端的一切都留在本机。某个阶段第一次发送到云端之前，工作室会先询问。",
+    "stage_speech": "配音",
+    "route_speech": "Higgs 和 Drama 3 在本机运行；OpenRouter、Google Gemini、fal.ai 和 Runware 会收到文本块内容（引擎在项目中选择）。",
+    "stage_listening": "识别",
+    "route_listening": "Parakeet 和 Whisper 在本机运行；OpenRouter 和 fal.ai 会收到录音（引擎在项目中选择）。",
+    "stage_director": "导演（播客、角色）",
+    "route_director_local": "当前：本机上的 Gemma。",
+    "route_director_server": "当前：你的模型服务器（地址在“模型”中）。",
+    "route_director_cloud": "当前：OpenRouter，主题和章节文本会发送到云端。",
+    "stage_assistant": "助手",
+    "route_assistant_openrouter": "OpenRouter 模型：消息和工具回答会发送到云端。",
+    "route_assistant_agent": "本机上已连接的智能体（MCP）；它把数据发往何处由它自己决定。",
+    "stage_local": "始终在本机",
+    "route_local": "人声清理、重音和 ё、说话人分离、声音相似度、按停顿切分、导出。",
+    "askAgain": "重新询问",
+    "willAsk": "发送前会询问"
   }
 }

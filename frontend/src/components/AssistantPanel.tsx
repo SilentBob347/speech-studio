@@ -5,6 +5,7 @@ import { ASSISTANT_CHANGED, chatModels, sendChat, stopChat, useChatStore, type C
 import { openSettings } from "../lib/settingsNav";
 import { openProjectId } from "../lib/openProject";
 import { useEscapeLayer } from "../lib/escape";
+import { askCloud } from "../lib/cloudConsent";
 import { named } from "../lib/a11y";
 import { errorText } from "../lib/voices";
 import { useStore } from "../store";
@@ -79,8 +80,9 @@ export default function AssistantPanel({ onClose }: { onClose: () => void }) {
   }, []);
   useEffect(() => { end.current?.scrollIntoView({ block: "end" }); }, [entries]);
   const byAgent = who?.assistant === "agent";
-  const send = (text: string) => {
+  const send = async (text: string) => {
     if (!text.trim() || busy) return;
+    if (!byAgent && !(await askCloud("assistant", "OpenRouter"))) return;
     setDraft("");
     void sendChat(text, openProjectId(mode), i18n.language);
   };

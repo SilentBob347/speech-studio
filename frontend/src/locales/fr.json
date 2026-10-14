@@ -73,8 +73,8 @@
       "agentHint": "Connecter un agent IA et choisir l’assistant",
       "about": "À propos",
       "aboutHint": "Version, liens et dossier de données",
-      "privacy": "Statistiques anonymes",
-      "privacyHint": "Statistiques anonymes et nouvelles de l'auteur",
+      "privacy": "Confidentialité",
+      "privacyHint": "Où vont les données, statistiques anonymes et nouvelles",
       "api": "API",
       "apiHint": "API compatible OpenAI pour d’autres programmes"
     },
@@ -1497,5 +1497,33 @@
     "refresh": "Actualiser",
     "packed": "Paquet enregistré :",
     "show": "Afficher dans le dossier"
+  },
+  "consent": {
+    "title": "Envoyer à {{provider}} ?",
+    "allow": "Autoriser",
+    "what_speech": "Le texte des blocs et leurs indications partiront chez {{provider}} pour la voix, et le son en reviendra ; c’est payé avec votre clé.",
+    "what_listening": "L’enregistrement partira chez {{provider}} pour la reconnaissance, et le texte en reviendra ; c’est payé avec votre clé.",
+    "what_director": "Le sujet du podcast ou le texte du chapitre partiront chez {{provider}}, dont le modèle écrira le script ou répartira les personnages ; c’est payé avec votre clé.",
+    "what_assistant": "Vos messages et les réponses des outils du studio (projets, textes des blocs) partiront au modèle de {{provider}} ; c’est payé avec votre clé.",
+    "once": "Le studio demande une fois par étape ; vous pouvez revenir dessus dans Réglages, Confidentialité."
+  },
+  "privacy": {
+    "title": "Où vont les données",
+    "hint": "Tout ce qui n’est pas indiqué comme cloud reste sur cet ordinateur. Avant qu’une étape parte au cloud pour la première fois, le studio demande.",
+    "stage_speech": "Voix",
+    "route_speech": "Higgs et Drama 3 tournent sur cet ordinateur ; OpenRouter, Google Gemini, fal.ai et Runware reçoivent le texte des blocs (le moteur se choisit dans le projet).",
+    "stage_listening": "Reconnaissance",
+    "route_listening": "Parakeet et Whisper tournent sur cet ordinateur ; OpenRouter et fal.ai reçoivent l’enregistrement (le moteur se choisit dans le projet).",
+    "stage_director": "Réalisateur (podcast, personnages)",
+    "route_director_local": "Actuellement : Gemma sur cet ordinateur.",
+    "route_director_server": "Actuellement : votre serveur de modèles (son adresse est dans Modèles).",
+    "route_director_cloud": "Actuellement : OpenRouter, le sujet et les chapitres partent donc au cloud.",
+    "stage_assistant": "Assistant",
+    "route_assistant_openrouter": "Un modèle OpenRouter : les messages et les réponses des outils partent au cloud.",
+    "route_assistant_agent": "L’agent connecté (MCP) sur cet ordinateur ; où il envoie les données relève de lui.",
+    "stage_local": "Toujours sur cet ordinateur",
+    "route_local": "Nettoyage de la voix, accents et ё, séparation des locuteurs, similarité de voix, découpe aux pauses, export.",
+    "askAgain": "Redemander",
+    "willAsk": "demande avant l’envoi"
   }
 }
