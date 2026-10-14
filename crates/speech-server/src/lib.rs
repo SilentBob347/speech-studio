@@ -60,6 +60,8 @@ mod cloud_tts;
 mod speechproj;
 mod book_import;
 mod acx;
+mod director;
+mod director_api;
 mod listen_api;
 mod listen_jobs;
 mod listen_project;
@@ -466,6 +468,8 @@ pub fn build_router(state: AppState) -> Router {
         .route("/listen/{pid}/to-speech", post(listen_api::to_speech))
         .route("/listen/{pid}/voices", post(listen_api::voices))
         .route("/projects/from_url", post(url_import::create_from_url))
+        .route("/projects/podcast", post(director_api::podcast))
+        .route("/projects/{pid}/cast", post(director_api::cast))
         .route("/projects", get(speech_api::list).post(speech_api::create))
         .route("/projects/{pid}", get(speech_api::get).put(speech_api::put).delete(speech_api::delete))
         .route("/projects/{pid}/synth", post(speech_api::synth))
@@ -687,6 +691,33 @@ pub(crate) fn ensure_components(repo_root: &Path, ids: &[&str], progress: &setup
     let ctl = jobs::current();
     let cancel = move || ctl.as_ref().is_some_and(|c| c.is_cancelled());
     setup::download_components(repo_root, &need, &cancel, progress).map(|_| ()).map_err(|e| e.detail)
+}
+
+/// Для своей Gemma: llama-server и модель «Первого запуска», если их нет; сервер пользователя и OpenRouter ничего
+/// не скачивают.
+pub(crate) fn ensure_llm_components(repo_root: &Path, models_root: &Path, progress: &setup::ProgressCb) -> Result<(), String> {
+    if models::llm_backend(models_root, "llm") != models::LlmBackend::Local {
+        return Ok(());
+    }
+    let manifest = setup::manifest();
+    let missing = |id: &str| manifest.iter().find(|c| c.id == id).is_some_and(|c| !setup::component_status(repo_root, c).installed);
+    let (model, _) = models::resolve_mt(models_root, &models::load_selection(models_root));
+    let mut need: Vec<String> = Vec::new();
+    if missing("llama") {
+        need.push("llama".to_string());
+    }
+    if !model.is_file() && missing("gemma") {
+        need.push("gemma".to_string());
+    }
+    if need.is_empty() {
+        return Ok(());
+    }
+    progress(json!({ "stage": "download", "msg": t!("setup-fetching-missing") }));
+    let ctl = jobs::current();
+    let cancel = move || ctl.as_ref().is_some_and(|c| c.is_cancelled());
+    setup::download_components(repo_root, &need, &cancel, progress).map_err(|e| e.detail)?;
+    augment_path_for_tools(repo_root);
+    Ok(())
 }
 
 pub(crate) fn ensure_job_components(

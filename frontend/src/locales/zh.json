@@ -536,7 +536,9 @@
       "voice_transcript": "参考文本识别",
       "voice_clean": "声音净化",
       "synth": "配音",
-      "export": "导出"
+      "export": "导出",
+      "write": "脚本",
+      "cast": "说话人标注"
     },
     "error": {
       "failed": "任务执行出错",
@@ -1011,7 +1013,13 @@
     "cloudVoice": "声音",
     "cloudVoiceDefault": "在“云端”中选择的声音，或模型的声音名称",
     "cloudHint": "每个文本块由云端模型配音，需付费；文本块的指示作为风格发送。不使用库中的声音和重音符号。",
-    "engineUnavailable": "此处不可用"
+    "engineUnavailable": "此处不可用",
+    "qcIssue_tail": "最后一个词之后还有声音",
+    "qcIssue_stretched": "拖长的词",
+    "qcIssue_gap": "中间有断裂",
+    "castCharacters": "角色",
+    "castCharactersHint": "导演模型逐字将文本分为旁白和角色；逐章进行",
+    "castBlocks": "文本块：{{n}}"
   },
   "tags": {
     "emotion": "情绪",
@@ -1295,5 +1303,27 @@
     "flag_shouted": "大写喊叫",
     "flag_known_phrase": "典型幻觉",
     "removeMessage": "“{{name}}”将连同录音、转录和导出一起移到回收站。"
+  },
+  "podcast": {
+    "open": "播客脚本",
+    "openHint": "导演模型为你的说话人写一段主题对话",
+    "title": "播客脚本",
+    "hint": "导演模型围绕主题写一段生动的对话：每位说话人保持各自风格；脚本会作为项目打开以便配音。",
+    "topic": "主题",
+    "topicPlaceholder": "这一期讲什么、要点、语气……",
+    "speakers": "说话人",
+    "speakerName": "说话人名称",
+    "manner": "说话风格",
+    "mannerPlaceholder": "风格：平静、讽刺、语速快……",
+    "removeSpeaker": "删除说话人",
+    "addSpeaker": "添加说话人",
+    "speakerN": "说话人 {{n}}",
+    "minutes": "分钟",
+    "write": "写脚本",
+    "modelNote": "使用“设置 → 模型”中选择的模型（本地 Gemma、你的服务器或 OpenRouter）。",
+    "host": "主持人",
+    "guest": "嘉宾",
+    "hostManner": "平静，提简短的问题",
+    "guestManner": "生动，举例讲述"
   }
 }

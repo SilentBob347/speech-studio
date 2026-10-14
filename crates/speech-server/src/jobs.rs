@@ -78,10 +78,14 @@ pub enum JobKind {
     VoiceClean,
     Synth,
     Export,
+    /// Сценарий подкаста режиссёром-LLM.
+    Write,
+    /// Разметка главы по персонажам режиссёром-LLM.
+    Cast,
 }
 
 impl JobKind {
-    const ALL: [JobKind; 18] = [
+    const ALL: [JobKind; 20] = [
         JobKind::Analyze,
         JobKind::Retranslate,
         JobKind::Remix,
@@ -100,6 +104,8 @@ impl JobKind {
         JobKind::VoiceClean,
         JobKind::Synth,
         JobKind::Export,
+        JobKind::Write,
+        JobKind::Cast,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -122,6 +128,8 @@ impl JobKind {
             JobKind::VoiceClean => "voice_clean",
             JobKind::Synth => "synth",
             JobKind::Export => "export",
+            JobKind::Write => "write",
+            JobKind::Cast => "cast",
         }
     }
 
@@ -134,13 +142,13 @@ impl JobKind {
     /// чтение вшитого текста проект не меняют и дублируют только сами себя.
     fn class(self) -> Option<&'static str> {
         match self {
-            JobKind::Analyze | JobKind::Retranslate | JobKind::Remix | JobKind::Align | JobKind::Shorten | JobKind::Glossary => Some("text"),
+            JobKind::Analyze | JobKind::Retranslate | JobKind::Remix | JobKind::Align | JobKind::Shorten | JobKind::Glossary | JobKind::Cast => Some("text"),
             JobKind::DubAudio | JobKind::Render | JobKind::ExportLang => Some("audio"),
             JobKind::Separate => Some("separate"),
             JobKind::DetectText => Some("detect_text"),
             JobKind::VoiceTranscript | JobKind::VoiceClean => Some("voice"),
             JobKind::Synth | JobKind::Export => Some("speech"),
-            JobKind::Download | JobKind::VoicesPack | JobKind::Frame => None,
+            JobKind::Download | JobKind::VoicesPack | JobKind::Frame | JobKind::Write => None,
         }
     }
 }

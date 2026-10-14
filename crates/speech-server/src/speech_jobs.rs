@@ -474,10 +474,12 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, pr
             let mut check = if asr_on {
                 let heard = crate::asr_util::transcribe(&p.repo_root, &p.models_root, &file, &lang, &b.id)?;
                 let entries = dictionary(p, &project);
-                let expected = crate::prep::prepare(&b.text, &prep_opts(p, &project, voice.as_deref(), &entries, false)).map(|x| x.text).unwrap_or_else(|_| b.text.clone());
+                let expected = crate::prep::prepare(&b.text, &prep_opts(p, &project, voice.as_deref(), &entries, false)).map_err(|e| t!("stress-failed", detail = e))?.text;
                 let heard_said = if crate::prep::block_lang(&b.text, &lang) == "ru" { crate::normalize_ru::normalize(&heard.text).text } else { heard.text.clone() };
                 let mut c = crate::qc::check(&expected, &heard_said, &strictness);
                 c.heard = heard.text.clone();
+                let pause = stx::pieces(&b.text).iter().filter_map(|x| if let Piece::Pause(ms) = x { Some(*ms as f64 / 1000.0) } else { None }).fold(0.0, f64::max);
+                c.issues = crate::qc::timing_issues(&heard.words, take.duration, pause);
                 c
             } else {
                 crate::qc::Check { passed: true, ..Default::default() }
@@ -626,6 +628,9 @@ fn synth_scope(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Valu
     Ok(json!({ "done": done, "failed": failed, "skipped": skipped, "qc_failed": qc_failed }))
 }
 
+/// Пауза между главами при сборке одним файлом (граница раздела у tts-audiobook-tool — 2–2,5 с).
+const CHAPTER_PAUSE_MS: i64 = 2_000;
+
 /// Запас под сжатие: кодеки с потерями поднимают пики между отсчётами, поэтому для них потолок ниже на 1 дБ (AES TD1004).
 const LOSSY_HEADROOM_DB: f64 = 1.0;
 
@@ -711,6 +716,8 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         let (samples, _) = crate::wavio::read_mono_f32(&wav)?;
         if let Some(prev) = prev_speaker {
             let ms = b.pause_ms.unwrap_or(if prev == b.speaker { project.settings.pause_same_ms } else { project.settings.pause_switch_ms });
+            let new_chapter = chapter_starts.last().is_some_and(|(last, _)| chapter_of.get(b.id.as_str()) != Some(last));
+            let ms = if new_chapter { ms.max(CHAPTER_PAUSE_MS) } else { ms };
             cursor = (cursor + SR as i64 * ms / 1000).max(0);
         }
         let at = match (project.settings.timeline, b.start) {

@@ -536,7 +536,9 @@
       "voice_transcript": "Reconocimiento del texto de referencia",
       "voice_clean": "Limpieza de voz",
       "synth": "Locución",
-      "export": "Exportación"
+      "export": "Exportación",
+      "write": "Guion",
+      "cast": "Marcado de hablantes"
     },
     "error": {
       "failed": "La tarea terminó con un error",
@@ -1011,7 +1013,13 @@
     "cloudVoice": "Voz",
     "cloudVoiceDefault": "La voz elegida en Nube o un nombre de voz del modelo",
     "cloudHint": "Cada bloque lo locuta el modelo en la nube y cuesta dinero; la indicación del bloque va como estilo. No se usan las voces de la biblioteca ni las marcas de acento.",
-    "engineUnavailable": "no disponible aquí"
+    "engineUnavailable": "no disponible aquí",
+    "qcIssue_tail": "sonido tras la última palabra",
+    "qcIssue_stretched": "una palabra alargada",
+    "qcIssue_gap": "un corte en medio",
+    "castCharacters": "Personajes",
+    "castCharactersHint": "El modelo director divide el texto entre narrador y personajes, palabra por palabra; capítulo a capítulo",
+    "castBlocks": "bloques: {{n}}"
   },
   "tags": {
     "emotion": "Emoción",
@@ -1295,5 +1303,27 @@
     "flag_shouted": "gritos en mayúsculas",
     "flag_known_phrase": "una alucinación típica",
     "removeMessage": "«{{name}}» irá a la papelera con su grabación, transcripción y exportaciones."
+  },
+  "podcast": {
+    "open": "Guion de pódcast",
+    "openHint": "El modelo director escribe un diálogo sobre un tema para tus hablantes",
+    "title": "Guion de pódcast",
+    "hint": "El modelo director escribe un diálogo vivo sobre el tema: cada hablante mantiene su estilo; el guion se abre como proyecto para locutarlo.",
+    "topic": "Tema",
+    "topicPlaceholder": "De qué trata el episodio, ideas clave, el tono…",
+    "speakers": "Hablantes",
+    "speakerName": "Nombre del hablante",
+    "manner": "Forma de hablar",
+    "mannerPlaceholder": "Estilo: tranquilo, irónico, rápido…",
+    "removeSpeaker": "Quitar el hablante",
+    "addSpeaker": "Añadir hablante",
+    "speakerN": "Hablante {{n}}",
+    "minutes": "Minutos",
+    "write": "Escribir el guion",
+    "modelNote": "El modelo es el elegido en Ajustes → Modelos (Gemma local, tu servidor u OpenRouter).",
+    "host": "Presentador",
+    "guest": "Invitado",
+    "hostManner": "tranquilo, hace preguntas breves",
+    "guestManner": "vivo, cuenta con ejemplos"
   }
 }

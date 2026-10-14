@@ -157,7 +157,7 @@ export default function BlockRow({ pid, block, index, state, fit, rendering, pla
           {take?.qc && (
             <p className={`mt-0.5 text-[11px] ${take.qc.passed && take.qc.similar !== false ? "text-[var(--color-muted)]" : "text-[var(--color-warn)]"}`} title={take.qc.heard || undefined}>
               {[take.qc.text_checked !== false && t("speech.qcLine", { wer: Math.round(take.qc.wer * 100), ins: take.qc.inserted, del: take.qc.deleted, sub: take.qc.substituted }),
-                take.qc.similarity != null && t("speech.qcSimilarity", { s: take.qc.similarity.toFixed(2) })].filter(Boolean).join(" · ")}
+                take.qc.similarity != null && t("speech.qcSimilarity", { s: take.qc.similarity.toFixed(2) }), ...(take.qc.issues ?? []).map((i) => t(`speech.qcIssue_${i}`))].filter(Boolean).join(" · ")}
             </p>
           )}
           {block.error && state === "failed" && <p role="alert" className="mt-1 text-[11px] text-[#ff8f8f] break-words">{block.error.text}</p>}

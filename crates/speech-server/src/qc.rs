@@ -19,12 +19,15 @@ pub struct Check {
     /// Косинус голоса дубля и рефа (WeSpeaker); `similar` — не ниже порога «тот же голос».
     pub similarity: Option<f64>,
     pub similar: Option<bool>,
+    /// Дефекты по словам распознавания: `tail` (звук после последнего слова), `stretched` (затянутое слово), `gap`
+    /// (разрыв внутри фразы).
+    pub issues: Vec<String>,
 }
 
 impl Check {
     /// Прошёл всё, что проверялось.
     pub fn ok(&self) -> bool {
-        self.passed && self.similar != Some(false)
+        self.passed && self.similar != Some(false) && self.issues.is_empty()
     }
 }
 
@@ -92,6 +95,34 @@ pub fn word_diff(expected: &[String], heard: &[String]) -> Vec<WordOp> {
     ops
 }
 
+/// Звука после последнего распознанного слова больше этого — хвост (бормотание, шум, повтор без слов).
+const TAIL_SECS: f64 = 1.0;
+/// Слово звучит дольше этого и дольше `STRETCH_PER_LETTER` на букву — затянуто.
+const STRETCH_SECS: f64 = 1.2;
+const STRETCH_PER_LETTER: f64 = 0.3;
+/// Тишина между словами длиннее этого (сверх пауз, заданных в тексте) — разрыв.
+const GAP_SECS: f64 = 1.5;
+
+/// Дефекты дубля по таймингам слов распознавания; `pause_secs` — самая длинная пауза, заданная в тексте блока.
+pub fn timing_issues(words: &[crate::ref_pick::Word], duration: f64, pause_secs: f64) -> Vec<String> {
+    let mut issues = Vec::new();
+    let Some(last) = words.last() else { return issues };
+    if duration - last.end > TAIL_SECS {
+        issues.push("tail".to_string());
+    }
+    if words.iter().any(|w| {
+        let letters = w.word.chars().filter(|c| c.is_alphabetic()).count().max(1) as f64;
+        let d = w.end - w.start;
+        d > STRETCH_SECS && d > letters * STRETCH_PER_LETTER
+    }) {
+        issues.push("stretched".to_string());
+    }
+    if words.windows(2).any(|w| w[1].start - w[0].end > GAP_SECS + pause_secs) {
+        issues.push("gap".to_string());
+    }
+    issues
+}
+
 /// Сколько бы ни было слов, больше половины с лишним ошибок — уже не та фраза.
 const MAX_THRESHOLD: f64 = 0.6;
 
@@ -110,12 +141,22 @@ pub fn check(expected: &str, heard: &str, strictness: &str) -> Check {
     let h = normalize(heard);
     let (inserted, deleted, substituted) = word_ops(&e, &h);
     let wer = if e.is_empty() { if h.is_empty() { 0.0 } else { 1.0 } } else { (inserted + deleted + substituted) as f64 / e.len() as f64 };
-    Check { text_checked: true, wer, words: e.len(), inserted, deleted, substituted, heard: heard.to_string(), passed: wer <= threshold(e.len(), strictness), similarity: None, similar: None }
+    Check { text_checked: true, wer, words: e.len(), inserted, deleted, substituted, heard: heard.to_string(), passed: wer <= threshold(e.len(), strictness), similarity: None, similar: None, issues: Vec::new() }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_tail_a_stretched_word_and_a_gap_are_named() {
+        let w = |word: &str, start: f64, end: f64| crate::ref_pick::Word { word: word.into(), start, end };
+        assert!(timing_issues(&[w("да", 0.0, 0.3), w("нет", 0.4, 0.8)], 1.0, 0.0).is_empty());
+        assert_eq!(timing_issues(&[w("да", 0.0, 0.3)], 2.0, 0.0), vec!["tail"]);
+        assert_eq!(timing_issues(&[w("да", 0.0, 1.5)], 1.6, 0.0), vec!["stretched"]);
+        assert_eq!(timing_issues(&[w("да", 0.0, 0.3), w("нет", 2.2, 2.5)], 2.6, 0.0), vec!["gap"]);
+        assert!(timing_issues(&[w("да", 0.0, 0.3), w("нет", 2.2, 2.5)], 2.6, 1.0).is_empty(), "a written pause is no gap");
+    }
 
     fn w(s: &str) -> Vec<String> {
         normalize(s)

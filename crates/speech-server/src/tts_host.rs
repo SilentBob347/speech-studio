@@ -182,18 +182,46 @@ fn token_cap(expected: f64) -> u32 {
     (((expected * TOKENS_PER_SEC * 1.5).ceil() as u32) + 32).clamp(64, 2048)
 }
 
-/// Дефект синтеза по сэмплам — пороги Dub (подобраны на 149 клипах QC-прогона): разнос, обрыв, тишина, гул.
+/// Секунд звука на знак, выше которых фраза считается разнесённой (HiggsAudio-Studio: 0,13 с на знак + 3 с).
+const RUNAWAY_PER_CHAR: f64 = 0.13;
+const RUNAWAY_SLACK: f64 = 3.0;
+/// Доля отсчётов у полной шкалы, с которой звук считается клиппированным (open-tts-eval).
+const CLIP_LEVEL: f32 = 0.999;
+const CLIP_SHARE: f64 = 0.001;
+/// Щелчок в конце: наибольший скачок последних 30 мс к уровню предыдущих 200 мс (open-tts-eval, порог 4).
+const CLICK_RATIO: f64 = 4.0;
+
+/// Скачок в последних 30 мс относительно RMS 200 мс перед ними.
+fn tail_click(samples: &[f32], sr: usize) -> f64 {
+    let tail = sr * 30 / 1000;
+    let body = sr * 200 / 1000;
+    if samples.len() < tail + body + 1 {
+        return 0.0;
+    }
+    let end = samples.len();
+    let jump = samples[end - tail - 1..end].windows(2).map(|w| (w[1] - w[0]).abs() as f64).fold(0.0, f64::max);
+    let before = &samples[end - tail - body..end - tail];
+    let rms = (before.iter().map(|v| (*v as f64).powi(2)).sum::<f64>() / body as f64).sqrt();
+    if rms < 1e-4 { if jump > 0.05 { f64::INFINITY } else { 0.0 } } else { jump / rms }
+}
+
+/// Дефект синтеза по сэмплам: разнос, обрыв, тишина, гул (пороги Dub, подобраны на 149 клипах QC-прогона),
+/// клиппинг и щелчок в конце (open-tts-eval).
 pub fn defect(samples: &[f32], sr: i32, chars: usize) -> Option<&'static str> {
     if sr <= 0 || samples.is_empty() {
         return Some("silence");
     }
     let srn = sr as usize;
     let dur = samples.len() as f64 / srn as f64;
-    if chars >= 1 && dur > (chars as f64 * 0.4).max(6.0) {
+    if chars >= 1 && dur > chars as f64 * RUNAWAY_PER_CHAR + RUNAWAY_SLACK {
         return Some("runaway");
     }
     if chars >= 4 && dur < chars as f64 * 0.045 {
         return Some("cutoff");
+    }
+    let clipped = samples.iter().filter(|v| v.abs() >= CLIP_LEVEL).count() as f64 / samples.len() as f64;
+    if clipped >= CLIP_SHARE {
+        return Some("clipping");
     }
     let w = srn / 40;
     if w == 0 || samples.len() < w * 4 {
@@ -210,6 +238,9 @@ pub fn defect(samples: &[f32], sr: i32, chars: usize) -> Option<&'static str> {
     if range < 16.0 && silent < 0.03 {
         return Some("hum");
     }
+    if tail_click(samples, srn) > CLICK_RATIO {
+        return Some("click");
+    }
     None
 }
 
@@ -219,6 +250,8 @@ pub fn defect_name(kind: &str) -> String {
         "cutoff" => t!("render-defect-cutoff"),
         "silence" => t!("render-defect-silence"),
         "hum" => t!("render-defect-hum"),
+        "clipping" => t!("render-defect-clipping"),
+        "click" => t!("render-defect-click"),
         other => other.to_string(),
     }
 }
@@ -381,9 +414,28 @@ mod tests {
     fn a_runaway_a_cut_off_and_silence_are_defects_and_speech_is_not() {
         let sr = 24_000;
         assert_eq!(defect(&speech(30.0, sr), sr, 10), Some("runaway"));
+        assert_eq!(defect(&speech(4.0, sr), sr, 10), None, "0.13 s a char + 3 s is still speech");
+        assert_eq!(defect(&speech(4.5, sr), sr, 10), Some("runaway"));
         assert_eq!(defect(&speech(0.2, sr), sr, 40), Some("cutoff"));
         assert_eq!(defect(&vec![0.001; sr as usize * 2], sr, 20), Some("silence"));
         assert_eq!(defect(&speech(2.0, sr), sr, 25), None);
+    }
+
+    #[test]
+    fn clipping_and_a_click_at_the_end_are_defects() {
+        let sr = 24_000;
+        let mut loud = speech(2.0, sr);
+        for v in loud.iter_mut().step_by(200) {
+            *v = 1.0;
+        }
+        assert_eq!(defect(&loud, sr, 25), Some("clipping"));
+        let mut clicked = speech(2.0, sr);
+        let n = clicked.len();
+        for v in &mut clicked[n - 6_000..] {
+            *v = 0.01 * *v;
+        }
+        clicked[n - 100] = 0.9;
+        assert_eq!(defect(&clicked, sr, 25), Some("click"));
     }
 
     #[test]

@@ -536,7 +536,9 @@
       "voice_transcript": "Reference text recognition",
       "voice_clean": "Voice cleaning",
       "synth": "Voicing",
-      "export": "Export"
+      "export": "Export",
+      "write": "Script",
+      "cast": "Speaker marking"
     },
     "error": {
       "failed": "The task failed",
@@ -1011,7 +1013,13 @@
     "cloudVoice": "Voice",
     "cloudVoiceDefault": "The voice chosen in Cloud, or a voice name of the model",
     "cloudHint": "Each block is voiced by the cloud model and costs money; the direction of a block goes to it as the style. Library voices and stress marks are not used.",
-    "engineUnavailable": "not available here"
+    "engineUnavailable": "not available here",
+    "qcIssue_tail": "sound after the last word",
+    "qcIssue_stretched": "a stretched word",
+    "qcIssue_gap": "a gap inside",
+    "castCharacters": "Characters",
+    "castCharactersHint": "The director model splits the text into the narrator and characters, word for word; each chapter in turn",
+    "castBlocks": "blocks: {{n}}"
   },
   "tags": {
     "emotion": "Emotion",
@@ -1295,5 +1303,27 @@
     "flag_shouted": "shouted caps",
     "flag_known_phrase": "a typical hallucination",
     "removeMessage": "“{{name}}” goes to the recycle bin with its recording, transcript and exports."
+  },
+  "podcast": {
+    "open": "Podcast script",
+    "openHint": "The director model writes a dialogue on a topic for your speakers",
+    "title": "Podcast script",
+    "hint": "The director model writes a lively dialogue on the topic: each speaker keeps their manner; the script opens as a project to voice.",
+    "topic": "Topic",
+    "topicPlaceholder": "What the episode is about, key points, the tone…",
+    "speakers": "Speakers",
+    "speakerName": "Speaker name",
+    "manner": "Manner of speech",
+    "mannerPlaceholder": "Manner: calm, ironic, fast…",
+    "removeSpeaker": "Remove the speaker",
+    "addSpeaker": "Add a speaker",
+    "speakerN": "Speaker {{n}}",
+    "minutes": "Minutes",
+    "write": "Write the script",
+    "modelNote": "The model is the one chosen in Settings → Models (local Gemma, your server or OpenRouter).",
+    "host": "Host",
+    "guest": "Guest",
+    "hostManner": "calm, asks short questions",
+    "guestManner": "lively, tells stories with examples"
   }
 }

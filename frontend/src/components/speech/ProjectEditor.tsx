@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, BookOpen, Download, History, ListOrdered, Loader2, Play, Redo2, Search, Settings2, Sparkles, SpellCheck, Square, Undo2, Users, X } from "lucide-react";
+import { ArrowLeft, BookOpen, Download, Drama, History, ListOrdered, Loader2, Play, Redo2, Search, Settings2, Sparkles, SpellCheck, Square, Undo2, Users, X } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { activeTake, newId, spliceChars, SPEAKER_TINTS, speechApi, stressDoubts, type Block, type BlockState, type SpeechProject, type QueuedSynth, type StressWord } from "../../lib/speech";
 import { openSettings } from "../../lib/settingsNav";
@@ -45,6 +45,18 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   const [searching, setSearching] = useState(false);
   const [history, setHistory] = useState(false);
   const [castOpen, setCastOpen] = useState(false);
+  const [casting, setCasting] = useState(false);
+  const castCharacters = async () => {
+    if (!project) return;
+    setCasting(true);
+    try {
+      flush();
+      for (const c of project.chapters) {
+        const { job_id } = await speechApi.castChapter(pid, c.id);
+        await followJob(job_id, "cast");
+      }
+    } catch (e) { setJobError(errorText(e)); } finally { setCasting(false); }
+  };
   const [selected, setSelected] = useState<string[]>([]);
   const [anchor, setAnchor] = useState<string | null>(null);
 
@@ -300,6 +312,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           <button onClick={() => setSearching((v) => !v)} aria-pressed={searching} className={bar} title={t("search.title")}><Search size={13} />{t("search.open")}</button>
           <button onClick={() => setHistory(true)} className={bar} title={t("history.title")}><History size={13} />{t("history.open")}</button>
           <button onClick={() => setCastOpen((v) => !v)} aria-expanded={castOpen} className={`${bar} lg:hidden`}><Users size={13} />{t("speech.cast")}</button>
+          <button onClick={() => void castCharacters()} disabled={casting} className={bar} title={t("speech.castCharactersHint")}>{casting ? <Loader2 size={13} className="animate-spin" /> : <Drama size={13} />}{t("speech.castCharacters")}</button>
           <button onClick={() => setDictionary(true)} className={bar} title={t("speech.dictionaryHint")}><BookOpen size={13} />{t("speech.dictionary")}</button>
           <button onClick={() => void stressBlocks(null)} disabled={!!stressing || !blocks.length} className={bar} title={t("speech.stressAllHint")}>
             {stressing && stressing.length > 1 ? <Loader2 size={13} className="animate-spin" /> : <SpellCheck size={13} />}{t("speech.stressAll")}
@@ -358,7 +371,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           </label>
           {speakers.map((s) => (
             <label key={s} className="block text-[11px]">
-              <span className="font-semibold" style={{ color: tintOf(s) }}>{s}</span>
+              <span className="flex items-baseline gap-1.5"><span className="font-semibold" style={{ color: tintOf(s) }}>{s}</span><span className="text-[10px] tabnum text-[var(--color-muted)]">{t("speech.castBlocks", { n: blocks.filter((b) => b.speaker === s && !b.hidden).length })}</span></span>
               <VoicePicker value={project.cast[s] ?? null} onChange={(v) => edit((p) => { if (v) p.cast[s] = v; else delete p.cast[s]; return p; })} inherit={t("speech.voiceAsProject")} label={t("speech.voiceFor", { speaker: s })}
                 className="mt-1 w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-2 py-1.5 text-[12px]" />
             </label>

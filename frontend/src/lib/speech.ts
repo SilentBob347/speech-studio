@@ -5,7 +5,8 @@ export type Take = {
   source: string; synth_secs: number; retried: string[];
   qc: QcCheck | null; text: string; direction: string; fit_stretch: number; fit_lead: number; fit_over: boolean;
 };
-export type QcCheck = { text_checked: boolean; wer: number; words: number; inserted: number; deleted: number; substituted: number; heard: string; passed: boolean; similarity: number | null; similar: boolean | null };
+export type QcCheck = { text_checked: boolean; wer: number; words: number; inserted: number; deleted: number; substituted: number; heard: string; passed: boolean; similarity: number | null; similar: boolean | null; issues: QcIssue[] };
+export type QcIssue = "tail" | "stretched" | "gap";
 export type QcSettings = { asr_check: boolean; strictness: "strict" | "normal" | "lenient"; takes: number; similarity: boolean };
 export type Block = {
   id: string; speaker: string; voice: string | null; text: string; direction: string; pause_ms: number | null;
@@ -72,6 +73,8 @@ export type ExportProblem = { block: string; state: BlockState | "missing" };
 
 export const speechApi = {
   list: () => getCoded<{ projects: ProjectCard[] }>("/projects"),
+  podcast: (body: { topic: string; speakers: { name: string; manner: string }[]; minutes: number; lang: string; name?: string }) => postCoded<{ job_id: string }>("/projects/podcast", body),
+  castChapter: (pid: string, chapter: string) => postCoded<{ job_id: string }>(`/projects/${pid}/cast`, { chapter }),
   create: (body: { name?: string; text: string; voice?: string | null; lang?: string; split?: "paragraphs" | "lines"; files?: { name: string; text: string }[] }) => postCoded<{ project_id: string; project: SpeechProject }>("/projects", body),
   get: (pid: string) => getCoded<SpeechProject>(`/projects/${pid}`),
   put: (pid: string, project: SpeechProject) => {

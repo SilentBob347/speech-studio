@@ -536,7 +536,9 @@
       "voice_transcript": "Reconnaissance du texte de référence",
       "voice_clean": "Nettoyage de la voix",
       "synth": "Mise en voix",
-      "export": "Export"
+      "export": "Export",
+      "write": "Script",
+      "cast": "Balisage des locuteurs"
     },
     "error": {
       "failed": "La tâche a échoué",
@@ -1011,7 +1013,13 @@
     "cloudVoice": "Voix",
     "cloudVoiceDefault": "La voix choisie dans Cloud ou un nom de voix du modèle",
     "cloudHint": "Chaque bloc est dit par le modèle cloud et coûte de l’argent ; l’indication du bloc lui est envoyée comme style. Les voix de la bibliothèque et les accents ne sont pas utilisés.",
-    "engineUnavailable": "indisponible ici"
+    "engineUnavailable": "indisponible ici",
+    "qcIssue_tail": "du son après le dernier mot",
+    "qcIssue_stretched": "un mot étiré",
+    "qcIssue_gap": "une coupure au milieu",
+    "castCharacters": "Personnages",
+    "castCharactersHint": "Le modèle réalisateur répartit le texte entre narrateur et personnages, mot pour mot ; chapitre après chapitre",
+    "castBlocks": "blocs : {{n}}"
   },
   "tags": {
     "emotion": "Émotion",
@@ -1295,5 +1303,27 @@
     "flag_shouted": "cri en majuscules",
     "flag_known_phrase": "une hallucination typique",
     "removeMessage": "« {{name}} » part à la corbeille avec son enregistrement, sa transcription et ses exports."
+  },
+  "podcast": {
+    "open": "Script de podcast",
+    "openHint": "Le modèle réalisateur écrit un dialogue sur un sujet pour vos locuteurs",
+    "title": "Script de podcast",
+    "hint": "Le modèle réalisateur écrit un dialogue vivant sur le sujet : chaque locuteur garde son style ; le script s’ouvre comme projet à dire.",
+    "topic": "Sujet",
+    "topicPlaceholder": "De quoi parle l’épisode, les idées clés, le ton…",
+    "speakers": "Locuteurs",
+    "speakerName": "Nom du locuteur",
+    "manner": "Manière de parler",
+    "mannerPlaceholder": "Style : calme, ironique, rapide…",
+    "removeSpeaker": "Retirer le locuteur",
+    "addSpeaker": "Ajouter un locuteur",
+    "speakerN": "Locuteur {{n}}",
+    "minutes": "Minutes",
+    "write": "Écrire le script",
+    "modelNote": "Le modèle est celui choisi dans Réglages → Modèles (Gemma locale, votre serveur ou OpenRouter).",
+    "host": "Animateur",
+    "guest": "Invité",
+    "hostManner": "calme, pose des questions courtes",
+    "guestManner": "vif, raconte avec des exemples"
   }
 }

@@ -536,7 +536,9 @@
       "voice_transcript": "Reconhecimento do texto de referência",
       "voice_clean": "Limpeza de voz",
       "synth": "Locução",
-      "export": "Exportação"
+      "export": "Exportação",
+      "write": "Roteiro",
+      "cast": "Marcação de falantes"
     },
     "error": {
       "failed": "A tarefa terminou com erro",
@@ -1011,7 +1013,13 @@
     "cloudVoice": "Voz",
     "cloudVoiceDefault": "A voz escolhida em Nuvem ou um nome de voz do modelo",
     "cloudHint": "Cada bloco é narrado pelo modelo na nuvem e custa dinheiro; a indicação do bloco vai como estilo. Vozes da biblioteca e marcas de acento não são usadas.",
-    "engineUnavailable": "indisponível aqui"
+    "engineUnavailable": "indisponível aqui",
+    "qcIssue_tail": "som depois da última palavra",
+    "qcIssue_stretched": "uma palavra arrastada",
+    "qcIssue_gap": "um corte no meio",
+    "castCharacters": "Personagens",
+    "castCharactersHint": "O modelo diretor divide o texto entre narrador e personagens, palavra por palavra; capítulo por capítulo",
+    "castBlocks": "blocos: {{n}}"
   },
   "tags": {
     "emotion": "Emoção",
@@ -1295,5 +1303,27 @@
     "flag_shouted": "grito em maiúsculas",
     "flag_known_phrase": "uma alucinação típica",
     "removeMessage": "«{{name}}» vai para a lixeira com a gravação, a transcrição e as exportações."
+  },
+  "podcast": {
+    "open": "Roteiro de podcast",
+    "openHint": "O modelo diretor escreve um diálogo sobre um tema para seus falantes",
+    "title": "Roteiro de podcast",
+    "hint": "O modelo diretor escreve um diálogo vivo sobre o tema: cada falante mantém seu estilo; o roteiro abre como projeto para narrar.",
+    "topic": "Tema",
+    "topicPlaceholder": "Sobre o que é o episódio, ideias principais, o tom…",
+    "speakers": "Falantes",
+    "speakerName": "Nome do falante",
+    "manner": "Jeito de falar",
+    "mannerPlaceholder": "Estilo: calmo, irônico, rápido…",
+    "removeSpeaker": "Remover o falante",
+    "addSpeaker": "Adicionar falante",
+    "speakerN": "Falante {{n}}",
+    "minutes": "Minutos",
+    "write": "Escrever o roteiro",
+    "modelNote": "O modelo é o escolhido em Configurações → Modelos (Gemma local, seu servidor ou OpenRouter).",
+    "host": "Apresentador",
+    "guest": "Convidado",
+    "hostManner": "calmo, faz perguntas curtas",
+    "guestManner": "animado, conta com exemplos"
   }
 }
