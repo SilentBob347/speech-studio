@@ -1005,7 +1005,9 @@
     "perBlock": "Cada bloque en un archivo aparte (lote)",
     "clipsDone": "Archivos listos: {{n}}",
     "clipsToFolder": "Guardar todo en una carpeta…",
-    "splitMode": "Cómo cortar el texto"
+    "splitMode": "Cómo cortar el texto",
+    "continuation": "Entonación continua",
+    "continuationHint": "Cada bloque toma como referencia la toma anterior de la misma voz con su texto (continuación de Higgs): el tono y el ritmo se mantienen. Cambiar una toma vuelve a locutar los bloques siguientes."
   },
   "tags": {
     "emotion": "Emoción",

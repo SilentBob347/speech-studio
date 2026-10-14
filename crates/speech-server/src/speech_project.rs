@@ -129,11 +129,13 @@ pub struct Settings {
     pub lead_into_silence: bool,
     /// Паузы склейки — тихий room tone, а не цифровой ноль (у пресета ACX — всегда, с тишиной по краям).
     pub room_tone: bool,
+    /// Сквозная интонация: блок берёт рефом предыдущий дубль того же голоса с его текстом (продолжение речи Higgs).
+    pub continuation: bool,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { lang: "auto".into(), engine: "higgs".into(), params: Params::default(), voice: None, pause_same_ms: 300, pause_switch_ms: 600, loudness: "video".into(), qc: QcSettings::default(), auto_stress: true, normalize: true, timeline: false, max_stretch: 1.25, lead_into_silence: true, room_tone: false }
+        Settings { lang: "auto".into(), engine: "higgs".into(), params: Params::default(), voice: None, pause_same_ms: 300, pause_switch_ms: 600, loudness: "video".into(), qc: QcSettings::default(), auto_stress: true, normalize: true, timeline: false, max_stretch: 1.25, lead_into_silence: true, room_tone: false, continuation: false }
     }
 }
 
@@ -406,6 +408,22 @@ pub fn from_files(name: &str, files: &[(String, String)], narrator: &str) -> Spe
     SpeechProject { name: name.to_string(), created: now(), chapters: vec![Chapter { id: new_id(), title: String::new(), blocks }], ..Default::default() }
 }
 
+/// Блок, чей дубль служит рефом продолжения: ближайший видимый выше с тем же голосом и выбранным дублем.
+pub fn continuation_source<'a>(project: &'a SpeechProject, b: &Block) -> Option<(&'a Block, &'a Take)> {
+    if !project.settings.continuation {
+        return None;
+    }
+    let voice = project.voice_of(b);
+    let blocks: Vec<&Block> = project.blocks().collect();
+    let at = blocks.iter().position(|x| x.id == b.id)?;
+    blocks[..at]
+        .iter()
+        .rev()
+        .filter(|x| !x.hidden && !x.text.trim().is_empty())
+        .find(|x| project.voice_of(x) == voice)
+        .and_then(|x| x.active.and_then(|n| x.takes.iter().find(|t| t.n == n)).map(|t| (*x, t)))
+}
+
 /// Отпечаток голоса для ключа: имя, размер и время звука, текст рефа.
 pub fn voice_tag(voices: &Path, name: Option<&str>) -> String {
     let Some(name) = name else { return "base".into() };
@@ -435,6 +453,9 @@ pub fn synth_key(project: &SpeechProject, b: &Block, voice_tag: &str, engine: &s
     }
     if project.settings.auto_stress && crate::stress::is_russian(&b.text, &project.settings.lang) {
         h.update(b"auto-stress\x1f");
+    }
+    if let Some((src, take)) = continuation_source(project, b) {
+        h.update(format!("continue:{}:{}\x1f", src.id, take.file).as_bytes());
     }
     if !prep.is_empty() {
         h.update(prep.as_bytes());

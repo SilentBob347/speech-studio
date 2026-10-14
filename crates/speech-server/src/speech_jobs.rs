@@ -101,13 +101,16 @@ fn resample_to(samples: Vec<f32>, sr: i32) -> Vec<f32> {
 }
 
 /// Звук одного блока: фразы синтезом, паузы тишиной. Возвращает сэмплы (SR), что разметки проигнорировано и сводку.
-fn synth_block(p: &SpeechPaths, project: &SpeechProject, b: &Block, n: u32) -> Result<(Vec<f32>, Value, Take), String> {
+fn synth_block(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Block, n: u32) -> Result<(Vec<f32>, Value, Take), String> {
     let cfg = higgs_config(p);
     let engine = tts_host::engine(&cfg)?;
     let voice = project.voice_of(b);
-    let reference = match voice.as_deref() {
-        Some(v) => Some(tts_host::prepare_ref(&p.voices_dir, v, ref_limit(&p.models_root))?),
-        None => None,
+    let limit = ref_limit(&p.models_root);
+    let continued = sp::continuation_source(project, b).filter(|(_, t)| t.duration > 0.5 && t.duration <= limit + 0.5);
+    let reference = match (continued, voice.as_deref()) {
+        (Some((src, take)), _) => Some(continuation_ref(&takes_dir(p, pid), take, &src.text)?),
+        (None, Some(v)) => Some(tts_host::prepare_ref(&p.voices_dir, v, limit)?),
+        (None, None) => None,
     };
     let lang = if project.settings.lang == "auto" { "" } else { project.settings.lang.as_str() };
     let mut out: Vec<f32> = Vec::new();
@@ -222,6 +225,17 @@ fn fit_to_cue(project: &SpeechProject, b: &Block, samples: Vec<f32>) -> Result<F
     Ok(Fitted { samples, stretch, lead, over: dub_core::fit::over(needed, slot.cap) })
 }
 
+/// Реф продолжения: дубль предыдущего блока (24 кГц моно) и его видимый текст.
+fn continuation_ref(takes: &Path, take: &sp::Take, text: &str) -> Result<(PathBuf, Option<String>), String> {
+    let src = takes.join(&take.file);
+    let wav = takes.join(format!(".ref-{}.wav", take.file.trim_end_matches(".flac")));
+    if !wav.is_file() {
+        crate::media::extract_audio(&src, &wav, SR, 1)?;
+    }
+    let said = crate::speech_text::visible(text);
+    Ok((wav, (!said.trim().is_empty()).then_some(said)))
+}
+
 /// Фраза в темпе `rate` (atempo ffmpeg, как подгонка длины в Dub): высота голоса не меняется.
 fn at_rate(samples: &[f32], rate: f64) -> Result<Vec<f32>, String> {
     let dir = tempfile::Builder::new().prefix("rate-").tempdir().map_err(|e| e.to_string())?;
@@ -316,7 +330,7 @@ fn voice_block(p: &SpeechPaths, pid: &str, id: &str, count: u32, source: &str, p
         let Some(b) = project.blocks().find(|b| b.id == id).cloned() else { return Ok(made) };
         let key = keys(p, &project).remove(id).unwrap_or_default();
         let n = b.takes.iter().map(|t| t.n).max().unwrap_or(0) + 1;
-        let result = synth_block(p, &project, &b, n).and_then(|(samples, ignored, mut take)| {
+        let result = synth_block(p, pid, &project, &b, n).and_then(|(samples, ignored, mut take)| {
             let file = format!("{}-{n}.flac", b.id);
             write_flac(&samples, &takes_dir(p, pid).join(&file))?;
             take.file = file;

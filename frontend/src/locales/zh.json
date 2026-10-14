@@ -1005,7 +1005,9 @@
     "perBlock": "每个文本块单独成文件（批量）",
     "clipsDone": "已生成文件：{{n}}",
     "clipsToFolder": "全部保存到文件夹…",
-    "splitMode": "如何切分文本"
+    "splitMode": "如何切分文本",
+    "continuation": "连贯语调",
+    "continuationHint": "每个文本块以同一声音的上一个版本及其文本为参考（Higgs 语音续写）：语调和节奏得以延续。更换版本会重新配音其后的文本块。"
   },
   "tags": {
     "emotion": "情绪",

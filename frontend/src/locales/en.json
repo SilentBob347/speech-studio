@@ -1005,7 +1005,9 @@
     "perBlock": "Each block as a separate file (a batch)",
     "clipsDone": "Files made: {{n}}",
     "clipsToFolder": "Save all to a folder…",
-    "splitMode": "How to cut the text"
+    "splitMode": "How to cut the text",
+    "continuation": "Continuous intonation",
+    "continuationHint": "Each block takes the previous take of the same voice with its text as the reference (Higgs speech continuation): tone and pace carry over. Changing a take re-voices the blocks after it."
   },
   "tags": {
     "emotion": "Emotion",

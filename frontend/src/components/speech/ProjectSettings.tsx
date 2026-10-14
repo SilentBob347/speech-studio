@@ -53,6 +53,10 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
           <input type="checkbox" checked={s.auto_stress} onChange={(e) => set((p) => { p.settings.auto_stress = e.target.checked; })} className="mt-0.5 w-4 h-4 accent-[var(--color-accent)]" />
           <span>{t("speech.autoStress")}<span className="block text-[11px] text-[var(--color-muted)]">{t("speech.autoStressHint")}</span></span>
         </label>
+        <label className="flex items-start gap-2 text-[13px] cursor-pointer">
+          <input type="checkbox" checked={s.continuation} onChange={(e) => set((p) => { p.settings.continuation = e.target.checked; })} className="mt-0.5 w-4 h-4 accent-[var(--color-accent)]" />
+          <span>{t("speech.continuation")}<span className="block text-[11px] text-[var(--color-muted)]">{t("speech.continuationHint")}</span></span>
+        </label>
         <fieldset className="space-y-2">
           <legend className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)] mb-1">{t("speech.sampling")}</legend>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
