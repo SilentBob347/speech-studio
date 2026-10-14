@@ -108,6 +108,50 @@ pub fn pieces(text: &str) -> Vec<Piece> {
     out
 }
 
+/// Фраза для движка проекта: у каждого своя разметка экспрессии.
+pub fn for_engine(say: &str, lang: &str, engine: &str) -> (String, Ignored) {
+    if engine == crate::models::DRAMA_TTS { for_drama(say, lang) } else { for_higgs(say, lang) }
+}
+
+/// Точечный тег Drama 3: событие в квадратных скобках по месту — `[laughs]`, `[sighs]`.
+static DRAMA_TAG: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\[([\p{L}][\p{L} '-]{0,38})\]").expect("drama tag"));
+
+/// Фраза для Drama 3: ударения, фонемы и теги Higgs снимаются (что снято — в `Ignored`), точечные теги остаются.
+pub fn for_drama(say: &str, lang: &str) -> (String, Ignored) {
+    let mut ignored = Ignored::default();
+    let t = ACCENT.replace_all(say, |c: &regex::Captures| {
+        ignored.accent = true;
+        c[1].to_string()
+    });
+    let t = ACCENT_MARK.replace_all(&t, |_: &regex::Captures| {
+        ignored.accent = true;
+        String::new()
+    });
+    let t = PHONEMES.replace_all(&t, |c: &regex::Captures| {
+        ignored.phonemes = true;
+        c[1].to_string()
+    });
+    let t = STRESS.replace_all(&t, |c: &regex::Captures| {
+        ignored.stress = true;
+        c[1].to_string()
+    });
+    let t = ANGLE.replace_all(&t, |c: &regex::Captures| {
+        ignored.unknown_tags.push(c[0].to_string());
+        String::new()
+    });
+    let mut tags: Vec<String> = Vec::new();
+    let t = DRAMA_TAG.replace_all(&t, |c: &regex::Captures| {
+        tags.push(c[0].to_string());
+        format!("\u{E000}{}\u{E001}", tags.len() - 1)
+    });
+    let cleaned = crate::tts_text::tts_text(&t, &t, lang, &[]);
+    let mut text = cleaned.text;
+    for (i, tag) in tags.iter().enumerate() {
+        text = text.replace(&format!("\u{E000}{i}\u{E001}"), tag);
+    }
+    (text, ignored)
+}
+
 /// Фраза для Higgs: разметка, которую он не понимает, снимается; что снято — в `Ignored`.
 pub fn for_higgs(say: &str, lang: &str) -> (String, Ignored) {
     let mut ignored = Ignored::default();
@@ -167,6 +211,14 @@ pub fn visible(text: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn drama_keeps_its_point_tags_and_drops_higgs_ones() {
+        let (text, ig) = for_drama("[laughs] Ну д+авай <|emotion:awe|> уже [sighs] пойдём.", "ru");
+        assert!(text.contains("[laughs]") && text.contains("[sighs]"), "{text}");
+        assert!(!text.contains("<|") && !text.contains('+'), "{text}");
+        assert!(ig.stress && ig.unknown_tags == vec!["<|emotion:awe|>".to_string()]);
+    }
+
     use super::*;
 
     #[test]

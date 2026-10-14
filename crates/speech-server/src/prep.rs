@@ -77,7 +77,7 @@ pub fn prepare(text: &str, o: &Opts) -> Result<Prepared, String> {
     let mut engine = Vec::new();
     for piece in stx::pieces(&t) {
         if let stx::Piece::Say(say) = piece {
-            let (out, ig) = stx::for_higgs(&say, &lang);
+            let (out, ig) = stx::for_engine(&say, &lang, o.engine);
             p.ignored.accent |= ig.accent;
             p.ignored.phonemes |= ig.phonemes;
             p.ignored.unknown_tags.extend(ig.unknown_tags);

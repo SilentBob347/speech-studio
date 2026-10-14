@@ -40,6 +40,8 @@ pub struct Engine {
     /// Сколько знаков блока движок берёт за раз; длиннее — режется на фразы.
     pub max_chars: usize,
     pub reads: Reads,
+    /// Почему движок на этой машине не пойдёт (видеокарта, файлы); None — доступен.
+    pub unavailable: Option<String>,
 }
 
 /// Языки Higgs Audio v3 — список `language` карточки `bosonai/higgs-audio-v3-tts-4b`.
@@ -73,6 +75,7 @@ pub fn higgs() -> Engine {
         deterministic_seed: true,
         max_chars: 400,
         reads: Reads { stress: false, yo: true, phonemes: false, accent: false },
+        unavailable: None,
     }
 }
 
@@ -92,11 +95,48 @@ pub fn openrouter() -> Engine {
         deterministic_seed: false,
         max_chars: 1000,
         reads: Reads { stress: false, yo: true, phonemes: false, accent: false },
+        unavailable: None,
+    }
+}
+
+/// Fish Audio Drama 3: 83 языка по карточке `fishaudio/drama-3` (списка она не даёт — язык не ограничивается),
+/// сэмплинг по умолчанию карточки (temperature 1.0, top-k 30, top-p 0.9), точечные теги `[laughs]`, клон только по
+/// рефу с текстом; только видеокарты 24 ГБ+.
+pub fn drama() -> Engine {
+    Engine {
+        id: crate::models::DRAMA_TTS,
+        name: "Drama 3",
+        languages: &[],
+        params: vec![
+            ParamSpec { key: "temperature", kind: "float", min: 0.05, max: 2.0, step: 0.05, default: 1.0 },
+            ParamSpec { key: "top_k", kind: "int", min: 1.0, max: 500.0, step: 1.0, default: 30.0 },
+            ParamSpec { key: "top_p", kind: "float", min: 0.05, max: 1.0, step: 0.01, default: 0.9 },
+            ParamSpec { key: "max_tokens", kind: "int", min: 0.0, max: 2048.0, step: 64.0, default: 0.0 },
+        ],
+        seed_modes: &["random", "fixed", "inc", "dec"],
+        tag_format: "[{value}]",
+        tags: Vec::new(),
+        clone: "ref_text",
+        continuation: false,
+        streaming: false,
+        deterministic_seed: true,
+        max_chars: 400,
+        reads: Reads { stress: false, yo: true, phonemes: false, accent: false },
+        unavailable: None,
     }
 }
 
 pub fn all() -> Vec<Engine> {
-    vec![higgs(), openrouter()]
+    vec![higgs(), drama(), openrouter()]
+}
+
+/// Движки для окна: у Drama 3 — почему она здесь не пойдёт (видеокарта или нескачанные файлы).
+pub fn for_window(models_root: &std::path::Path) -> Vec<Engine> {
+    let mut all = all();
+    for e in all.iter_mut().filter(|e| e.id == crate::models::DRAMA_TTS) {
+        e.unavailable = crate::models::drama_unavailable().or_else(|| (!crate::models::drama_installed(models_root)).then(|| t!("render-drama-missing")));
+    }
+    all
 }
 
 pub fn get(id: &str) -> Option<Engine> {

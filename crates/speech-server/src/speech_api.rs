@@ -347,8 +347,8 @@ pub async fn save_export(State(st): State<AppState>, AxPath(pid): AxPath<String>
 }
 
 /// GET /engines — капабилити-манифест движков: окно строит из него контролы.
-pub async fn engines() -> Json<Value> {
-    Json(json!({ "engines": crate::engines::all() }))
+pub async fn engines(State(st): State<AppState>) -> Json<Value> {
+    Json(json!({ "engines": crate::engines::for_window(&st.models_root) }))
 }
 
 /// GET /engine/tags — теги экспрессии движка по категориям (окно строит из них палитру вставки).

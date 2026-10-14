@@ -1,4 +1,4 @@
-//! Higgs Audio на весь процесс: один загруженный экземпляр (модель, квант, устройство), загрузка при первом синтезе,
+//! Модель озвучки на весь процесс — Higgs Audio или Drama 3, одна на видеокарте: загрузка при первом синтезе,
 //! выгрузка по команде (перед другой тяжёлой моделью). Синтез — в отдельном потоке под сторожем: отмена задачи и
 //! таймаут доходят до движка, зависший вызов DLL называется прямо. У Higgs нет своего потолка длины, поэтому
 //! `max_new_tokens` считается по ожидаемой длине фразы; дефектный дубль (разнос, обрыв, тишина, гул) повторяется
@@ -36,18 +36,34 @@ impl HiggsConfig {
     }
 }
 
-static HOST: Mutex<Option<(String, Arc<AudiocppEngine>)>> = Mutex::new(None);
+/// Модель на видеокарте: одна на процесс — Higgs или Drama 3 (Drama 3 занимает почти всю карту 24 ГБ).
+#[derive(Clone)]
+pub enum Tts {
+    Higgs(Arc<AudiocppEngine>),
+    Drama(Arc<drama::DramaEngine>),
+}
 
-fn host() -> std::sync::MutexGuard<'static, Option<(String, Arc<AudiocppEngine>)>> {
+impl Tts {
+    fn cancel(&self) {
+        match self {
+            Tts::Higgs(e) => e.cancel(),
+            Tts::Drama(e) => e.cancel(),
+        }
+    }
+}
+
+static HOST: Mutex<Option<(String, Tts)>> = Mutex::new(None);
+
+fn host() -> std::sync::MutexGuard<'static, Option<(String, Tts)>> {
     HOST.lock().unwrap_or_else(|p| p.into_inner())
 }
 
-/// Загруженный движок под эту конфигурацию; другая конфигурация выгружает прежнюю.
-pub fn engine(cfg: &HiggsConfig) -> Result<Arc<AudiocppEngine>, String> {
+/// Загруженный Higgs под эту конфигурацию; другая конфигурация или Drama 3 выгружаются.
+pub fn engine(cfg: &HiggsConfig) -> Result<Tts, String> {
     let mut slot = host();
-    if let Some((key, e)) = slot.as_ref() {
+    if let Some((key, Tts::Higgs(e))) = slot.as_ref() {
         if *key == cfg.key() && e.is_model_loaded() {
-            return Ok(e.clone());
+            return Ok(Tts::Higgs(e.clone()));
         }
     }
     *slot = None;
@@ -68,11 +84,37 @@ pub fn engine(cfg: &HiggsConfig) -> Result<Arc<AudiocppEngine>, String> {
     let e = Arc::new(AudiocppEngine::load(&cfg.dll).map_err(|e| t!("render-higgs-load-failed", error = e.localize()))?);
     e.load_model(&cfg.model_root, &cfg.backend, 0, cfg.threads, Some(cfg.quant.as_str()))
         .map_err(|e| t!("render-higgs-model-failed", error = e.localize()))?;
-    *slot = Some((cfg.key(), e.clone()));
-    Ok(e)
+    *slot = Some((cfg.key(), Tts::Higgs(e.clone())));
+    Ok(Tts::Higgs(e))
 }
 
-/// Выгрузить Higgs и освободить видеопамять.
+/// Строк промпта Drama 3 на одну фразу: реф (~22 кадра на секунду) + текст + сгенерированное.
+const DRAMA_MAX_LEN: u32 = 2048;
+
+/// Загруженная Drama 3: только на CUDA и карте 24 ГБ+; не та карта или нет файлов — ошибка с причиной, Higgs её не
+/// подменяет. cuBLAS она находит в models/higgs-engine, который при старте кладётся в PATH.
+pub fn drama(models_root: &Path) -> Result<Tts, String> {
+    let mut slot = host();
+    if let Some((key, Tts::Drama(e))) = slot.as_ref() {
+        if key == crate::models::DRAMA_TTS {
+            return Ok(Tts::Drama(e.clone()));
+        }
+    }
+    *slot = None;
+    if let Some(why) = crate::models::drama_unavailable() {
+        return Err(why);
+    }
+    if !crate::models::drama_installed(models_root) {
+        return Err(t!("render-drama-missing"));
+    }
+    let e = drama::DramaEngine::load(&crate::models::drama_dll(models_root), &[], &models_root.join(crate::models::DRAMA_TTS), DRAMA_MAX_LEN)
+        .map_err(|e| t!("render-drama-load-failed", error = e.to_string()))?;
+    let e = Arc::new(e);
+    *slot = Some((crate::models::DRAMA_TTS.to_string(), Tts::Drama(e.clone())));
+    Ok(Tts::Drama(e))
+}
+
+/// Выгрузить модель озвучки и освободить видеопамять.
 pub fn unload() {
     if let Some((_, e)) = host().take() {
         e.cancel();
@@ -80,7 +122,10 @@ pub fn unload() {
 }
 
 pub fn loaded() -> bool {
-    host().as_ref().is_some_and(|(_, e)| e.is_model_loaded())
+    host().as_ref().is_some_and(|(_, e)| match e {
+        Tts::Higgs(h) => h.is_model_loaded(),
+        Tts::Drama(_) => true,
+    })
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -198,16 +243,23 @@ pub struct Request<'a> {
     pub fresh_seed: u64,
 }
 
-fn run_guarded(engine: &Arc<AudiocppEngine>, text: &str, ref_wav: Option<&Path>, ref_text: Option<&str>, opts: &str, timeout: Duration) -> Result<(Vec<f32>, i32), String> {
+fn run_guarded(engine: &Tts, text: &str, ref_wav: Option<&Path>, ref_text: Option<&str>, opts: &str, drama: &drama::Params, timeout: Duration) -> Result<(Vec<f32>, i32), String> {
     let (tx, rx) = mpsc::channel();
     let eng = engine.clone();
-    let (t, rw, rt, op) = (text.to_string(), ref_wav.map(|p| p.to_string_lossy().into_owned()), ref_text.map(str::to_string), opts.to_string());
+    let (t, rw, rt, op, dp) = (text.to_string(), ref_wav.map(Path::to_path_buf), ref_text.map(str::to_string), opts.to_string(), *drama);
     std::thread::spawn(move || {
-        let r = match rw {
-            Some(rw) => eng.voice_clone(&t, &rw, rt.as_deref(), &op),
-            None => eng.tts(&t, &op),
-        }
-        .map_err(|e| e.localize());
+        let r = match (&eng, rw) {
+            (Tts::Higgs(e), Some(rw)) => e.voice_clone(&t, &rw.to_string_lossy(), rt.as_deref(), &op).map_err(|e| e.localize()),
+            (Tts::Higgs(e), None) => e.tts(&t, &op).map_err(|e| e.localize()),
+            (Tts::Drama(e), Some(rw)) => match rt.as_deref().filter(|t| !t.trim().is_empty()) {
+                Some(rt) => e.speak(&t, &rw, rt, &dp).map(|a| (a, e.sample_rate() as i32)).map_err(|err| match err {
+                    drama::DramaError::Cancelled => crate::jobs::CANCELLED.to_string(),
+                    other => other.to_string(),
+                }),
+                None => Err(t!("render-drama-no-ref-text")),
+            },
+            (Tts::Drama(_), None) => Err(t!("drama-needs-voice")),
+        };
         let _ = tx.send(r);
     });
     let ctl = crate::jobs::current();
@@ -236,9 +288,17 @@ fn run_guarded(engine: &Arc<AudiocppEngine>, text: &str, ref_wav: Option<&Path>,
     }
 }
 
+/// Кадров Drama 3 на фразу: ожидаемая длина с запасом вдвое (у Drama 21,5 кадра на секунду речи).
+fn drama_frames(expected: f64, max_tokens: u32) -> u32 {
+    if max_tokens > 0 {
+        return max_tokens.clamp(64, DRAMA_MAX_LEN);
+    }
+    ((expected * drama::FRAMES_PER_SECOND * 2.0).ceil() as u32 + 32).clamp(64, DRAMA_MAX_LEN)
+}
+
 /// Синтез фразы с повтором дефектного дубля: фиксированный сид — одна попытка, случайный — до трёх, каждая
 /// с новым сидом и температурой выше на 0,15.
-pub fn synth(engine: &Arc<AudiocppEngine>, req: &Request) -> Result<Synth, String> {
+pub fn synth(engine: &Tts, req: &Request) -> Result<Synth, String> {
     req.params.checked()?;
     let expected = expected_secs(req.text, req.lang);
     let cap = if req.params.max_tokens > 0 { req.params.max_tokens as usize } else { token_cap(expected) as usize };
@@ -260,8 +320,9 @@ pub fn synth(engine: &Arc<AudiocppEngine>, req: &Request) -> Result<Synth, Strin
             "seed": seed,
         })
         .to_string();
+        let dp = drama::Params { temperature: temperature as f32, top_k: req.params.top_k as i32, top_p: req.params.top_p as f32, seed, max_new: drama_frames(expected, req.params.max_tokens) };
         let started = Instant::now();
-        let (samples, sr) = run_guarded(engine, req.text, req.ref_wav, req.ref_text, &opts, timeout)?;
+        let (samples, sr) = run_guarded(engine, req.text, req.ref_wav, req.ref_text, &opts, &dp, timeout)?;
         let seconds = started.elapsed().as_secs_f64();
         match defect(&samples, sr, chars) {
             None => return Ok(Synth { samples, sr, seed, temperature, attempts: attempt + 1, defects, seconds }),

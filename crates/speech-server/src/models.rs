@@ -727,6 +727,37 @@ pub fn resolve_tts(mroot: &Path, sel: &Value) -> (PathBuf, String) {
     ret("q8_0") // дефолт-fallback (может ещё не быть скачан)
 }
 
+/// Папка весов Drama 3 (apiplant/drama-q4) в каталоге моделей и id движка в проекте.
+pub const DRAMA_TTS: &str = "drama3";
+
+/// Видеопамяти нужно Drama 3: карты «24 ГБ» проходят, 20-гиговые — нет.
+pub const DRAMA_MIN_VRAM: u64 = 23 * 1024 * 1024 * 1024;
+
+/// Веса и движок Drama 3 на месте (последний слой весов и DLL).
+pub fn drama_installed(mroot: &Path) -> bool {
+    mroot.join(DRAMA_TTS).join("layer39.safetensors").is_file() && drama_dll(mroot).is_file()
+}
+
+pub fn drama_dll(mroot: &Path) -> PathBuf {
+    mroot.join("drama-engine").join(if cfg!(windows) { "drama_engine.dll" } else { "libdrama_engine.so" })
+}
+
+/// Почему Drama 3 на этой машине не пойдёт: None — карта NVIDIA с CUDA 13 и не меньше [`DRAMA_MIN_VRAM`].
+/// `SPEECH_STUDIO_SIMULATE_VRAM_GB` подменяет объём видеопамяти для проверки отказа на меньшей карте.
+pub fn drama_unavailable() -> Option<String> {
+    let gpu = crate::hw::gpu_report();
+    let card = gpu.summary().unwrap_or_else(|| "-".to_string());
+    if !gpu.cuda13_ok {
+        return Some(t!("drama-needs-cuda", card = card));
+    }
+    let total = std::env::var("SPEECH_STUDIO_SIMULATE_VRAM_GB").ok().and_then(|v| v.parse::<u64>().ok()).map_or_else(crate::hw::total_vram, |gb| gb << 30);
+    if total < DRAMA_MIN_VRAM {
+        let gb = format!("{:.0}", total as f64 / (1u64 << 30) as f64);
+        return Some(t!("drama-needs-24gb", card = card, gb = gb));
+    }
+    None
+}
+
 /// Roformer сепарация: models/bsroformer/voc_fv6-{Q8_0,Q5_0,Q4_0}.gguf (все в одном каталоге).
 /// Env SPEECH_STUDIO_BSROFORMER_MODEL имеет приоритет.
 pub fn resolve_sep(mroot: &Path, sel: &Value) -> PathBuf {
@@ -1003,6 +1034,15 @@ mod secret_tests {
 
 #[cfg(test)]
 mod provider_tests {
+    #[test]
+    fn drama_is_refused_with_a_reason_on_a_card_below_24_gb() {
+        std::env::set_var("SPEECH_STUDIO_SIMULATE_VRAM_GB", "16");
+        let why = drama_unavailable();
+        std::env::remove_var("SPEECH_STUDIO_SIMULATE_VRAM_GB");
+        let why = why.expect("a 16 GB card cannot hold Drama 3");
+        assert!(why.contains("16") || why.contains("CUDA"), "{why}");
+    }
+
     use super::*;
     use dub_llm::net::{ProxyKind, ProxyMode};
     use serde_json::json;

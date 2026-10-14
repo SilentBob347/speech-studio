@@ -24,7 +24,7 @@ const label = "block text-[12px] text-[var(--color-muted)]";
 
 /** The project's synthesis: language, sampling, seed, pauses between lines and the loudness of the export. */
 export default function ProjectSettings({ project, onChange, onClose }: { project: SpeechProject; onChange: (f: (p: SpeechProject) => SpeechProject) => void; onClose: () => void }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   useEscapeLayer(onClose);
   const s = project.settings;
   const [engines, setEngines] = useState<EngineCaps[] | null>(enginesCache);
@@ -34,6 +34,7 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
   }, []);
   const engine = engines?.find((e) => e.id === s.engine) ?? null;
   const local = s.engine !== "openrouter";
+  const continuable = engine?.continuation ?? false;
   const [cloudVoices, setCloudVoices] = useState<{ name: string; gender: string; ru: boolean }[]>([]);
   const [hasKey, setHasKey] = useState<boolean | null>(null);
   useEffect(() => {
@@ -52,10 +53,18 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
         </div>
         <div className="space-y-2">
           <label className={label}>{t("speech.engine")}
-            <select value={s.engine} onChange={(e) => set((p) => { p.settings.engine = e.target.value; })} className={field}>
-              {(engines ?? []).map((en) => <option key={en.id} value={en.id}>{en.name}</option>)}
+            <select value={s.engine} onChange={(e) => set((p) => {
+              p.settings.engine = e.target.value;
+              const next = engines?.find((en) => en.id === e.target.value);
+              for (const spec of next?.params ?? []) p.settings.params[spec.key] = spec.default;
+            })} className={field}>
+              {(engines ?? []).map((en) => <option key={en.id} value={en.id} disabled={!!en.unavailable && en.id !== s.engine}>{en.name}{en.unavailable ? ` — ${t("speech.engineUnavailable")}` : ""}</option>)}
             </select>
           </label>
+          {engine?.unavailable && <p role="alert" className="text-[11px] text-[var(--color-warn)]">{engine.unavailable}</p>}
+          {!engine?.unavailable && engines?.some((en) => en.unavailable) && (
+            <p className="text-[11px] text-[var(--color-muted)]">{engines.filter((en) => en.unavailable).map((en) => `${en.name}: ${en.unavailable}`).join(" ")}</p>
+          )}
           {s.engine === "openrouter" && (
             <div className="space-y-2 rounded-lg border border-[var(--color-border)] p-2.5">
               {hasKey === false && (
@@ -89,10 +98,12 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
           <span>{t("speech.autoStress")}<span className="block text-[11px] text-[var(--color-muted)]">{t("speech.autoStressHint")}</span></span>
         </label>
         {local && <>
+{continuable && (
         <label className="flex items-start gap-2 text-[13px] cursor-pointer">
           <input type="checkbox" checked={s.continuation} onChange={(e) => set((p) => { p.settings.continuation = e.target.checked; })} className="mt-0.5 w-4 h-4 accent-[var(--color-accent)]" />
           <span>{t("speech.continuation")}<span className="block text-[11px] text-[var(--color-muted)]">{t("speech.continuationHint")}</span></span>
         </label>
+        )}
         <fieldset className="space-y-2">
           <legend className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)] mb-1">{t("speech.sampling")}</legend>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -106,7 +117,11 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
               );
             })}
           </div>
-          <p className="text-[11px] text-[var(--color-muted)]">{t("speech.samplingDefaults")}</p>
+          <p className="text-[11px] text-[var(--color-muted)]">{t("speech.samplingDefaults", { values: (engine?.params ?? []).filter((spec) => spec.default > 0).map((spec) => {
+            const meta = PARAM_LABEL[spec.key];
+            const name = meta.label.startsWith("speech.") ? t(meta.label as "speech.temperature").toLowerCase() : meta.label;
+            return `${name} ${spec.kind === "int" ? spec.default : spec.default.toLocaleString(i18n.language, { minimumFractionDigits: 2 })}`;
+          }).join(", ") })}</p>
           <div className="flex items-end gap-2">
             <label className={label + " flex-1"}>{t("speech.seed")}
               <select value={s.params.seed_mode} onChange={(e) => set((p) => { p.settings.params.seed_mode = e.target.value as SeedMode; })} className={field}>

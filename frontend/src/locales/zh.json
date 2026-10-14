@@ -872,7 +872,7 @@
     "temperatureHint": "越高越生动但越不稳定；默认 1.0。",
     "topKHint": "从多少个可能的词元中采样；默认 50。",
     "topPHint": "采样的概率比例；默认 0.95。",
-    "samplingDefaults": "默认：温度 1.00，top-k 50，top-p 0.95。",
+    "samplingDefaults": "默认：{{values}}。",
     "seed": "种子",
     "seedValue": "种子",
     "seedNew": "新种子",
@@ -911,7 +911,7 @@
     "stressMissing": "俄语重音模型（RUAccent，34 MB）尚未下载。",
     "openModels": "打开“模型”",
     "autoStress": "配音前标注重音和 ё（俄语）",
-    "autoStressHint": "俄语文本块在合成前加上 ё 和重音；引擎读取它能理解的部分（Higgs 读取 ё，但不读重音符号）",
+    "autoStressHint": "俄语文本块在合成前加上 ё 和重音；引擎读取它能理解的部分（本地引擎读取 ё，但不读重音符号）",
     "stressDoubt": "模型不确定：请试听后选择",
     "howRead": "将如何朗读",
     "dictionary": "词典",
@@ -1014,7 +1014,8 @@
     "cloudModelDefault": "在“云端”中选择的模型",
     "cloudVoice": "声音",
     "cloudVoiceDefault": "在“云端”中选择的声音，或模型的声音名称",
-    "cloudHint": "每个文本块由云端模型配音，需付费；文本块的指示作为风格发送。不使用库中的声音和重音符号。"
+    "cloudHint": "每个文本块由云端模型配音，需付费；文本块的指示作为风格发送。不使用库中的声音和重音符号。",
+    "engineUnavailable": "此处不可用"
   },
   "tags": {
     "emotion": "情绪",

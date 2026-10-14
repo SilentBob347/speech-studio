@@ -58,6 +58,8 @@ fn engine_tag(p: &SpeechPaths, project: &SpeechProject) -> String {
     if project.settings.engine == "openrouter" {
         let (m, v) = crate::cloud_tts::model_and_voice(&p.models_root, &project.settings.cloud_model, &project.settings.cloud_voice).unwrap_or_default();
         format!("openrouter:{m}:{v}")
+    } else if project.settings.engine == crate::models::DRAMA_TTS {
+        crate::models::DRAMA_TTS.to_string()
     } else {
         format!("higgs:{}", higgs_config(p).quant)
     }
@@ -157,11 +159,14 @@ fn synth_block(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Block, n
     if project.settings.engine == "openrouter" {
         return synth_block_cloud(p, project, b, n);
     }
-    let cfg = higgs_config(p);
-    let engine = tts_host::engine(&cfg)?;
+    let drama = project.settings.engine == crate::models::DRAMA_TTS;
     let voice = project.voice_of(b);
+    if drama && voice.is_none() {
+        return Err(t!("drama-needs-voice"));
+    }
+    let engine = if drama { tts_host::drama(&p.models_root)? } else { tts_host::engine(&higgs_config(p))? };
     let limit = ref_limit(&p.models_root);
-    let continued = sp::continuation_source(project, b).filter(|(_, t)| t.duration > 0.5 && t.duration <= limit + 0.5);
+    let continued = sp::continuation_source(project, b).filter(|(_, t)| !drama && t.duration > 0.5 && t.duration <= limit + 0.5);
     let reference = match (continued, voice.as_deref()) {
         (Some((src, take)), _) => Some(continuation_ref(&takes_dir(p, pid), take, &src.text)?),
         (None, Some(v)) => Some(tts_host::prepare_ref(&p.voices_dir, v, limit)?),
@@ -186,7 +191,7 @@ fn synth_block(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Block, n
             Piece::Pause(ms) => out.extend(std::iter::repeat_n(0.0, (SR as u64 * ms as u64 / 1000) as usize)),
             Piece::Rate(r) => rate = r,
             Piece::Say(text) => {
-                let (say, ig) = stx::for_higgs(&text, lang);
+                let (say, ig) = stx::for_engine(&text, lang, &project.settings.engine);
                 ignored.accent |= ig.accent;
                 ignored.phonemes |= ig.phonemes;
                 ignored.stress |= ig.stress;

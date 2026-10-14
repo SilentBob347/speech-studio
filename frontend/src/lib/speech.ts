@@ -22,6 +22,7 @@ export type EngineCaps = {
   id: string; name: string; languages: string[]; params: ParamSpec[]; seed_modes: SeedMode[]; tag_format: string;
   clone: string; continuation: boolean; streaming: boolean; deterministic_seed: boolean; max_chars: number;
   reads: { stress: boolean; yo: boolean; phonemes: boolean; accent: boolean };
+  unavailable: string | null;
 };
 export type Loudness = "off" | "video" | "podcast" | "acx";
 export type SpeechSettings = {

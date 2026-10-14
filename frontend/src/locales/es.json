@@ -872,7 +872,7 @@
     "temperatureHint": "Más alta es más viva y menos estable; 1,0 por defecto.",
     "topKHint": "De cuántos tokens probables se elige; 50 por defecto.",
     "topPHint": "Parte de la probabilidad de la que se elige; 0,95 por defecto.",
-    "samplingDefaults": "Por defecto: temperatura 1,00, top-k 50, top-p 0,95.",
+    "samplingDefaults": "Por defecto: {{values}}.",
     "seed": "Semilla",
     "seedValue": "Semilla",
     "seedNew": "Nueva semilla",
@@ -911,7 +911,7 @@
     "stressMissing": "El modelo de acentos rusos (RUAccent, 34 MB) aún no está descargado.",
     "openModels": "Abrir Modelos",
     "autoStress": "Acentos y ё antes de locutar (ruso)",
-    "autoStressHint": "Los bloques en ruso reciben ё y acentos antes de la síntesis; el motor usa lo que entiende (Higgs lee la ё, no las marcas de acento)",
+    "autoStressHint": "Los bloques en ruso reciben ё y acentos antes de la síntesis; el motor usa lo que entiende (los motores locales leen la ё, no las marcas de acento)",
     "stressDoubt": "El modelo no está seguro: escucha y elige",
     "howRead": "Cómo se leerá",
     "dictionary": "Diccionario",
@@ -1014,7 +1014,8 @@
     "cloudModelDefault": "El modelo elegido en Nube",
     "cloudVoice": "Voz",
     "cloudVoiceDefault": "La voz elegida en Nube o un nombre de voz del modelo",
-    "cloudHint": "Cada bloque lo locuta el modelo en la nube y cuesta dinero; la indicación del bloque va como estilo. No se usan las voces de la biblioteca ni las marcas de acento."
+    "cloudHint": "Cada bloque lo locuta el modelo en la nube y cuesta dinero; la indicación del bloque va como estilo. No se usan las voces de la biblioteca ni las marcas de acento.",
+    "engineUnavailable": "no disponible aquí"
   },
   "tags": {
     "emotion": "Emoción",

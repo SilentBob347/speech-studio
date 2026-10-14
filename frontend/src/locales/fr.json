@@ -872,7 +872,7 @@
     "temperatureHint": "Plus haute, plus vivante et moins stable ; 1,0 par défaut.",
     "topKHint": "Parmi combien de jetons probables choisir ; 50 par défaut.",
     "topPHint": "Part de probabilité dans laquelle choisir ; 0,95 par défaut.",
-    "samplingDefaults": "Par défaut : température 1,00, top-k 50, top-p 0,95.",
+    "samplingDefaults": "Par défaut : {{values}}.",
     "seed": "Graine",
     "seedValue": "Graine",
     "seedNew": "Nouvelle graine",
@@ -911,7 +911,7 @@
     "stressMissing": "Le modèle d’accentuation russe (RUAccent, 34 Mo) n’est pas encore téléchargé.",
     "openModels": "Ouvrir Modèles",
     "autoStress": "Accents et ё avant la voix (russe)",
-    "autoStressHint": "Les blocs russes reçoivent ё et les accents avant la synthèse ; le moteur lit ce qu’il comprend (Higgs lit ё, pas les marques d’accent)",
+    "autoStressHint": "Les blocs russes reçoivent ё et les accents avant la synthèse ; le moteur lit ce qu’il comprend (les moteurs locaux lisent ё, pas les marques d’accent)",
     "stressDoubt": "Le modèle hésite : écoutez et choisissez",
     "howRead": "Comment ce sera lu",
     "dictionary": "Dictionnaire",
@@ -1014,7 +1014,8 @@
     "cloudModelDefault": "Le modèle choisi dans Cloud",
     "cloudVoice": "Voix",
     "cloudVoiceDefault": "La voix choisie dans Cloud ou un nom de voix du modèle",
-    "cloudHint": "Chaque bloc est dit par le modèle cloud et coûte de l’argent ; l’indication du bloc lui est envoyée comme style. Les voix de la bibliothèque et les accents ne sont pas utilisés."
+    "cloudHint": "Chaque bloc est dit par le modèle cloud et coûte de l’argent ; l’indication du bloc lui est envoyée comme style. Les voix de la bibliothèque et les accents ne sont pas utilisés.",
+    "engineUnavailable": "indisponible ici"
   },
   "tags": {
     "emotion": "Émotion",
