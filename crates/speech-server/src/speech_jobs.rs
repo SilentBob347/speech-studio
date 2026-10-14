@@ -114,6 +114,7 @@ fn synth_block(p: &SpeechPaths, project: &SpeechProject, b: &Block, n: u32) -> R
     let mut ignored = stx::Ignored::default();
     let (mut seed, mut temperature, mut secs, mut retried) = (0u64, project.settings.params.temperature, 0.0, Vec::new());
     let fresh = seed_for(&b.id, n);
+    let params = take_params(&project.settings.params, n);
     let entries = dictionary(p, project);
     let stress = project.settings.auto_stress && crate::stress::is_russian(&b.text, &project.settings.lang);
     let text = crate::prep::prepare(&b.text, &prep_opts(p, project, voice.as_deref(), &entries, stress)).map_err(|e| t!("stress-failed", detail = e))?.text;
@@ -133,7 +134,7 @@ fn synth_block(p: &SpeechPaths, project: &SpeechProject, b: &Block, n: u32) -> R
                     lang,
                     ref_wav: reference.as_ref().map(|(w, _)| w.as_path()),
                     ref_text: reference.as_ref().and_then(|(_, t)| t.as_deref()),
-                    params: &project.settings.params,
+                    params: &params,
                     fresh_seed: fresh.wrapping_add(k as u64),
                 };
                 let s = tts_host::synth(&engine, &req)?;
@@ -153,6 +154,19 @@ fn synth_block(p: &SpeechPaths, project: &SpeechProject, b: &Block, n: u32) -> R
     }
     let take = Take { n, seed, temperature, created: sp::now(), source: "synth".into(), synth_secs: secs, retried, duration: out.len() as f64 / SR as f64, ..Default::default() };
     Ok((out, serde_json::to_value(&ignored).unwrap_or(Value::Null), take))
+}
+
+/// Параметры дубля `n`: при сиде «+1» / «−1» сид сдвигается на номер дубля и дальше фиксирован.
+fn take_params(base: &tts_host::Params, n: u32) -> tts_host::Params {
+    let mut p = base.clone();
+    let range = tts_host::SEED_RANGE;
+    let shift = u64::from(n.saturating_sub(1)) % range;
+    match p.seed_mode.as_str() {
+        "inc" => p.seed = (p.seed + shift) % range,
+        "dec" => p.seed = (p.seed + range - shift) % range,
+        _ => {}
+    }
+    p
 }
 
 fn write_flac(samples: &[f32], dst: &Path) -> Result<(), String> {
@@ -268,6 +282,10 @@ pub fn synth(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Value)
     let order: Vec<String> = project.blocks().map(|b| b.id.clone()).collect();
     let start = scope.from.as_ref().and_then(|f| order.iter().position(|id| id == f)).unwrap_or(0);
     let wanted: Vec<String> = order[start..].iter().filter(|id| scope.ids.as_ref().is_none_or(|ids| ids.contains(id))).cloned().collect();
+    let engine = crate::engines::get(&project.settings.engine).ok_or_else(|| t!("speech-engine-unknown", engine = project.settings.engine.clone()))?;
+    if !crate::engines::supports(&engine, &project.settings.lang) {
+        return Err(t!("speech-lang-unsupported", lang = project.settings.lang.to_uppercase(), engine = engine.name.to_string()));
+    }
     if project.settings.auto_stress && wanted.iter().any(|id| project.blocks().any(|b| &b.id == id && crate::stress::is_russian(&b.text, &project.settings.lang))) {
         crate::ensure_components(&p.repo_root, &[crate::stress::COMPONENT, "onnxruntime"], &|ev| progress(ev))?;
     }

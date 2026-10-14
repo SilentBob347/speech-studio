@@ -266,6 +266,11 @@ pub async fn save_export(State(st): State<AppState>, AxPath(pid): AxPath<String>
     }
 }
 
+/// GET /engines — капабилити-манифест движков: окно строит из него контролы.
+pub async fn engines() -> Json<Value> {
+    Json(json!({ "engines": crate::engines::all() }))
+}
+
 /// GET /engine/tags — теги экспрессии движка по категориям (окно строит из них палитру вставки).
 pub async fn tags() -> Json<Value> {
     let cats: Vec<Value> = crate::speech_text::HIGGS_TAGS.iter().map(|(c, values)| json!({ "category": c, "values": values })).collect();

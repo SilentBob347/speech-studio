@@ -768,3 +768,5 @@ dict-bad-kind = 未知的词典条目类型：{ $kind }
 dict-empty-find = 词典条目没有指定要查找的内容
 dict-bad-pattern = 词典条目的模式有误：{ $detail }
 dict-import-unknown = { $name } 不是 Balabolka 词典（.dic、.rex 或 .bxd）
+speech-engine-unknown = 未知的合成引擎：{ $engine }
+speech-lang-unsupported = { $engine } 不支持 { $lang }：请在项目设置中选择其他语言或“自动”

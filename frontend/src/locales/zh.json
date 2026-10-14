@@ -890,8 +890,6 @@
     "topPHint": "采样的概率比例；默认 0.95。",
     "samplingDefaults": "默认：温度 1.00，top-k 50，top-p 0.95。",
     "seed": "种子",
-    "seedRandom": "每次随机",
-    "seedFixed": "固定",
     "seedValue": "种子",
     "seedNew": "新种子",
     "pauses": "段落之间的停顿",
@@ -936,7 +934,14 @@
     "dictionary": "词典",
     "dictionaryHint": "项目和通用的发音词典",
     "normalize": "配音前将数字、日期和单位转为文字（俄语）",
-    "normalizeHint": "数字、日期、时间、金额和单位以正确的格的文字读出；可见文本不变"
+    "normalizeHint": "数字、日期、时间、金额和单位以正确的格的文字读出；可见文本不变",
+    "maxTokens": "最大 token 数",
+    "maxTokensHint": "回答的 token 上限；0 表示按文本长度",
+    "seed_random": "随机",
+    "seed_fixed": "固定",
+    "seed_inc": "每个版本 +1",
+    "seed_dec": "每个版本 −1",
+    "langNotByEngine": "{{engine}} 不支持"
   },
   "tags": {
     "emotion": "情绪",

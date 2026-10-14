@@ -1,11 +1,19 @@
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Dices, X } from "lucide-react";
-import type { Loudness, SpeechProject } from "../../lib/speech";
+import { speechApi, type EngineCaps, type Loudness, type ParamSpec, type SeedMode, type SpeechProject } from "../../lib/speech";
 import { named } from "../../lib/a11y";
 import { useEscapeLayer } from "../../lib/escape";
 import { LANG_CHOICES } from "./langs";
 
 const LOUDNESS: Loudness[] = ["video", "podcast", "acx", "off"];
+let enginesCache: EngineCaps[] | null = null;
+const PARAM_LABEL: Record<ParamSpec["key"], { label: string; hint: string }> = {
+  temperature: { label: "speech.temperature", hint: "speech.temperatureHint" },
+  top_k: { label: "top-k", hint: "speech.topKHint" },
+  top_p: { label: "top-p", hint: "speech.topPHint" },
+  max_tokens: { label: "speech.maxTokens", hint: "speech.maxTokensHint" },
+};
 const field = "mt-1 w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md px-2 py-1.5 text-[13px] mono";
 const label = "block text-[12px] text-[var(--color-muted)]";
 
@@ -14,6 +22,12 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
   const { t } = useTranslation();
   useEscapeLayer(onClose);
   const s = project.settings;
+  const [engines, setEngines] = useState<EngineCaps[] | null>(enginesCache);
+  useEffect(() => {
+    if (enginesCache) return;
+    speechApi.engines().then((r) => { enginesCache = r.engines; setEngines(r.engines); }, () => undefined);
+  }, []);
+  const engine = engines?.find((e) => e.id === s.engine) ?? null;
   const set = (f: (p: SpeechProject) => void) => onChange((p) => { f(p); return p; });
   const num = (v: string, lo: number, hi: number, fallback: number) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : fallback; };
   return (
@@ -25,7 +39,10 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
         </div>
         <label className={label}>{t("speech.lang")}
           <select value={s.lang} onChange={(e) => set((p) => { p.settings.lang = e.target.value; })} className={field}>
-            {LANG_CHOICES.map((l) => <option key={l} value={l}>{l === "auto" ? t("speech.langAuto") : l.toUpperCase()}</option>)}
+            {LANG_CHOICES.map((l) => {
+              const off = !!engine && l !== "auto" && !engine.languages.includes(l);
+              return <option key={l} value={l} disabled={off}>{l === "auto" ? t("speech.langAuto") : l.toUpperCase()}{off ? ` — ${t("speech.langNotByEngine", { engine: engine.name })}` : ""}</option>;
+            })}
           </select>
         </label>
         <label className="flex items-start gap-2 text-[13px] cursor-pointer">
@@ -38,26 +55,25 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
         </label>
         <fieldset className="space-y-2">
           <legend className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)] mb-1">{t("speech.sampling")}</legend>
-          <div className="grid grid-cols-3 gap-2">
-            <label className={label} title={t("speech.temperatureHint")}>{t("speech.temperature")}
-              <input type="number" step={0.05} min={0.05} max={2} value={s.params.temperature} onChange={(e) => set((p) => { p.settings.params.temperature = num(e.target.value, 0.05, 2, 1); })} className={field} />
-            </label>
-            <label className={label} title={t("speech.topKHint")}>top-k
-              <input type="number" step={1} min={1} max={500} value={s.params.top_k} onChange={(e) => set((p) => { p.settings.params.top_k = Math.round(num(e.target.value, 1, 500, 50)); })} className={field} />
-            </label>
-            <label className={label} title={t("speech.topPHint")}>top-p
-              <input type="number" step={0.01} min={0.05} max={1} value={s.params.top_p} onChange={(e) => set((p) => { p.settings.params.top_p = num(e.target.value, 0.05, 1, 0.95); })} className={field} />
-            </label>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {(engine?.params ?? []).map((spec) => {
+              const meta = PARAM_LABEL[spec.key];
+              return (
+                <label key={spec.key} className={label} title={t(meta.hint as "speech.topKHint")}>{meta.label.startsWith("speech.") ? t(meta.label as "speech.temperature") : meta.label}
+                  <input type="number" step={spec.step} min={spec.min} max={spec.max} value={s.params[spec.key]}
+                    onChange={(e) => set((p) => { const v = num(e.target.value, spec.min, spec.max, spec.default); p.settings.params[spec.key] = spec.kind === "int" ? Math.round(v) : v; })} className={field} />
+                </label>
+              );
+            })}
           </div>
           <p className="text-[11px] text-[var(--color-muted)]">{t("speech.samplingDefaults")}</p>
           <div className="flex items-end gap-2">
             <label className={label + " flex-1"}>{t("speech.seed")}
-              <select value={s.params.seed_mode} onChange={(e) => set((p) => { p.settings.params.seed_mode = e.target.value === "fixed" ? "fixed" : "random"; })} className={field}>
-                <option value="random">{t("speech.seedRandom")}</option>
-                <option value="fixed">{t("speech.seedFixed")}</option>
+              <select value={s.params.seed_mode} onChange={(e) => set((p) => { p.settings.params.seed_mode = e.target.value as SeedMode; })} className={field}>
+                {(engine?.seed_modes ?? ["random", "fixed"]).map((m) => <option key={m} value={m}>{t(`speech.seed_${m}`)}</option>)}
               </select>
             </label>
-            {s.params.seed_mode === "fixed" && (
+            {s.params.seed_mode !== "random" && (
               <>
                 <label className={label + " w-36"}>{t("speech.seedValue")}
                   <input type="number" min={0} max={2147483647} value={s.params.seed} onChange={(e) => set((p) => { p.settings.params.seed = Math.round(num(e.target.value, 0, 2147483647, 42)); })} className={field} />

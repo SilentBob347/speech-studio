@@ -89,14 +89,16 @@ pub struct Params {
     pub temperature: f64,
     pub top_k: u32,
     pub top_p: f64,
-    /// `fixed` — всегда `seed`; `random` — новый на каждый синтез.
+    /// `fixed` — всегда `seed`; `inc` / `dec` — `seed` плюс / минус номер дубля; `random` — новый на каждый синтез.
     pub seed_mode: String,
     pub seed: u64,
+    /// Потолок токенов ответа; 0 — по длине текста.
+    pub max_tokens: u32,
 }
 
 impl Default for Params {
     fn default() -> Self {
-        Params { temperature: 1.0, top_k: 50, top_p: 0.95, seed_mode: "random".into(), seed: 42 }
+        Params { temperature: 1.0, top_k: 50, top_p: 0.95, seed_mode: "random".into(), seed: 42, max_tokens: 0 }
     }
 }
 
@@ -114,8 +116,11 @@ impl Params {
         if self.seed >= SEED_RANGE {
             return Err(format!("seed {} is outside 0..{SEED_RANGE}", self.seed));
         }
-        if !matches!(self.seed_mode.as_str(), "fixed" | "random") {
-            return Err(format!("seed_mode must be fixed or random, not {}", self.seed_mode));
+        if !matches!(self.seed_mode.as_str(), "fixed" | "random" | "inc" | "dec") {
+            return Err(format!("seed_mode must be fixed, inc, dec or random, not {}", self.seed_mode));
+        }
+        if self.max_tokens > crate::engines::MAX_TOKENS_LIMIT {
+            return Err(format!("max_tokens {} is above {}", self.max_tokens, crate::engines::MAX_TOKENS_LIMIT));
         }
         Ok(())
     }
@@ -236,10 +241,10 @@ fn run_guarded(engine: &Arc<AudiocppEngine>, text: &str, ref_wav: Option<&Path>,
 pub fn synth(engine: &Arc<AudiocppEngine>, req: &Request) -> Result<Synth, String> {
     req.params.checked()?;
     let expected = expected_secs(req.text, req.lang);
-    let cap = token_cap(expected);
+    let cap = if req.params.max_tokens > 0 { req.params.max_tokens as usize } else { token_cap(expected) as usize };
     let timeout = Duration::from_secs(((expected * 8.0).ceil() as u64).max(45));
     let chars = req.text.chars().filter(|c| c.is_alphanumeric()).count();
-    let fixed = req.params.seed_mode == "fixed";
+    let fixed = req.params.seed_mode != "random";
     let tries = if fixed { 1 } else { 3 };
     let mut defects = Vec::new();
     for attempt in 0..tries {

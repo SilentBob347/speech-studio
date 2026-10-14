@@ -890,8 +890,6 @@
     "topPHint": "Share of probability sampled from; 0.95 by default.",
     "samplingDefaults": "Defaults: temperature 1.00, top-k 50, top-p 0.95.",
     "seed": "Seed",
-    "seedRandom": "Random each time",
-    "seedFixed": "Fixed",
     "seedValue": "Seed",
     "seedNew": "New seed",
     "pauses": "Pauses between blocks",
@@ -936,7 +934,14 @@
     "dictionary": "Dictionary",
     "dictionaryHint": "Pronunciation dictionary of the project and of the studio",
     "normalize": "Numbers, dates and units in words before voicing (Russian)",
-    "normalizeHint": "Numbers, dates, times, money and units are read out in words with the right case; the visible text does not change"
+    "normalizeHint": "Numbers, dates, times, money and units are read out in words with the right case; the visible text does not change",
+    "maxTokens": "Max tokens",
+    "maxTokensHint": "Ceiling of the answer in tokens; 0 sets it by the length of the text",
+    "seed_random": "Random",
+    "seed_fixed": "Fixed",
+    "seed_inc": "+1 for each take",
+    "seed_dec": "−1 for each take",
+    "langNotByEngine": "{{engine}} does not speak it"
   },
   "tags": {
     "emotion": "Emotion",

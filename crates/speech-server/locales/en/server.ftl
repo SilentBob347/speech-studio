@@ -972,3 +972,5 @@ dict-bad-kind = Unknown kind of dictionary entry: { $kind }
 dict-empty-find = A dictionary entry has nothing to find
 dict-bad-pattern = The pattern of a dictionary entry is broken: { $detail }
 dict-import-unknown = { $name } is not a Balabolka dictionary (.dic, .rex or .bxd)
+speech-engine-unknown = Unknown synthesis engine: { $engine }
+speech-lang-unsupported = { $engine } does not speak { $lang }: choose another language or Auto in the project settings

@@ -890,8 +890,6 @@
     "topPHint": "Part de probabilité dans laquelle choisir ; 0,95 par défaut.",
     "samplingDefaults": "Par défaut : température 1,00, top-k 50, top-p 0,95.",
     "seed": "Graine",
-    "seedRandom": "Aléatoire à chaque fois",
-    "seedFixed": "Fixe",
     "seedValue": "Graine",
     "seedNew": "Nouvelle graine",
     "pauses": "Pauses entre les blocs",
@@ -936,7 +934,14 @@
     "dictionary": "Dictionnaire",
     "dictionaryHint": "Dictionnaire de prononciation du projet et commun",
     "normalize": "Nombres, dates et unités en toutes lettres avant la voix (russe)",
-    "normalizeHint": "Nombres, dates, heures, montants et unités sont lus en toutes lettres au bon cas ; le texte visible ne change pas"
+    "normalizeHint": "Nombres, dates, heures, montants et unités sont lus en toutes lettres au bon cas ; le texte visible ne change pas",
+    "maxTokens": "Tokens max.",
+    "maxTokensHint": "Plafond de la réponse en tokens ; 0 le règle selon la longueur du texte",
+    "seed_random": "Aléatoire",
+    "seed_fixed": "Fixe",
+    "seed_inc": "+1 à chaque prise",
+    "seed_dec": "−1 à chaque prise",
+    "langNotByEngine": "{{engine}} ne la parle pas"
   },
   "tags": {
     "emotion": "Émotion",

@@ -966,3 +966,5 @@ dict-bad-kind = Type d’entrée inconnu : { $kind }
 dict-empty-find = Une entrée du dictionnaire n’indique rien à chercher
 dict-bad-pattern = Le motif d’une entrée du dictionnaire contient une erreur : { $detail }
 dict-import-unknown = { $name } n’est pas un dictionnaire Balabolka (.dic, .rex ou .bxd)
+speech-engine-unknown = Moteur de synthèse inconnu : { $engine }
+speech-lang-unsupported = { $engine } ne parle pas { $lang } : choisissez une autre langue ou Auto dans les réglages du projet

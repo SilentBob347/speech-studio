@@ -12,7 +12,14 @@ export type Block = {
   hidden: boolean; takes: Take[]; active: number | null; pinned: number | null; error: { key: string; text: string } | null;
 };
 export type Chapter = { id: string; title: string; blocks: Block[] };
-export type SpeechParams = { temperature: number; top_k: number; top_p: number; seed_mode: "fixed" | "random"; seed: number };
+export type SeedMode = "fixed" | "random" | "inc" | "dec";
+export type SpeechParams = { temperature: number; top_k: number; top_p: number; seed_mode: SeedMode; seed: number; max_tokens: number };
+export type ParamSpec = { key: "temperature" | "top_k" | "top_p" | "max_tokens"; kind: "float" | "int"; min: number; max: number; step: number; default: number };
+export type EngineCaps = {
+  id: string; name: string; languages: string[]; params: ParamSpec[]; seed_modes: SeedMode[]; tag_format: string;
+  clone: string; continuation: boolean; streaming: boolean; deterministic_seed: boolean; max_chars: number;
+  reads: { stress: boolean; yo: boolean; phonemes: boolean; accent: boolean };
+};
 export type Loudness = "off" | "video" | "podcast" | "acx";
 export type SpeechSettings = {
   lang: string; engine: string; params: SpeechParams; voice: string | null;
@@ -60,6 +67,7 @@ export const speechApi = {
   synth: (pid: string, scope: { ids?: string[]; from?: string; force?: boolean }) => postCoded<{ job_id: string }>(`/projects/${pid}/synth`, scope),
   exportCheck: (pid: string) => getCoded<{ problems: ExportProblem[] }>(`/projects/${pid}/export-check`),
   export: (pid: string, format: ExportFormat, chapter?: string) => postCoded<{ job_id: string }>(`/projects/${pid}/export`, { format, chapter }),
+  engines: () => getCoded<{ engines: EngineCaps[] }>("/engines"),
   stress: (text: string, lang: string) => postCoded<StressResult>("/text/stress", { text, lang }),
   prepare: (text: string, pid?: string, block?: string) => postCoded<{ prepared: Prepared; stress_applied: boolean; stress_missing: boolean }>("/text/prepare", { text, pid, block }),
   dictionary: () => getCoded<{ entries: DictEntry[] }>("/dictionary"),

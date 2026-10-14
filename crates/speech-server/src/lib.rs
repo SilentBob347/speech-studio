@@ -55,6 +55,7 @@ mod normalize_ru;
 mod pron_dict;
 mod prep;
 mod dict_api;
+mod engines;
 mod tts_host;
 mod url_import;
 mod voice_api;
@@ -449,6 +450,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/url/tool", get(url_import::tool_status))
         .route("/url/tool/update", post(url_import::tool_update))
         .route("/engine/tags", get(speech_api::tags))
+        .route("/engines", get(speech_api::engines))
         .route("/text/stress", post(speech_api::stress))
         .route("/text/prepare", post(dict_api::prepare))
         .route("/dictionary", get(dict_api::get_global).put(dict_api::put_global))

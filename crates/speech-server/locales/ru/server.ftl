@@ -992,3 +992,5 @@ dict-bad-kind = Неизвестный тип записи словаря: { $ki
 dict-empty-find = В записи словаря не указано, что искать
 dict-bad-pattern = Шаблон записи словаря с ошибкой: { $detail }
 dict-import-unknown = { $name } — не словарь Balabolka (.dic, .rex или .bxd)
+speech-engine-unknown = Неизвестный движок синтеза: { $engine }
+speech-lang-unsupported = { $engine } не говорит на языке { $lang }: выберите другой язык или «Авто» в настройках проекта
