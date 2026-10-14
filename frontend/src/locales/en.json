@@ -1547,5 +1547,12 @@
     "whatToDo": "What to do: copy the text, look at the diagnostics or report the problem.",
     "copy": "Copy",
     "diagnostics": "Diagnostics"
+  },
+  "recast": {
+    "title": "A new voice for “{{speaker}}”",
+    "touches": "Blocks it touches: {{n}}, already voiced: {{voiced}}. Blocks with a voice chosen in the block itself do not change.",
+    "keep": "The earlier takes stay in each block’s history, so you can go back by choosing a take; Ctrl+Z takes the voice change back.",
+    "apply": "Change",
+    "applyRevoice": "Change and voice {{n}} again"
   }
 }

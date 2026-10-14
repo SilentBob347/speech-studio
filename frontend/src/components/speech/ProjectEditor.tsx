@@ -11,6 +11,7 @@ import { named } from "../../lib/a11y";
 import { useStore } from "../../store";
 import { usePublishEditor } from "../../lib/editorBridge";
 import ErrorNote from "../ErrorNote";
+import RecastDialog from "./RecastDialog";
 import { CLOUD_ENGINE_NAMES, askCloud, askDirector } from "../../lib/cloudConsent";
 import { flash } from "../../lib/mcpBridge";
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type Announcements, type DragEndEvent, type UniqueIdentifier } from "@dnd-kit/core";
@@ -63,6 +64,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
     } catch (e) { setJobError(errorText(e)); } finally { setCasting(false); }
   };
   const [selected, setSelected] = useState<string[]>([]);
+  const [recast, setRecast] = useState<{ speaker: string; to: string | null } | null>(null);
   const [anchor, setAnchor] = useState<string | null>(null);
 
   const [synthQueue, setQueueList] = useState<QueuedSynth[]>([]);
@@ -92,6 +94,13 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   const stateOf = (b: Block): BlockState => project?.status?.[b.id]?.state ?? "pending";
   const counts = blocks.reduce<Record<string, number>>((acc, b) => { const s = stateOf(b); acc[s] = (acc[s] ?? 0) + 1; return acc; }, {});
   const dirty = (counts.pending ?? 0) + (counts.stale ?? 0) + (counts.failed ?? 0);
+  // the blocks a character's voice reaches: theirs, without a voice of their own
+  const castBlocks = (speaker: string) => blocks.filter((b) => b.speaker === speaker && !b.voice && !b.hidden);
+  const setCast = (speaker: string, v: string | null) => edit((p) => { if (v) p.cast[speaker] = v; else delete p.cast[speaker]; return p; });
+  const castVoice = (speaker: string, v: string | null) => {
+    if (castBlocks(speaker).some((b) => b.takes.length > 0)) setRecast({ speaker, to: v });
+    else setCast(speaker, v);
+  };
   usePublishEditor({
     kind: "speech",
     pid,
@@ -399,7 +408,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           {speakers.map((s) => (
             <label key={s} className="block text-[11px]">
               <span className="flex items-baseline gap-1.5"><span className="font-semibold" style={{ color: tintOf(s) }}>{s}</span><span className="text-[10px] tabnum text-[var(--color-muted)]">{t("speech.castBlocks", { n: blocks.filter((b) => b.speaker === s && !b.hidden).length })}</span></span>
-              <VoicePicker value={project.cast[s] ?? null} onChange={(v) => edit((p) => { if (v) p.cast[s] = v; else delete p.cast[s]; return p; })} inherit={t("speech.voiceAsProject")} label={t("speech.voiceFor", { speaker: s })}
+              <VoicePicker value={project.cast[s] ?? null} onChange={(v) => castVoice(s, v)} inherit={t("speech.voiceAsProject")} label={t("speech.voiceFor", { speaker: s })}
                 className="mt-1 w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-2 py-1.5 text-[12px]" />
             </label>
           ))}
@@ -438,6 +447,16 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
       </div>
       {history && <HistoryDialog pid={pid} onClose={() => setHistory(false)} onRepeat={(block, seed) => { setHistory(false); void runSynth({ ids: [block], force: true, seed }); }} />}
       {dictionary && <DictionaryDialog pid={pid} project={project} onChange={edit} onClose={() => setDictionary(false)} />}
+      {recast && (
+        <RecastDialog speaker={recast.speaker} from={project.cast[recast.speaker] ?? null} to={recast.to} blocks={castBlocks(recast.speaker)}
+          onApply={(revoice) => {
+            const ids = castBlocks(recast.speaker).map((b) => b.id);
+            setCast(recast.speaker, recast.to);
+            setRecast(null);
+            if (revoice) void runSynth({ ids, force: true });
+          }}
+          onClose={() => setRecast(null)} />
+      )}
       {settings && <ProjectSettings project={project} onChange={edit} onClose={() => setSettings(false)} />}
       {exporting && <ExportDialog pid={pid} project={project} onClose={() => setExporting(false)} onVoiceMissing={() => { setExporting(false); void runSynth({}); }} onDone={(file) => pushActivity(t("speech.exported", { file }), "done")} />}
     </main>

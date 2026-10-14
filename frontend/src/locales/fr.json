@@ -1547,5 +1547,12 @@
     "whatToDo": "Que faire : copiez le texte, consultez le diagnostic ou signalez le problème.",
     "copy": "Copier",
     "diagnostics": "Diagnostic"
+  },
+  "recast": {
+    "title": "Une nouvelle voix pour « {{speaker}} »",
+    "touches": "Blocs concernés : {{n}}, déjà dits : {{voiced}}. Les blocs dont la voix est choisie dans le bloc lui-même ne changent pas.",
+    "keep": "Les prises précédentes restent dans l’historique de chaque bloc : on y revient en choisissant la prise ; Ctrl+Z annule le changement de voix.",
+    "apply": "Changer",
+    "applyRevoice": "Changer et refaire {{n}} voix"
   }
 }
