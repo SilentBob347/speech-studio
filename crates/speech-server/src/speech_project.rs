@@ -96,11 +96,13 @@ pub struct QcSettings {
     pub strictness: String,
     /// Сколько дублей на блок; больше одного — лучший выбирается проверкой.
     pub takes: u32,
+    /// Сверять голос дубля с рефом (WeSpeaker): непохожий — повтор и пометка.
+    pub similarity: bool,
 }
 
 impl Default for QcSettings {
     fn default() -> Self {
-        QcSettings { asr_check: false, strictness: "normal".into(), takes: 1 }
+        QcSettings { asr_check: false, strictness: "normal".into(), takes: 1, similarity: false }
     }
 }
 

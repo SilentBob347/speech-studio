@@ -100,6 +100,11 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
             {t("speech.asrCheck")}
           </label>
           <p className="text-[11px] text-[var(--color-muted)]">{t("speech.asrCheckHint")}</p>
+          <label className="flex items-center gap-2 text-[13px] cursor-pointer">
+            <input type="checkbox" checked={s.qc.similarity} onChange={(e) => set((p) => { p.settings.qc.similarity = e.target.checked; })} className="w-4 h-4 accent-[var(--color-accent)]" />
+            {t("speech.similarityCheck")}
+          </label>
+          <p className="text-[11px] text-[var(--color-muted)]">{t("speech.similarityHint")}</p>
           <div className="grid grid-cols-2 gap-2">
             <label className={label}>{t("speech.strictness")}
               <select value={s.qc.strictness} onChange={(e) => set((p) => { p.settings.qc.strictness = e.target.value as "strict" | "normal" | "lenient"; })} className={field}>

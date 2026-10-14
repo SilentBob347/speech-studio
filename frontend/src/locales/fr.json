@@ -993,7 +993,10 @@
     "queueFrom": "D’un bloc à la fin",
     "queueAll": "Tout ce qui a changé",
     "unqueue": "Retirer de la file",
-    "queueClear": "Vider la file"
+    "queueClear": "Vider la file",
+    "qcSimilarity": "similarité de voix {{s}}",
+    "similarityCheck": "Vérifier que la voix ressemble à sa référence",
+    "similarityHint": "WeSpeaker compare chaque nouvelle prise à la référence de la voix (il faut 0,5 ou plus) ; une prise différente est redite et marquée. Le modèle (26 Mo) est téléchargé au premier usage."
   },
   "tags": {
     "emotion": "Émotion",

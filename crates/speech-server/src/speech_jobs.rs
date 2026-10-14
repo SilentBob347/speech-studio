@@ -348,11 +348,31 @@ fn voice_block(p: &SpeechPaths, pid: &str, id: &str, count: u32, source: &str, p
 }
 
 /// Распознать новые дубли блоков, выбрать лучший по WER; блоки, где проверку не прошёл ни один, — в ответе.
+/// Голос рефа и дубля в одном пространстве WeSpeaker: эмбеддинг 16 кГц моно.
+fn voice_embedding(embedder: &mut dub_faces::VoiceEmbedder, audio: &Path) -> Result<Vec<f32>, String> {
+    let dir = tempfile::Builder::new().prefix("emb-").tempdir().map_err(|e| e.to_string())?;
+    let wav = dir.path().join("16k.wav");
+    crate::media::to_16k_mono(audio, &wav)?;
+    embedder.embed_wav(&wav).map_err(|e| e.to_string())
+}
+
+/// Проверить новые дубли блоков: текст — распознаванием (WER), голос — похожестью на реф; лучший по
+/// «прошёл всё → WER → похожесть» становится активным; блоки, где не прошёл ни один, — в ответе.
 fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, progress: &dyn Fn(Value)) -> Result<Vec<String>, String> {
     if crate::hw::total_vram() < 12 * 1024 * 1024 * 1024 {
         tts_host::unload();
     }
-    crate::ensure_job_components(&p.repo_root, &p.models_root, false, false, &|ev| progress(ev))?;
+    let settings = sp::load(&p.workspace, pid)?.settings;
+    let asr_on = settings.qc.asr_check || settings.qc.takes > 1;
+    let sim_on = settings.qc.similarity;
+    crate::ensure_job_components(&p.repo_root, &p.models_root, sim_on, false, &|ev| progress(ev))?;
+    let mut embedder = if sim_on {
+        Some(dub_faces::VoiceEmbedder::load(&dub_faces::wespeaker_path(&p.models_root)).map_err(|e| e.to_string())?)
+    } else {
+        None
+    };
+    let threshold = dub_faces::voice_cos_threshold() as f64;
+    let mut refs: BTreeMap<String, Vec<f32>> = BTreeMap::new();
     let mut failed = Vec::new();
     for (i, (id, takes)) in made.iter().enumerate() {
         progress(json!({ "type": "progress", "stage": "speech_qc", "msg": t!("speech-qc-block", n = (i + 1) as i64, total = made.len() as i64), "pct": (i * 100 / made.len().max(1)) as i64 }));
@@ -360,16 +380,40 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, pr
         let Some(b) = project.blocks().find(|b| &b.id == id).cloned() else { continue };
         let lang = project.settings.lang.clone();
         let strictness = project.settings.qc.strictness.clone();
+        let voice = project.voice_of(&b);
+        let reference = match (&mut embedder, voice.as_deref()) {
+            (Some(emb), Some(v)) => match refs.get(v) {
+                Some(e) => Some(e.clone()),
+                None => {
+                    let audio = crate::voice_library::audio_path(&p.voices_dir, v).ok_or_else(|| t!("voice-missing", name = v.to_string()))?;
+                    let e = voice_embedding(emb, &audio)?;
+                    refs.insert(v.to_string(), e.clone());
+                    Some(e)
+                }
+            },
+            _ => None,
+        };
         let mut checks: Vec<(u32, crate::qc::Check)> = Vec::new();
         for n in takes {
             let Some(take) = b.takes.iter().find(|t| t.n == *n) else { continue };
-            let heard = crate::asr_util::transcribe(&p.repo_root, &p.models_root, &takes_dir(p, pid).join(&take.file), &lang, &b.id)?;
-            let entries = dictionary(p, &project);
-            let voice = project.voice_of(&b);
-            let expected = crate::prep::prepare(&b.text, &prep_opts(p, &project, voice.as_deref(), &entries, false)).map(|x| x.text).unwrap_or_else(|_| b.text.clone());
-            let heard_said = if crate::prep::block_lang(&b.text, &lang) == "ru" { crate::normalize_ru::normalize(&heard.text).text } else { heard.text.clone() };
-            let mut check = crate::qc::check(&expected, &heard_said, &strictness);
-            check.heard = heard.text.clone();
+            let file = takes_dir(p, pid).join(&take.file);
+            let mut check = if asr_on {
+                let heard = crate::asr_util::transcribe(&p.repo_root, &p.models_root, &file, &lang, &b.id)?;
+                let entries = dictionary(p, &project);
+                let expected = crate::prep::prepare(&b.text, &prep_opts(p, &project, voice.as_deref(), &entries, false)).map(|x| x.text).unwrap_or_else(|_| b.text.clone());
+                let heard_said = if crate::prep::block_lang(&b.text, &lang) == "ru" { crate::normalize_ru::normalize(&heard.text).text } else { heard.text.clone() };
+                let mut c = crate::qc::check(&expected, &heard_said, &strictness);
+                c.heard = heard.text.clone();
+                c
+            } else {
+                crate::qc::Check { passed: true, ..Default::default() }
+            };
+            if let (Some(emb), Some(r)) = (&mut embedder, &reference) {
+                let e = voice_embedding(emb, &file)?;
+                let cos: f64 = e.iter().zip(r).map(|(a, b)| (*a as f64) * (*b as f64)).sum();
+                check.similarity = Some(cos);
+                check.similar = Some(cos >= threshold);
+            }
             checks.push((*n, check));
         }
         let mut fresh = sp::load(&p.workspace, pid)?;
@@ -379,12 +423,13 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, pr
                 t.qc = Some(c.clone());
             }
         }
-        let best = checks.iter().min_by(|a, b| (!a.1.passed, a.1.wer).partial_cmp(&(!b.1.passed, b.1.wer)).unwrap_or(std::cmp::Ordering::Equal));
+        let rank = |c: &crate::qc::Check| (!c.ok(), c.wer, -c.similarity.unwrap_or(0.0));
+        let best = checks.iter().min_by(|a, b| rank(&a.1).partial_cmp(&rank(&b.1)).unwrap_or(std::cmp::Ordering::Equal));
         if let Some((n, c)) = best {
             if block.pinned.is_none() {
                 block.active = Some(*n);
             }
-            if !c.passed {
+            if !c.ok() {
                 failed.push(id.clone());
             }
         }
@@ -449,7 +494,7 @@ fn synth_scope(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Valu
     if project.settings.auto_stress && wanted.iter().any(|id| project.blocks().any(|b| &b.id == id && crate::stress::is_russian(&b.text, &project.settings.lang))) {
         crate::ensure_components(&p.repo_root, &[crate::stress::COMPONENT, "onnxruntime"], &|ev| progress(ev))?;
     }
-    let checking = qc.asr_check || qc.takes > 1;
+    let checking = qc.asr_check || qc.takes > 1 || qc.similarity;
     let (mut done, mut failed, mut skipped) = (0usize, Vec::new(), 0usize);
     let mut made: BTreeMap<String, Vec<u32>> = BTreeMap::new();
     let total = wanted.len();
@@ -490,8 +535,13 @@ fn synth_scope(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Valu
             let mut fresh = sp::load(&p.workspace, pid)?;
             let key = keys(p, &fresh).remove(id).unwrap_or_default();
             if let Some(block) = fresh.block_mut(id) {
-                let heard = block.active.and_then(|n| block.takes.iter().find(|t| t.n == n)).and_then(|t| t.qc.as_ref()).map(|c| c.heard.clone()).unwrap_or_default();
-                block.error = Some(sp::BlockError { key, text: t!("speech-qc-failed", heard = heard) });
+                let qc = block.active.and_then(|n| block.takes.iter().find(|t| t.n == n)).and_then(|t| t.qc.clone()).unwrap_or_default();
+                let text = if qc.text_checked && !qc.passed {
+                    t!("speech-qc-failed", heard = qc.heard.clone())
+                } else {
+                    t!("speech-qc-unlike", similarity = format!("{:.2}", qc.similarity.unwrap_or(0.0)))
+                };
+                block.error = Some(sp::BlockError { key, text });
                 sp::save(&p.workspace, pid, &fresh)?;
             }
         }

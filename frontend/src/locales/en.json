@@ -993,7 +993,10 @@
     "queueFrom": "From a block to the end",
     "queueAll": "Everything changed",
     "unqueue": "Remove from the queue",
-    "queueClear": "Clear the queue"
+    "queueClear": "Clear the queue",
+    "qcSimilarity": "voice similarity {{s}}",
+    "similarityCheck": "Check that the voice sounds like its reference",
+    "similarityHint": "WeSpeaker compares each new take with the voice's reference (needs 0.5 or more); an unlike take is voiced again and marked. The model (26 MB) is downloaded on first use."
   },
   "tags": {
     "emotion": "Emotion",

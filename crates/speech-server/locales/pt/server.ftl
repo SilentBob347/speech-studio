@@ -981,3 +981,4 @@ book-empty = Nenhum texto foi encontrado em { $name }
 book-damaged = O arquivo do livro está danificado ou não é o que o nome diz: { $detail }
 speech-chapter-n = Capítulo { $n }
 export-save-as = Salvar como
+speech-qc-unlike = A voz da tomada não parece a referência (semelhança { $similarity }, precisa 0,5 ou mais): narre de novo ou verifique a referência

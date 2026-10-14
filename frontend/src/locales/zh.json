@@ -993,7 +993,10 @@
     "queueFrom": "从某块到结尾",
     "queueAll": "所有改动",
     "unqueue": "移出队列",
-    "queueClear": "清空队列"
+    "queueClear": "清空队列",
+    "qcSimilarity": "声音相似度 {{s}}",
+    "similarityCheck": "检查声音是否像参考",
+    "similarityHint": "WeSpeaker 将每个新版本与声音参考比较（需 0.5 以上）；不像的版本会重新配音并标记。首次使用时下载模型（26 MB）。"
   },
   "tags": {
     "emotion": "情绪",

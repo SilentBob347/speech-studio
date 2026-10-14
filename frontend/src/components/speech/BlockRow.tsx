@@ -141,7 +141,12 @@ export default function BlockRow({ pid, block, index, state, fit, rendering, pla
               {[take.fit_lead > 0.001 && t("speech.fitLead", { s: take.fit_lead.toFixed(1) }), take.fit_stretch > 1.001 && t("speech.fitStretch", { k: take.fit_stretch.toFixed(2) }), take.fit_over && t("speech.fitOver")].filter(Boolean).join(" · ")}
             </p>
           )}
-          {take?.qc && <p className={`mt-0.5 text-[11px] ${take.qc.passed ? "text-[var(--color-muted)]" : "text-[var(--color-warn)]"}`} title={take.qc.heard}>{t("speech.qcLine", { wer: Math.round(take.qc.wer * 100), ins: take.qc.inserted, del: take.qc.deleted, sub: take.qc.substituted })}</p>}
+          {take?.qc && (
+            <p className={`mt-0.5 text-[11px] ${take.qc.passed && take.qc.similar !== false ? "text-[var(--color-muted)]" : "text-[var(--color-warn)]"}`} title={take.qc.heard || undefined}>
+              {[take.qc.text_checked !== false && t("speech.qcLine", { wer: Math.round(take.qc.wer * 100), ins: take.qc.inserted, del: take.qc.deleted, sub: take.qc.substituted }),
+                take.qc.similarity != null && t("speech.qcSimilarity", { s: take.qc.similarity.toFixed(2) })].filter(Boolean).join(" · ")}
+            </p>
+          )}
           {block.error && state === "failed" && <p role="alert" className="mt-1 text-[11px] text-[#ff8f8f] break-words">{block.error.text}</p>}
           {block.direction && !open && <p className="mt-0.5 text-[11px] text-[var(--color-muted)] italic truncate">{t("speech.directionShort", { text: block.direction })}</p>}
         </div>

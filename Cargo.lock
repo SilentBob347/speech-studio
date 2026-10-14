@@ -1178,6 +1178,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "dub-faces"
+version = "2.0.0"
+source = "git+https://github.com/timoncool/dub-studio?rev=11f909a8e798d56f5f43e0b7ae959d77a05a1866#11f909a8e798d56f5f43e0b7ae959d77a05a1866"
+dependencies = [
+ "dub-asr",
+ "dub-core",
+ "hound",
+ "image",
+ "ndarray",
+ "ort",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "dub-llm"
 version = "2.0.0"
 source = "git+https://github.com/timoncool/dub-studio?rev=11f909a8e798d56f5f43e0b7ae959d77a05a1866#11f909a8e798d56f5f43e0b7ae959d77a05a1866"
@@ -4477,6 +4493,7 @@ dependencies = [
  "dub-asr",
  "dub-captions",
  "dub-core",
+ "dub-faces",
  "dub-llm",
  "dub-sep",
  "dub-translate",

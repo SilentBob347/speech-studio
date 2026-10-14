@@ -15,6 +15,7 @@ dub-llm = { git = "https://github.com/timoncool/dub-studio", rev = "11f909a8e798
 dub-translate = { git = "https://github.com/timoncool/dub-studio", rev = "11f909a8e798d56f5f43e0b7ae959d77a05a1866" }
 dub-captions = { git = "https://github.com/timoncool/dub-studio", rev = "11f909a8e798d56f5f43e0b7ae959d77a05a1866" }
 dub-sep = { git = "https://github.com/timoncool/dub-studio", rev = "11f909a8e798d56f5f43e0b7ae959d77a05a1866" }
+dub-faces = { git = "https://github.com/timoncool/dub-studio", rev = "11f909a8e798d56f5f43e0b7ae959d77a05a1866" }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
 audiocpp = { git = "https://github.com/timoncool/dub-studio", rev = "11f909a8e798d56f5f43e0b7ae959d77a05a1866" }
 hound = "3"

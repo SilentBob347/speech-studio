@@ -993,7 +993,10 @@
     "queueFrom": "De um bloco até o fim",
     "queueAll": "Tudo o que mudou",
     "unqueue": "Tirar da fila",
-    "queueClear": "Limpar a fila"
+    "queueClear": "Limpar a fila",
+    "qcSimilarity": "semelhança de voz {{s}}",
+    "similarityCheck": "Verificar se a voz parece a referência",
+    "similarityHint": "O WeSpeaker compara cada nova tomada com a referência da voz (precisa 0,5 ou mais); uma tomada diferente é narrada de novo e marcada. O modelo (26 MB) é baixado no primeiro uso."
   },
   "tags": {
     "emotion": "Emoção",

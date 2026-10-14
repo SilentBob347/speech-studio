@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 #[serde(default)]
 pub struct Check {
+    /// Текст сверен распознаванием (иначе — только похожесть голоса).
+    pub text_checked: bool,
     pub wer: f64,
     pub words: usize,
     pub inserted: usize,
@@ -14,6 +16,16 @@ pub struct Check {
     pub substituted: usize,
     pub heard: String,
     pub passed: bool,
+    /// Косинус голоса дубля и рефа (WeSpeaker); `similar` — не ниже порога «тот же голос».
+    pub similarity: Option<f64>,
+    pub similar: Option<bool>,
+}
+
+impl Check {
+    /// Прошёл всё, что проверялось.
+    pub fn ok(&self) -> bool {
+        self.passed && self.similar != Some(false)
+    }
 }
 
 pub fn normalize(text: &str) -> Vec<String> {
@@ -81,7 +93,7 @@ pub fn check(expected: &str, heard: &str, strictness: &str) -> Check {
     let h = normalize(heard);
     let (inserted, deleted, substituted) = word_ops(&e, &h);
     let wer = if e.is_empty() { if h.is_empty() { 0.0 } else { 1.0 } } else { (inserted + deleted + substituted) as f64 / e.len() as f64 };
-    Check { wer, words: e.len(), inserted, deleted, substituted, heard: heard.to_string(), passed: wer <= threshold(e.len(), strictness) }
+    Check { text_checked: true, wer, words: e.len(), inserted, deleted, substituted, heard: heard.to_string(), passed: wer <= threshold(e.len(), strictness), similarity: None, similar: None }
 }
 
 #[cfg(test)]

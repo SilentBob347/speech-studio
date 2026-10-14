@@ -783,3 +783,4 @@ book-empty = 在 { $name } 中没有找到文本
 book-damaged = 书籍文件已损坏或与扩展名不符：{ $detail }
 speech-chapter-n = 第 { $n } 章
 export-save-as = 另存为
+speech-qc-unlike = 该版本的声音与参考不像（相似度 { $similarity }，需要 0.5 以上）：请重新配音或检查参考

@@ -5,8 +5,8 @@ export type Take = {
   source: string; synth_secs: number; retried: string[];
   qc: QcCheck | null; text: string; direction: string; fit_stretch: number; fit_lead: number; fit_over: boolean;
 };
-export type QcCheck = { wer: number; words: number; inserted: number; deleted: number; substituted: number; heard: string; passed: boolean };
-export type QcSettings = { asr_check: boolean; strictness: "strict" | "normal" | "lenient"; takes: number };
+export type QcCheck = { text_checked: boolean; wer: number; words: number; inserted: number; deleted: number; substituted: number; heard: string; passed: boolean; similarity: number | null; similar: boolean | null };
+export type QcSettings = { asr_check: boolean; strictness: "strict" | "normal" | "lenient"; takes: number; similarity: boolean };
 export type Block = {
   id: string; speaker: string; voice: string | null; text: string; direction: string; pause_ms: number | null;
   hidden: boolean; takes: Take[]; active: number | null; pinned: number | null; error: { key: string; text: string } | null;
