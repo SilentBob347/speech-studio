@@ -152,7 +152,12 @@
     "bench": "Benchmark des étapes",
     "benchHint": "Mesure temps/GPU/VRAM par étape -> bench.json + lignes ⏱ dans le journal. Échantillonnage léger en arrière-plan chaque seconde.",
     "roleText": "Préparation du texte · accents",
-    "dramaNote": "Drama 3 est réservé aux cartes graphiques de 24 Go et plus ; un projet la choisit dans ses réglages, Moteur."
+    "dramaNote": "Drama 3 est réservé aux cartes graphiques de 24 Go et plus ; un projet la choisit dans ses réglages, Moteur.",
+    "dlTitle": "Télécharger « {{name}} » ?",
+    "dlSize": "{{size}} à télécharger, {{need}} nécessaires sur le disque (avec la décompression).",
+    "dlFree": "{{free}} libres.",
+    "dlNoSpace": "Seulement {{free}} libres : libérez de la place ou choisissez un autre dossier de modèles.",
+    "dlVram": "Le modèle occupe environ {{vram}} de mémoire vidéo."
   },
   "secrets": {
     "orTitle": "Clé OpenRouter",
