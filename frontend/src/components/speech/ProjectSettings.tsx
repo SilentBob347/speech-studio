@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Dices, X } from "lucide-react";
-import { speechApi, type EngineCaps, type Loudness, type ParamSpec, type SeedMode, type SpeechProject } from "../../lib/speech";
+import { useEngines } from "../../lib/engines";
+import { type Loudness, type ParamSpec, type SeedMode, type SpeechProject } from "../../lib/speech";
 import { named } from "../../lib/a11y";
 import { useEscapeLayer } from "../../lib/escape";
 import { LANG_CHOICES } from "./langs";
@@ -15,12 +16,13 @@ import { openSettings } from "../../lib/settingsNav";
 const RU_MARK = "RU";
 
 const LOUDNESS: Loudness[] = ["video", "podcast", "acx", "off"];
-let enginesCache: EngineCaps[] | null = null;
 const PARAM_LABEL: Record<ParamSpec["key"], { label: string; hint: string }> = {
   temperature: { label: "speech.temperature", hint: "speech.temperatureHint" },
   top_k: { label: "top-k", hint: "speech.topKHint" },
   top_p: { label: "top-p", hint: "speech.topPHint" },
   max_tokens: { label: "speech.maxTokens", hint: "speech.maxTokensHint" },
+  steps: { label: "speech.steps", hint: "speech.stepsHint" },
+  speed: { label: "speech.speed", hint: "speech.speedHint" },
 };
 const field = "mt-1 w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md px-2 py-1.5 text-[13px] mono";
 const label = "block text-[12px] text-[var(--color-muted)]";
@@ -30,11 +32,7 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
   const { t, i18n } = useTranslation();
   useEscapeLayer(onClose);
   const s = project.settings;
-  const [engines, setEngines] = useState<EngineCaps[] | null>(enginesCache);
-  useEffect(() => {
-    if (enginesCache) return;
-    speechApi.engines().then((r) => { enginesCache = r.engines; setEngines(r.engines); }, () => undefined);
-  }, []);
+  const engines = useEngines();
   const engine = engines?.find((e) => e.id === s.engine) ?? null;
   const local = !["openrouter", "google", "fal", "runware"].includes(s.engine);
   const blocks = project.chapters.flatMap((c) => c.blocks).filter((b) => !b.hidden && b.text.trim());
@@ -83,6 +81,8 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
               p.settings.cloud_values = {};
               const next = engines?.find((en) => en.id === e.target.value);
               for (const spec of next?.params ?? []) p.settings.params[spec.key] = spec.default;
+              const own = next?.presets ?? [];
+              if (own.length && !own.some((v) => v.id === p.settings.voice)) p.settings.voice = own[0].id;
             })} className={field}>
               {(engines ?? []).map((en) => <option key={en.id} value={en.id} disabled={!!en.unavailable && en.id !== s.engine}>{en.name}{en.unavailable ? ` — ${t("speech.engineUnavailable")}` : ""}</option>)}
             </select>

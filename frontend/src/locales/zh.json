@@ -1052,7 +1052,16 @@
     "partsEvery": "每部分 {{h}} 小时",
     "partsHint": "按章节边界切分，每部分有自己的章节、文本和字幕。",
     "partN": "第 {{n}} 部分 · {{h}} 小时",
-    "saveTimings": "带时间的文本（JSON）"
+    "saveTimings": "带时间的文本（JSON）",
+    "steps": "步数",
+    "stepsHint": "Supertonic 的流步数：越多声音越干净，合成越慢",
+    "speed": "语速",
+    "speedHint": "语速：1.0 为训练时的速度，越大越快",
+    "voiceNotPreset": "{{name}} 是声音库中的声音，不适用于此引擎",
+    "native_en": "母语英语",
+    "native_zh": "母语中文",
+    "native_ja": "母语日语",
+    "native_ko": "母语韩语"
   },
   "tags": {
     "emotion": "情绪",

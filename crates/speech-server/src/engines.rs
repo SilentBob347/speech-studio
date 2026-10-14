@@ -32,7 +32,7 @@ pub struct Engine {
     pub seed_modes: &'static [&'static str],
     pub tag_format: &'static str,
     pub tags: Vec<(&'static str, &'static [&'static str])>,
-    /// `ref_text` — реф и его транскрипт; `timbre` — только тембр.
+    /// `ref_text` — реф и его транскрипт; `timbre` — только тембр; `none` — только свои голоса (`presets`).
     pub clone: &'static str,
     pub continuation: bool,
     pub streaming: bool,
@@ -40,8 +40,19 @@ pub struct Engine {
     /// Сколько знаков блока движок берёт за раз; длиннее — режется на фразы.
     pub max_chars: usize,
     pub reads: Reads,
+    /// Голоса самого движка: у движка без клона голос блока — один из них.
+    pub presets: Vec<Preset>,
     /// Почему движок на этой машине не пойдёт (видеокарта, файлы); None — доступен.
     pub unavailable: Option<String>,
+}
+
+/// A voice the engine carries: its id, the name it is shown by, `female` or `male`, and its native language (empty — any).
+#[derive(Serialize, Clone, Debug)]
+pub struct Preset {
+    pub id: &'static str,
+    pub name: &'static str,
+    pub gender: &'static str,
+    pub native: &'static str,
 }
 
 /// Языки Higgs Audio v3 — список `language` карточки `bosonai/higgs-audio-v3-tts-4b`.
@@ -75,6 +86,7 @@ pub fn higgs() -> Engine {
         deterministic_seed: true,
         max_chars: 400,
         reads: Reads { stress: false, yo: true, phonemes: false, accent: false },
+        presets: Vec::new(),
         unavailable: None,
     }
 }
@@ -95,6 +107,7 @@ pub fn openrouter() -> Engine {
         deterministic_seed: false,
         max_chars: 1000,
         reads: Reads { stress: false, yo: true, phonemes: false, accent: false },
+        presets: Vec::new(),
         unavailable: None,
     }
 }
@@ -122,6 +135,34 @@ pub fn drama() -> Engine {
         deterministic_seed: true,
         max_chars: 400,
         reads: Reads { stress: false, yo: true, phonemes: false, accent: false },
+        presets: Vec::new(),
+        unavailable: None,
+    }
+}
+
+
+/// Supertonic 3: десять голосов движка (F1–F5, M1–M5), 31 язык, клона нет; шаги потока и скорость — параметры
+/// официального рантайма (8 и 1,05).
+pub fn supertonic() -> Engine {
+    let preset = |id: &'static str| Preset { id, name: id, gender: if id.starts_with('F') { "female" } else { "male" }, native: "" };
+    Engine {
+        id: crate::supertonic::ENGINE,
+        name: "Supertonic 3",
+        languages: crate::supertonic::LANGS,
+        params: vec![
+            ParamSpec { key: "steps", kind: "int", min: 1.0, max: 32.0, step: 1.0, default: crate::supertonic::DEFAULT_STEPS as f64 },
+            ParamSpec { key: "speed", kind: "float", min: 0.5, max: 2.0, step: 0.05, default: crate::supertonic::DEFAULT_SPEED },
+        ],
+        seed_modes: &["random", "fixed", "inc", "dec"],
+        tag_format: "",
+        tags: Vec::new(),
+        clone: "none",
+        continuation: false,
+        streaming: false,
+        deterministic_seed: true,
+        max_chars: crate::supertonic::MAX_CHARS,
+        reads: Reads { stress: false, yo: true, phonemes: false, accent: false },
+        presets: crate::supertonic::VOICES.iter().map(|v| preset(v)).collect(),
         unavailable: None,
     }
 }
@@ -132,14 +173,18 @@ pub fn catalog(id: &'static str, name: &'static str) -> Engine {
 }
 
 pub fn all() -> Vec<Engine> {
-    vec![higgs(), drama(), openrouter(), catalog("google", "Google Gemini"), catalog("fal", "fal.ai"), catalog("runware", "Runware")]
+    vec![higgs(), drama(), supertonic(), openrouter(), catalog("google", "Google Gemini"), catalog("fal", "fal.ai"), catalog("runware", "Runware")]
 }
 
-/// Движки для окна: у Drama 3 — почему она здесь не пойдёт (видеокарта или нескачанные файлы).
+/// Движки для окна: у Drama 3 и Supertonic — почему они здесь не пойдут (видеокарта или нескачанные файлы).
 pub fn for_window(models_root: &std::path::Path) -> Vec<Engine> {
     let mut all = all();
-    for e in all.iter_mut().filter(|e| e.id == crate::models::DRAMA_TTS) {
-        e.unavailable = crate::models::drama_unavailable().or_else(|| (!crate::models::drama_installed(models_root)).then(|| t!("render-drama-missing")));
+    for e in all.iter_mut() {
+        if e.id == crate::models::DRAMA_TTS {
+            e.unavailable = crate::models::drama_unavailable().or_else(|| (!crate::models::drama_installed(models_root)).then(|| t!("render-drama-missing")));
+        } else if e.id == crate::supertonic::ENGINE && !crate::supertonic::installed(models_root) {
+            e.unavailable = Some(t!("render-supertonic-missing"));
+        }
     }
     all
 }

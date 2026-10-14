@@ -534,6 +534,34 @@ const DRAMA3_MARKERS: &[Marker] = &[
     Marker { rel: platform::DRAMA_ENGINE.dest_rel, expect: platform::DRAMA_ENGINE.size },
 ];
 
+/// Supertonic 3 int8 (askurios8, weight-only int8 of Supertone/supertonic-3; Open RAIL-M): four ONNX graphs, the text
+/// indexer and the ten preset voices.
+const SUPERTONIC3_FILES: &[FileSpec] = &[
+    FileSpec { url: "https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/LICENSE", dest_rel: "models/supertonic3/LICENSE", size: 15_007, sha256: "0d944a9110fed9a9602d60e0423a272903e7bd21ab060490774efc77c2275e9f", extract: Extract::None },
+    FileSpec { url: "https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/onnx/duration_predictor.onnx", dest_rel: "models/supertonic3/onnx/duration_predictor.onnx", size: 3_700_147, sha256: "c3eb91414d5ff8a7a239b7fe9e34e7e2bf8a8140d8375ffb14718b1c639325db", extract: Extract::None },
+    FileSpec { url: "https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/onnx/text_encoder.onnx", dest_rel: "models/supertonic3/onnx/text_encoder.onnx", size: 9_734_378, sha256: "67b0975e50689f599a7834255d53a7cfd72a9f028b0f56e0040ba7dc5007d9cf", extract: Extract::None },
+    FileSpec { url: "https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/onnx/vector_estimator.onnx", dest_rel: "models/supertonic3/onnx/vector_estimator.onnx", size: 65_769_855, sha256: "f903a5ed046bb92cf1e557393623d7e709b527d338b042cc0bf9bce417185e5a", extract: Extract::None },
+    FileSpec { url: "https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/onnx/vocoder.onnx", dest_rel: "models/supertonic3/onnx/vocoder.onnx", size: 25_820_373, sha256: "ab337d1a10ed54c24cb42e0ea9be3733603149517fa0a8f54d07ef816cb766df", extract: Extract::None },
+    FileSpec { url: "https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/onnx/tts.json", dest_rel: "models/supertonic3/onnx/tts.json", size: 8_253, sha256: "42078d3aef1cd43ab43021f3c54f47d2d75ceb4e75f627f118890128b06a0d09", extract: Extract::None },
+    FileSpec { url: "https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/onnx/unicode_indexer.json", dest_rel: "models/supertonic3/onnx/unicode_indexer.json", size: 277_676, sha256: "9bf7346e43883a81f8645c81224f786d43c5b57f3641f6e7671a7d6c493cb24f", extract: Extract::None },
+    FileSpec { url: "https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/voice_styles/F1.json", dest_rel: "models/supertonic3/voice_styles/F1.json", size: 292_046, sha256: "bbdec6ee00231c2c742ad05483df5334cab3b52fda3ba38e6a07059c4563dbc2", extract: Extract::None },
+    FileSpec { url: "https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/voice_styles/F2.json", dest_rel: "models/supertonic3/voice_styles/F2.json", size: 292_423, sha256: "7c722c6a72707b1a77f035d67f0d1351ba187738e06f7683e8c72b1df3477fc6", extract: Extract::None },
+    FileSpec { url: "https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/voice_styles/F3.json", dest_rel: "models/supertonic3/voice_styles/F3.json", size: 290_794, sha256: "12f6ef2573baa2defa1128069cb59f203e3ab67c92af77b42df8a0e3a2f7c6ab", extract: Extract::None },
+    FileSpec { url: "https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/voice_styles/F4.json", dest_rel: "models/supertonic3/voice_styles/F4.json", size: 291_808, sha256: "c2fa764c1225a76dfc3e2c73e8aa4f70d9ee48793860eb34c295fff01c2e032b", extract: Extract::None },
+    FileSpec { url: "https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/voice_styles/F5.json", dest_rel: "models/supertonic3/voice_styles/F5.json", size: 291_479, sha256: "45966e73316415626cf41a7d1c6f3b4c70dbc1ba2bee5c1978ef0ce33244fc8d", extract: Extract::None },
+    FileSpec { url: "https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/voice_styles/M1.json", dest_rel: "models/supertonic3/voice_styles/M1.json", size: 291_748, sha256: "e35604687f5d23694b8e91593a93eec0e4eca6c0b02bb8ed69139ab2ea6b0a5b", extract: Extract::None },
+    FileSpec { url: "https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/voice_styles/M2.json", dest_rel: "models/supertonic3/voice_styles/M2.json", size: 292_055, sha256: "b76cbf62bac707c710cf0ae5aba5e31eea1a6339a9734bfae33ab98499534a50", extract: Extract::None },
+    FileSpec { url: "https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/voice_styles/M3.json", dest_rel: "models/supertonic3/voice_styles/M3.json", size: 290_198, sha256: "ea1ac35ccb91b0d7ecad533a2fbd0eec10c91513d8951e3b25fbba99954e159b", extract: Extract::None },
+    FileSpec { url: "https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/voice_styles/M4.json", dest_rel: "models/supertonic3/voice_styles/M4.json", size: 291_522, sha256: "ca8eefad4fcd989c9379032ff3e50738adc547eeb5e221b82593a6d7b3bac303", extract: Extract::None },
+    FileSpec { url: "https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/voice_styles/M5.json", dest_rel: "models/supertonic3/voice_styles/M5.json", size: 291_469, sha256: "dd22b92740314321f8ae11c5e87f8dd60d060f15dd3a632b5adf77f471f77af2", extract: Extract::None },
+];
+const SUPERTONIC3_SIZE: u64 = 108_241_231;
+const SUPERTONIC3_MARKERS: &[Marker] = &[
+    Marker { rel: "models/supertonic3/onnx/vector_estimator.onnx", expect: 65_769_855 },
+    Marker { rel: "models/supertonic3/onnx/vocoder.onnx", expect: 25_820_373 },
+    Marker { rel: "models/supertonic3/voice_styles/M5.json", expect: 291_469 },
+];
+
 
 /// Полный список компонентов. Порядок = порядок показа в панели «Первый запуск».
 pub fn manifest() -> Vec<Component> {
@@ -700,6 +728,17 @@ pub fn manifest() -> Vec<Component> {
             size: DRAMA3_WEIGHTS + platform::DRAMA_ENGINE.size,
             files: DRAMA3_FILES,
             markers: DRAMA3_MARKERS,
+            external_url: None,
+        },
+        Component {
+            id: "supertonic3",
+            name: "Supertonic 3 (int8)".into(),
+            purpose: t!("setup-comp-supertonic3-purpose"),
+            requirement: Requirement::Optional,
+            delivery: Delivery::Download,
+            size: SUPERTONIC3_SIZE,
+            files: SUPERTONIC3_FILES,
+            markers: SUPERTONIC3_MARKERS,
             external_url: None,
         },
         // Parakeet Ultra int8 (Masterx): та же дообученная Moondream модель, квантованная тем же рецептом, что
@@ -1134,6 +1173,7 @@ fn vram_estimate(id: &str) -> u64 {
         "gemma-q8_0" => gb(14.0),
         "parakeet" => gb(1.1),
         "parakeet-ultra-int8" => gb(1.1),
+        "supertonic3" => gb(0.6),
         "sortformer" => gb(0.5),
         "roformer" => gb(0.5),
         "roformer-q5" => gb(0.45),

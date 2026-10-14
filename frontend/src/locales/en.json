@@ -1052,7 +1052,16 @@
     "partsEvery": "parts of {{h}} h",
     "partsHint": "Parts are cut at chapter boundaries, each with its own chapters, text and subtitles.",
     "partN": "Part {{n}} · {{h}} h",
-    "saveTimings": "Text with timings (JSON)"
+    "saveTimings": "Text with timings (JSON)",
+    "steps": "Steps",
+    "stepsHint": "Supertonic flow steps: more is cleaner sound and a slower synthesis",
+    "speed": "Speed",
+    "speedHint": "Speech pace: 1.0 as trained, higher is faster",
+    "voiceNotPreset": "{{name}} is a library voice and does not fit this engine",
+    "native_en": "native English",
+    "native_zh": "native Chinese",
+    "native_ja": "native Japanese",
+    "native_ko": "native Korean"
   },
   "tags": {
     "emotion": "Emotion",

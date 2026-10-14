@@ -54,8 +54,9 @@ function AutoText({ value, onCommit, label, inputRef, stale }: { value: string; 
   );
 }
 
-export default function BlockRow({ pid, block, index, state, fit, rendering, playing, tint, stressing, doubts, selected, selecting, a }: {
+export default function BlockRow({ pid, engine, block, index, state, fit, rendering, playing, tint, stressing, doubts, selected, selecting, a }: {
   pid: string;
+  engine: string;
   selected: boolean;
   selecting: boolean;
   fit?: "fits" | "tight" | "impossible";
@@ -175,7 +176,7 @@ export default function BlockRow({ pid, block, index, state, fit, rendering, pla
         <div className="mx-2 mb-2 ml-[8.25rem] rounded-lg bg-[var(--color-surface-2)]/60 border border-[var(--color-border)] p-2.5 space-y-2">
           <div className="grid gap-2 sm:grid-cols-3">
             <label className="text-[11px] text-[var(--color-muted)]">{t("speech.blockVoice")}
-              <VoicePicker value={block.voice} onChange={(v) => a.patch({ voice: v })} inherit={t("speech.voiceAsCast")} label={t("speech.blockVoice")}
+              <VoicePicker engine={engine} value={block.voice} onChange={(v) => a.patch({ voice: v })} inherit={t("speech.voiceAsCast")} label={t("speech.blockVoice")}
                 className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]" />
             </label>
             <label className="text-[11px] text-[var(--color-muted)]">{t("speech.pauseAfter")}

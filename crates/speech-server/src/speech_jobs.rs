@@ -35,6 +35,12 @@ pub fn ref_limit(models_root: &Path) -> f64 {
     crate::models::load_selection(models_root).get("higgs_ref_secs").and_then(Value::as_str).and_then(|v| v.parse::<f64>().ok()).unwrap_or(12.0)
 }
 
+/// The voice, when it is one of the project engine's own voices rather than a library voice.
+fn preset_of<'a>(project: &SpeechProject, voice: Option<&'a str>) -> Option<&'a str> {
+    let voice = voice?;
+    crate::engines::get(&project.settings.engine).filter(|e| e.presets.iter().any(|p| p.id == voice)).map(|_| voice)
+}
+
 /// Ключи синтеза всех блоков проекта при нынешних голосах и настройках.
 pub fn keys(p: &SpeechPaths, project: &SpeechProject) -> BTreeMap<String, String> {
     let engine = engine_tag(p, project);
@@ -46,7 +52,13 @@ pub fn keys(p: &SpeechPaths, project: &SpeechProject) -> BTreeMap<String, String
         .blocks()
         .map(|b| {
             let voice = project.voice_of(b);
-            let tag = tags.entry(voice.clone()).or_insert_with(|| sp::voice_tag(&p.voices_dir, voice.as_deref())).clone();
+            let tag = tags
+                .entry(voice.clone())
+                .or_insert_with(|| match preset_of(project, voice.as_deref()) {
+                    Some(preset) => format!("preset:{preset}"),
+                    None => sp::voice_tag(&p.voices_dir, voice.as_deref()),
+                })
+                .clone();
             let prep = crate::prep::fingerprint(&b.text, &prep_opts(p, project, voice.as_deref(), &entries, project.settings.auto_stress), &compiled);
             (b.id.clone(), sp::synth_key(project, b, &tag, &engine, limit, &prep))
         })
@@ -66,6 +78,8 @@ fn engine_tag(p: &SpeechPaths, project: &SpeechProject) -> String {
         format!("{}:{}:{}", project.settings.engine, project.settings.cloud_model, &blake3::hash(values.as_bytes()).to_hex()[..10])
     } else if project.settings.engine == crate::models::DRAMA_TTS {
         crate::models::DRAMA_TTS.to_string()
+    } else if project.settings.engine == crate::supertonic::ENGINE {
+        format!("{}:int8", crate::supertonic::ENGINE)
     } else {
         format!("higgs:{}", higgs_config(p).quant)
     }
@@ -234,14 +248,30 @@ fn synth_block(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Block, n
 /// A block voiced locally with these dictionary rules.
 fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Block, n: u32, entries: &[crate::pron_dict::Entry]) -> Result<(Vec<f32>, Value, Take), String> {
     let drama = project.settings.engine == crate::models::DRAMA_TTS;
+    let manifest = crate::engines::get(&project.settings.engine);
+    let presets: Vec<&str> = manifest.as_ref().map(|m| m.presets.iter().map(|p| p.id).collect()).unwrap_or_default();
     let voice = project.voice_of(b);
     if drama && voice.is_none() {
         return Err(t!("drama-needs-voice"));
     }
-    let engine = if drama { tts_host::drama(&p.models_root)? } else { tts_host::engine(&higgs_config(p))? };
+    // an engine with its own voices speaks one of them; a library voice there is named, not quietly swapped
+    let preset = match (presets.is_empty(), voice.as_deref()) {
+        (true, _) => None,
+        (false, None) => presets.first().map(|v| v.to_string()),
+        (false, Some(v)) if presets.contains(&v) => Some(v.to_string()),
+        (false, Some(v)) => return Err(t!("speech-voice-not-preset", voice = v.to_string(), engine = manifest.as_ref().map_or("", |m| m.name).to_string())),
+    };
+    let engine = if drama {
+        tts_host::drama(&p.models_root)?
+    } else if project.settings.engine == crate::supertonic::ENGINE {
+        tts_host::supertonic(&p.models_root)?
+    } else {
+        tts_host::engine(&higgs_config(p))?
+    };
     let limit = ref_limit(&p.models_root);
-    let continued = sp::continuation_source(project, b).filter(|(_, t)| !drama && t.duration > 0.5 && t.duration <= limit + 0.5);
-    let reference = match (continued, voice.as_deref()) {
+    let clones = preset.is_none();
+    let continued = sp::continuation_source(project, b).filter(|(_, t)| clones && !drama && t.duration > 0.5 && t.duration <= limit + 0.5);
+    let reference = match (continued, voice.as_deref().filter(|_| clones)) {
         (Some((src, take)), _) => Some(continuation_ref(&takes_dir(p, pid), take, &src.text)?),
         (None, Some(v)) => Some(tts_host::prepare_ref(&p.voices_dir, v, limit)?),
         (None, None) => None,
@@ -280,6 +310,7 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
                     lang,
                     ref_wav: reference.as_ref().map(|(w, _)| w.as_path()),
                     ref_text: reference.as_ref().and_then(|(_, t)| t.as_deref()),
+                    preset: preset.as_deref(),
                     params: &params,
                     fresh_seed: fresh.wrapping_add(k as u64),
                     live: Some(live.clone()),
@@ -316,7 +347,7 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
         top_k: params.top_k,
         top_p: params.top_p,
         max_tokens: params.max_tokens,
-        voice: voice.clone().unwrap_or_default(),
+        voice: preset.clone().or_else(|| voice.clone()).unwrap_or_default(),
         engine: engine_tag(p, project),
         fit_stretch: fitted.stretch,
         fit_lead: fitted.lead,
@@ -563,7 +594,7 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, pr
         let Some(b) = project.blocks().find(|b| &b.id == id).cloned() else { continue };
         let lang = project.settings.lang.clone();
         let strictness = project.settings.qc.strictness.clone();
-        let voice = project.voice_of(&b);
+        let voice = project.voice_of(&b).filter(|v| preset_of(&project, Some(v)).is_none());
         let reference = match (&mut embedder, voice.as_deref()) {
             (Some(emb), Some(v)) => match refs.get(v) {
                 Some(e) => Some(e.clone()),

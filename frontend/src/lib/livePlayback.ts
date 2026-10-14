@@ -29,8 +29,13 @@ export class LivePlayer {
   private ctx: AudioContext | null = null;
   private cursor = 0;
   private playing: AudioBufferSourceNode[] = [];
+  private readonly pid: string;
+  private readonly makeContext: () => AudioContext;
 
-  constructor(private readonly pid: string, private readonly makeContext: () => AudioContext = () => new AudioContext()) {}
+  constructor(pid: string, makeContext: () => AudioContext = () => new AudioContext()) {
+    this.pid = pid;
+    this.makeContext = makeContext;
+  }
 
   handle(ev: LiveEvent): void {
     if (ev.kind === "lagged" || ev.project !== this.pid) return;

@@ -41,13 +41,24 @@ impl HiggsConfig {
 pub enum Tts {
     Higgs(Arc<AudiocppEngine>),
     Drama(Arc<drama::DramaEngine>),
+    Supertonic(Arc<crate::supertonic::Model>),
 }
 
 impl Tts {
+    /// A Supertonic phrase is a few graph runs of well under a second and has no stop of its own: the guard waits it out.
     fn cancel(&self) {
         match self {
             Tts::Higgs(e) => e.cancel(),
             Tts::Drama(e) => e.cancel(),
+            Tts::Supertonic(_) => {}
+        }
+    }
+
+    fn in_use(&self) -> bool {
+        match self {
+            Tts::Higgs(e) => Arc::strong_count(e) > 1,
+            Tts::Drama(e) => Arc::strong_count(e) > 1,
+            Tts::Supertonic(e) => Arc::strong_count(e) > 1,
         }
     }
 }
@@ -83,8 +94,7 @@ pub fn unload_if_idle(idle: Duration) -> bool {
     let mut slot = host();
     let busy = match slot.as_ref() {
         None => return false,
-        Some((_, Tts::Higgs(e))) => Arc::strong_count(e) > 1,
-        Some((_, Tts::Drama(e))) => Arc::strong_count(e) > 1,
+        Some((_, e)) => e.in_use(),
     };
     if busy {
         return false;
@@ -167,6 +177,36 @@ pub fn drama(models_root: &Path) -> Result<Tts, String> {
     Ok(Tts::Drama(e))
 }
 
+
+/// Загруженный Supertonic 3: на видеокарте NVIDIA через CUDA onnxruntime (она должна подойти, иначе ошибка с причиной,
+/// не тихий процессор), на машине без NVIDIA — на процессоре.
+pub fn supertonic(models_root: &Path) -> Result<Tts, String> {
+    let mut slot = host();
+    if let Some((key, Tts::Supertonic(e))) = slot.as_ref() {
+        if key == crate::supertonic::ENGINE {
+            touch();
+            return Ok(Tts::Supertonic(e.clone()));
+        }
+    }
+    *slot = None;
+    if !crate::supertonic::installed(models_root) {
+        return Err(t!("render-supertonic-missing"));
+    }
+    let gpu = crate::hw::gpu_report();
+    if gpu.nvidia && !gpu.cuda13_ok {
+        let card = gpu.summary().unwrap_or_else(|| "-".to_string());
+        return Err(match gpu.reason {
+            Some("gpu_old") => t!("render-higgs-gpu-old", card = card, min = gpu.min_compute.clone()),
+            Some("driver_old") => t!("render-higgs-driver-old", card = card, min = gpu.min_driver),
+            _ => t!("render-higgs-no-gpu", card = card),
+        });
+    }
+    let e = Arc::new(crate::supertonic::Model::load(models_root, gpu.nvidia).map_err(|e| t!("render-supertonic-load-failed", error = e))?);
+    *slot = Some((crate::supertonic::ENGINE.to_string(), Tts::Supertonic(e.clone())));
+    touch();
+    Ok(Tts::Supertonic(e))
+}
+
 /// Выгрузить модель озвучки и освободить видеопамять.
 pub fn unload() {
     if let Some((_, e)) = host().take() {
@@ -177,7 +217,7 @@ pub fn unload() {
 pub fn loaded() -> bool {
     host().as_ref().is_some_and(|(_, e)| match e {
         Tts::Higgs(h) => h.is_model_loaded(),
-        Tts::Drama(_) => true,
+        Tts::Drama(_) | Tts::Supertonic(_) => true,
     })
 }
 
@@ -192,11 +232,23 @@ pub struct Params {
     pub seed: u64,
     /// Потолок токенов ответа; 0 — по длине текста.
     pub max_tokens: u32,
+    /// Шаги потока и скорость речи Supertonic.
+    pub steps: u32,
+    pub speed: f64,
 }
 
 impl Default for Params {
     fn default() -> Self {
-        Params { temperature: 1.0, top_k: 50, top_p: 0.95, seed_mode: "random".into(), seed: 42, max_tokens: 0 }
+        Params {
+            temperature: 1.0,
+            top_k: 50,
+            top_p: 0.95,
+            seed_mode: "random".into(),
+            seed: 42,
+            max_tokens: 0,
+            steps: crate::supertonic::DEFAULT_STEPS,
+            speed: crate::supertonic::DEFAULT_SPEED,
+        }
     }
 }
 
@@ -220,6 +272,12 @@ impl Params {
         if self.max_tokens > crate::engines::MAX_TOKENS_LIMIT {
             return Err(format!("max_tokens {} is above {}", self.max_tokens, crate::engines::MAX_TOKENS_LIMIT));
         }
+        if !(1..=32).contains(&self.steps) {
+            return Err(format!("steps {} is outside 1..32", self.steps));
+        }
+        if !(0.5..=2.0).contains(&self.speed) {
+            return Err(format!("speed {} is outside 0.5..2.0", self.speed));
+        }
         Ok(())
     }
 
@@ -231,6 +289,8 @@ impl Params {
                 "top_k" => self.top_k = spec.default as u32,
                 "top_p" => self.top_p = spec.default,
                 "max_tokens" => self.max_tokens = spec.default as u32,
+                "steps" => self.steps = spec.default as u32,
+                "speed" => self.speed = spec.default,
                 _ => {}
             }
         }
@@ -337,6 +397,8 @@ pub struct Request<'a> {
     pub lang: &'a str,
     pub ref_wav: Option<&'a Path>,
     pub ref_text: Option<&'a str>,
+    /// Голос движка без клона (Supertonic).
+    pub preset: Option<&'a str>,
     pub params: &'a Params,
     /// Сид случайного режима: вызывающий даёт разный на каждый дубль.
     pub fresh_seed: u64,
@@ -344,23 +406,30 @@ pub struct Request<'a> {
     pub live: Option<Arc<crate::live::Phrase>>,
 }
 
-#[allow(clippy::too_many_arguments)]
-fn run_guarded(
-    engine: &Tts,
-    text: &str,
-    ref_wav: Option<&Path>,
-    ref_text: Option<&str>,
-    opts: &str,
-    drama: &drama::Params,
-    timeout: Duration,
-    live: Option<Arc<crate::live::Phrase>>,
-) -> Result<(Vec<f32>, i32), String> {
+/// One attempt at a phrase, owned by the guarded synthesis thread.
+struct Call {
+    text: String,
+    lang: String,
+    ref_wav: Option<PathBuf>,
+    ref_text: Option<String>,
+    preset: Option<String>,
+    opts: String,
+    drama: drama::Params,
+    steps: u32,
+    speed: f64,
+    seed: u64,
+}
+
+fn run_guarded(engine: &Tts, call: Call, timeout: Duration, live: Option<Arc<crate::live::Phrase>>) -> Result<(Vec<f32>, i32), String> {
     let (tx, rx) = mpsc::channel();
     let eng = engine.clone();
-    let (t, rw, rt, op, dp) = (text.to_string(), ref_wav.map(Path::to_path_buf), ref_text.map(str::to_string), opts.to_string(), *drama);
     std::thread::spawn(move || {
+        let Call { text: t, lang, ref_wav: rw, ref_text: rt, preset, opts: op, drama: dp, steps, speed, seed } = call;
+        // an engine that does not stream gives the window the whole take once it is done
+        let mut streamed = false;
         let r = match (&eng, rw) {
             (Tts::Higgs(e), rw) if live.is_some() && e.engine().supports_streaming() => {
+                streamed = true;
                 let phrase = live.clone().expect("checked above");
                 let audio: audiocpp::AudioChunkCallback = Arc::new(move |sr, _, _, samples, _| phrase.chunk(samples, sr as u32));
                 let progress: audiocpp::ProgressCallback = Arc::new(|_, _, _| {});
@@ -379,7 +448,10 @@ fn run_guarded(
                 Some(rt) => {
                     let sr = e.sample_rate();
                     let spoken = match &live {
-                        Some(phrase) if e.supports_streaming() => e.speak_stream(&t, &rw, rt, &dp, &|a: &[f32]| phrase.chunk(a, sr)),
+                        Some(phrase) if e.supports_streaming() => {
+                            streamed = true;
+                            e.speak_stream(&t, &rw, rt, &dp, &|a: &[f32]| phrase.chunk(a, sr))
+                        }
                         _ => e.speak(&t, &rw, rt, &dp),
                     };
                     spoken.map(|a| (a, sr as i32)).map_err(|err| match err {
@@ -390,7 +462,14 @@ fn run_guarded(
                 None => Err(t!("render-drama-no-ref-text")),
             },
             (Tts::Drama(_), None) => Err(t!("drama-needs-voice")),
+            (Tts::Supertonic(e), _) => match preset.as_deref() {
+                Some(voice) => e.speak(&t, &lang, voice, steps, speed, seed).map(|a| (a, e.sample_rate() as i32)),
+                None => Err(t!("speech-voice-preset-needed")),
+            },
         };
+        if let (Some(phrase), Ok((samples, sr)), false) = (&live, &r, streamed) {
+            phrase.chunk(samples, *sr as u32);
+        }
         let _ = tx.send(r);
     });
     let ctl = crate::jobs::current();
@@ -451,14 +530,25 @@ pub fn synth(engine: &Tts, req: &Request) -> Result<Synth, String> {
             "seed": seed,
         })
         .to_string();
-        let dp = drama::Params { temperature: temperature as f32, top_k: req.params.top_k as i32, top_p: req.params.top_p as f32, seed, max_new: drama_frames(expected, req.params.max_tokens) };
+        let call = Call {
+            text: req.text.to_string(),
+            lang: req.lang.to_string(),
+            ref_wav: req.ref_wav.map(Path::to_path_buf),
+            ref_text: req.ref_text.map(str::to_string),
+            preset: req.preset.map(str::to_string),
+            opts,
+            drama: drama::Params { temperature: temperature as f32, top_k: req.params.top_k as i32, top_p: req.params.top_p as f32, seed, max_new: drama_frames(expected, req.params.max_tokens) },
+            steps: req.params.steps,
+            speed: req.params.speed,
+            seed,
+        };
         if attempt > 0 {
             if let Some(live) = &req.live {
                 live.restart();
             }
         }
         let started = Instant::now();
-        let (samples, sr) = run_guarded(engine, req.text, req.ref_wav, req.ref_text, &opts, &dp, timeout, req.live.clone())?;
+        let (samples, sr) = run_guarded(engine, call, timeout, req.live.clone())?;
         let seconds = started.elapsed().as_secs_f64();
         match defect(&samples, sr, chars) {
             None => return Ok(Synth { samples, sr, seed, temperature, attempts: attempt + 1, defects, seconds }),

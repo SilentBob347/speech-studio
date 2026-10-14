@@ -404,13 +404,13 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
         <aside aria-label={t("speech.cast")} className={`${castOpen ? "absolute inset-y-0 left-0 z-20 block bg-[var(--color-surface)] shadow-xl" : "hidden"} lg:static lg:block lg:shadow-none w-64 shrink-0 border-r border-[var(--color-border)] overflow-y-auto p-4 space-y-3`}>
           <h2 className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)] flex items-center gap-1.5"><Users size={12} />{t("speech.cast")}</h2>
           <label className="block text-[11px] text-[var(--color-muted)]">{t("speech.projectVoice")}
-            <VoicePicker value={project.settings.voice} onChange={(v) => edit((p) => { p.settings.voice = v; return p; })} label={t("speech.projectVoice")}
+            <VoicePicker engine={project.settings.engine} value={project.settings.voice} onChange={(v) => edit((p) => { p.settings.voice = v; return p; })} label={t("speech.projectVoice")}
               className="mt-1 w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-2 py-1.5 text-[12px]" />
           </label>
           {speakers.map((s) => (
             <label key={s} className="block text-[11px]">
               <span className="flex items-baseline gap-1.5"><span className="font-semibold" style={{ color: tintOf(s) }}>{s}</span><span className="text-[10px] tabnum text-[var(--color-muted)]">{t("speech.castBlocks", { n: blocks.filter((b) => b.speaker === s && !b.hidden).length })}</span></span>
-              <VoicePicker value={project.cast[s] ?? null} onChange={(v) => castVoice(s, v)} inherit={t("speech.voiceAsProject")} label={t("speech.voiceFor", { speaker: s })}
+              <VoicePicker engine={project.settings.engine} value={project.cast[s] ?? null} onChange={(v) => castVoice(s, v)} inherit={t("speech.voiceAsProject")} label={t("speech.voiceFor", { speaker: s })}
                 className="mt-1 w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-2 py-1.5 text-[12px]" />
             </label>
           ))}
@@ -436,7 +436,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
                   const index = blocks.indexOf(b);
                   const rendering = !!job && (job.ids === null ? ["pending", "stale", "failed"].includes(stateOf(b)) : job.ids.includes(b.id));
                   const note = notes[b.id];
-                  return <BlockRow key={b.id} pid={pid} block={b} index={index} state={stateOf(b)} fit={project.status?.[b.id]?.fit} rendering={rendering} playing={playing === b.id} tint={tintOf(b.speaker)}
+                  return <BlockRow key={b.id} pid={pid} engine={project.settings.engine} block={b} index={index} state={stateOf(b)} fit={project.status?.[b.id]?.fit} rendering={rendering} playing={playing === b.id} tint={tintOf(b.speaker)}
                     stressing={!!stressing?.includes(b.id)} doubts={note && note.text === b.text ? note.words : []}
                     selected={selected.includes(b.id)} selecting={selected.length > 0} a={actions(b)} />;
                 })}

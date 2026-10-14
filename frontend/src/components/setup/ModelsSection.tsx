@@ -306,6 +306,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
             {rowOf("higgs-engine")}
             {rowOf("drama3")}
             {get("drama3") && <p className="text-[11px] text-[var(--color-muted)] px-1">{t("settings.dramaNote")}</p>}
+            {rowOf("supertonic3")}
           </>
         )}
       </>)}

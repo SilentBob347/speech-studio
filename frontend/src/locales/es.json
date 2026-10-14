@@ -1052,7 +1052,16 @@
     "partsEvery": "partes de {{h}} h",
     "partsHint": "Las partes se cortan en los límites de capítulo, cada una con sus capítulos, texto y subtítulos.",
     "partN": "Parte {{n}} · {{h}} h",
-    "saveTimings": "Texto con tiempos (JSON)"
+    "saveTimings": "Texto con tiempos (JSON)",
+    "steps": "Pasos",
+    "stepsHint": "Pasos del flujo de Supertonic: más da un sonido más limpio y una síntesis más lenta",
+    "speed": "Velocidad",
+    "speedHint": "Ritmo del habla: 1,0 como se entrenó, más es más rápido",
+    "voiceNotPreset": "{{name}} es una voz de la biblioteca y no sirve para este motor",
+    "native_en": "inglés nativo",
+    "native_zh": "chino nativo",
+    "native_ja": "japonés nativo",
+    "native_ko": "coreano nativo"
   },
   "tags": {
     "emotion": "Emoción",

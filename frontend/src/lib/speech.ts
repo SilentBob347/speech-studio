@@ -17,12 +17,14 @@ export type Marker = "red" | "amber" | "green" | "blue" | "violet";
 export const MARKERS: Record<Marker, string> = { red: "#ff6b6b", amber: "#ffc46b", green: "#7ee0c3", blue: "#4cc2ff", violet: "#b8a4ff" };
 export type Chapter = { id: string; title: string; blocks: Block[] };
 export type SeedMode = "fixed" | "random" | "inc" | "dec";
-export type SpeechParams = { temperature: number; top_k: number; top_p: number; seed_mode: SeedMode; seed: number; max_tokens: number };
-export type ParamSpec = { key: "temperature" | "top_k" | "top_p" | "max_tokens"; kind: "float" | "int"; min: number; max: number; step: number; default: number };
+export type SpeechParams = { temperature: number; top_k: number; top_p: number; seed_mode: SeedMode; seed: number; max_tokens: number; steps: number; speed: number };
+export type ParamSpec = { key: "temperature" | "top_k" | "top_p" | "max_tokens" | "steps" | "speed"; kind: "float" | "int"; min: number; max: number; step: number; default: number };
+export type EnginePreset = { id: string; name: string; gender: "female" | "male"; native: string };
 export type EngineCaps = {
   id: string; name: string; languages: string[]; params: ParamSpec[]; seed_modes: SeedMode[]; tag_format: string;
   clone: string; continuation: boolean; streaming: boolean; deterministic_seed: boolean; max_chars: number;
   reads: { stress: boolean; yo: boolean; phonemes: boolean; accent: boolean };
+  presets: EnginePreset[];
   unavailable: string | null;
 };
 export type Loudness = "off" | "video" | "podcast" | "acx";

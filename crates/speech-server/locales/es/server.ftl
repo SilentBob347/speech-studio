@@ -1054,3 +1054,9 @@ dict-try-before = Prueba de oído: tal como está escrito
 dict-try-after = Prueba de oído: con la regla
 speech-part-n = parte { $n }
 speech-export-encoding = Codificando la parte { $n } de { $total }
+
+render-supertonic-missing = Supertonic 3 está elegido pero no descargado: descárgalo en Modelos (locución) o elige otro motor.
+render-supertonic-load-failed = Supertonic 3 no se cargó: { $error }
+speech-voice-not-preset = La voz «{ $voice }» es de la biblioteca y { $engine } solo habla con sus propias voces: elige una de ellas para el proyecto, el hablante o el bloque.
+speech-voice-preset-needed = Este motor necesita una de sus propias voces.
+setup-comp-supertonic3-purpose = Supertonic 3: locución rápida con diez voces listas y 31 idiomas, sin clonación; unos 0,1 GB

@@ -1060,3 +1060,9 @@ dict-try-before = Try by ear: as written
 dict-try-after = Try by ear: with the rule
 speech-part-n = part { $n }
 speech-export-encoding = Encoding part { $n } of { $total }
+
+render-supertonic-missing = Supertonic 3 is chosen but not downloaded: download it in Models (voicing) or choose another engine.
+render-supertonic-load-failed = Supertonic 3 did not load: { $error }
+speech-voice-not-preset = The voice “{ $voice }” is from the library, and { $engine } speaks only in its own voices: choose one of them for the project, the speaker or the block.
+speech-voice-preset-needed = This engine needs one of its own voices.
+setup-comp-supertonic3-purpose = Supertonic 3: fast voicing in ten ready voices and 31 languages, no cloning; about 0.1 GB
