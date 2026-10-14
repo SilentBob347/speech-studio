@@ -26,6 +26,7 @@ mod jobs;
 mod limiter;
 mod llm_provider;
 mod localize;
+mod loudness;
 mod media;
 mod google_tts;
 mod subimport;
@@ -43,6 +44,11 @@ mod spa;
 mod studio_settings;
 mod tts_text;
 mod tts_trim;
+mod speech_api;
+mod speech_jobs;
+mod speech_project;
+mod speech_text;
+mod tts_host;
 mod url_import;
 mod voice_api;
 mod voice_jobs;
@@ -435,6 +441,14 @@ pub fn build_router(state: AppState) -> Router {
         .route("/url/fetches/{id}/resume", post(url_import::fetch_resume))
         .route("/url/tool", get(url_import::tool_status))
         .route("/url/tool/update", post(url_import::tool_update))
+        .route("/projects", get(speech_api::list).post(speech_api::create))
+        .route("/projects/{pid}", get(speech_api::get).put(speech_api::put).delete(speech_api::delete))
+        .route("/projects/{pid}/synth", post(speech_api::synth))
+        .route("/projects/{pid}/export", post(speech_api::export))
+        .route("/projects/{pid}/export-check", get(speech_api::export_check))
+        .route("/projects/{pid}/save-export", post(speech_api::save_export))
+        .route("/projects/{pid}/takes/{file}", get(speech_api::take_file))
+        .route("/projects/{pid}/exports/{file}", get(speech_api::export_file))
         .route("/jobs", get(jobs_list))
         .route("/jobs/{job_id}", get(job_get))
         .route("/jobs/{job_id}/cancel", post(job_cancel))
@@ -795,9 +809,15 @@ async fn voices_catalog() -> Response {
 async fn voices_get(State(st): State<AppState>, Json(body): Json<Value>) -> Json<Value> {
     let name = body.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string();
     let dir = st.voices_dir.clone();
-    let ok = tokio::task::spawn_blocking(move || record::fetch_voice(&dir, &name)).await;
+    let fetch_name = name.clone();
+    let ok = tokio::task::spawn_blocking(move || record::fetch_voice(&dir, &fetch_name)).await;
     match ok {
         Ok(Ok(())) => {
+            let base = name.clone();
+            let card = voice_library::VoiceCard { source: "russia_voices".into(), ..voice_library::guess_card(&base) };
+            if let Err(e) = voice_library::write_card(&st.voices_dir, &base, &card) {
+                return Json(json!({ "ok": false, "error": e }));
+            }
             mcp::tell_windows(json!({ "changed": "voices" }));
             Json(json!({ "ok": true, "voices": voice_api::listing(&st.voices_dir)["voices"] }))
         }

@@ -742,3 +742,19 @@ voice-bad-audio = { $name } 不是工作室支持的音频文件：WAV、MP3、F
 voice-default-name = 我的声音
 voice-lang-needs-whisper = { $name } 使用 Parakeet 不支持的语言（{ $lang }）：这类文本由 Whisper 识别。请在 设置 → 模型 → 语音识别 中下载 Whisper 及其一个模型。
 voice-no-words = { $name } 还没有词级时间戳：请先识别其参考文本。
+
+## Speech
+tts-engine-missing = 尚未下载 Higgs 配音引擎（{ $path }）：请在 设置 → 模型 → 配音 中下载。
+tts-defective = 每次尝试生成的声音都有缺陷（{ $defects }）：请换个声音、缩短文本或降低温度。
+speech-block-silent = 这个段落里没有可朗读的内容：只有停顿和标记。
+speech-synth-block = 正在配音第 { $n } 段，共 { $total } 段：{ $text }
+speech-synth-all-failed = 没有任何段落配音成功：{ $error }
+speech-export-not-ready = 有 { $count } 个段落尚未配音或已过期：请先为它们配音。
+speech-export-empty = 没有可导出的内容：所有段落都是空的或已隐藏。
+speech-export-block = 正在拼接第 { $n } 段，共 { $total } 段…
+speech-export-loudness = 正在按预设调整响度…
+speech-untitled = 未命名
+speech-narrator = 旁白
+speech-no-project = 没有项目 { $pid }。
+media-loudnorm-silent = 音频是静音：没有可调整的响度。
+media-bad-format = { $format } 不是导出格式：WAV、FLAC、MP3、OGG 或 M4A。

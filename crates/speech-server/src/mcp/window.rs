@@ -38,7 +38,7 @@ pub(crate) const PROJECT_CHANGED: &str = "project_changed";
 const NO_WINDOW: &str = "The studio's window is not open, so there is nothing on screen to work in. Open Speech Studio (or its address in a browser) and call the tool again; every tool that is not ui_* works without the window.";
 
 /// Kinds of work a POST starts as a job, by the last part of its route.
-const JOB_ROUTES: &[&str] = &["analyze", "render", "dub-audio", "export-lang", "retranslate", "remix", "resume", "align", "separate", "detect-text", "shorten"];
+const JOB_ROUTES: &[&str] = &["synth", "export", "resume"];
 
 struct Bridge {
     commands: tokio::sync::broadcast::Sender<String>,
@@ -664,7 +664,7 @@ mod tests {
                     .patch(move |Segment(pid): Segment<String>| std::future::ready(patch_save(pid)))
                     .put(move |Segment(pid): Segment<String>| std::future::ready(put_save(pid))),
             )
-            .route("/projects/{pid}/render", post(|| async { Json(json!({ "job_id": "j9" })) }))
+            .route("/projects/{pid}/synth", post(|| async { Json(json!({ "job_id": "j9" })) }))
             .route("/projects/{pid}/files", get(|| async { Json(json!({ "dir": "x" })) }))
             .route("/voices/rename", post(|| async { Json(json!({ "voices": [] })) }))
             .layer(axum::middleware::from_fn(track))
@@ -756,11 +756,11 @@ mod tests {
         let folder = tempfile::tempdir().unwrap();
         let router = tracked(folder.path().to_path_buf());
         let mut page = bridge().commands.subscribe();
-        let started = send(&router, Method::POST, "/projects/jobtest1/render", &[(AGENT_HEADER, "1")]).await;
+        let started = send(&router, Method::POST, "/projects/jobtest1/synth", &[(AGENT_HEADER, "1")]).await;
         let answer: Value = serde_json::from_slice(&axum::body::to_bytes(started.into_body(), 1 << 16).await.unwrap()).unwrap();
         assert_eq!(answer["job_id"], "j9", "the answer reaches the caller whole");
         let notice = next_about(&mut page, "jobtest1").await;
-        assert_eq!((notice["changed"].as_str(), notice["kind"].as_str(), notice["job_id"].as_str(), notice["by"].as_str()), (Some("jobs"), Some("render"), Some("j9"), Some("agent")));
+        assert_eq!((notice["changed"].as_str(), notice["kind"].as_str(), notice["job_id"].as_str(), notice["by"].as_str()), (Some("jobs"), Some("synth"), Some("j9"), Some("agent")));
         send(&router, Method::POST, "/voices/rename", &[(WINDOW_HEADER, "tab-2")]).await;
         let voices = loop {
             let message = next(&mut page).await;

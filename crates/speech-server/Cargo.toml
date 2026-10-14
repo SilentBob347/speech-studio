@@ -7,6 +7,7 @@ description = "axum-сервис Speech Studio: озвучка (Speech) и ра�
 
 [dependencies]
 tempfile = "3"
+trash = "5"
 fluent-templates = "0.15.1"
 dub-core = { git = "https://github.com/timoncool/dub-studio", rev = "11f909a8e798d56f5f43e0b7ae959d77a05a1866" }
 dub-asr = { git = "https://github.com/timoncool/dub-studio", rev = "11f909a8e798d56f5f43e0b7ae959d77a05a1866", features = ["cuda"] }

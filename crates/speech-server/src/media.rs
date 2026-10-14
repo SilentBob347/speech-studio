@@ -1079,3 +1079,25 @@ mod lossless_tests {
         let _ = std::fs::remove_dir_all(&d);
     }
 }
+
+/// Форматы экспорта и их кодеки: `acx` — MP3 192 кбит/с CBR 44,1 кГц, как требует ACX.
+pub const EXPORT_FORMATS: [&str; 5] = ["wav", "flac", "mp3", "ogg", "m4a"];
+
+pub fn encode_audio(src: &Path, dst: &Path, format: &str, acx: bool) -> Result<(), String> {
+    let codec: &[&str] = match format {
+        "wav" => &["-c:a", "pcm_s16le"],
+        "flac" => &["-c:a", "flac"],
+        "mp3" if acx => &["-c:a", "libmp3lame", "-b:a", "192k", "-ar", "44100"],
+        "mp3" => &["-c:a", "libmp3lame", "-q:a", "2"],
+        "ogg" => &["-c:a", "libvorbis", "-q:a", "6"],
+        "m4a" => &["-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart"],
+        other => return Err(t!("media-bad-format", format = other.to_string())),
+    };
+    dub_core::atomic::write_with(dst, |tmp| {
+        let mut args: Vec<&OsStr> = vec![OsStr::new("-y"), OsStr::new("-i"), src.as_os_str(), OsStr::new("-vn"), OsStr::new("-af"), OsStr::new("aformat=channel_layouts=mono")];
+        args.extend(codec.iter().map(OsStr::new));
+        args.extend([OsStr::new("-f"), OsStr::new(match format { "m4a" => "ipod", "ogg" => "ogg", f => f })]);
+        args.push(tmp.as_os_str());
+        run_ff(&args)
+    })
+}

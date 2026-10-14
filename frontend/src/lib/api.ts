@@ -23,6 +23,9 @@ export function projectRev(pid: string): number | undefined {
  * window knows (the studio refuses it when someone else saved the project after that revision) - and the
  * revision an answer shows is remembered.
  */
+export function apiFetch(input: string, init: RequestInit = {}): Promise<Response> {
+  return fetch(input, init);
+}
 function fetch(input: string, init: RequestInit = {}): Promise<Response> {
   const headers = new Headers(init.headers);
   headers.set("x-speech-window", WINDOW_ID);
@@ -297,7 +300,7 @@ export class ApiError extends Error {
     this.args = args;
   }
 }
-async function coded<T>(r: Response): Promise<T> {
+export async function coded<T>(r: Response): Promise<T> {
   if (r.ok) return r.json() as Promise<T>;
   const text = await r.text();
   let body: { error?: unknown; detail?: unknown; args?: unknown } | null;
@@ -308,10 +311,10 @@ async function coded<T>(r: Response): Promise<T> {
   }
   throw new ApiError(`http_${r.status}`, text);
 }
-const sendCoded = <T>(method: "POST" | "PUT" | "DELETE", path: string, body?: unknown): Promise<T> =>
+export const sendCoded = <T>(method: "POST" | "PUT" | "DELETE", path: string, body?: unknown): Promise<T> =>
   fetch(`${BASE}${path}`, body === undefined ? { method } : { method, headers: JSON_HEADERS, body: JSON.stringify(body) }).then(coded<T>);
-const getCoded = <T>(path: string): Promise<T> => fetch(`${BASE}${path}`).then(coded<T>);
-const postCoded = <T>(path: string, body: unknown): Promise<T> =>
+export const getCoded = <T>(path: string): Promise<T> => fetch(`${BASE}${path}`).then(coded<T>);
+export const postCoded = <T>(path: string, body: unknown): Promise<T> =>
   fetch(`${BASE}${path}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify(body) }).then(coded<T>);
 
 // Видео по ссылке (yt-dlp): проба, загрузка в новый проект мимо очереди джоб, сам инструмент.

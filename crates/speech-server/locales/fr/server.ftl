@@ -940,3 +940,19 @@ voice-bad-audio = { $name } n’est pas un fichier son pris en charge : WAV, MP3
 voice-default-name = Ma voix
 voice-lang-needs-whisper = { $name } est dans une langue que Parakeet ne connaît pas ({ $lang }) : son texte est reconnu par Whisper. Téléchargez Whisper et l’un de ses modèles dans Paramètres → Modèles → Reconnaissance vocale.
 voice-no-words = { $name } n’a pas encore de minutage des mots : reconnaissez d’abord son texte de référence.
+
+## Speech
+tts-engine-missing = Le moteur de voix Higgs n’est pas téléchargé ({ $path }) : téléchargez-le dans Paramètres → Modèles → Voix.
+tts-defective = La voix est sortie abîmée à chaque essai ({ $defects }) : essayez une autre voix, un texte plus court ou une température plus basse.
+speech-block-silent = Rien n’est à dire dans ce bloc : il n’y a que des pauses et du balisage.
+speech-synth-block = Voix { $n } sur { $total } : { $text }
+speech-synth-all-failed = Aucun bloc n’a été voisé : { $error }
+speech-export-not-ready = { $count } blocs ne sont pas encore voisés ou sont périmés : voisez-les d’abord.
+speech-export-empty = Rien à exporter : tous les blocs sont vides ou masqués.
+speech-export-block = Assemblage { $n } sur { $total }…
+speech-export-loudness = Mise au volume du préréglage…
+speech-untitled = Sans titre
+speech-narrator = Narrateur
+speech-no-project = Le projet { $pid } n’existe pas.
+media-loudnorm-silent = Le son est silencieux : aucun volume à ajuster.
+media-bad-format = { $format } n’est pas un format d’export : WAV, FLAC, MP3, OGG ou M4A.

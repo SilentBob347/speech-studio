@@ -940,3 +940,19 @@ voice-bad-audio = { $name } no es un archivo de sonido que admita el estudio: WA
 voice-default-name = Mi voz
 voice-lang-needs-whisper = { $name } está en un idioma que Parakeet no conoce ({ $lang }): su texto lo reconoce Whisper. Descarga Whisper y uno de sus modelos en Ajustes → Modelos → Reconocimiento de voz.
 voice-no-words = { $name } aún no tiene tiempos de palabras: reconoce primero su texto de referencia.
+
+## Speech
+tts-engine-missing = El motor de voz Higgs no está descargado ({ $path }): descárgalo en Ajustes → Modelos → Locución.
+tts-defective = La voz salió dañada en todos los intentos ({ $defects }): prueba otra voz, un texto más corto o una temperatura más baja.
+speech-block-silent = En este bloque no hay nada que decir: solo pausas y marcas.
+speech-synth-block = Locutando { $n } de { $total }: { $text }
+speech-synth-all-failed = No se locutó ningún bloque: { $error }
+speech-export-not-ready = Hay { $count } bloques sin locutar o desactualizados: locútalos primero.
+speech-export-empty = No hay nada que exportar: todos los bloques están vacíos u ocultos.
+speech-export-block = Uniendo { $n } de { $total }…
+speech-export-loudness = Ajustando el volumen al preajuste…
+speech-untitled = Sin título
+speech-narrator = Narrador
+speech-no-project = No existe el proyecto { $pid }.
+media-loudnorm-silent = El audio está en silencio: no hay volumen que ajustar.
+media-bad-format = { $format } no es un formato de exportación: WAV, FLAC, MP3, OGG o M4A.

@@ -966,3 +966,19 @@ voice-bad-audio = «{ $name }» — не тот звуковой файл: ст�
 voice-default-name = Мой голос
 voice-lang-needs-whisper = «{ $name }» на языке, которого Parakeet не знает ({ $lang }): такой текст распознаёт Whisper. Скачайте Whisper и одну его модель в Настройки → Модели → Распознавание речи.
 voice-no-words = У «{ $name }» ещё нет таймингов слов: сначала распознайте текст рефа.
+
+## Speech
+tts-engine-missing = Движок озвучки Higgs не скачан ({ $path }): скачайте его в Настройки → Модели → Озвучка.
+tts-defective = Голос выходил испорченным во всех попытках ({ $defects }): попробуйте другой голос, текст короче или температуру ниже.
+speech-block-silent = В блоке нечего произносить: в нём только паузы и разметка.
+speech-synth-block = Озвучиваю { $n } из { $total }: { $text }
+speech-synth-all-failed = Ни один блок не озвучен: { $error }
+speech-export-not-ready = Блоков не озвучено или устарело: { $count }. Сначала озвучьте их.
+speech-export-empty = Экспортировать нечего: все блоки пустые или скрыты.
+speech-export-block = Склеиваю { $n } из { $total }…
+speech-export-loudness = Привожу громкость к пресету…
+speech-untitled = Без названия
+speech-narrator = Рассказчик
+speech-no-project = Проекта { $pid } нет.
+media-loudnorm-silent = Звук тихий: приводить к громкости нечего.
+media-bad-format = { $format } — не формат экспорта: WAV, FLAC, MP3, OGG или M4A.

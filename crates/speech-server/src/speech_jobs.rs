@@ -1,0 +1,346 @@
+//! Задачи Speech: синтез блоков и экспорт. Синтез перечитывает проект перед каждым блоком и пишет дубль сразу —
+//! правки окна и агента во время озвучки не теряются, а окно видит блоки готовыми по одному. Сырой выход модели —
+//! FLAC в `takes/`. Экспорт склеивает выбранные дубли с паузами (отрицательная — перекрытие), ставит громкость
+//! пресета в два прохода и кодирует в нужный формат; блоки без звука или устаревшие экспорт не пропускает.
+
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
+
+use serde_json::{json, Value};
+
+use crate::speech_project::{self as sp, Block, SpeechProject, Take};
+use crate::speech_text::{self as stx, Piece};
+use crate::tts_host::{self, HiggsConfig};
+
+pub const SR: u32 = 24_000;
+
+#[derive(Clone)]
+pub struct SpeechPaths {
+    pub repo_root: PathBuf,
+    pub workspace: PathBuf,
+    pub voices_dir: PathBuf,
+    pub models_root: PathBuf,
+    pub higgs_dll: PathBuf,
+    pub threads: i32,
+}
+
+pub fn higgs_config(p: &SpeechPaths) -> HiggsConfig {
+    let sel = crate::models::load_selection(&p.models_root);
+    let (model_root, quant) = crate::models::resolve_tts(&p.models_root, &sel);
+    let backend = if crate::hw::gpu_report().nvidia { "cuda" } else { "cpu" };
+    HiggsConfig { dll: p.higgs_dll.clone(), model_root, quant, backend: backend.into(), threads: p.threads }
+}
+
+pub fn ref_limit(models_root: &Path) -> f64 {
+    crate::models::load_selection(models_root).get("higgs_ref_secs").and_then(Value::as_str).and_then(|v| v.parse::<f64>().ok()).unwrap_or(12.0)
+}
+
+/// Ключи синтеза всех блоков проекта при нынешних голосах и настройках.
+pub fn keys(p: &SpeechPaths, project: &SpeechProject) -> BTreeMap<String, String> {
+    let cfg = higgs_config(p);
+    let engine = format!("higgs:{}", cfg.quant);
+    let limit = ref_limit(&p.models_root);
+    let mut tags: BTreeMap<Option<String>, String> = BTreeMap::new();
+    project
+        .blocks()
+        .map(|b| {
+            let voice = project.voice_of(b);
+            let tag = tags.entry(voice.clone()).or_insert_with(|| sp::voice_tag(&p.voices_dir, voice.as_deref())).clone();
+            (b.id.clone(), sp::synth_key(project, b, &tag, &engine, limit))
+        })
+        .collect()
+}
+
+fn takes_dir(p: &SpeechPaths, pid: &str) -> PathBuf {
+    p.workspace.join(pid).join("takes")
+}
+
+fn seed_for(block: &str, n: u32) -> u64 {
+    let h = blake3::hash(format!("{block}|{n}|{}", sp::now()).as_bytes());
+    u64::from_le_bytes(h.as_bytes()[..8].try_into().expect("8 bytes"))
+}
+
+fn resample_to(samples: Vec<f32>, sr: i32) -> Vec<f32> {
+    if sr as u32 == SR || sr <= 0 {
+        return samples;
+    }
+    let ratio = SR as f64 / sr as f64;
+    let n = (samples.len() as f64 * ratio) as usize;
+    (0..n)
+        .map(|i| {
+            let x = i as f64 / ratio;
+            let a = x.floor() as usize;
+            let f = (x - a as f64) as f32;
+            let s0 = samples.get(a).copied().unwrap_or(0.0);
+            let s1 = samples.get(a + 1).copied().unwrap_or(s0);
+            s0 + (s1 - s0) * f
+        })
+        .collect()
+}
+
+/// Звук одного блока: фразы синтезом, паузы тишиной. Возвращает сэмплы (SR), что разметки проигнорировано и сводку.
+fn synth_block(p: &SpeechPaths, project: &SpeechProject, b: &Block, n: u32) -> Result<(Vec<f32>, Value, Take), String> {
+    let cfg = higgs_config(p);
+    let engine = tts_host::engine(&cfg)?;
+    let voice = project.voice_of(b);
+    let reference = match voice.as_deref() {
+        Some(v) => Some(tts_host::prepare_ref(&p.voices_dir, v, ref_limit(&p.models_root))?),
+        None => None,
+    };
+    let lang = if project.settings.lang == "auto" { "" } else { project.settings.lang.as_str() };
+    let mut out: Vec<f32> = Vec::new();
+    let mut ignored = stx::Ignored::default();
+    let (mut seed, mut temperature, mut secs, mut retried) = (0u64, project.settings.params.temperature, 0.0, Vec::new());
+    let fresh = seed_for(&b.id, n);
+    for (k, piece) in stx::pieces(&b.text).into_iter().enumerate() {
+        match piece {
+            Piece::Pause(ms) => out.extend(std::iter::repeat_n(0.0, (SR as u64 * ms as u64 / 1000) as usize)),
+            Piece::Say(text) => {
+                let (say, ig) = stx::for_higgs(&text, lang);
+                ignored.accent |= ig.accent;
+                ignored.phonemes |= ig.phonemes;
+                ignored.stress |= ig.stress;
+                if say.is_empty() {
+                    continue;
+                }
+                let req = tts_host::Request {
+                    text: &say,
+                    lang,
+                    ref_wav: reference.as_ref().map(|(w, _)| w.as_path()),
+                    ref_text: reference.as_ref().and_then(|(_, t)| t.as_deref()),
+                    params: &project.settings.params,
+                    fresh_seed: fresh.wrapping_add(k as u64),
+                };
+                let s = tts_host::synth(&engine, &req)?;
+                if k == 0 || seed == 0 {
+                    seed = s.seed;
+                    temperature = s.temperature;
+                }
+                secs += s.seconds;
+                retried.extend(s.defects.iter().map(|d| d.to_string()));
+                out.extend(resample_to(s.samples, s.sr));
+            }
+        }
+    }
+    if out.is_empty() {
+        return Err(t!("speech-block-silent"));
+    }
+    let take = Take { n, seed, temperature, created: sp::now(), source: "synth".into(), synth_secs: secs, retried, duration: out.len() as f64 / SR as f64, ..Default::default() };
+    Ok((out, serde_json::to_value(&ignored).unwrap_or(Value::Null), take))
+}
+
+fn write_flac(samples: &[f32], dst: &Path) -> Result<(), String> {
+    let dir = dst.parent().expect("a folder");
+    std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    let wav = dir.join(format!(".{}.wav", sp::new_id()));
+    crate::wavio::write_mono_f32(&wav, samples, SR)?;
+    let made = crate::media::encode_audio(&wav, dst, "flac", false);
+    let _ = std::fs::remove_file(&wav);
+    made
+}
+
+/// Какие блоки озвучивать: `ids` — эти (нет — все), `from` — начиная с этого (Play until end), `force` — и готовые
+/// (новый дубль), иначе только `pending`, `stale` и `failed`.
+pub struct Scope {
+    pub ids: Option<Vec<String>>,
+    pub from: Option<String>,
+    pub force: bool,
+}
+
+pub fn synth(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Value)) -> Result<Value, String> {
+    let project = sp::load(&p.workspace, pid)?;
+    let order: Vec<String> = project.blocks().map(|b| b.id.clone()).collect();
+    let start = scope.from.as_ref().and_then(|f| order.iter().position(|id| id == f)).unwrap_or(0);
+    let wanted: Vec<String> = order[start..].iter().filter(|id| scope.ids.as_ref().is_none_or(|ids| ids.contains(id))).cloned().collect();
+    let (mut done, mut failed, mut skipped) = (0usize, Vec::new(), 0usize);
+    let total = wanted.len();
+    for (i, id) in wanted.iter().enumerate() {
+        if crate::jobs::current().is_some_and(|c| c.is_cancelled()) {
+            return Err(crate::jobs::CANCELLED.to_string());
+        }
+        let project = sp::load(&p.workspace, pid)?;
+        let Some(b) = project.blocks().find(|b| &b.id == id).cloned() else { continue };
+        let key = keys(p, &project).remove(id).unwrap_or_default();
+        let state = sp::status(&b, &key);
+        if state == "skipped" || (!scope.force && state == "ready") {
+            skipped += 1;
+            continue;
+        }
+        let snippet: String = sp::visible_snippet(&b.text);
+        progress(json!({ "type": "progress", "stage": "speech_synth", "msg": t!("speech-synth-block", n = (i + 1) as i64, total = total as i64, text = snippet), "pct": (i * 100 / total.max(1)) as i64 }));
+        let n = b.takes.iter().map(|t| t.n).max().unwrap_or(0) + 1;
+        let result = synth_block(p, &project, &b, n).and_then(|(samples, ignored, mut take)| {
+            let file = format!("{}-{n}.flac", b.id);
+            write_flac(&samples, &takes_dir(p, pid).join(&file))?;
+            take.file = file;
+            take.key = key.clone();
+            Ok((take, ignored))
+        });
+        let mut fresh = sp::load(&p.workspace, pid)?;
+        let Some(block) = fresh.block_mut(id) else { continue };
+        match result {
+            Ok((take, ignored)) => {
+                let n = take.n;
+                block.takes.push(take);
+                if block.pinned.is_none() {
+                    block.active = Some(n);
+                }
+                block.error = None;
+                sp::save(&p.workspace, pid, &fresh)?;
+                done += 1;
+                progress(json!({ "type": "progress", "stage": "speech_block_done", "block": id, "ignored": ignored }));
+            }
+            Err(e) => {
+                block.error = Some(sp::BlockError { key: key.clone(), text: e.clone() });
+                sp::save(&p.workspace, pid, &fresh)?;
+                if e.starts_with(tts_host::ENGINE_STUCK) || e == crate::jobs::CANCELLED {
+                    return Err(e);
+                }
+                failed.push(json!({ "block": id, "error": e }));
+            }
+        }
+    }
+    if done == 0 && !failed.is_empty() {
+        return Err(t!("speech-synth-all-failed", error = failed[0]["error"].as_str().unwrap_or("").to_string()));
+    }
+    Ok(json!({ "done": done, "failed": failed, "skipped": skipped }))
+}
+
+/// Пресет громкости: интегральная громкость и потолок пиков; ACX — средний уровень −20 (RMS-цель ACX −23…−18), пики −3.
+pub fn loudness(preset: &str) -> Option<(f64, f64, f64)> {
+    match preset {
+        "video" => Some((-14.0, -1.0, 11.0)),
+        "podcast" => Some((-16.0, -1.0, 11.0)),
+        "acx" => Some((-20.0, -3.0, 11.0)),
+        _ => None,
+    }
+}
+
+/// Что мешает экспорту: блоки без звука, устаревшие, упавшие, со стёртым файлом дубля. Пусто — можно.
+pub fn export_check(p: &SpeechPaths, pid: &str, project: &SpeechProject) -> Vec<Value> {
+    let keys = keys(p, project);
+    project
+        .blocks()
+        .filter_map(|b| {
+            let key = keys.get(&b.id).cloned().unwrap_or_default();
+            match sp::status(b, &key) {
+                "skipped" => None,
+                "ready" => {
+                    let on_disk = b.active.and_then(|n| b.takes.iter().find(|t| t.n == n)).is_some_and(|t| takes_dir(p, pid).join(&t.file).is_file());
+                    (!on_disk).then(|| json!({ "block": b.id, "state": "missing" }))
+                }
+                state => Some(json!({ "block": b.id, "state": state })),
+            }
+        })
+        .collect()
+}
+
+pub struct ExportOpts {
+    pub format: String,
+    pub chapter: Option<String>,
+}
+
+/// Склеить проект в файл `exports/<имя>.<формат>`.
+pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(Value)) -> Result<Value, String> {
+    if !crate::media::EXPORT_FORMATS.contains(&opts.format.as_str()) {
+        return Err(t!("media-bad-format", format = opts.format.clone()));
+    }
+    let project = sp::load(&p.workspace, pid)?;
+    let problems = export_check(p, pid, &project);
+    if !problems.is_empty() {
+        return Err(t!("speech-export-not-ready", count = problems.len() as i64));
+    }
+    let blocks: Vec<&Block> = project
+        .chapters
+        .iter()
+        .filter(|c| opts.chapter.as_ref().is_none_or(|id| &c.id == id))
+        .flat_map(|c| c.blocks.iter())
+        .filter(|b| !b.hidden && !b.text.trim().is_empty())
+        .collect();
+    if blocks.is_empty() {
+        return Err(t!("speech-export-empty"));
+    }
+    let dir = p.workspace.join(pid);
+    let work = tempfile::Builder::new().prefix("export-").tempdir_in(&dir).map_err(|e| e.to_string())?;
+    let mut mix: Vec<f32> = Vec::new();
+    let mut cursor: i64 = 0;
+    let mut marks = Vec::new();
+    let mut prev_speaker: Option<&str> = None;
+    for (i, b) in blocks.iter().enumerate() {
+        progress(json!({ "type": "progress", "stage": "speech_export", "msg": t!("speech-export-block", n = (i + 1) as i64, total = blocks.len() as i64), "pct": (i * 90 / blocks.len()) as i64 }));
+        let take = b.active.and_then(|n| b.takes.iter().find(|t| t.n == n)).ok_or_else(|| t!("speech-export-not-ready", count = 1))?;
+        let src = takes_dir(p, pid).join(&take.file);
+        let wav = work.path().join(format!("{i}.wav"));
+        crate::media::extract_audio(&src, &wav, SR, 1)?;
+        let (samples, _) = crate::wavio::read_mono_f32(&wav)?;
+        if let Some(prev) = prev_speaker {
+            let ms = b.pause_ms.unwrap_or(if prev == b.speaker { project.settings.pause_same_ms } else { project.settings.pause_switch_ms });
+            cursor = (cursor + SR as i64 * ms / 1000).max(0);
+        }
+        let at = cursor as usize;
+        marks.push(json!({ "block": b.id, "start": at as f64 / SR as f64 }));
+        if mix.len() < at + samples.len() {
+            mix.resize(at + samples.len(), 0.0);
+        }
+        for (k, s) in samples.iter().enumerate() {
+            mix[at + k] += *s;
+        }
+        cursor = (at + samples.len()) as i64;
+        if let Some(own) = b.pause_ms.filter(|_| i + 1 == blocks.len()) {
+            mix.resize(mix.len() + (SR as i64 * own.max(0) / 1000) as usize, 0.0);
+        }
+        prev_speaker = Some(b.speaker.as_str());
+    }
+    progress(json!({ "type": "progress", "stage": "speech_export", "msg": t!("speech-export-loudness"), "pct": 92 }));
+    let levelled = match loudness(&project.settings.loudness) {
+        Some((i, tp, _)) => Some(crate::loudness::level(&mut mix, SR, i, tp)?),
+        None => None,
+    };
+    let joined = work.path().join("joined.wav");
+    crate::wavio::write_mono_f32(&joined, &mix, SR)?;
+    let exports = dir.join("exports");
+    std::fs::create_dir_all(&exports).map_err(|e| format!("{}: {e}", exports.display()))?;
+    let base = file_stem(&project.name, opts.chapter.as_deref().and_then(|id| project.chapters.iter().find(|c| c.id == id)).map(|c| c.title.as_str()));
+    let file = format!("{base}.{}", opts.format);
+    let target = exports.join(&file);
+    crate::media::encode_audio(&joined, &target, &opts.format, project.settings.loudness == "acx")?;
+    Ok(json!({ "file": file, "path": target.to_string_lossy(), "duration": mix.len() as f64 / SR as f64, "marks": marks, "lufs_before": levelled.map(|l| l.before), "lufs": levelled.map(|l| l.after) }))
+}
+
+/// Имя файла экспорта по проекту и главе: без символов, которых не любят файловые системы.
+pub fn file_stem(project: &str, chapter: Option<&str>) -> String {
+    let raw = match chapter.filter(|c| !c.trim().is_empty()) {
+        Some(c) => format!("{project} - {c}"),
+        None => project.to_string(),
+    };
+    let clean: String = raw.chars().map(|c| if r#"<>:"/\|?*"#.contains(c) || c.is_control() { ' ' } else { c }).collect();
+    let clean = clean.split_whitespace().collect::<Vec<_>>().join(" ");
+    let clean: String = clean.chars().take(100).collect();
+    if clean.trim().is_empty() { "speech".into() } else { clean.trim().trim_end_matches('.').to_string() }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn export_names_drop_what_file_systems_refuse() {
+        assert_eq!(file_stem("Глава: 1/2?", None), "Глава 1 2");
+        assert_eq!(file_stem("Книга", Some("Пролог")), "Книга - Пролог");
+        assert_eq!(file_stem("  ", None), "speech");
+    }
+
+    #[test]
+    fn resampling_keeps_the_length_in_time() {
+        let x = vec![0.5f32; 48_000];
+        assert_eq!(resample_to(x.clone(), 48_000).len(), 24_000);
+        assert_eq!(resample_to(x, 24_000).len(), 48_000);
+    }
+
+    #[test]
+    fn loudness_presets_are_the_documented_ones() {
+        assert_eq!(loudness("video"), Some((-14.0, -1.0, 11.0)));
+        assert_eq!(loudness("acx").map(|l| l.1), Some(-3.0));
+        assert_eq!(loudness("off"), None);
+    }
+}
