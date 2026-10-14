@@ -17,8 +17,8 @@ const VARIANT_SLOT: Record<string, [string, string]> = {
 export const activeVariantId = (ids: string[], sel: Selection): string | undefined =>
   ids.find((id) => { const m = VARIANT_SLOT[id]; return !!m && sel[m[0]] === m[1]; });
 
-export type VariantI18n = Record<string, { label: "asrVariant.int8" | "asrVariant.fp32" | "asrVariant.ultra" | "asrVariant.ultraInt8"; hint: "asrVariant.int8Hint" | "asrVariant.fp32Hint" | "asrVariant.ultraHint" | "asrVariant.ultraInt8Hint" }>;
-// Варианты Parakeet: int8 и fp32 — базовая модель NVIDIA, Ultra — её дообученная Moondream версия.
+export type VariantI18n = Record<string, { label: "asrVariant.int8" | "asrVariant.ultraInt8"; hint: "asrVariant.int8Hint" | "asrVariant.ultraInt8Hint" }>;
+// Варианты Parakeet (только int8): базовая модель NVIDIA и Ultra — её дообученная Moondream версия.
 export const ASR_VARIANT_I18N: VariantI18n = {
   parakeet: { label: "asrVariant.int8", hint: "asrVariant.int8Hint" },
   "parakeet-ultra-int8": { label: "asrVariant.ultraInt8", hint: "asrVariant.ultraInt8Hint" },
