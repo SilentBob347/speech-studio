@@ -952,7 +952,13 @@
     "marker_blue": "Blue",
     "marker_violet": "Violet",
     "takeText": "Take #{{n}} was voiced from: {{text}}",
-    "takeTextRestore": "Bring that text back"
+    "takeTextRestore": "Bring that text back",
+    "packTitle": "Project file for moving",
+    "packHint": "A .speechproj with the text, settings, dictionary and the voices the project uses; open it in Speech Studio on another computer.",
+    "packAudio": "With the takes' audio",
+    "packRun": "Make the project file",
+    "openPack": "Open project file",
+    "openPackHint": "Open a .speechproj: the project and its voices are added here"
   },
   "tags": {
     "emotion": "Emotion",

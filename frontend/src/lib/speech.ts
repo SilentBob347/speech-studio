@@ -70,6 +70,12 @@ export const speechApi = {
   synth: (pid: string, scope: { ids?: string[]; from?: string; force?: boolean }) => postCoded<{ job_id: string }>(`/projects/${pid}/synth`, scope),
   exportCheck: (pid: string) => getCoded<{ problems: ExportProblem[] }>(`/projects/${pid}/export-check`),
   export: (pid: string, format: ExportFormat, chapter?: string) => postCoded<{ job_id: string }>(`/projects/${pid}/export`, { format, chapter }),
+  pack: (pid: string, audio: boolean) => postCoded<{ file: string; bytes: number }>(`/projects/${pid}/package`, { audio }),
+  importPackage: (file: File) => {
+    const form = new FormData();
+    form.append("file", file, file.name);
+    return fetch(`${BASE}/speechproj/import`, { method: "POST", body: form }).then(coded<{ project_id: string; voices_added: string[] }>);
+  },
   engines: () => getCoded<{ engines: EngineCaps[] }>("/engines"),
   stress: (text: string, lang: string) => postCoded<StressResult>("/text/stress", { text, lang }),
   prepare: (text: string, pid?: string, block?: string) => postCoded<{ prepared: Prepared; stress_applied: boolean; stress_missing: boolean }>("/text/prepare", { text, pid, block }),

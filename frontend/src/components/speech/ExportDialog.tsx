@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, Download, Loader2, Sparkles, X } from "lucide-react";
+import { Check, Download, Loader2, Package, Sparkles, X } from "lucide-react";
 import { EXPORT_FORMATS, speechApi, type ExportFormat, type ExportProblem, type SpeechProject } from "../../lib/speech";
 import { followJob } from "../../lib/followJob";
 import { errorText } from "../../lib/voices";
@@ -21,6 +21,14 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
   const [busy, setBusy] = useState(false);
   const [file, setFile] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [withAudio, setWithAudio] = useState(true);
+  const [pack, setPack] = useState<{ file: string; bytes: number } | null>(null);
+  const [packing, setPacking] = useState(false);
+  const runPack = async () => {
+    setPacking(true);
+    setError(null);
+    try { setPack(await speechApi.pack(pid, withAudio)); } catch (e) { setError(errorText(e)); } finally { setPacking(false); }
+  };
   useEscapeLayer(() => { if (!busy) onClose(); });
   useEffect(() => { speechApi.exportCheck(pid).then((r) => setProblems(r.problems), (e: unknown) => setError(errorText(e))); }, [pid]);
 
@@ -70,6 +78,20 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
             )}
           </>
         )}
+        <div className="pt-3 border-t border-[var(--color-border)] space-y-2">
+          <h3 className="text-[12px] font-semibold">{t("speech.packTitle")}</h3>
+          <p className="text-[11px] text-[var(--color-muted)]">{t("speech.packHint")}</p>
+          <label className="flex items-center gap-2 text-[12px] cursor-pointer">
+            <input type="checkbox" checked={withAudio} onChange={(e) => { setWithAudio(e.target.checked); setPack(null); }} className="w-4 h-4 accent-[var(--color-accent)]" />{t("speech.packAudio")}
+          </label>
+          {pack ? (
+            <a href={speechApi.exportUrl(pid, pack.file)} download={pack.file} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-accent)] text-[var(--color-accent)] text-[12px] font-semibold"><Check size={13} />{t("speech.saveFile", { file: pack.file })}</a>
+          ) : (
+            <button onClick={() => void runPack()} disabled={packing} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] font-medium hover:border-[var(--color-accent)] disabled:opacity-40">
+              {packing ? <Loader2 size={13} className="animate-spin" /> : <Package size={13} />}{t("speech.packRun")}
+            </button>
+          )}
+        </div>
         {error && <p role="alert" className="text-[12px] text-[var(--color-warn)] break-words">{error}</p>}
       </div>
     </div>

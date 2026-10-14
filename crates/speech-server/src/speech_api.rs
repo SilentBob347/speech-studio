@@ -301,3 +301,35 @@ pub async fn stress(State(st): State<AppState>, Json(req): Json<StressReq>) -> R
         Err(resp) => resp,
     }
 }
+
+/// POST /projects/{pid}/package {audio} — файл проекта для переноса в папку экспорта проекта.
+pub async fn package(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<Value>) -> Response {
+    if !sp::is_pid(&pid) {
+        return refuse(StatusCode::BAD_REQUEST, "bad_request", pid);
+    }
+    let audio = body.get("audio").and_then(Value::as_bool).unwrap_or(true);
+    let p = paths(&st);
+    match joined(tokio::task::spawn_blocking(move || crate::speechproj::pack(&p, &pid, audio)).await) {
+        Ok(Ok((file, bytes))) => Json(json!({ "file": file, "bytes": bytes })).into_response(),
+        Ok(Err(e)) => refuse(StatusCode::BAD_REQUEST, "speechproj-failed", e),
+        Err(r) => r,
+    }
+}
+
+/// POST /speechproj/import (multipart `file`) — новый проект из файла переноса; голоса — в библиотеку.
+pub async fn import_package(State(st): State<AppState>, mut multipart: axum::extract::Multipart) -> Response {
+    let mut bytes: Option<Vec<u8>> = None;
+    while let Ok(Some(field)) = multipart.next_field().await {
+        match field.bytes().await {
+            Ok(b) => bytes = Some(b.to_vec()),
+            Err(e) => return refuse(StatusCode::BAD_REQUEST, "bad_request", e.to_string()),
+        }
+    }
+    let Some(bytes) = bytes else { return refuse(StatusCode::BAD_REQUEST, "bad_request", "no file") };
+    let p = paths(&st);
+    match joined(tokio::task::spawn_blocking(move || crate::speechproj::unpack(&p, &bytes)).await) {
+        Ok(Ok((pid, voices))) => Json(json!({ "project_id": pid, "voices_added": voices })).into_response(),
+        Ok(Err(e)) => refuse(StatusCode::BAD_REQUEST, "speechproj-refused", e),
+        Err(r) => r,
+    }
+}

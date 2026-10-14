@@ -324,6 +324,12 @@ pub fn export_zip(dir: &Path, names: &[String]) -> Result<Vec<u8>, String> {
 /// Голоса из архива экспорта: имя, занятое в библиотеке, получает номер; повторный импорт того же голоса
 /// (тот же звук побайтно) распознаётся и пропускается.
 pub fn import_zip(dir: &Path, bytes: &[u8]) -> Result<(Vec<String>, Vec<String>), String> {
+    let (added, same) = import_zip_mapped(dir, bytes)?;
+    Ok((added.into_iter().map(|(_, to)| to).collect(), same))
+}
+
+/// То же, что `import_zip`, с исходным именем каждого добавленного голоса: `(как звался в архиве, как назван здесь)`.
+pub fn import_zip_mapped(dir: &Path, bytes: &[u8]) -> Result<(Vec<(String, String)>, Vec<String>), String> {
     let mut archive = zip::ZipArchive::new(std::io::Cursor::new(bytes)).map_err(|e| e.to_string())?;
     let mut groups: std::collections::BTreeMap<String, Vec<(String, Vec<u8>)>> = Default::default();
     for i in 0..archive.len() {
@@ -363,7 +369,7 @@ pub fn import_zip(dir: &Path, bytes: &[u8]) -> Result<(Vec<String>, Vec<String>)
                 std::fs::write(dir.join(format!("{target}.{ext}")), data).map_err(|e| format!("{target}: {e}"))?;
             }
         }
-        added.push(target);
+        added.push((name, target));
     }
     Ok((added, same))
 }

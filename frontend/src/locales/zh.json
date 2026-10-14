@@ -952,7 +952,13 @@
     "marker_blue": "蓝",
     "marker_violet": "紫",
     "takeText": "版本 #{{n}} 按此文本配音：{{text}}",
-    "takeTextRestore": "恢复该文本"
+    "takeTextRestore": "恢复该文本",
+    "packTitle": "用于迁移的项目文件",
+    "packHint": ".speechproj 包含文本、设置、词典和项目使用的声音；在另一台电脑的 Speech Studio 中打开。",
+    "packAudio": "包含各版本音频",
+    "packRun": "生成项目文件",
+    "openPack": "打开项目文件",
+    "openPackHint": "打开 .speechproj：项目及其声音将添加到这里"
   },
   "tags": {
     "emotion": "情绪",

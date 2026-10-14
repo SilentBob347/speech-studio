@@ -952,7 +952,13 @@
     "marker_blue": "Bleu",
     "marker_violet": "Violet",
     "takeText": "La prise #{{n}} a été dite avec : {{text}}",
-    "takeTextRestore": "Revenir à ce texte"
+    "takeTextRestore": "Revenir à ce texte",
+    "packTitle": "Fichier de projet à transférer",
+    "packHint": "Un .speechproj avec le texte, les réglages, le dictionnaire et les voix du projet ; ouvrez-le dans Speech Studio sur un autre ordinateur.",
+    "packAudio": "Avec l’audio des prises",
+    "packRun": "Créer le fichier de projet",
+    "openPack": "Ouvrir un fichier de projet",
+    "openPackHint": "Ouvrir un .speechproj : le projet et ses voix sont ajoutés ici"
   },
   "tags": {
     "emotion": "Émotion",

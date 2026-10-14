@@ -952,7 +952,13 @@
     "marker_blue": "Синий",
     "marker_violet": "Фиолетовый",
     "takeText": "Дубль #{{n}} озвучен по тексту: {{text}}",
-    "takeTextRestore": "Вернуть этот текст"
+    "takeTextRestore": "Вернуть этот текст",
+    "packTitle": "Файл проекта для переноса",
+    "packHint": ".speechproj с текстом, настройками, словарём и голосами проекта; откройте его в Speech Studio на другом компьютере.",
+    "packAudio": "С аудио дублей",
+    "packRun": "Собрать файл проекта",
+    "openPack": "Открыть файл проекта",
+    "openPackHint": "Открыть .speechproj: проект и его голоса добавятся сюда"
   },
   "tags": {
     "emotion": "Эмоция",

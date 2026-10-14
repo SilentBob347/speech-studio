@@ -952,7 +952,13 @@
     "marker_blue": "Azul",
     "marker_violet": "Violeta",
     "takeText": "La toma #{{n}} se locutó con: {{text}}",
-    "takeTextRestore": "Recuperar ese texto"
+    "takeTextRestore": "Recuperar ese texto",
+    "packTitle": "Archivo de proyecto para mover",
+    "packHint": "Un .speechproj con el texto, los ajustes, el diccionario y las voces del proyecto; ábrelo en Speech Studio en otro ordenador.",
+    "packAudio": "Con el audio de las tomas",
+    "packRun": "Crear el archivo de proyecto",
+    "openPack": "Abrir archivo de proyecto",
+    "openPackHint": "Abrir un .speechproj: el proyecto y sus voces se añaden aquí"
   },
   "tags": {
     "emotion": "Emoción",
