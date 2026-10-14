@@ -172,16 +172,77 @@ pub async fn synth(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json
         ids: body.get("ids").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).map(str::to_string).collect()),
         from: body.get("from").and_then(Value::as_str).map(str::to_string),
         force: body.get("force").and_then(Value::as_bool).unwrap_or(false),
+        seed: body.get("seed").and_then(Value::as_u64),
     };
-    let p = paths(&st);
-    let pid2 = pid.clone();
-    let job: jobs::JobFn = Box::new(move |progress: jobs::ProgressFn| {
-        let cb = |ev: Value| progress(ev);
-        speech_jobs::synth(&p, &pid2, &scope, &cb)
-    });
-    match st.jobs.enqueue(jobs::JobMeta::new(jobs::JobKind::Synth, Some(&pid)), job).await {
-        Ok(job_id) => Json(json!({ "job_id": job_id })).into_response(),
-        Err(e) => crate::enqueue_error(e),
+    for _ in 0..40 {
+        if let Some((job_id, jobs::JobKind::Synth)) = st.jobs.active_for(&pid).await {
+            if let Some(n) = speech_jobs::try_queue(&pid, &scope) {
+                return Json(json!({ "job_id": job_id, "queued": n })).into_response();
+            }
+        }
+        let p = paths(&st);
+        let (pid2, scope2) = (pid.clone(), scope.clone());
+        let job: jobs::JobFn = Box::new(move |progress: jobs::ProgressFn| {
+            let cb = |ev: Value| progress(ev);
+            speech_jobs::synth(&p, &pid2, &scope2, &cb)
+        });
+        match st.jobs.enqueue(jobs::JobMeta::new(jobs::JobKind::Synth, Some(&pid)), job).await {
+            Ok(job_id) => return Json(json!({ "job_id": job_id })).into_response(),
+            Err(jobs::EnqueueError::Conflict { kind: jobs::JobKind::Synth, .. }) => tokio::time::sleep(std::time::Duration::from_millis(50)).await,
+            Err(e) => return crate::enqueue_error(e),
+        }
+    }
+    refuse(StatusCode::CONFLICT, "busy", "synthesis is finishing, try again")
+}
+
+/// GET /projects/{pid}/queue — что ждёт своей очереди озвучки.
+pub async fn queue(AxPath(pid): AxPath<String>) -> Json<Value> {
+    Json(json!({ "queue": speech_jobs::queue_of(&pid) }))
+}
+
+/// DELETE /projects/{pid}/queue[/{n}] — убрать запрос из очереди или очистить её.
+pub async fn queue_remove(AxPath((pid, n)): AxPath<(String, u64)>) -> Json<Value> {
+    Json(json!({ "removed": speech_jobs::unqueue(&pid, Some(n)) }))
+}
+
+pub async fn queue_clear(AxPath(pid): AxPath<String>) -> Json<Value> {
+    Json(json!({ "removed": speech_jobs::unqueue(&pid, None) }))
+}
+
+/// GET /history[?pid=] — все дубли (проекта или всех проектов) с параметрами, временем и скоростью: новые сверху.
+pub async fn history(State(st): State<AppState>, axum::extract::Query(q): axum::extract::Query<std::collections::HashMap<String, String>>) -> Response {
+    let ws = st.workspace.clone();
+    let only = q.get("pid").cloned();
+    let rows = joined(
+        tokio::task::spawn_blocking(move || {
+            let mut rows: Vec<Value> = Vec::new();
+            let dirs: Vec<String> = match &only {
+                Some(pid) => vec![pid.clone()],
+                None => std::fs::read_dir(&ws).map(|rd| rd.flatten().filter_map(|e| e.file_name().to_str().map(str::to_string)).filter(|n| sp::is_pid(n)).collect()).unwrap_or_default(),
+            };
+            for pid in dirs {
+                let Ok(project) = sp::load(&ws, &pid) else { continue };
+                for b in project.blocks() {
+                    for t in &b.takes {
+                        rows.push(json!({
+                            "pid": pid, "project": project.name, "block": b.id, "speaker": b.speaker,
+                            "text": sp::visible_snippet(if t.text.is_empty() { &b.text } else { &t.text }),
+                            "n": t.n, "file": t.file, "created": t.created, "duration": t.duration, "synth_secs": t.synth_secs,
+                            "rtf": if t.duration > 0.0 { t.synth_secs / t.duration } else { 0.0 },
+                            "seed": t.seed, "temperature": t.temperature, "top_k": t.top_k, "top_p": t.top_p, "max_tokens": t.max_tokens,
+                            "voice": t.voice, "engine": t.engine, "source": t.source, "wer": t.qc.as_ref().map(|c| c.wer), "active": b.active == Some(t.n),
+                        }));
+                    }
+                }
+            }
+            rows.sort_by(|a, b| b["created"].as_u64().cmp(&a["created"].as_u64()));
+            rows
+        })
+        .await,
+    );
+    match rows {
+        Ok(rows) => Json(json!({ "takes": rows })).into_response(),
+        Err(r) => r,
     }
 }
 

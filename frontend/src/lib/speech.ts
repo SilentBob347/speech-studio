@@ -61,6 +61,12 @@ export type BookPreview = {
   id: string; title: string; author: string; lang: string; cover: boolean;
   chapters: { index: number; title: string; chars: number; est_secs: number; head: string; skip: "cover" | "front" | "toc" | "empty" | null }[];
 };
+export type HistoryTake = {
+  pid: string; project: string; block: string; speaker: string; text: string; n: number; file: string; created: number;
+  duration: number; synth_secs: number; rtf: number; seed: number; temperature: number; top_k: number; top_p: number; max_tokens: number;
+  voice: string; engine: string; source: string; wer: number | null; active: boolean;
+};
+export type QueuedSynth = { n: number; added: number; scope: { ids: string[] | null; from: string | null; force: boolean; seed: number | null } };
 export type ExportProblem = { block: string; state: BlockState | "missing" };
 
 export const speechApi = {
@@ -73,7 +79,10 @@ export const speechApi = {
     return sendCoded<SpeechProject>("PUT", `/projects/${pid}`, body);
   },
   remove: (pid: string) => sendCoded<{ deleted: string }>("DELETE", `/projects/${pid}`),
-  synth: (pid: string, scope: { ids?: string[]; from?: string; force?: boolean }) => postCoded<{ job_id: string }>(`/projects/${pid}/synth`, scope),
+  synth: (pid: string, scope: { ids?: string[]; from?: string; force?: boolean; seed?: number }) => postCoded<{ job_id: string; queued?: number }>(`/projects/${pid}/synth`, scope),
+  queue: (pid: string) => getCoded<{ queue: QueuedSynth[] }>(`/projects/${pid}/queue`),
+  unqueue: (pid: string, n?: number) => sendCoded<{ removed: number }>("DELETE", n == null ? `/projects/${pid}/queue` : `/projects/${pid}/queue/${n}`),
+  history: (pid?: string) => getCoded<{ takes: HistoryTake[] }>(pid ? `/history?pid=${pid}` : "/history"),
   exportCheck: (pid: string) => getCoded<{ problems: ExportProblem[] }>(`/projects/${pid}/export-check`),
   export: (pid: string, format: ExportFormat, chapter?: string) => postCoded<{ job_id: string }>(`/projects/${pid}/export`, { format, chapter }),
   fromSubtitles: (file: File, name?: string) => {

@@ -986,7 +986,14 @@
     "acx_head": "Start: {{v}} s of room tone (needed 0.5–1)",
     "acx_tail": "End: {{v}} s of room tone (needed 1–5)",
     "acx_inner_silence": "Longest pause {{v}} s (needed 5 or less)",
-    "acx_length": "Length {{v}} min (needed 120 or less per file)"
+    "acx_length": "Length {{v}} min (needed 120 or less per file)",
+    "queuedAt": "Queued as #{{n}}: it will be voiced after the current job",
+    "queue": "Queue: {{n}}",
+    "queueBlocks": "Blocks: {{n}}",
+    "queueFrom": "From a block to the end",
+    "queueAll": "Everything changed",
+    "unqueue": "Remove from the queue",
+    "queueClear": "Clear the queue"
   },
   "tags": {
     "emotion": "Emotion",
@@ -1137,5 +1144,20 @@
     "savedTo": "Saved: {{path}}",
     "title": "Project files",
     "none": "Nothing exported yet"
+  },
+  "history": {
+    "open": "History",
+    "title": "Generation history",
+    "count": "Takes: {{n}}",
+    "empty": "Nothing voiced yet",
+    "text": "Text",
+    "voice": "Voice",
+    "params": "Parameters",
+    "duration": "Length",
+    "rtf": "Speed",
+    "rtfHint": "How many times faster than real time it was made",
+    "when": "When",
+    "paramLine": "seed {{seed}} · t {{t}} · k {{k}} · p {{p}}",
+    "repeat": "Voice again with the same parameters"
   }
 }

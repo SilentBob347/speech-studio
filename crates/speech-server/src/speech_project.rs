@@ -36,6 +36,12 @@ pub struct Take {
     /// Текст блока, по которому озвучен дубль: к нему можно вернуться вместе с дублем.
     pub text: String,
     pub direction: String,
+    /// Параметры, с которыми сделан дубль (для истории и повтора).
+    pub top_k: u32,
+    pub top_p: f64,
+    pub max_tokens: u32,
+    pub voice: String,
+    pub engine: String,
     /// Подгонка под реплику: ускорение, на сколько секунд начат раньше, не влез и с ускорением.
     pub fit_stretch: f64,
     pub fit_lead: f64,

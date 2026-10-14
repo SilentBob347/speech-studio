@@ -986,7 +986,14 @@
     "acx_head": "Inicio: {{v}} s de tono de sala (se necesita 0,5–1)",
     "acx_tail": "Final: {{v}} s de tono de sala (se necesita 1–5)",
     "acx_inner_silence": "Pausa más larga {{v}} s (se necesita 5 o menos)",
-    "acx_length": "Duración {{v}} min (se necesita 120 o menos por archivo)"
+    "acx_length": "Duración {{v}} min (se necesita 120 o menos por archivo)",
+    "queuedAt": "En cola como n.º {{n}}: se locutará tras la tarea actual",
+    "queue": "Cola: {{n}}",
+    "queueBlocks": "Bloques: {{n}}",
+    "queueFrom": "Desde un bloque hasta el final",
+    "queueAll": "Todo lo cambiado",
+    "unqueue": "Quitar de la cola",
+    "queueClear": "Vaciar la cola"
   },
   "tags": {
     "emotion": "Emoción",
@@ -1137,5 +1144,20 @@
     "savedTo": "Guardado: {{path}}",
     "title": "Archivos del proyecto",
     "none": "Aún no se ha exportado nada"
+  },
+  "history": {
+    "open": "Historial",
+    "title": "Historial de generaciones",
+    "count": "Tomas: {{n}}",
+    "empty": "Aún no se ha locutado nada",
+    "text": "Texto",
+    "voice": "Voz",
+    "params": "Parámetros",
+    "duration": "Duración",
+    "rtf": "Velocidad",
+    "rtfHint": "Cuántas veces más rápido que el tiempo real se hizo",
+    "when": "Cuándo",
+    "paramLine": "semilla {{seed}} · t {{t}} · k {{k}} · p {{p}}",
+    "repeat": "Locutar de nuevo con los mismos parámetros"
   }
 }

@@ -114,7 +114,11 @@ fn synth_block(p: &SpeechPaths, project: &SpeechProject, b: &Block, n: u32) -> R
     let mut ignored = stx::Ignored::default();
     let (mut seed, mut temperature, mut secs, mut retried) = (0u64, project.settings.params.temperature, 0.0, Vec::new());
     let fresh = seed_for(&b.id, n);
-    let params = take_params(&project.settings.params, n);
+    let mut params = take_params(&project.settings.params, n);
+    if let Some(seed) = REPEAT_SEED.with(|s| s.get()) {
+        params.seed_mode = "fixed".into();
+        params.seed = seed % tts_host::SEED_RANGE;
+    }
     let mut rate = 1.0f64;
     let entries = dictionary(p, project);
     let stress = project.settings.auto_stress && crate::stress::is_russian(&b.text, &project.settings.lang);
@@ -168,6 +172,11 @@ fn synth_block(p: &SpeechPaths, project: &SpeechProject, b: &Block, n: u32) -> R
         duration: out.len() as f64 / SR as f64,
         text: b.text.clone(),
         direction: b.direction.clone(),
+        top_k: params.top_k,
+        top_p: params.top_p,
+        max_tokens: params.max_tokens,
+        voice: voice.clone().unwrap_or_default(),
+        engine: format!("higgs:{}", higgs_config(p).quant),
         fit_stretch: fitted.stretch,
         fit_lead: fitted.lead,
         fit_over: fitted.over,
@@ -249,13 +258,54 @@ fn write_flac(samples: &[f32], dst: &Path) -> Result<(), String> {
 
 /// Какие блоки озвучивать: `ids` — эти (нет — все), `from` — начиная с этого (Play until end), `force` — и готовые
 /// (новый дубль), иначе только `pending`, `stale` и `failed`.
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Scope {
     pub ids: Option<Vec<String>>,
     pub from: Option<String>,
     pub force: bool,
+    /// Повтор с теми же параметрами: сид дубля, по которому повторяют.
+    #[serde(default)]
+    pub seed: Option<u64>,
+}
+
+/// Запрос озвучки, вставший в очередь, пока проект озвучивается.
+#[derive(Clone, Debug, serde::Serialize)]
+pub struct Queued {
+    pub n: u64,
+    pub scope: Scope,
+    pub added: u64,
+}
+
+/// Очереди озвучки по проектам. `None` — задача проекта уже заканчивается: новые запросы ставятся новой задачей.
+pub static QUEUE: std::sync::LazyLock<std::sync::Mutex<std::collections::HashMap<String, Option<Vec<Queued>>>>> = std::sync::LazyLock::new(Default::default);
+
+pub fn queue_of(pid: &str) -> Vec<Queued> {
+    QUEUE.lock().map(|q| q.get(pid).cloned().flatten().unwrap_or_default()).unwrap_or_default()
+}
+
+/// Встать в очередь работающей задачи проекта; `None` — задачи нет или она уже заканчивается.
+pub fn try_queue(pid: &str, scope: &Scope) -> Option<u64> {
+    let mut q = QUEUE.lock().ok()?;
+    let list = q.get_mut(pid)?.as_mut()?;
+    let n = list.iter().map(|x| x.n).max().unwrap_or(0) + 1;
+    list.push(Queued { n, scope: scope.clone(), added: sp::now() });
+    Some(n)
+}
+
+pub fn unqueue(pid: &str, n: Option<u64>) -> usize {
+    let Ok(mut q) = QUEUE.lock() else { return 0 };
+    let Some(Some(list)) = q.get_mut(pid) else { return 0 };
+    let before = list.len();
+    list.retain(|x| n.is_some_and(|n| x.n != n));
+    before - list.len()
 }
 
 /// Озвучить один блок `count` дублями и записать их в проект; номера новых дублей. Ошибка — в блок.
+thread_local! {
+    /// Сид повтора «с теми же параметрами» для текущей задачи.
+    static REPEAT_SEED: std::cell::Cell<Option<u64>> = const { std::cell::Cell::new(None) };
+}
+
 fn voice_block(p: &SpeechPaths, pid: &str, id: &str, count: u32, source: &str, progress: &dyn Fn(Value)) -> Result<Vec<u32>, String> {
     let mut made = Vec::new();
     for _ in 0..count {
@@ -343,7 +393,49 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, pr
     Ok(failed)
 }
 
+/// Задача озвучки проекта: свой запрос, затем всё, что встало в очередь, пока она шла.
 pub fn synth(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Value)) -> Result<Value, String> {
+    if let Ok(mut q) = QUEUE.lock() {
+        q.insert(pid.to_string(), Some(Vec::new()));
+    }
+    let mut current = scope.clone();
+    let mut total = json!({ "done": 0, "failed": [], "skipped": 0, "qc_failed": [] });
+    let result = loop {
+        match synth_scope(p, pid, &current, progress) {
+            Ok(v) => {
+                total["done"] = json!(total["done"].as_u64().unwrap_or(0) + v["done"].as_u64().unwrap_or(0));
+                total["skipped"] = json!(total["skipped"].as_u64().unwrap_or(0) + v["skipped"].as_u64().unwrap_or(0));
+                for k in ["failed", "qc_failed"] {
+                    if let (Some(all), Some(more)) = (total[k].as_array().cloned(), v[k].as_array()) {
+                        total[k] = json!(all.into_iter().chain(more.iter().cloned()).collect::<Vec<_>>());
+                    }
+                }
+            }
+            Err(e) => break Err(e),
+        }
+        let next = QUEUE.lock().ok().and_then(|mut q| {
+            let slot = q.get_mut(pid)?;
+            let list = slot.as_mut()?;
+            if list.is_empty() {
+                *slot = None;
+                None
+            } else {
+                Some(list.remove(0))
+            }
+        });
+        match next {
+            Some(item) => current = item.scope,
+            None => break Ok(total.clone()),
+        }
+    };
+    if let Ok(mut q) = QUEUE.lock() {
+        q.remove(pid);
+    }
+    result
+}
+
+fn synth_scope(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Value)) -> Result<Value, String> {
+    REPEAT_SEED.with(|s| s.set(scope.seed));
     let project = sp::load(&p.workspace, pid)?;
     let qc = project.settings.qc.clone();
     let random_seed = project.settings.params.seed_mode != "fixed";

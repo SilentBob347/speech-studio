@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, BookOpen, Download, Search, Loader2, Play, Redo2, Settings2, Sparkles, SpellCheck, Square, Undo2, Users } from "lucide-react";
+import { ArrowLeft, BookOpen, Download, History, ListOrdered, Loader2, Play, Redo2, Search, Settings2, Sparkles, SpellCheck, Square, Undo2, Users, X } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
-import { activeTake, newId, spliceChars, SPEAKER_TINTS, speechApi, stressDoubts, type Block, type BlockState, type SpeechProject, type StressWord } from "../../lib/speech";
+import { activeTake, newId, spliceChars, SPEAKER_TINTS, speechApi, stressDoubts, type Block, type BlockState, type SpeechProject, type QueuedSynth, type StressWord } from "../../lib/speech";
 import { openSettings } from "../../lib/settingsNav";
 import { useSpeechProject } from "../../lib/useSpeechProject";
 import { followJob } from "../../lib/followJob";
@@ -15,6 +15,7 @@ import ProjectSettings from "./ProjectSettings";
 import ExportDialog from "./ExportDialog";
 import DictionaryDialog from "./DictionaryDialog";
 import SearchReplace from "./SearchReplace";
+import HistoryDialog from "./HistoryDialog";
 
 function blockList(p: SpeechProject): Block[] {
   return p.chapters.flatMap((c) => c.blocks);
@@ -40,6 +41,9 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   const [exporting, setExporting] = useState(false);
   const [dictionary, setDictionary] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [history, setHistory] = useState(false);
+  const [synthQueue, setQueueList] = useState<QueuedSynth[]>([]);
+  const [queueOpen, setQueueOpen] = useState(false);
   const [notes, setNotes] = useState<Record<string, { text: string; words: StressWord[] }>>({});
   const [stressing, setStressing] = useState<string[] | null>(null);
   const [stressMissing, setStressMissing] = useState(false);
@@ -79,6 +83,12 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
     a.play().catch((e: unknown) => { setPlaying(null); setJobError(errorText(e)); });
   }, [pid]);
 
+  useEffect(() => {
+    if (!job) return;
+    const tick = () => speechApi.queue(pid).then((r) => setQueueList(r.queue), () => undefined);
+    const timer = window.setInterval(tick, 2000);
+    return () => window.clearInterval(timer);
+  }, [job, pid]);
   const latestProject = useRef(project);
   const latestJob = useRef(job);
   useEffect(() => { latestProject.current = project; latestJob.current = job; }, [project, job]);
@@ -98,11 +108,17 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
     return () => window.clearInterval(timer);
   }, [playing, queue, playBlock]);
 
-  const runSynth = async (scope: { ids?: string[]; from?: string; force?: boolean }) => {
+  const runSynth = async (scope: { ids?: string[]; from?: string; force?: boolean; seed?: number }) => {
     setJobError(null);
     try {
       await flush();
-      const { job_id } = await speechApi.synth(pid, scope);
+      const r = await speechApi.synth(pid, scope);
+      if (r.queued != null) {
+        pushActivity(t("speech.queuedAt", { n: r.queued }), "work");
+        setQueueList((await speechApi.queue(pid)).queue);
+        return;
+      }
+      const job_id = r.job_id;
       setJob({ id: job_id, ids: scope.ids ?? null });
       await followJob(job_id, "synth");
     } catch (e) { setJobError(errorText(e)); } finally { setJob(null); }
@@ -226,10 +242,27 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           <button onClick={redo} disabled={!canRedo} className="p-1.5 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30" {...named(t("speech.redo"))}><Redo2 size={15} /></button>
           <button onClick={() => setSettings(true)} className={bar}><Settings2 size={13} />{t("speech.settings")}</button>
           <button onClick={() => setSearching((v) => !v)} aria-pressed={searching} className={bar} title={t("search.title")}><Search size={13} />{t("search.open")}</button>
+          <button onClick={() => setHistory(true)} className={bar} title={t("history.title")}><History size={13} />{t("history.open")}</button>
           <button onClick={() => setDictionary(true)} className={bar} title={t("speech.dictionaryHint")}><BookOpen size={13} />{t("speech.dictionary")}</button>
           <button onClick={() => void stressBlocks(null)} disabled={!!stressing || !blocks.length} className={bar} title={t("speech.stressAllHint")}>
             {stressing && stressing.length > 1 ? <Loader2 size={13} className="animate-spin" /> : <SpellCheck size={13} />}{t("speech.stressAll")}
           </button>
+          {job && synthQueue.length > 0 && (
+            <div className="relative">
+              <button onClick={() => setQueueOpen((v) => !v)} aria-expanded={queueOpen} className={bar}><ListOrdered size={13} />{t("speech.queue", { n: synthQueue.length })}</button>
+              {queueOpen && (
+                <div className="absolute right-0 top-full mt-1 z-30 w-72 rounded-lg glass-panel p-2 space-y-1 text-[12px]">
+                  {synthQueue.map((q) => (
+                    <div key={q.n} className="flex items-center gap-2">
+                      <span className="flex-1 truncate">{q.scope.ids ? t("speech.queueBlocks", { n: q.scope.ids.length }) : q.scope.from ? t("speech.queueFrom") : t("speech.queueAll")}</span>
+                      <button onClick={() => speechApi.unqueue(pid, q.n).then(() => speechApi.queue(pid)).then((r) => setQueueList(r.queue), () => undefined)} className="p-0.5 rounded text-[var(--color-muted)] hover:text-[var(--color-warn)]" {...named(t("speech.unqueue"))}><X size={12} /></button>
+                    </div>
+                  ))}
+                  <button onClick={() => speechApi.unqueue(pid).then(() => setQueueList([]), () => undefined)} className="w-full mt-1 px-2 py-1 rounded border border-[var(--color-border)] text-[11px] hover:border-[var(--color-warn)]">{t("speech.queueClear")}</button>
+                </div>
+              )}
+            </div>
+          )}
           {job ? (
             <button onClick={stopSynth} className={`${bar} border-[var(--color-warn)] text-[var(--color-warn)]`}><Square size={13} />{t("speech.stop")}</button>
           ) : (
@@ -288,6 +321,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           ))}
         </div>
       </div>
+      {history && <HistoryDialog pid={pid} onClose={() => setHistory(false)} onRepeat={(block, seed) => { setHistory(false); void runSynth({ ids: [block], force: true, seed }); }} />}
       {dictionary && <DictionaryDialog pid={pid} project={project} onChange={edit} onClose={() => setDictionary(false)} />}
       {settings && <ProjectSettings project={project} onChange={edit} onClose={() => setSettings(false)} />}
       {exporting && <ExportDialog pid={pid} project={project} onClose={() => setExporting(false)} onVoiceMissing={() => { setExporting(false); void runSynth({}); }} onDone={(file) => pushActivity(t("speech.exported", { file }), "done")} />}

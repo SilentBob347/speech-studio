@@ -986,7 +986,14 @@
     "acx_head": "开头：{{v}} 秒环境底噪（需 0.5–1）",
     "acx_tail": "结尾：{{v}} 秒环境底噪（需 1–5）",
     "acx_inner_silence": "最长停顿 {{v}} 秒（需不超过 5）",
-    "acx_length": "时长 {{v}} 分钟（每个文件需不超过 120）"
+    "acx_length": "时长 {{v}} 分钟（每个文件需不超过 120）",
+    "queuedAt": "已排队 #{{n}}：将在当前任务后配音",
+    "queue": "队列：{{n}}",
+    "queueBlocks": "文本块：{{n}}",
+    "queueFrom": "从某块到结尾",
+    "queueAll": "所有改动",
+    "unqueue": "移出队列",
+    "queueClear": "清空队列"
   },
   "tags": {
     "emotion": "情绪",
@@ -1137,5 +1144,20 @@
     "savedTo": "已保存：{{path}}",
     "title": "项目文件",
     "none": "尚未导出任何内容"
+  },
+  "history": {
+    "open": "历史",
+    "title": "生成历史",
+    "count": "版本：{{n}}",
+    "empty": "尚未配音",
+    "text": "文本",
+    "voice": "声音",
+    "params": "参数",
+    "duration": "时长",
+    "rtf": "速度",
+    "rtfHint": "生成速度是实时的多少倍",
+    "when": "时间",
+    "paramLine": "种子 {{seed}} · t {{t}} · k {{k}} · p {{p}}",
+    "repeat": "用相同参数再次配音"
   }
 }
