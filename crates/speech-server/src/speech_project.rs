@@ -50,6 +50,9 @@ pub struct Take {
     pub cost: Option<f64>,
     /// Оценка цены облачного дубля до запуска (USD).
     pub estimate: Option<f64>,
+    /// Сколько миллисекунд от начала синтеза до первого звука, у движков, что отдают звук потоком.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_ms: Option<u64>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]

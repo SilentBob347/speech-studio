@@ -3,7 +3,7 @@ import { BASE, coded, postCoded, sendCoded, getCoded } from "./api";
 export type Take = {
   n: number; file: string; duration: number; seed: number; temperature: number; key: string; created: number;
   source: string; synth_secs: number; retried: string[];
-  qc: QcCheck | null; cost: number | null; estimate: number | null; text: string; direction: string; fit_stretch: number; fit_lead: number; fit_over: boolean;
+  qc: QcCheck | null; cost: number | null; estimate: number | null; text: string; direction: string; fit_stretch: number; fit_lead: number; fit_over: boolean; first_ms?: number;
 };
 export type QcCheck = { text_checked: boolean; wer: number; words: number; inserted: number; deleted: number; substituted: number; heard: string; passed: boolean; similarity: number | null; similar: boolean | null; issues: QcIssue[] };
 export type QcIssue = "tail" | "stretched" | "gap";
@@ -66,7 +66,7 @@ export type BookPreview = {
 export type HistoryTake = {
   pid: string; project: string; block: string; speaker: string; text: string; n: number; file: string; created: number;
   duration: number; synth_secs: number; rtf: number; seed: number; temperature: number; top_k: number; top_p: number; max_tokens: number;
-  voice: string; engine: string; source: string; wer: number | null; active: boolean;
+  voice: string; engine: string; source: string; wer: number | null; active: boolean; first_ms: number | null;
 };
 export type QueuedSynth = { n: number; added: number; scope: { ids: string[] | null; from: string | null; force: boolean; seed: number | null } };
 export type ExportProblem = { block: string; state: BlockState | "missing" };

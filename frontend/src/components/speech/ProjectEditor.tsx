@@ -5,6 +5,7 @@ import { api, ApiError } from "../../lib/api";
 import { activeTake, newId, spliceChars, SPEAKER_TINTS, speechApi, stressDoubts, type Block, type BlockState, type SpeechProject, type QueuedSynth, type StressWord } from "../../lib/speech";
 import { openSettings } from "../../lib/settingsNav";
 import { useSpeechProject } from "../../lib/useSpeechProject";
+import { useLivePlayback } from "../../lib/livePlayback";
 import { followJob } from "../../lib/followJob";
 import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
@@ -87,6 +88,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
     return () => window.removeEventListener("keydown", h);
   }, [undo, redo]);
   useEffect(() => () => { audio.current?.pause(); }, []);
+  useLivePlayback(pid);
 
   const blocks = useMemo(() => (project ? blockList(project) : []), [project]);
   const speakers = useMemo(() => [...new Set(blocks.map((b) => b.speaker).filter(Boolean))], [blocks]);

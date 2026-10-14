@@ -259,9 +259,13 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
     let mut rate = 1.0f64;
     let stress = project.settings.auto_stress && crate::stress::is_russian(&b.text, &project.settings.lang);
     let text = crate::prep::prepare(&b.text, &prep_opts(p, project, voice.as_deref(), entries, stress)).map_err(|e| t!("stress-failed", detail = e))?.text;
+    let live = std::sync::Arc::new(crate::live::Phrase::begin(pid, &b.id));
     for (k, piece) in stx::pieces(&text).into_iter().enumerate() {
         match piece {
-            Piece::Pause(ms) => out.extend(std::iter::repeat_n(0.0, (SR as u64 * ms as u64 / 1000) as usize)),
+            Piece::Pause(ms) => {
+                live.pause(ms, SR);
+                out.extend(std::iter::repeat_n(0.0, (SR as u64 * ms as u64 / 1000) as usize))
+            }
             Piece::Rate(r) => rate = r,
             Piece::Say(text) => {
                 let (say, ig) = stx::for_engine(&text, lang, &project.settings.engine);
@@ -278,6 +282,7 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
                     ref_text: reference.as_ref().and_then(|(_, t)| t.as_deref()),
                     params: &params,
                     fresh_seed: fresh.wrapping_add(k as u64),
+                    live: Some(live.clone()),
                 };
                 let s = tts_host::synth(&engine, &req)?;
                 if k == 0 || seed == 0 {
@@ -312,12 +317,14 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
         top_p: params.top_p,
         max_tokens: params.max_tokens,
         voice: voice.clone().unwrap_or_default(),
-        engine: format!("higgs:{}", higgs_config(p).quant),
+        engine: engine_tag(p, project),
         fit_stretch: fitted.stretch,
         fit_lead: fitted.lead,
         fit_over: fitted.over,
+        first_ms: live.first_ms(),
         ..Default::default()
     };
+    live.end(true);
     Ok((out, serde_json::to_value(&ignored).unwrap_or(Value::Null), take))
 }
 

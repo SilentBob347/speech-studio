@@ -128,9 +128,10 @@ pub async fn create(State(st): State<AppState>, Json(body): Json<Value>) -> Resp
             project.settings.lang = l;
         }
         if let Some(e) = engine {
-            if crate::engines::get(&e).is_none() {
+            let Some(manifest) = crate::engines::get(&e) else {
                 return Err(t!("speech-engine-unknown", engine = e));
-            }
+            };
+            project.settings.params.engine_defaults(&manifest);
             project.settings.engine = e;
         }
         project.key = key;
@@ -275,7 +276,7 @@ pub async fn history(State(st): State<AppState>, axum::extract::Query(q): axum::
                             "pid": pid, "project": project.name, "block": b.id, "speaker": b.speaker,
                             "text": sp::visible_snippet(if t.text.is_empty() { &b.text } else { &t.text }),
                             "n": t.n, "file": t.file, "created": t.created, "duration": t.duration, "synth_secs": t.synth_secs,
-                            "rtf": if t.duration > 0.0 { t.synth_secs / t.duration } else { 0.0 },
+                            "rtf": if t.duration > 0.0 { t.synth_secs / t.duration } else { 0.0 }, "first_ms": t.first_ms,
                             "seed": t.seed, "temperature": t.temperature, "top_k": t.top_k, "top_p": t.top_p, "max_tokens": t.max_tokens,
                             "voice": t.voice, "engine": t.engine, "source": t.source, "wer": t.qc.as_ref().map(|c| c.wer), "active": b.active == Some(t.n),
                         }));

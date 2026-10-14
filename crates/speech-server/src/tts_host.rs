@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 
 use audiocpp::AudiocppEngine;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{json, Value};
 
 use crate::localize::Localize;
 
@@ -222,6 +222,19 @@ impl Params {
         }
         Ok(())
     }
+
+    /// The sampling defaults of an engine's manifest, as the window sets them when the engine is chosen.
+    pub fn engine_defaults(&mut self, engine: &crate::engines::Engine) {
+        for spec in &engine.params {
+            match spec.key {
+                "temperature" => self.temperature = spec.default,
+                "top_k" => self.top_k = spec.default as u32,
+                "top_p" => self.top_p = spec.default,
+                "max_tokens" => self.max_tokens = spec.default as u32,
+                _ => {}
+            }
+        }
+    }
 }
 
 /// Сколько секунд обычно звучит текст на этом языке (для потолка токенов и сторожа).
@@ -327,21 +340,53 @@ pub struct Request<'a> {
     pub params: &'a Params,
     /// Сид случайного режима: вызывающий даёт разный на каждый дубль.
     pub fresh_seed: u64,
+    /// Куда отдавать звук по мере синтеза, если движок умеет потоком.
+    pub live: Option<Arc<crate::live::Phrase>>,
 }
 
-fn run_guarded(engine: &Tts, text: &str, ref_wav: Option<&Path>, ref_text: Option<&str>, opts: &str, drama: &drama::Params, timeout: Duration) -> Result<(Vec<f32>, i32), String> {
+#[allow(clippy::too_many_arguments)]
+fn run_guarded(
+    engine: &Tts,
+    text: &str,
+    ref_wav: Option<&Path>,
+    ref_text: Option<&str>,
+    opts: &str,
+    drama: &drama::Params,
+    timeout: Duration,
+    live: Option<Arc<crate::live::Phrase>>,
+) -> Result<(Vec<f32>, i32), String> {
     let (tx, rx) = mpsc::channel();
     let eng = engine.clone();
     let (t, rw, rt, op, dp) = (text.to_string(), ref_wav.map(Path::to_path_buf), ref_text.map(str::to_string), opts.to_string(), *drama);
     std::thread::spawn(move || {
         let r = match (&eng, rw) {
+            (Tts::Higgs(e), rw) if live.is_some() && e.engine().supports_streaming() => {
+                let phrase = live.clone().expect("checked above");
+                let audio: audiocpp::AudioChunkCallback = Arc::new(move |sr, _, _, samples, _| phrase.chunk(samples, sr as u32));
+                let progress: audiocpp::ProgressCallback = Arc::new(|_, _, _| {});
+                serde_json::from_str::<Value>(&op).map_err(|e| e.to_string()).and_then(|opts| {
+                    match rw {
+                        Some(rw) => e.engine().generate_voice_clone_stream(&t, &rw.to_string_lossy(), rt.as_deref(), &opts, progress, audio),
+                        None => e.engine().generate_tts_stream(&t, &opts, progress, audio),
+                    }
+                    .map(|res| (res.samples, res.sample_rate))
+                    .map_err(|e| e.localize())
+                })
+            }
             (Tts::Higgs(e), Some(rw)) => e.voice_clone(&t, &rw.to_string_lossy(), rt.as_deref(), &op).map_err(|e| e.localize()),
             (Tts::Higgs(e), None) => e.tts(&t, &op).map_err(|e| e.localize()),
             (Tts::Drama(e), Some(rw)) => match rt.as_deref().filter(|t| !t.trim().is_empty()) {
-                Some(rt) => e.speak(&t, &rw, rt, &dp).map(|a| (a, e.sample_rate() as i32)).map_err(|err| match err {
-                    drama::DramaError::Cancelled => crate::jobs::CANCELLED.to_string(),
-                    other => other.to_string(),
-                }),
+                Some(rt) => {
+                    let sr = e.sample_rate();
+                    let spoken = match &live {
+                        Some(phrase) if e.supports_streaming() => e.speak_stream(&t, &rw, rt, &dp, &|a: &[f32]| phrase.chunk(a, sr)),
+                        _ => e.speak(&t, &rw, rt, &dp),
+                    };
+                    spoken.map(|a| (a, sr as i32)).map_err(|err| match err {
+                        drama::DramaError::Cancelled => crate::jobs::CANCELLED.to_string(),
+                        other => other.to_string(),
+                    })
+                }
                 None => Err(t!("render-drama-no-ref-text")),
             },
             (Tts::Drama(_), None) => Err(t!("drama-needs-voice")),
@@ -407,8 +452,13 @@ pub fn synth(engine: &Tts, req: &Request) -> Result<Synth, String> {
         })
         .to_string();
         let dp = drama::Params { temperature: temperature as f32, top_k: req.params.top_k as i32, top_p: req.params.top_p as f32, seed, max_new: drama_frames(expected, req.params.max_tokens) };
+        if attempt > 0 {
+            if let Some(live) = &req.live {
+                live.restart();
+            }
+        }
         let started = Instant::now();
-        let (samples, sr) = run_guarded(engine, req.text, req.ref_wav, req.ref_text, &opts, &dp, timeout)?;
+        let (samples, sr) = run_guarded(engine, req.text, req.ref_wav, req.ref_text, &opts, &dp, timeout, req.live.clone())?;
         let seconds = started.elapsed().as_secs_f64();
         match defect(&samples, sr, chars) {
             None => return Ok(Synth { samples, sr, seed, temperature, attempts: attempt + 1, defects, seconds }),
@@ -512,5 +562,15 @@ mod tests {
         assert!(Params::default().checked().is_ok());
         assert!(Params { temperature: 5.0, ..Default::default() }.checked().is_err());
         assert!(Params { seed_mode: "sometimes".into(), ..Default::default() }.checked().is_err());
+    }
+
+
+    #[test]
+    fn a_chosen_engine_brings_its_sampling_defaults() {
+        let mut p = Params::default();
+        p.engine_defaults(&crate::engines::drama());
+        assert_eq!((p.temperature, p.top_k, p.top_p), (1.0, 30, 0.9));
+        p.engine_defaults(&crate::engines::higgs());
+        assert_eq!((p.top_k, p.top_p), (50, 0.95));
     }
 }

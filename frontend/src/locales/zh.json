@@ -85,6 +85,8 @@
     "uiLanguage": "界面语言",
     "uiLanguageHint": "工作室的按钮、提示和消息",
     "soundsHint": "任务完成或失败时播放简短提示音",
+    "livePlayback": "边配音边试听",
+    "livePlaybackHint": "Higgs 和 Drama 3 配音时逐句播放该段；云端引擎只给出完成的录音",
     "links": "常用链接",
     "repo": "源代码",
     "issues": "报告问题",
@@ -1219,6 +1221,9 @@
     "duration": "时长",
     "rtf": "速度",
     "rtfHint": "生成速度是实时的多少倍",
+    "firstSound": "首个声音",
+    "firstSoundHint": "从开始为该段配音到出现第一个声音的时间；云端引擎一次性返回整段音频",
+    "ms": "{{ms}} 毫秒",
     "when": "时间",
     "paramLine": "种子 {{seed}} · t {{t}} · k {{k}} · p {{p}}",
     "repeat": "用相同参数再次配音"

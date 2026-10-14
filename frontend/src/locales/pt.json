@@ -85,6 +85,8 @@
     "uiLanguage": "Idioma da interface",
     "uiLanguageHint": "Botões, dicas e mensagens do estúdio",
     "soundsHint": "Um som curto quando uma tarefa termina ou falha",
+    "livePlayback": "Ouvir enquanto narra",
+    "livePlaybackHint": "Higgs e Drama 3 tocam o bloco frase a frase enquanto o narram; os motores na nuvem dão só a tomada pronta",
     "links": "Links úteis",
     "repo": "Código-fonte",
     "issues": "Relatar um problema",
@@ -1219,6 +1221,9 @@
     "duration": "Duração",
     "rtf": "Velocidade",
     "rtfHint": "Quantas vezes mais rápido que o tempo real foi feita",
+    "firstSound": "Primeiro som",
+    "firstSoundHint": "Tempo do início da narração do bloco até o primeiro som; os motores na nuvem enviam o áudio inteiro",
+    "ms": "{{ms}} ms",
     "when": "Quando",
     "paramLine": "semente {{seed}} · t {{t}} · k {{k}} · p {{p}}",
     "repeat": "Narrar de novo com os mesmos parâmetros"

@@ -47,6 +47,7 @@ pub mod service;
 mod setup;
 mod spa;
 mod studio_settings;
+mod live;
 mod tagging;
 mod tts_text;
 mod tts_trim;
@@ -499,6 +500,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/projects/{pid}/queue", get(speech_api::queue).delete(speech_api::queue_clear))
         .route("/projects/{pid}/queue/{n}", axum::routing::delete(speech_api::queue_remove))
         .route("/history", get(speech_api::history))
+        .route("/speech/live", get(live::events))
         .route("/projects/{pid}/export", post(speech_api::export))
         .route("/projects/{pid}/package", post(speech_api::package))
         .route("/speechproj/import", post(speech_api::import_package))

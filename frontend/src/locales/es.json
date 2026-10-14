@@ -85,6 +85,8 @@
     "uiLanguage": "Idioma de la interfaz",
     "uiLanguageHint": "Botones, pistas y mensajes del estudio",
     "soundsHint": "Un sonido breve cuando una tarea termina o falla",
+    "livePlayback": "Escuchar mientras se locuta",
+    "livePlaybackHint": "Higgs y Drama 3 reproducen el bloque frase a frase mientras lo locutan; los motores en la nube solo dan la toma terminada",
     "links": "Enlaces útiles",
     "repo": "Código fuente",
     "issues": "Informar de un problema",
@@ -1219,6 +1221,9 @@
     "duration": "Duración",
     "rtf": "Velocidad",
     "rtfHint": "Cuántas veces más rápido que el tiempo real se hizo",
+    "firstSound": "Primer sonido",
+    "firstSoundHint": "Tiempo desde el inicio de la locución del bloque hasta su primer sonido; los motores en la nube envían el audio entero",
+    "ms": "{{ms}} ms",
     "when": "Cuándo",
     "paramLine": "semilla {{seed}} · t {{t}} · k {{k}} · p {{p}}",
     "repeat": "Locutar de nuevo con los mismos parámetros"

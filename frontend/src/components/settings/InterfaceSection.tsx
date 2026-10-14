@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Languages, Music, SunMoon } from "lucide-react";
+import { AudioLines, Languages, Music, SunMoon } from "lucide-react";
+import { livePlaybackEnabled, setLivePlaybackEnabled } from "../../lib/livePlayback";
 import { DUB_LANGS, LANGS, setLang, type Lang } from "../../lib/i18n";
 import { playSfx, setSfxEnabled, sfxEnabled } from "../../lib/sfx";
 import SettingSwitch from "./SettingSwitch";
@@ -11,6 +12,7 @@ const langName = (code: Lang) => DUB_LANGS.find((l) => l.code === code)?.name ??
 export default function InterfaceSection() {
   const { t, i18n } = useTranslation();
   const [sfx, setSfx] = useState(sfxEnabled());
+  const [live, setLive] = useState(livePlaybackEnabled());
   const [theme, setThemeState] = useState<Theme>(savedTheme());
   const selectId = useId();
   const themeId = useId();
@@ -40,6 +42,8 @@ export default function InterfaceSection() {
       </div>
       <SettingSwitch icon={Music} label={t("settings.sounds")} hint={t("prefs.soundsHint")} on={sfx}
         onToggle={() => { const v = !sfx; setSfx(v); setSfxEnabled(v); if (v) playSfx("notify"); }} />
+      <SettingSwitch icon={AudioLines} label={t("prefs.livePlayback")} hint={t("prefs.livePlaybackHint")} on={live}
+        onToggle={() => { const v = !live; setLive(v); setLivePlaybackEnabled(v); }} />
     </div>
   );
 }

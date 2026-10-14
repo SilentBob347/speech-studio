@@ -85,6 +85,8 @@
     "uiLanguage": "Interface language",
     "uiLanguageHint": "Buttons, hints and messages of the studio",
     "soundsHint": "A short sound when a job finishes or fails",
+    "livePlayback": "Listen while voicing",
+    "livePlaybackHint": "Higgs and Drama 3 play a block sentence by sentence while voicing it; cloud engines give only the finished take",
     "links": "Useful links",
     "repo": "Source code",
     "issues": "Report a problem",
@@ -1219,6 +1221,9 @@
     "duration": "Length",
     "rtf": "Speed",
     "rtfHint": "How many times faster than real time it was made",
+    "firstSound": "First sound",
+    "firstSoundHint": "Time from the start of voicing the block to its first sound; cloud engines send the audio whole",
+    "ms": "{{ms}} ms",
     "when": "When",
     "paramLine": "seed {{seed}} · t {{t}} · k {{k}} · p {{p}}",
     "repeat": "Voice again with the same parameters"

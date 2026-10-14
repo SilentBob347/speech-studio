@@ -85,6 +85,8 @@
     "uiLanguage": "Langue de l'interface",
     "uiLanguageHint": "Boutons, astuces et messages du studio",
     "soundsHint": "Un son bref quand une tâche se termine ou échoue",
+    "livePlayback": "Écouter pendant la voix",
+    "livePlaybackHint": "Higgs et Drama 3 jouent le bloc phrase par phrase pendant qu’ils le disent ; les moteurs cloud ne donnent que la prise finie",
     "links": "Liens utiles",
     "repo": "Code source",
     "issues": "Signaler un problème",
@@ -1219,6 +1221,9 @@
     "duration": "Durée",
     "rtf": "Vitesse",
     "rtfHint": "Combien de fois plus vite que le temps réel la prise a été faite",
+    "firstSound": "Premier son",
+    "firstSoundHint": "Temps entre le début de la voix du bloc et son premier son ; les moteurs cloud envoient l’audio en entier",
+    "ms": "{{ms}} ms",
     "when": "Quand",
     "paramLine": "graine {{seed}} · t {{t}} · k {{k}} · p {{p}}",
     "repeat": "Redire avec les mêmes paramètres"
