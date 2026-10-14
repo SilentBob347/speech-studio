@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { AudioLines, Bot, ChevronDown, Ear, HelpCircle, Loader2, Plus, ScrollText, Settings, Users, type LucideIcon } from "lucide-react";
 import { LANGS, setLang, type Lang } from "../../lib/i18n";
 import { OPEN_HELP_EVENT, OPEN_SETTINGS_EVENT, SETTINGS_SECTIONS } from "../../lib/settingsNav";
-import { bridgeError, takeArgs, textArg, useBridgeCommand } from "../../lib/mcpBridge";
-import { useStore, type Mode } from "../../store";
+import { JOURNAL_CHANGED, bridgeError, takeArgs, textArg, useBridgeCommand, useChanged } from "../../lib/mcpBridge";
+import { errorText } from "../../lib/voices";
+import { useStore, type Activity, type Mode } from "../../store";
 import type { JobKind } from "../../lib/api";
 import en from "../../locales/en.json";
 import SettingsModal from "../settings/SettingsModal";
@@ -56,6 +57,20 @@ function ModeSwitcher() {
 function StatusBar() {
   const { t } = useTranslation();
   const activities = useStore((s) => s.activities);
+  const loadJournal = useStore((s) => s.loadJournal);
+  const reload = useCallback(() => {
+    loadJournal().catch((problem: unknown) => {
+      useStore.setState((s) => ({ activities: [...s.activities, { t: Date.now(), text: t("status.journalFailed", { error: errorText(problem) }), kind: "error" }] }));
+    });
+  }, [loadJournal, t]);
+  useEffect(reload, [reload]);
+  useChanged(JOURNAL_CHANGED, reload);
+  const words = (a: Activity) => {
+    if (!a.verb) return a.text;
+    const verb = a.verb in en.journal.verb ? t(`journal.verb.${a.verb as keyof typeof en.journal.verb}`) : a.verb;
+    const kind = a.noun && a.noun in en.journal.kind ? t(`journal.kind.${a.noun as keyof typeof en.journal.kind}`) : (a.noun ?? "");
+    return t("journal.line", { verb, kind, target: a.target ? ` ${t("journal.quoted", { name: a.target })}` : "" });
+  };
   const progress = useStore((s) => s.progress);
   const firstRun = useStore((s) => s.stage === "setup");
   const [open, setOpen] = useState(false);
@@ -63,7 +78,7 @@ function StatusBar() {
   const busy = progress.pct != null || (!!progress.stage && !["", "done", "error"].includes(progress.stage));
   const stageText = progress.stage in en.jobs.kind ? t(`jobs.kind.${progress.stage as JobKind}`) : t("status.working");
   const busyText = `${progress.msg || stageText}${progress.pct != null ? ` · ${progress.pct}%` : ""}`;
-  const text = busy ? busyText : (last?.text || t(firstRun ? "status.setupNeeded" : "status.idle"));
+  const text = busy ? busyText : (last ? words(last) : t(firstRun ? "status.setupNeeded" : "status.idle"));
   const errored = !busy && last?.kind === "error";
   const fmt = (ms: number) => new Date(ms).toLocaleTimeString();
   return (
@@ -83,7 +98,7 @@ function StatusBar() {
           <div role="log" aria-label={t("status.log")} className="absolute top-full mt-1 left-1/2 -translate-x-1/2 z-50 w-[min(560px,92vw)] max-h-[60vh] overflow-y-auto rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl p-1.5">
             <div className="flex items-center justify-between px-2 py-1 mb-1 border-b border-[var(--color-border)]">
               <span className="text-[11px] uppercase tracking-wide text-[var(--color-muted)] inline-flex items-center gap-1.5"><ScrollText size={13} />{t("status.log")}</span>
-              {activities.length > 0 && <button onClick={() => useStore.setState({ activities: [] })} className="text-[11px] text-[var(--color-muted)] hover:text-[var(--color-text)] transition-colors">{t("status.clear")}</button>}
+              {activities.length > 0 && <button onClick={() => { useStore.getState().clearJournal().catch((problem: unknown) => useStore.setState((s) => ({ activities: [...s.activities, { t: Date.now(), text: errorText(problem), kind: "error" }] }))); }} className="text-[11px] text-[var(--color-muted)] hover:text-[var(--color-text)] transition-colors">{t("status.clear")}</button>}
             </div>
             {activities.length === 0 && <div className="text-[11px] text-[var(--color-muted)]/60 py-3 text-center">—</div>}
             {[...activities].reverse().map((a, i) => (
@@ -92,7 +107,7 @@ function StatusBar() {
                 {a.kind === "agent"
                   ? <Bot size={12} aria-label={t("bridge.agent")} className="shrink-0 mt-[3px] text-[var(--color-accent)]" />
                   : <span className={`w-1.5 h-1.5 rounded-full shrink-0 mt-1.5 ${a.kind === "error" ? "bg-[var(--color-warn)]" : a.kind === "done" ? "bg-[var(--color-accent)]" : "bg-[var(--color-muted)]"}`} />}
-                <span className={`leading-snug break-words min-w-0 ${a.kind === "error" ? "text-[var(--color-warn)]" : "text-[var(--color-text)]"}`}>{a.text}</span>
+                <span className={`leading-snug break-words min-w-0 ${a.kind === "error" ? "text-[var(--color-warn)]" : "text-[var(--color-text)]"}`}>{words(a)}</span>
               </div>
             ))}
           </div>

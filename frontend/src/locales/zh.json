@@ -110,7 +110,8 @@
     "setupNeeded": "需要下载组件",
     "log": "活动日志",
     "clear": "清除",
-    "backendOffline": "后端不可用"
+    "backendOffline": "后端不可用",
+    "journalFailed": "日志未能加载：{{error}}"
   },
   "settings": {
     "sounds": "通知音效",
@@ -1366,5 +1367,52 @@
     "runs": "运行：{{n}}",
     "limit": "代理和程序的每日限额，USD",
     "limitHint": "0 — 无限额；设置限额时，没有价格的运行会被拒绝"
+  },
+  "journal": {
+    "line": "{{verb}}：{{kind}}{{target}}",
+    "verb": {
+      "create": "创建",
+      "update": "修改",
+      "delete": "删除",
+      "synth": "配音",
+      "export": "导出",
+      "cast": "角色分配",
+      "write": "撰写脚本",
+      "transcribe": "识别",
+      "verify": "与文本核对",
+      "separate": "人声分离",
+      "cut": "按文本剪辑",
+      "import": "导入",
+      "download": "下载",
+      "record": "录音",
+      "rename": "重命名",
+      "clean": "清理",
+      "restore": "恢复",
+      "select": "选择",
+      "apply": "应用",
+      "set": "保存",
+      "refresh": "刷新",
+      "cancel": "取消",
+      "resume": "继续"
+    },
+    "kind": {
+      "project": "项目",
+      "podcast": "播客",
+      "file": "文件",
+      "listening": "识别",
+      "dictionary": "词典",
+      "voice": "声音",
+      "voices": "声音",
+      "model": "模型",
+      "download": "下载",
+      "setting": "设置",
+      "preset": "预设",
+      "proxy": "代理",
+      "key": "密钥",
+      "catalog": "目录",
+      "tool": "工具",
+      "job": "任务"
+    },
+    "quoted": "“{{name}}”"
   }
 }

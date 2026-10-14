@@ -110,7 +110,8 @@
     "setupNeeded": "Composants à télécharger",
     "log": "Journal d'activité",
     "clear": "Effacer",
-    "backendOffline": "backend hors ligne"
+    "backendOffline": "backend hors ligne",
+    "journalFailed": "Le journal ne s’est pas chargé : {{error}}"
   },
   "settings": {
     "sounds": "Sons de notification",
@@ -1366,5 +1367,52 @@
     "runs": "lancements : {{n}}",
     "limit": "Limite quotidienne des agents et programmes, USD",
     "limitHint": "0 — sans limite ; avec une limite, un lancement sans prix est refusé"
+  },
+  "journal": {
+    "line": "{{verb}} : {{kind}}{{target}}",
+    "verb": {
+      "create": "Création",
+      "update": "Modification",
+      "delete": "Suppression",
+      "synth": "Voix",
+      "export": "Export",
+      "cast": "Répartition des personnages",
+      "write": "Script",
+      "transcribe": "Reconnaissance",
+      "verify": "Comparaison au texte",
+      "separate": "Séparation de la voix",
+      "cut": "Montage par le texte",
+      "import": "Import",
+      "download": "Téléchargement",
+      "record": "Enregistrement",
+      "rename": "Renommage",
+      "clean": "Nettoyage",
+      "restore": "Restauration",
+      "select": "Sélection",
+      "apply": "Application",
+      "set": "Enregistrement de la clé",
+      "refresh": "Actualisation",
+      "cancel": "Annulation",
+      "resume": "Reprise"
+    },
+    "kind": {
+      "project": "projet",
+      "podcast": "podcast",
+      "file": "fichier",
+      "listening": "reconnaissance",
+      "dictionary": "dictionnaire",
+      "voice": "voix",
+      "voices": "voix",
+      "model": "modèle",
+      "download": "téléchargement",
+      "setting": "réglage",
+      "preset": "préréglage",
+      "proxy": "proxy",
+      "key": "clé",
+      "catalog": "catalogue",
+      "tool": "outil",
+      "job": "tâche"
+    },
+    "quoted": "« {{name}} »"
   }
 }

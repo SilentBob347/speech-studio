@@ -110,7 +110,8 @@
     "setupNeeded": "Components to download",
     "log": "Activity log",
     "clear": "Clear",
-    "backendOffline": "backend offline"
+    "backendOffline": "backend offline",
+    "journalFailed": "The journal did not load: {{error}}"
   },
   "settings": {
     "sounds": "Notification sounds",
@@ -1366,5 +1367,52 @@
     "runs": "runs: {{n}}",
     "limit": "Daily limit for agents and programs, USD",
     "limitHint": "0 — no limit; a run without a price is refused while a limit is set"
+  },
+  "journal": {
+    "line": "{{verb}}: {{kind}}{{target}}",
+    "verb": {
+      "create": "Created",
+      "update": "Changed",
+      "delete": "Deleted",
+      "synth": "Voiced",
+      "export": "Exported",
+      "cast": "Characters cast",
+      "write": "Script written",
+      "transcribe": "Recognised",
+      "verify": "Checked against text",
+      "separate": "Voice separated",
+      "cut": "Cut by text",
+      "import": "Imported",
+      "download": "Downloaded",
+      "record": "Recorded",
+      "rename": "Renamed",
+      "clean": "Cleaned",
+      "restore": "Restored",
+      "select": "Selected",
+      "apply": "Applied",
+      "set": "Saved",
+      "refresh": "Refreshed",
+      "cancel": "Cancelled",
+      "resume": "Resumed"
+    },
+    "kind": {
+      "project": "project",
+      "podcast": "podcast",
+      "file": "file",
+      "listening": "recognition",
+      "dictionary": "dictionary",
+      "voice": "voice",
+      "voices": "voices",
+      "model": "model",
+      "download": "download",
+      "setting": "setting",
+      "preset": "preset",
+      "proxy": "proxy",
+      "key": "key",
+      "catalog": "catalog",
+      "tool": "tool",
+      "job": "job"
+    },
+    "quoted": "“{{name}}”"
   }
 }

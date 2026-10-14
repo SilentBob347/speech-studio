@@ -480,6 +480,7 @@ export const PROJECTS_CHANGED = "speech:projects-changed";
 export const SETTINGS_CHANGED = "speech:settings-changed";
 export const VOICES_CHANGED = "speech:voices-changed";
 export const JOBS_CHANGED = "speech:jobs-changed";
+export const JOURNAL_CHANGED = "speech:journal-changed";
 
 /** A notice of the studio: what changed, which project, its revision, who changed it, and a job's facts. */
 export type ChangeNotice = { changed: string; pid?: string | null; rev?: number; by?: string; job?: boolean; job_id?: string; kind?: string; project_id?: string | null };
@@ -506,8 +507,9 @@ const EVENTS: Record<string, string[]> = {
   settings: [SETTINGS_CHANGED],
   voices: [VOICES_CHANGED],
   jobs: [JOBS_CHANGED],
+  journal: [JOURNAL_CHANGED],
 };
-const EVERYTHING = [PROJECT_CHANGED, PROJECTS_CHANGED, SETTINGS_CHANGED, VOICES_CHANGED];
+const EVERYTHING = [PROJECT_CHANGED, PROJECTS_CHANGED, SETTINGS_CHANGED, VOICES_CHANGED, JOURNAL_CHANGED];
 
 function changed(notice: ChangeNotice): void {
   // a job this window started is followed by the window itself; its own list and settings changes it already shows

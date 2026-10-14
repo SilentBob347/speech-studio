@@ -1,9 +1,11 @@
 import { create } from "zustand";
+import { journalApi, type JournalLine } from "./lib/api";
 
 export type Stage = "boot" | "offline" | "setup" | "ready";
 export type Mode = "speech" | "listening";
 export const MODES: readonly Mode[] = ["speech", "listening"];
-export type Activity = { t: number; text: string; kind: "work" | "done" | "error" | "agent" };   // строка журнала «что делает приложение»; agent — действие агента по MCP
+// строка журнала «что делает приложение»; agent — действие агента по MCP; verb/noun/target — изменение агента, словами окна
+export type Activity = { t: number; text: string; kind: "work" | "done" | "error" | "agent"; verb?: string; noun?: string; target?: string };
 
 const MODE_KEY = "speech-studio:mode";
 
@@ -21,20 +23,30 @@ type State = {
   mode: Mode;
   fresh: number;                     // растёт на каждое «Новое»: открытый режим начинает с чистого листа
   progress: { stage: string; msg: string; pct: number | null };
-  activities: Activity[];            // журнал «что делает приложение» — статус-строка в шапке + разворот в лог
+  activities: Activity[];            // журнал «что делает приложение» — статус-строка в шапке + разворот в лог; хранится сервером
   setStage: (s: Stage) => void;
   setMode: (m: Mode) => void;
   startFresh: () => void;
   setProgress: (stage: string, msg: string, pct?: number | null) => void;
   pushActivity: (text: string, kind?: Activity["kind"]) => void;
+  loadJournal: () => Promise<void>;
+  clearJournal: () => Promise<void>;
 };
+
+const KEPT = 500;
 
 function withActivity(list: Activity[], text: string, kind: Activity["kind"]): Activity[] | null {
   const clean = text.trim();
   if (!clean) return null;
   const last = list[list.length - 1];
   if (last && last.text === clean && last.kind === kind) return null;
-  return [...list, { t: Date.now(), text: clean, kind }].slice(-200);
+  return [...list, { t: Date.now(), text: clean, kind }].slice(-KEPT);
+}
+
+const fromLine = (l: JournalLine): Activity => ({ t: l.at, text: l.text, kind: l.tone, ...(l.source === "agent" ? { verb: l.verb, noun: l.kind, target: l.target } : {}) });
+
+function keep(text: string, kind: Activity["kind"]): void {
+  journalApi.write(kind, text.trim()).catch((problem: unknown) => console.error("[ERROR] the journal did not take a line:", problem));
 }
 
 export const useStore = create<State>((set) => ({
@@ -53,10 +65,20 @@ export const useStore = create<State>((set) => ({
     const progress = { stage, msg: msg || s.progress.msg, pct: pct ?? null };
     const kind: Activity["kind"] = stage === "error" ? "error" : stage === "done" ? "done" : "work";
     const activities = withActivity(s.activities, msg || "", kind);
+    if (activities) keep(msg, kind);
     return activities ? { progress, activities } : { progress };
   }),
   pushActivity: (text, kind = "work") => set((s) => {
     const activities = withActivity(s.activities, text || "", kind);
+    if (activities) keep(text, kind);
     return activities ? { activities } : {};
   }),
+  loadJournal: async () => {
+    const lines = await journalApi.read();
+    set({ activities: lines.map(fromLine) });
+  },
+  clearJournal: async () => {
+    await journalApi.clear();
+    set({ activities: [] });
+  },
 }));

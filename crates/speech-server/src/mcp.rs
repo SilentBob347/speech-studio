@@ -671,7 +671,7 @@ fn annotations(name: &str) -> Value {
     const CHANGES: &[&str] = &[
         "import", "delete", "create", "update", "cancel", "select", "download", "apply", "add", "set", "assign", "analyze", "render", "remix", "retranslate",
         "align", "patch", "put", "rename", "save", "hide", "keep", "reorder", "regen", "enable", "resume", "export", "open", "reveal",
-        "shorten", "pin",
+        "shorten", "pin", "refresh",
     ];
     // reads whose names the rules above miss
     const READ_NAMES: &[&str] = &["studio_wait", "proxy_test", "openrouter_verify", "ui_screenshot", "ui_read_page", "ui_console", "url_probe"];
@@ -692,6 +692,85 @@ fn annotations(name: &str) -> Value {
     // a one-call tool on a file finds its project again and answers from the finished work
     let idempotent = read_only || name.ends_with("_set") || name.contains("_select") || name.ends_with("_file");
     json!({ "title": title, "readOnlyHint": read_only, "destructiveHint": destructive, "idempotentHint": idempotent, "openWorldHint": open_world })
+}
+
+/// What a tool that changes something did, for the journal: the verb and the kind of thing (the window words them).
+const JOURNAL: &[(&str, &str, &str)] = &[
+    ("project_create", "create", "project"),
+    ("project_update", "update", "project"),
+    ("project_delete", "delete", "project"),
+    ("project_synth", "synth", "project"),
+    ("project_export", "export", "project"),
+    ("project_cast_characters", "cast", "project"),
+    ("podcast_write", "write", "podcast"),
+    ("speak_text", "synth", "file"),
+    ("transcribe_file", "transcribe", "file"),
+    ("verify_speech", "verify", "file"),
+    ("separate_file", "separate", "file"),
+    ("listen_create_from_file", "create", "listening"),
+    ("listen_update", "update", "listening"),
+    ("listen_transcribe", "transcribe", "listening"),
+    ("listen_cut", "cut", "listening"),
+    ("listen_export", "export", "listening"),
+    ("listen_check", "verify", "listening"),
+    ("listen_to_speech", "create", "project"),
+    ("dictionary_set", "update", "dictionary"),
+    ("dictionary_import", "import", "dictionary"),
+    ("voice_download", "download", "voice"),
+    ("voices_download_pack", "download", "voices"),
+    ("voice_record_stop", "record", "voice"),
+    ("voice_rename", "rename", "voice"),
+    ("voice_delete", "delete", "voice"),
+    ("voice_card_set", "update", "voice"),
+    ("voice_transcript_set", "update", "voice"),
+    ("voice_transcribe", "transcribe", "voice"),
+    ("voice_clean", "clean", "voice"),
+    ("voice_restore", "restore", "voice"),
+    ("voice_ref_apply", "update", "voice"),
+    ("voice_import", "import", "voice"),
+    ("voice_photo_set", "update", "voice"),
+    ("voices_export", "export", "voices"),
+    ("voices_import_zip", "import", "voices"),
+    ("models_download", "download", "model"),
+    ("models_cancel_download", "cancel", "download"),
+    ("models_remove", "delete", "model"),
+    ("models_import", "import", "model"),
+    ("models_select", "select", "model"),
+    ("settings_set", "update", "setting"),
+    ("engine_preset_apply", "apply", "preset"),
+    ("proxy_settings_set", "update", "proxy"),
+    ("google_set_key", "set", "key"),
+    ("openrouter_set_key", "set", "key"),
+    ("local_server_key_set", "set", "key"),
+    ("google_delete_key", "delete", "key"),
+    ("openrouter_delete_key", "delete", "key"),
+    ("local_server_key_delete", "delete", "key"),
+    ("openrouter_catalog_refresh", "refresh", "catalog"),
+    ("url_fetch_cancel", "cancel", "download"),
+    ("url_fetch_resume", "resume", "download"),
+    ("url_fetch_delete", "delete", "download"),
+    ("url_tool_update", "update", "tool"),
+    ("job_cancel", "cancel", "job"),
+];
+
+/// The name a journal line gives what a tool changed: a name the agent passed, else the project's name, else the id it
+/// named. Taken before the call, while a project about to be deleted still has its name.
+fn journal_target(args: &Value) -> String {
+    const NAMED: &[&str] = &["name", "new_name", "title", "voice", "model"];
+    const IDS: &[&str] = &["id", "key", "provider", "path", "pid", "project_id", "job_id", "fetch_id"];
+    let text = |key: &&str| args.get(*key).and_then(Value::as_str).map(str::trim).filter(|v| !v.is_empty()).map(str::to_string);
+    let project = || ["pid", "project_id"].iter().find_map(text).and_then(|pid| crate::journal::project_name(&pid));
+    NAMED.iter().find_map(text).or_else(project).or_else(|| IDS.iter().find_map(text)).unwrap_or_default().chars().take(80).collect()
+}
+
+/// Journals a tool's change once it succeeded; work an agent still waits for (`done: false`) is journaled when it is
+/// asked for again and answers whole, and a call that found its finished work (`reused`) changed nothing.
+fn journal_call(name: &str, target: &str, answer: Option<&Value>) {
+    let Some((_, verb, kind)) = JOURNAL.iter().find(|(tool, _, _)| *tool == name) else { return };
+    if answer.is_some_and(|a| a.get("done") == Some(&Value::Bool(false)) || a.get("reused") == Some(&Value::Bool(true))) {
+        return;
+    }
+    crate::journal::agent_change(verb, kind, target);
 }
 
 // ---------------------------------------------------------------- origin and agent
@@ -1827,6 +1906,7 @@ pub async fn handle(headers: HeaderMap, body: axum::body::Bytes) -> Response {
                 return rpc_error(id, -32602, format!("Unknown tool: {name}; tools/list names them all."),
                 );
             };
+            let target = if JOURNAL.iter().any(|(tool, _, _)| *tool == name) { journal_target(&args) } else { String::new() };
             // a tool may look at a file on disk before its call: off the runtime
             let prepare = tool.call;
             let prepared = {
@@ -1848,7 +1928,10 @@ pub async fn handle(headers: HeaderMap, body: axum::body::Bytes) -> Response {
                     Err(problem) => answer(problem, true),
                 },
                 Ok(call) if call.path.starts_with(atomic::PREFIX) => match atomic::run(&call.path[atomic::PREFIX.len()..], &args).await {
-                    Ok(state) => tool_json(id, state),
+                    Ok(state) => {
+                        journal_call(name, &target, Some(&state));
+                        tool_json(id, state)
+                    }
                     Err(problem) => answer(problem, true),
                 },
                 Ok(call) => {
@@ -1865,8 +1948,14 @@ pub async fn handle(headers: HeaderMap, body: axum::body::Bytes) -> Response {
                         Ok(reply) if reply.status.is_success() => {
                             let text = reply_text(&reply);
                             match serde_json::from_str::<Value>(&text) {
-                                Ok(value) => tool_json(id, shape(name, &args, redact(value))),
-                                Err(_) => answer(text, false),
+                                Ok(value) => {
+                                    journal_call(name, &target, Some(&value));
+                                    tool_json(id, shape(name, &args, redact(value)))
+                                }
+                                Err(_) => {
+                                    journal_call(name, &target, None);
+                                    answer(text, false)
+                                }
                             }
                         }
                         Ok(reply) => answer(reply_text(&reply), true),
@@ -1904,3 +1993,34 @@ fn moment(text: &str, end: bool) -> Result<i64, String> {
 
 /// What an agent is told when it connects.
 const INSTRUCTIONS: &str = "You drive Speech Studio on this computer: it voices text (Speech) and recognises speech and checks a voicing (Listening). Every tool runs the same code as a control of the studio, through the routes its window calls. Start with studio_status. Long work - downloads and link fetches - is a job: start it, then studio_wait with its job_id instead of polling. Look ids up instead of guessing them: voices_list, models_status, url_fetches_list. Files on this computer are passed by path. To work in front of the user, use the ui_* tools (ui_navigate opens speech or listening); they need the window open, the rest works without it. The whole guide is the resource studio://skill (prompt 'studio').";
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_journaled_tool_exists_and_changes_something() {
+        let names: Vec<&str> = tools().iter().map(|tool| tool.name).collect();
+        for (tool, verb, kind) in JOURNAL {
+            assert!(names.contains(tool), "{tool} is journaled but is not a tool");
+            assert_eq!(annotations(tool)["readOnlyHint"], false, "{tool} is journaled but reads only");
+            assert!(!verb.is_empty() && !kind.is_empty());
+        }
+    }
+
+    #[test]
+    fn the_window_has_words_for_every_journaled_change() {
+        let en: Value = serde_json::from_str(include_str!("../../../frontend/src/locales/en.json")).unwrap();
+        for (tool, verb, kind) in JOURNAL {
+            assert!(en["journal"]["verb"][verb].is_string(), "{tool}: no words for the verb {verb}");
+            assert!(en["journal"]["kind"][kind].is_string(), "{tool}: no words for the kind {kind}");
+        }
+    }
+
+    #[test]
+    fn a_journal_line_names_what_the_agent_named() {
+        assert_eq!(journal_target(&json!({ "pid": "abc", "name": " Глава 1 " })), "Глава 1");
+        assert_eq!(journal_target(&json!({ "pid": "abc" })), "abc");
+        assert_eq!(journal_target(&json!({})), "");
+    }
+}

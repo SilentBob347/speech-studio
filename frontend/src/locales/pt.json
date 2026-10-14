@@ -110,7 +110,8 @@
     "setupNeeded": "Componentes a baixar",
     "log": "Registro de atividade",
     "clear": "Limpar",
-    "backendOffline": "backend indisponível"
+    "backendOffline": "backend indisponível",
+    "journalFailed": "O registro não carregou: {{error}}"
   },
   "settings": {
     "sounds": "Sons de notificação",
@@ -1366,5 +1367,52 @@
     "runs": "execuções: {{n}}",
     "limit": "Limite diário para agentes e programas, USD",
     "limitHint": "0 — sem limite; com um limite, uma execução sem preço é recusada"
+  },
+  "journal": {
+    "line": "{{verb}}: {{kind}}{{target}}",
+    "verb": {
+      "create": "Criação",
+      "update": "Alteração",
+      "delete": "Exclusão",
+      "synth": "Locução",
+      "export": "Exportação",
+      "cast": "Divisão em personagens",
+      "write": "Roteiro",
+      "transcribe": "Reconhecimento",
+      "verify": "Conferência com o texto",
+      "separate": "Separação de voz",
+      "cut": "Edição por texto",
+      "import": "Importação",
+      "download": "Download",
+      "record": "Gravação",
+      "rename": "Renomeação",
+      "clean": "Limpeza",
+      "restore": "Restauração",
+      "select": "Seleção",
+      "apply": "Aplicação",
+      "set": "Salvamento",
+      "refresh": "Atualização",
+      "cancel": "Cancelamento",
+      "resume": "Retomada"
+    },
+    "kind": {
+      "project": "projeto",
+      "podcast": "podcast",
+      "file": "arquivo",
+      "listening": "reconhecimento",
+      "dictionary": "dicionário",
+      "voice": "voz",
+      "voices": "vozes",
+      "model": "modelo",
+      "download": "download",
+      "setting": "configuração",
+      "preset": "predefinição",
+      "proxy": "proxy",
+      "key": "chave",
+      "catalog": "catálogo",
+      "tool": "ferramenta",
+      "job": "tarefa"
+    },
+    "quoted": "“{{name}}”"
   }
 }

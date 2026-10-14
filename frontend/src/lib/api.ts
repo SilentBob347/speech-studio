@@ -317,6 +317,17 @@ export const getCoded = <T>(path: string): Promise<T> => fetch(`${BASE}${path}`)
 export const postCoded = <T>(path: string, body: unknown): Promise<T> =>
   fetch(`${BASE}${path}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify(body) }).then(coded<T>);
 
+/** A line of the journal: an agent's change (verb, kind, target) or a message the window showed (text). */
+export type JournalLine = { id: number; at: number; source: "agent" | "studio"; tone: "work" | "done" | "error" | "agent"; verb: string; kind: string; target: string; text: string };
+export const journalApi = {
+  read: () => getCoded<JournalLine[]>("/journal"),
+  write: (tone: JournalLine["tone"], text: string) => postCoded<JournalLine>("/journal", { source: "studio", tone, text }),
+  clear: async (): Promise<void> => {
+    const r = await fetch(`${BASE}/journal`, { method: "DELETE" });
+    if (!r.ok) throw new ApiError(`http_${r.status}`, await r.text());
+  },
+};
+
 // Видео по ссылке (yt-dlp): проба, загрузка в новый проект мимо очереди джоб, сам инструмент.
 export type UrlQuality = "best" | "1080" | "720" | "480" | "audio";
 export type UrlTrack = { lang: string; name: string | null; formats: string[] };
