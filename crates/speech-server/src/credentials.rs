@@ -76,6 +76,25 @@ pub fn store_google_api_key(api_key: Option<&str>) -> Result<Option<CredentialSo
     .then_some(CredentialSource::LocalStore))
 }
 
+pub const API_TOKEN_ENV_VAR: &str = "SPEECH_STUDIO_API_TOKEN";
+const API_TOKEN_FILE: &str = "api-token";
+
+/// The key other programs give the studio's OpenAI-compatible API; none — the API is open to this computer.
+pub fn api_token() -> Option<(String, CredentialSource)> {
+    if let Some(key) = env::var(API_TOKEN_ENV_VAR).ok().map(|key| key.trim().to_owned()).filter(|key| !key.is_empty()) {
+        return Some((key, CredentialSource::Environment));
+    }
+    Some((read_secret(&secrets_dir()?, API_TOKEN_FILE)?, CredentialSource::LocalStore))
+}
+
+pub fn store_api_token(token: Option<&str>) -> Result<Option<CredentialSource>> {
+    if env::var(API_TOKEN_ENV_VAR).is_ok_and(|key| !key.trim().is_empty()) {
+        bail!("{API_TOKEN_ENV_VAR} is set in this environment and takes priority; unset it before storing a key in Studio");
+    }
+    let dir = secrets_dir().context("no per-user application data directory for credential storage")?;
+    Ok(write_secret(&dir, API_TOKEN_FILE, token, "an API key must be a single line")?.then_some(CredentialSource::LocalStore))
+}
+
 /// Ключ облачного провайдера каталога (fal, Runware): переменная окружения главнее сохранённого файла.
 pub fn provider_env(provider: vs_providers::Provider) -> Option<(&'static str, &'static str)> {
     match provider {

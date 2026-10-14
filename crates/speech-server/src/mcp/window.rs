@@ -495,8 +495,8 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "ui_open_settings",
-            description: "Open the settings window at a section: models (default), cloud (the OpenRouter key and models), quality, network (the proxy), interface, agent (this connection), about.",
-            schema: || object(json!({ "section": { "type": "string", "enum": ["models", "cloud", "quality", "network", "interface", "agent", "about"] } }), &[]),
+            description: "Open the settings window at a section: models (default), cloud (the keys of OpenRouter, Google, fal and Runware and the spending), quality, network (the proxy), interface, agent (this connection and who answers in the Assistant panel), api (the OpenAI-compatible API for other programs), privacy, about.",
+            schema: || object(json!({ "section": { "type": "string", "enum": ["models", "cloud", "quality", "network", "interface", "agent", "api", "privacy", "about"] } }), &[]),
             call: |args| window("open_settings", args, 15),
         },
         Tool {

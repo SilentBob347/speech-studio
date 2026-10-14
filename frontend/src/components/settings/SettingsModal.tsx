@@ -1,12 +1,13 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { Boxes, Cloud, Gauge, Globe, Info, Languages, Plug, X, type LucideIcon, BarChart3 } from "lucide-react";
+import { Boxes, Cloud, Gauge, Globe, Info, Languages, Plug, Terminal, X, type LucideIcon, BarChart3 } from "lucide-react";
 import { parseSettingsTarget, type SettingsSection } from "../../lib/settingsNav";
 import { useEscapeLayer } from "../../lib/escape";
 import QualitySection from "./QualitySection";
 import InterfaceSection from "./InterfaceSection";
 import AboutSection from "./AboutSection";
 import PrivacySection from "./PrivacySection";
+import ApiSection from "./ApiSection";
 
 // Разделы, которые окно настроек получает от места подключения: их компоненты живут рядом со своим
 // состоянием (модели, облако, сеть). agent появляется, когда передана его панель.
@@ -19,6 +20,7 @@ const SECTIONS: { id: SettingsSection; icon: LucideIcon }[] = [
   { id: "network", icon: Globe },
   { id: "interface", icon: Languages },
   { id: "agent", icon: Plug },
+  { id: "api", icon: Terminal },
   { id: "privacy", icon: BarChart3 },
   { id: "about", icon: Info },
 ];
@@ -30,6 +32,7 @@ const LABEL = {
   network: ["prefs.sections.network", "prefs.sections.networkHint"],
   interface: ["prefs.sections.interface", "prefs.sections.interfaceHint"],
   agent: ["prefs.sections.agent", "prefs.sections.agentHint"],
+  api: ["prefs.sections.api", "prefs.sections.apiHint"],
   privacy: ["prefs.sections.privacy", "prefs.sections.privacyHint"],
   about: ["prefs.sections.about", "prefs.sections.aboutHint"],
 } as const satisfies Record<SettingsSection, readonly [string, string]>;
@@ -120,6 +123,7 @@ export default function SettingsModal({ target, request, panes, onClose }: { tar
             {section === "network" && panes.network}
             {section === "interface" && <InterfaceSection />}
             {section === "agent" && panes.agent}
+            {section === "api" && <ApiSection />}
             {section === "privacy" && <PrivacySection />}
             {section === "about" && <AboutSection />}
           </div>
