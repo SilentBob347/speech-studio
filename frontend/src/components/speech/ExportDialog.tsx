@@ -76,7 +76,7 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
           <>
             <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={t("speech.format")}>
               {EXPORT_FORMATS.map((f) => (
-                <button key={f} role="radio" aria-checked={format === f} onClick={() => setFormat(f)}
+                <button key={f} role="radio" aria-checked={format === f} onClick={() => { setFormat(f); setFile(null); setSubs(null); setChapterList(null); setAcx(null); setClips(null); }}
                   className={`px-3 py-1.5 rounded-lg border text-[12px] font-semibold uppercase ${format === f ? "border-[var(--color-accent)] text-[var(--color-accent)]" : "border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-text)]"}`}>{f}</button>
               ))}
             </div>

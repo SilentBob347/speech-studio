@@ -6,6 +6,8 @@ use crate::limiter;
 
 /// Межсэмпловые пики выше выборочных: лимитер держит выборки на полдецибела ниже потолка true-peak.
 const TRUE_PEAK_MARGIN_DB: f64 = 0.5;
+/// Частота, до которой поднимается сигнал при замере истинного пика.
+const TRUE_PEAK_RATE: u32 = 192_000;
 
 /// Интегральная громкость ITU-R BS.1770 (LUFS) моно-сигнала: K-weighting (high-shelf + high-pass
 /// биквады как в pyloudnorm) -> блоки 400мс с overlap 75% -> абсолютный гейт -70 + относительный -10.
@@ -105,19 +107,48 @@ pub struct Levelled {
     pub after: f64,
 }
 
-/// Привести моно-сигнал к `target` LUFS с пиками не выше `peak_db` dBFS.
+/// Истинный пик в dBTP: сигнал передискретизируется до 192 кГц и выше (как BS.1770 для 48 кГц ×4; звуку 24 кГц нужно
+/// ×8) FFT-ресемплером rubato с ограничением полосы, берётся наибольший модуль.
+pub fn true_peak_db(x: &[f32], sr: u32) -> Result<f64, String> {
+    use audioadapter::Adapter;
+    use rubato::Resampler;
+    if x.len() < 2 {
+        return Ok(x.first().map_or(-120.0, |v| 20.0 * (v.abs() as f64).max(1e-6).log10()));
+    }
+    let input = vec![x.iter().map(|&s| s as f64).collect::<Vec<_>>()];
+    let adapter = audioadapter_buffers::direct::SequentialSliceOfVecs::new(&input, 1, x.len()).map_err(|e| format!("true peak buffer: {e}"))?;
+    let factor = (TRUE_PEAK_RATE / sr.max(1)).max(4) as usize;
+    let mut up = rubato::Fft::<f64>::new(sr as usize, sr as usize * factor, 1024, 1, rubato::FixedSync::Both).map_err(|e| format!("true peak resampler: {e}"))?;
+    let out = up.process_all(&adapter, x.len(), None).map_err(|e| format!("true peak resampling: {e}"))?;
+    let peak = (0..out.frames()).filter_map(|i| out.read_sample(0, i)).fold(0.0f64, |m, v| m.max(v.abs()));
+    Ok(if peak <= 0.0 { -120.0 } else { 20.0 * peak.log10() })
+}
+
+/// Привести моно-сигнал к `target` LUFS с истинным пиком не выше `peak_db` dBTP: ограничитель работает по отсчётам,
+/// поэтому после него пик меряется по BS.1770, и при выходе за потолок порог опускается на превышение.
 pub fn level(x: &mut [f32], sr: u32, target: f64, peak_db: f64) -> Result<Levelled, String> {
     let before = integrated_lufs(x, sr).ok_or_else(|| t!("media-loudnorm-silent"))?;
-    let threshold = 10f64.powf((peak_db - TRUE_PEAK_MARGIN_DB) / 20.0);
+    let mut limit_db = peak_db - TRUE_PEAK_MARGIN_DB;
     let mut now = before;
-    for _ in 0..4 {
+    for _ in 0..8 {
         let gain = 10f32.powf(((target - now) / 20.0) as f32);
         x.iter_mut().for_each(|v| *v *= gain);
-        limiter::limit_mono(x, sr, threshold, &limiter::SPEECH);
+        limiter::limit_mono(x, sr, 10f64.powf(limit_db / 20.0), &limiter::SPEECH);
         now = integrated_lufs(x, sr).ok_or_else(|| t!("media-loudnorm-silent"))?;
+        let over = true_peak_db(x, sr)? - peak_db;
+        if over > 0.0 {
+            limit_db -= over + 0.05;
+            continue;
+        }
         if (now - target).abs() < 0.5 {
             break;
         }
+    }
+    let over = true_peak_db(x, sr)? - peak_db;
+    if over > 0.0 {
+        let gain = 10f32.powf((-(over + 0.05) / 20.0) as f32);
+        x.iter_mut().for_each(|v| *v *= gain);
+        now = integrated_lufs(x, sr).ok_or_else(|| t!("media-loudnorm-silent"))?;
     }
     Ok(Levelled { before, after: now })
 }
@@ -143,8 +174,8 @@ mod tests {
         let r = level(&mut x, sr, -14.0, -1.0).unwrap();
         assert!(r.before < -25.0, "{r:?}");
         assert!((r.after + 14.0).abs() < 0.6, "{r:?}");
-        let peak = x.iter().fold(0f32, |m, v| m.max(v.abs()));
-        assert!(peak <= 10f32.powf(-1.0 / 20.0) + 1e-4, "peak {peak}");
+        let tp = true_peak_db(&x, sr).unwrap();
+        assert!(tp <= -1.0 + 1e-6, "true peak {tp}");
     }
 
     #[test]

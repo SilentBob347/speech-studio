@@ -44,6 +44,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   const [dictionary, setDictionary] = useState(false);
   const [searching, setSearching] = useState(false);
   const [history, setHistory] = useState(false);
+  const [castOpen, setCastOpen] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [anchor, setAnchor] = useState<string | null>(null);
 
@@ -298,6 +299,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           <button onClick={() => setSettings(true)} className={bar}><Settings2 size={13} />{t("speech.settings")}</button>
           <button onClick={() => setSearching((v) => !v)} aria-pressed={searching} className={bar} title={t("search.title")}><Search size={13} />{t("search.open")}</button>
           <button onClick={() => setHistory(true)} className={bar} title={t("history.title")}><History size={13} />{t("history.open")}</button>
+          <button onClick={() => setCastOpen((v) => !v)} aria-expanded={castOpen} className={`${bar} lg:hidden`}><Users size={13} />{t("speech.cast")}</button>
           <button onClick={() => setDictionary(true)} className={bar} title={t("speech.dictionaryHint")}><BookOpen size={13} />{t("speech.dictionary")}</button>
           <button onClick={() => void stressBlocks(null)} disabled={!!stressing || !blocks.length} className={bar} title={t("speech.stressAllHint")}>
             {stressing && stressing.length > 1 ? <Loader2 size={13} className="animate-spin" /> : <SpellCheck size={13} />}{t("speech.stressAll")}
@@ -347,8 +349,8 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           onJump={(id) => document.getElementById(`block-${id}`)?.scrollIntoView({ block: "center", behavior: "smooth" })}
           onReplace={(changes) => edit((p) => { for (const b of blockList(p)) if (changes[b.id] !== undefined) b.text = changes[b.id]; return p; })} />
       )}
-      <div className="flex-1 min-h-0 flex">
-        <aside aria-label={t("speech.cast")} className="hidden lg:block w-64 shrink-0 border-r border-[var(--color-border)] overflow-y-auto p-4 space-y-3">
+      <div className="relative flex-1 min-h-0 flex">
+        <aside aria-label={t("speech.cast")} className={`${castOpen ? "absolute inset-y-0 left-0 z-20 block bg-[var(--color-surface)] shadow-xl" : "hidden"} lg:static lg:block lg:shadow-none w-64 shrink-0 border-r border-[var(--color-border)] overflow-y-auto p-4 space-y-3`}>
           <h2 className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)] flex items-center gap-1.5"><Users size={12} />{t("speech.cast")}</h2>
           <label className="block text-[11px] text-[var(--color-muted)]">{t("speech.projectVoice")}
             <VoicePicker value={project.settings.voice} onChange={(v) => edit((p) => { p.settings.voice = v; return p; })} label={t("speech.projectVoice")}

@@ -621,6 +621,14 @@ fn synth_scope(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Valu
     Ok(json!({ "done": done, "failed": failed, "skipped": skipped, "qc_failed": qc_failed }))
 }
 
+/// Запас под сжатие: кодеки с потерями поднимают пики между отсчётами, поэтому для них потолок ниже на 1 дБ (AES TD1004).
+const LOSSY_HEADROOM_DB: f64 = 1.0;
+
+/// Потолок пиков перед кодированием в `format`.
+pub fn peak_for(format: &str, tp: f64) -> f64 {
+    if matches!(format, "wav" | "flac") { tp } else { tp - LOSSY_HEADROOM_DB }
+}
+
 /// Пресет громкости: интегральная громкость и потолок пиков; ACX — средний уровень −20 (RMS-цель ACX −23…−18), пики −3.
 pub fn loudness(preset: &str) -> Option<(f64, f64, f64)> {
     match preset {
@@ -725,7 +733,7 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
     }
     progress(json!({ "type": "progress", "stage": "speech_export", "msg": t!("speech-export-loudness"), "pct": 92 }));
     let levelled = match loudness(&project.settings.loudness) {
-        Some((i, tp, _)) => Some(crate::loudness::level(&mut mix, SR, i, tp)?),
+        Some((i, tp, _)) => Some(crate::loudness::level(&mut mix, SR, i, peak_for(&opts.format, tp))?),
         None => None,
     };
     let acx = project.settings.loudness == "acx";
@@ -740,7 +748,7 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
     } else if project.settings.room_tone {
         crate::acx::room_tone(&mut mix, SR, 0.0, 0.0);
     }
-    let acx_report = acx.then(|| crate::acx::report(&mix, SR));
+    let acx_report = if acx { Some(crate::acx::report(&mix, SR)?) } else { None };
     let joined = work.path().join("joined.wav");
     crate::wavio::write_mono_f32(&joined, &mix, SR)?;
     let exports = dir.join("exports");
@@ -792,7 +800,7 @@ fn export_clips(p: &SpeechPaths, pid: &str, project: &SpeechProject, blocks: &[&
         crate::media::extract_audio(&takes_dir(p, pid).join(&take.file), &wav, SR, 1)?;
         let (mut samples, _) = crate::wavio::read_mono_f32(&wav)?;
         if let Some((target, tp, _)) = loudness(&project.settings.loudness) {
-            crate::loudness::level(&mut samples, SR, target, tp)?;
+            crate::loudness::level(&mut samples, SR, target, peak_for(&opts.format, tp))?;
         }
         crate::wavio::write_mono_f32(&wav, &samples, SR)?;
         let label = if b.note.trim().is_empty() { crate::speech_text::visible(&b.text).chars().take(40).collect::<String>() } else { b.note.trim_end_matches(".txt").to_string() };
@@ -814,18 +822,26 @@ fn srt_time(t: f64) -> String {
     format!("{:02}:{:02}:{:02},{:03}", ms / 3_600_000, ms / 60_000 % 60, ms / 1000 % 60, ms % 1000)
 }
 
-/// Субтитры экспорта: каждый блок там, где он звучит в файле; говорящий — в начале строки, если их несколько.
 fn srt(cues: &[(f64, f64, String, String)]) -> String {
     let many = cues.iter().map(|c| &c.2).collect::<std::collections::BTreeSet<_>>().len() > 1;
     cues.iter()
         .enumerate()
         .map(|(i, (a, z, who, text))| {
+            let next = cues.get(i + 1).map(|c| c.0);
+            let z = match next {
+                Some(n) if n < *z && *z - n <= SUBTITLE_OVERLAP_TRIM => n.max(*a),
+                _ => *z,
+            };
             let line = if many { format!("{who}: {text}") } else { text.clone() };
-            format!("{}\n{} --> {}\n{line}\n", i + 1, srt_time(*a), srt_time(*z))
+            format!("{}\n{} --> {}\n{line}\n", i + 1, srt_time(*a), srt_time(z))
         })
         .collect::<Vec<_>>()
         .join("\n")
 }
+
+/// Перекрытие соседних субтитров не длиннее этого — следствие сдвига реплики в паузу, а не перебивания: конец
+/// предыдущей подрезается до начала следующей, чтобы плеер не показывал две строки.
+const SUBTITLE_OVERLAP_TRIM: f64 = 0.5;
 
 /// Имя файла экспорта по проекту и главе: без символов, которых не любят файловые системы.
 pub fn file_stem(project: &str, chapter: Option<&str>) -> String {
@@ -842,6 +858,15 @@ pub fn file_stem(project: &str, chapter: Option<&str>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_short_overlap_is_trimmed_and_an_interruption_stays() {
+        let cue = |a: f64, z: f64, who: &str| (a, z, who.to_string(), "x".to_string());
+        let out = srt(&[cue(0.0, 3.0, "A"), cue(2.88, 5.0, "A"), cue(4.0, 6.0, "B")]);
+        assert!(out.contains("00:00:00,000 --> 00:00:02,880"), "{out}");
+        assert!(out.contains("00:00:02,880 --> 00:00:05,000"), "a second of overlap is an interruption: {out}");
+        assert!((peak_for("mp3", -1.0) + 2.0).abs() < 1e-9 && (peak_for("flac", -1.0) + 1.0).abs() < 1e-9);
+    }
 
     #[test]
     fn export_names_drop_what_file_systems_refuse() {

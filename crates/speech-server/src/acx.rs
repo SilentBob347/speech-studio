@@ -1,5 +1,5 @@
 //! Проверка аудиокниги на требования ACX (Audible) и room tone вместо цифровой тишины. Пороги — по разбору
-//! Auphonic «RMS loudness normalization for Audible ACX»: RMS всего файла −23…−18 дБ, пики не выше −3 дБ, шумовой
+//! Auphonic «RMS loudness normalization for Audible ACX»: RMS всего файла −23…−18 дБ, истинный пик не выше −3 дБ, шумовой
 //! пол не выше −60 дБ, в начале 0,5–1 с и в конце 1–5 с тишины с room tone, пауза внутри не длиннее 5 с, глава не
 //! длиннее 120 минут.
 
@@ -47,9 +47,9 @@ fn quiet_windows(x: &[f32], sr: u32) -> Vec<bool> {
     x.chunks(w).map(|c| db(rms(c)) < SILENCE_DB).collect()
 }
 
-pub fn report(x: &[f32], sr: u32) -> Report {
+pub fn report(x: &[f32], sr: u32) -> Result<Report, String> {
     let secs = x.len() as f64 / sr as f64;
-    let peak = x.iter().fold(0.0f64, |m, v| m.max((*v as f64).abs()));
+    let peak_db = crate::loudness::true_peak_db(x, sr)?;
     let half = (sr as usize / 2).max(1);
     let noise = x.chunks(half).filter(|c| c.len() == half).map(|c| db(rms(c))).fold(f64::INFINITY, f64::min);
     let quiet = quiet_windows(x, sr);
@@ -67,14 +67,14 @@ pub fn report(x: &[f32], sr: u32) -> Report {
     let noise = if noise.is_finite() { noise } else { -120.0 };
     let checks = vec![
         Check { name: "rms", value: rms_db, passed: (RMS_RANGE.0..=RMS_RANGE.1).contains(&rms_db) },
-        Check { name: "peak", value: db(peak), passed: db(peak) <= PEAK_MAX + 1e-6 },
+        Check { name: "peak", value: peak_db, passed: peak_db <= PEAK_MAX + 1e-6 },
         Check { name: "noise_floor", value: noise, passed: noise <= NOISE_MAX && noise > -110.0 },
         Check { name: "head", value: head, passed: head >= HEAD_RANGE.0 - 1e-6 && head <= HEAD_RANGE.1 + step },
         Check { name: "tail", value: tail, passed: tail >= TAIL_RANGE.0 - 1e-6 && tail <= TAIL_RANGE.1 + step },
         Check { name: "inner_silence", value: longest as f64 * step, passed: longest as f64 * step <= INNER_SILENCE_MAX },
         Check { name: "length", value: secs, passed: secs <= LENGTH_MAX },
     ];
-    Report { passed: checks.iter().all(|c| c.passed), checks }
+    Ok(Report { passed: checks.iter().all(|c| c.passed), checks })
 }
 
 /// Детерминированный розовато-белый шум для room tone (без генератора случайных чисел, чтобы файл повторялся).
@@ -126,11 +126,11 @@ mod tests {
         let mut x = tone(10.0, -20.0);
         x.extend(vec![0.0; SR as usize]);
         x.extend(tone(10.0, -20.0));
-        let bare = report(&x, SR);
+        let bare = report(&x, SR).unwrap();
         assert!(!bare.passed);
         assert!(!bare.checks.iter().find(|c| c.name == "noise_floor").unwrap().passed, "digital zero is not a noise floor");
         room_tone(&mut x, SR, 0.8, 2.0);
-        let r = report(&x, SR);
+        let r = report(&x, SR).unwrap();
         assert!(r.passed, "{:?}", r.checks);
     }
 
@@ -139,7 +139,7 @@ mod tests {
         let mut x = tone(5.0, -6.0);
         x.extend(vec![0.0; 6 * SR as usize]);
         x.extend(tone(5.0, -6.0));
-        let r = report(&x, SR);
+        let r = report(&x, SR).unwrap();
         let failed: Vec<&str> = r.checks.iter().filter(|c| !c.passed).map(|c| c.name).collect();
         assert!(failed.contains(&"peak") && failed.contains(&"inner_silence") && failed.contains(&"rms"), "{failed:?}");
     }

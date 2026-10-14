@@ -4482,6 +4482,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-stream",
+ "audioadapter",
+ "audioadapter-buffers",
  "audiocpp",
  "axum",
  "base64 0.23.1",
@@ -4522,6 +4524,7 @@ dependencies = [
  "reqwest 0.13.5",
  "rfd",
  "roxmltree",
+ "rubato",
  "rust-genai",
  "scraper",
  "serde",
