@@ -9,16 +9,16 @@ description = "axum-сервис Speech Studio: озвучка (Speech) и ра�
 tempfile = "3"
 trash = "5"
 fluent-templates = "0.15.1"
-dub-core = { git = "https://github.com/timoncool/dub-studio", rev = "8117f52ae14c5de0e0f73ca3668d187b7b75699c" }
-dub-asr = { git = "https://github.com/timoncool/dub-studio", rev = "8117f52ae14c5de0e0f73ca3668d187b7b75699c", features = ["cuda"] }
-dub-llm = { git = "https://github.com/timoncool/dub-studio", rev = "8117f52ae14c5de0e0f73ca3668d187b7b75699c" }
-dub-translate = { git = "https://github.com/timoncool/dub-studio", rev = "8117f52ae14c5de0e0f73ca3668d187b7b75699c" }
-dub-captions = { git = "https://github.com/timoncool/dub-studio", rev = "8117f52ae14c5de0e0f73ca3668d187b7b75699c" }
-dub-sep = { git = "https://github.com/timoncool/dub-studio", rev = "8117f52ae14c5de0e0f73ca3668d187b7b75699c" }
-dub-faces = { git = "https://github.com/timoncool/dub-studio", rev = "8117f52ae14c5de0e0f73ca3668d187b7b75699c" }
+dub-core = { git = "https://github.com/timoncool/dub-studio", rev = "618483306a489852cca71d975342422aca690f4a" }
+dub-asr = { git = "https://github.com/timoncool/dub-studio", rev = "618483306a489852cca71d975342422aca690f4a", features = ["cuda"] }
+dub-llm = { git = "https://github.com/timoncool/dub-studio", rev = "618483306a489852cca71d975342422aca690f4a" }
+dub-translate = { git = "https://github.com/timoncool/dub-studio", rev = "618483306a489852cca71d975342422aca690f4a" }
+dub-captions = { git = "https://github.com/timoncool/dub-studio", rev = "618483306a489852cca71d975342422aca690f4a" }
+dub-sep = { git = "https://github.com/timoncool/dub-studio", rev = "618483306a489852cca71d975342422aca690f4a" }
+dub-faces = { git = "https://github.com/timoncool/dub-studio", rev = "618483306a489852cca71d975342422aca690f4a" }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
-audiocpp = { git = "https://github.com/timoncool/dub-studio", rev = "8117f52ae14c5de0e0f73ca3668d187b7b75699c" }
-drama = { git = "https://github.com/timoncool/dub-studio", rev = "8117f52ae14c5de0e0f73ca3668d187b7b75699c" }
+audiocpp = { git = "https://github.com/timoncool/dub-studio", rev = "618483306a489852cca71d975342422aca690f4a" }
+drama = { git = "https://github.com/timoncool/dub-studio", rev = "618483306a489852cca71d975342422aca690f4a" }
 hound = "3"
 axum = { version = "0.8", features = ["multipart"] }
 tower = { version = "0.5", features = ["util"] }
@@ -110,4 +110,4 @@ libc = "0.2"
 
 [dev-dependencies]
 # Поддельный HTTP-сервер для тестов провайдеров.
-dub-llm = { git = "https://github.com/timoncool/dub-studio", rev = "8117f52ae14c5de0e0f73ca3668d187b7b75699c", features = ["test-support"] }
+dub-llm = { git = "https://github.com/timoncool/dub-studio", rev = "618483306a489852cca71d975342422aca690f4a", features = ["test-support"] }

@@ -155,27 +155,30 @@ pub fn engine(cfg: &HiggsConfig) -> Result<Tts, String> {
 /// Строк промпта Drama 3 на одну фразу: реф (~22 кадра на секунду) + текст + сгенерированное.
 const DRAMA_MAX_LEN: u32 = 2048;
 
-/// Загруженная Drama 3: только на CUDA и карте 24 ГБ+; не та карта или нет файлов — ошибка с причиной, Higgs её не
-/// подменяет. cuBLAS она находит в models/higgs-engine, который при старте кладётся в PATH.
+/// Загруженная Drama 3: только на CUDA; не та машина (см. `drama_unavailable`) или нет файлов — ошибка с причиной,
+/// Higgs её не подменяет. Видеопамяти берёт не больше лимита из настроек: не входит целиком — эксперты в оперативной
+/// памяти; другой лимит — перезагрузка. cuBLAS она находит в models/higgs-engine, который при старте кладётся в PATH.
 pub fn drama(models_root: &Path) -> Result<Tts, String> {
+    let limit = crate::models::drama_vram_limit_mb(models_root);
+    let want = format!("{}:{limit}", crate::models::DRAMA_TTS);
     let mut slot = host();
     if let Some((key, Tts::Drama(e))) = slot.as_ref() {
-        if key == crate::models::DRAMA_TTS {
+        if *key == want {
             touch();
             return Ok(Tts::Drama(e.clone()));
         }
     }
     *slot = None;
-    if let Some(why) = crate::models::drama_unavailable() {
+    if let Some(why) = crate::models::drama_unavailable(models_root) {
         return Err(why);
     }
     if !crate::models::drama_installed(models_root) {
         return Err(t!("render-drama-missing"));
     }
-    let e = drama::DramaEngine::load(&crate::models::drama_dll(models_root), &[], &models_root.join(crate::models::DRAMA_TTS), DRAMA_MAX_LEN)
+    let e = drama::DramaEngine::load_limited(&crate::models::drama_dll(models_root), &[], &models_root.join(crate::models::DRAMA_TTS), DRAMA_MAX_LEN, limit)
         .map_err(|e| t!("render-drama-load-failed", error = e.to_string()))?;
     let e = Arc::new(e);
-    *slot = Some((crate::models::DRAMA_TTS.to_string(), Tts::Drama(e.clone())));
+    *slot = Some((want, Tts::Drama(e.clone())));
     touch();
     Ok(Tts::Drama(e))
 }

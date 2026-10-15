@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ASR_VARIANT_I18N, activeVariantId, type VariantI18n } from "../../lib/modelVariants";
 import { useTranslation } from "react-i18next";
 import { Download, FolderDown, RefreshCw, X } from "lucide-react";
@@ -35,6 +35,9 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
   const [cap, setCap] = useState<Capabilities | null>(null);
   const [asrEngine, setAsrEngine] = useState<string>("parakeet");
   const [whisperCompute, setWhisperCompute] = useState<string>("int8");
+  const [dramaVram, setDramaVram] = useState<string>("0");
+  // Сохранения по очереди: при быстрой смене (стрелками) последним на сервер приходит последнее значение.
+  const dramaSaves = useRef<Promise<unknown>>(Promise.resolve());
   // Выбор варианта в дропдаунах поднят СЮДА (а не в локальный useState VariantPicker) — иначе ре-рендер
   // секции ремаунтил пикер и сбрасывал выбор на дефолт. Ключ = ids[0] группы.
   const [picks, setPicks] = useState<Record<string, string>>({});
@@ -47,6 +50,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
     setCap(c);
     setAsrEngine(slot(c.selection, "asr_engine") ?? "parakeet");
     setWhisperCompute(slot(c.selection, "whisper_compute") ?? "int8");
+    setDramaVram(slot(c.selection, "drama_vram_gb") || "0");
   }).catch(() => {});
   // Статус компонентов + фоновая закачка (опрос, пока она идёт). Скачанный вариант становится активным на
   // бэке — после закачки перечитываем выбор.
@@ -312,7 +316,22 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
             {variantPicker("Higgs Audio v3", ["higgs", "higgs-q6_k", "higgs-q4_k_m"])}
             {rowOf("higgs-engine")}
             {rowOf("drama3")}
-            {get("drama3") && <p className="text-[11px] text-[var(--color-muted)] px-1">{t("settings.dramaNote")}</p>}
+            {get("drama3") && <>
+              <p className="text-[11px] text-[var(--color-muted)] px-1">{t("settings.dramaNote")}</p>
+              <div className="flex items-center gap-2 px-1">
+                <label htmlFor="drama-vram" className="text-[12px] flex-1">{t("settings.dramaVram")}</label>
+                <select id="drama-vram" value={dramaVram} onChange={(e) => {
+                  const v = e.target.value;
+                  setDramaVram(v);
+                  dramaSaves.current = dramaSaves.current.then(() => api.setSelection("drama_vram_gb", v)).catch((er) => { setErr(er instanceof Error ? er.message : String(er)); loadCap(); });
+                }}
+                  className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px] focus:border-[var(--color-accent)] focus:outline-none">
+                  <option value="0">{t("settings.auto")}</option>
+                  {[5, 6, 8, 10, 12, 16, 20, 24].map(gb => <option key={gb} value={String(gb)}>{gb} {t("units.gb")}</option>)}
+                </select>
+              </div>
+              <p className="text-[11px] text-[var(--color-muted)] px-1">{t("settings.dramaVramHint")}</p>
+            </>}
             {rowOf("supertonic3")}
             {variantPicker("Qwen3-TTS 1.7B", ["qwen3-tts", "qwen3-tts-q8_0"])}
             {rowOf("qwen3-tts-engine")}

@@ -118,7 +118,7 @@ pub fn openrouter() -> Engine {
 
 /// Fish Audio Drama 3: 83 языка по карточке `fishaudio/drama-3` (списка она не даёт — язык не ограничивается),
 /// сэмплинг по умолчанию карточки (temperature 1.0, top-k 30, top-p 0.9), точечные теги `[laughs]`, клон только по
-/// рефу с текстом; только видеокарты 24 ГБ+.
+/// рефу с текстом; видеокарты от 6 ГБ (см. `models::drama_unavailable`).
 pub fn drama() -> Engine {
     Engine {
         id: crate::models::DRAMA_TTS,
@@ -230,7 +230,7 @@ pub fn for_window(models_root: &std::path::Path) -> Vec<Engine> {
     let mut all = all();
     for e in all.iter_mut() {
         if e.id == crate::models::DRAMA_TTS {
-            e.unavailable = crate::models::drama_unavailable().or_else(|| (!crate::models::drama_installed(models_root)).then(|| t!("render-drama-missing")));
+            e.unavailable = crate::models::drama_unavailable(models_root).or_else(|| (!crate::models::drama_installed(models_root)).then(|| t!("render-drama-missing")));
         } else if e.id == crate::supertonic::ENGINE && !crate::supertonic::installed(models_root) {
             e.unavailable = Some(t!("render-supertonic-missing"));
         } else if e.id == crate::qwen_tts::ENGINE && !crate::qwen_tts::installed(models_root, &crate::models::qwen_quant(models_root), false, false) {
