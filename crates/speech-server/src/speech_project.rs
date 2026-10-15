@@ -386,28 +386,29 @@ fn chunk(text: &str) -> Vec<String> {
 }
 
 /// Текст → блоки (спикер, текст). Диалог — когда не меньше половины строк начинаются с `Имя:` или `[Имя]` и
-/// спикеров не больше восьми; иначе абзацы рассказчика, длинные — по предложениям.
+/// спикеров не больше восьми; иначе абзацы рассказчика, длинные — по предложениям. В диалоге строка без имени сразу
+/// под репликой — её продолжение, а после пустой строки — абзац рассказчика.
 pub fn split_text(text: &str, narrator: &str) -> Vec<(String, String)> {
-    let lines: Vec<&str> = text.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
-    let tagged: Vec<Option<(String, String)>> = lines
-        .iter()
-        .map(|l| DIALOG.captures(l).map(|c| (c.get(1).or_else(|| c.get(2)).map(|m| m.as_str().trim().to_string()).unwrap_or_default(), c[3].trim().to_string())))
-        .collect();
-    let speakers: std::collections::BTreeSet<&str> = tagged.iter().flatten().map(|(s, _)| s.as_str()).collect();
-    let dialog = !lines.is_empty() && tagged.iter().filter(|t| t.is_some()).count() * 2 >= lines.len() && speakers.len() <= 8;
-    if dialog {
+    if let Some(tags) = dialog_tags(text) {
         let mut out: Vec<(String, String)> = Vec::new();
-        for (line, tag) in lines.iter().zip(tagged) {
-            match tag {
+        let mut after_break = true;
+        for raw in text.lines() {
+            let line = raw.trim();
+            if line.is_empty() {
+                after_break = true;
+                continue;
+            }
+            match tags.get(line).cloned().flatten() {
                 Some((s, t)) => out.extend(chunk(&t).into_iter().map(|c| (s.clone(), c))),
                 None => match out.last_mut() {
-                    Some(last) => {
+                    Some(last) if !after_break => {
                         last.1.push(' ');
                         last.1.push_str(line);
                     }
-                    None => out.push((narrator.to_string(), line.to_string())),
+                    _ => out.extend(chunk(line).into_iter().map(|c| (narrator.to_string(), c))),
                 },
             }
+            after_break = false;
         }
         return out;
     }
@@ -417,6 +418,19 @@ pub fn split_text(text: &str, narrator: &str) -> Vec<(String, String)> {
             chunk(&p).into_iter().filter(|c| !c.is_empty()).map(|c| (narrator.to_string(), c)).collect::<Vec<_>>()
         })
         .collect()
+}
+
+/// Строки текста с их спикером, если текст — диалог (не меньше половины непустых строк с `Имя:` или `[Имя]`, не
+/// больше восьми спикеров): строка → `Some((спикер, реплика))` или `None` для строки без имени.
+fn dialog_tags(text: &str) -> Option<std::collections::HashMap<&str, Option<(String, String)>>> {
+    let lines: Vec<&str> = text.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
+    let tags: std::collections::HashMap<&str, Option<(String, String)>> = lines
+        .iter()
+        .map(|l| (*l, DIALOG.captures(l).map(|c| (c.get(1).or_else(|| c.get(2)).map(|m| m.as_str().trim().to_string()).unwrap_or_default(), c[3].trim().to_string()))))
+        .collect();
+    let tagged = lines.iter().filter(|l| tags.get(*l).is_some_and(Option::is_some)).count();
+    let speakers: std::collections::BTreeSet<&str> = tags.values().flatten().map(|(s, _)| s.as_str()).collect();
+    (!lines.is_empty() && tagged * 2 >= lines.len() && speakers.len() <= 8).then_some(tags)
 }
 
 /// Новый проект из текста: одна глава, блоки по `split_text`.
@@ -433,13 +447,18 @@ pub fn from_text(name: &str, text: &str, narrator: &str) -> SpeechProject {
     }
 }
 
-/// Пакет: каждая непустая строка — отдельный клип (блок), без разбора диалогов и нарезки.
+/// Пакет: каждая непустая строка — отдельный клип (блок), без нарезки; в диалоге строка `Имя: …` — реплика этого
+/// спикера, как в разборе по абзацам.
 pub fn from_lines(name: &str, text: &str, narrator: &str) -> SpeechProject {
+    let tags = dialog_tags(text);
     let blocks = text
         .lines()
         .map(str::trim)
         .filter(|l| !l.is_empty())
-        .map(|l| Block { id: new_id(), speaker: narrator.to_string(), text: l.to_string(), ..Default::default() })
+        .map(|l| {
+            let (speaker, said) = tags.as_ref().and_then(|t| t.get(l).cloned().flatten()).unwrap_or_else(|| (narrator.to_string(), l.to_string()));
+            Block { id: new_id(), speaker, text: said, ..Default::default() }
+        })
         .collect();
     SpeechProject { name: name.to_string(), created: now(), chapters: vec![Chapter { id: new_id(), title: String::new(), blocks }], ..Default::default() }
 }
@@ -595,6 +614,30 @@ mod tests {
             ("Борис".to_string(), "Здравствуй. как дела?".to_string()),
             ("Анна".to_string(), "Хорошо.".to_string()),
         ]);
+    }
+
+    #[test]
+    fn a_narrator_paragraph_after_a_line_is_the_narrator_s() {
+        let blocks = split_text("Анна: Круассан? Ладно, прощаю.\n\nОлег улыбнулся и сел напротив.\n\nОлег: Спасибо.", "Рассказчик");
+        assert_eq!(blocks, vec![
+            ("Анна".to_string(), "Круассан? Ладно, прощаю.".to_string()),
+            ("Рассказчик".to_string(), "Олег улыбнулся и сел напротив.".to_string()),
+            ("Олег".to_string(), "Спасибо.".to_string()),
+        ]);
+    }
+
+    #[test]
+    fn a_line_by_line_dialog_keeps_its_speakers() {
+        let p = from_lines("x", "Анна: Ты опоздал.\nОлег: Автобус.\nОна вздохнула.", "Рассказчик");
+        let got: Vec<(String, String)> = p.chapters[0].blocks.iter().map(|b| (b.speaker.clone(), b.text.clone())).collect();
+        assert_eq!(got, vec![
+            ("Анна".to_string(), "Ты опоздал.".to_string()),
+            ("Олег".to_string(), "Автобус.".to_string()),
+            ("Рассказчик".to_string(), "Она вздохнула.".to_string()),
+        ]);
+        let prose = from_lines("x", "Встреча в 12:00.\nВзять с собой: паспорт.\nНе опаздывать.", "Р");
+        assert!(prose.chapters[0].blocks.iter().all(|b| b.speaker == "Р" && !b.text.is_empty()));
+        assert_eq!(prose.chapters[0].blocks[1].text, "Взять с собой: паспорт.");
     }
 
     #[test]
