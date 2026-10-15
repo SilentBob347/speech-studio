@@ -83,6 +83,14 @@ export function numberArg(command: string, args: BridgeArgs, field: string): num
   return value;
 }
 
+/** A yes-or-no argument, or undefined when it is not given. */
+export function boolArg(command: string, args: BridgeArgs, field: string): boolean | undefined {
+  const value = args[field];
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== "boolean") throw bridgeError("bad_value", { command, field, expected: "true or false" });
+  return value;
+}
+
 /** A text argument, or undefined when it is not given. */
 export function textArg(command: string, args: BridgeArgs, field: string): string | undefined {
   const value = args[field];

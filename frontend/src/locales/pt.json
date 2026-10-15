@@ -1564,6 +1564,8 @@
     "repeat": "Narrar de novo com os mesmos parâmetros"
   },
   "listen": {
+    "loop": "Repetir a frase",
+    "loopHint": "Tocar em loop a frase sob o cursor para ouvir de novo um trecho difícil; toque de novo para parar",
     "stats": "Quem fala quanto",
     "statsHint": "Fala por locutor: tempo, parcela, palavras, ritmo",
     "statsTitle": "Quem fala quanto",

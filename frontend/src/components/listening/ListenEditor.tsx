@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, AudioLines, ChartPie, ChevronDown, ChevronUp, Download, Eye, EyeOff, FileCheck2, Loader2, Pause, Play, Redo2, RotateCcw, RotateCw, Scissors, Search, Settings2, Undo2, UserPlus, UserSearch, Fingerprint, Users, Wand2, X } from "lucide-react";
+import { ArrowLeft, AudioLines, ChartPie, Repeat1, ChevronDown, ChevronUp, Download, Eye, EyeOff, FileCheck2, Loader2, Pause, Play, Redo2, RotateCcw, RotateCw, Scissors, Search, Settings2, Undo2, UserPlus, UserSearch, Fingerprint, Users, Wand2, X } from "lucide-react";
 import { useListenProject } from "../../lib/useSpeechProject";
 import { askCloneTerms } from "../../lib/cloudConsent";
 import { comboOf, matches, typingIn } from "../../lib/shortcuts";
@@ -34,6 +34,8 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
   const [duration, setDuration] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [rate, setRate] = useState(1);
+  const [loop, setLoop] = useState(false);
+  const loopRange = useRef<[number, number] | null>(null);
   const stopAt = useRef<number | null>(null);
   const [selection, setSelection] = useState<Selection>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -74,7 +76,7 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
       return true;
     },
     player: {
-      state: () => ({ playing, position: time, duration: duration || project?.duration || null, rate, volume: audio.current?.volume ?? 1 }),
+      state: () => ({ playing, position: time, duration: duration || project?.duration || null, rate, volume: audio.current?.volume ?? 1, loop }),
       play: ({ id, on, from, take }) => {
         if (take !== undefined) throw bridgeError("listening_take");
         const a = audio.current;
@@ -94,9 +96,10 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
         if (!audio.current) throw bridgeError("not_loaded");
         seek(seconds);
       },
-      set: ({ volume, rate: speed }) => {
+      set: ({ volume, rate: speed, loop: again }) => {
         const a = audio.current;
         if (!a) throw bridgeError("not_loaded");
+        if (again !== undefined) setLooping(again);
         if (speed !== undefined) {
           if (!RATES.includes(speed)) throw bridgeError("bad_value", { command: "player_set", field: "rate", expected: RATES.join(", ") });
           setRate(speed);
@@ -114,7 +117,9 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
       const a = audio.current;
       if (a) {
         setTime(a.currentTime);
-        if (stopAt.current != null && a.currentTime >= stopAt.current) { a.pause(); stopAt.current = null; }
+        const round = loopRange.current;
+        if (round && a.currentTime >= round[1]) a.currentTime = round[0];
+        else if (stopAt.current != null && a.currentTime >= stopAt.current) { a.pause(); stopAt.current = null; }
       }
       frame = requestAnimationFrame(tick);
     };
@@ -138,8 +143,16 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
     if (!a) return;
     a.currentTime = l.start;
     stopAt.current = l.end;
+    if (loopRange.current) loopRange.current = [l.start, l.end];
     void a.play();
   }, []);
+  /** The phrase under the playhead, played round and round until the loop is off. */
+  const setLooping = useCallback((on: boolean) => {
+    setLoop(on);
+    const at = audio.current?.currentTime ?? 0;
+    const line = lines.find((l) => !l.hidden && at >= l.start - 0.05 && at < l.end) ?? lines.filter((l) => !l.hidden && l.start <= at).at(-1);
+    loopRange.current = on && line ? [line.start, line.end] : null;
+  }, [lines]);
 
   const lineEdit = useCallback((change: (lines: ListenLine[]) => ListenLine[]) => edit((p) => ({ ...p, lines: change(p.lines) })), [edit]);
   const onSpeaker = useCallback((line: number, key: string) => edit((p) => {
@@ -380,6 +393,8 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
       {dialog === "check" && <ReferenceCheck pid={pid} reference={project.reference} onReference={(reference) => edit((p) => ({ ...p, reference }))} onAlign={(lines) => edit((p) => ({ ...p, lines }))} onClose={() => setDialog(null)} />}
       <div role="region" aria-label={t("transport.label")} className="shrink-0 px-3 md:px-5 py-2 border-t border-[var(--color-border)] bg-[var(--color-surface)]/80 flex items-center gap-2 md:gap-3">
         <button onClick={toggle} className="grid place-items-center w-8 h-8 rounded-full bg-[var(--color-accent)] text-[var(--color-on-accent)]" {...named(playing ? t("listen.pause") : t("listen.play"))}>{playing ? <Pause size={14} /> : <Play size={14} />}</button>
+        <button onClick={() => setLooping(!loop)} aria-pressed={loop} title={t("listen.loopHint")}
+          className={`grid place-items-center w-8 h-8 rounded-md hover:bg-[var(--color-surface-2)] ${loop ? "text-[var(--color-accent)]" : "text-[var(--color-muted)] hover:text-[var(--color-text)]"}`} aria-label={t("listen.loop")}><Repeat1 size={14} /></button>
         <button onClick={() => seek(Math.max(0, time - 5))} className="grid place-items-center w-8 h-8 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)] max-md:hidden" {...named(t("transport.back5"))}><RotateCcw size={14} /></button>
         <button onClick={() => seek(Math.min(duration || project.duration, time + 5))} className="grid place-items-center w-8 h-8 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)] max-md:hidden" {...named(t("transport.forward5"))}><RotateCw size={14} /></button>
         <span className="mono text-[12px] tabnum text-[var(--color-muted)] w-24 shrink-0">{clock(time)} / {clock(duration || project.duration)}</span>

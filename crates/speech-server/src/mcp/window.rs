@@ -566,8 +566,8 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "player_set",
-            description: "Set the player's volume (0 to 1) and, in an open Speech project or Listening recording, its speed as its list offers it (0.75, 1, 1.25, 1.5 or 2).",
-            schema: || object(json!({ "volume": { "type": "number", "minimum": 0, "maximum": 1 }, "rate": { "type": "number", "enum": [1, 0.75, 1.25, 1.5, 2] } }), &[]),
+            description: "Set the player's volume (0 to 1) and, in an open Speech project or Listening recording, its speed as its list offers it (0.75, 1, 1.25, 1.5 or 2); in a Listening recording loop plays the phrase under the playhead round and round until it is set false.",
+            schema: || object(json!({ "volume": { "type": "number", "minimum": 0, "maximum": 1 }, "rate": { "type": "number", "enum": [1, 0.75, 1.25, 1.5, 2] }, "loop": { "type": "boolean" } }), &[]),
             call: |args| window("player_set", args, 15),
         },
         Tool {

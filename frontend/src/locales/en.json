@@ -1564,6 +1564,8 @@
     "repeat": "Voice again with the same parameters"
   },
   "listen": {
+    "loop": "Repeat the phrase",
+    "loopHint": "Play the phrase under the playhead round and round to hear a hard bit again; press again to stop",
     "stats": "Who talks how much",
     "statsHint": "Speech per speaker: time, share, words, pace",
     "statsTitle": "Who talks how much",

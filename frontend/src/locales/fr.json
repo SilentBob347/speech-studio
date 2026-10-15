@@ -1564,6 +1564,8 @@
     "repeat": "Redire avec les mêmes paramètres"
   },
   "listen": {
+    "loop": "Répéter la phrase",
+    "loopHint": "Rejouer en boucle la phrase sous la tête de lecture pour réécouter un passage difficile ; appuyez à nouveau pour arrêter",
     "stats": "Qui parle combien",
     "statsHint": "Parole par locuteur : temps, part, mots, débit",
     "statsTitle": "Qui parle combien",

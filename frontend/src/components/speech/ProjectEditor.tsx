@@ -253,7 +253,8 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
         if (!a || !playing) throw bridgeError("nothing_plays");
         a.currentTime = seconds;
       },
-      set: ({ volume: level, rate }) => {
+      set: ({ volume: level, rate, loop }) => {
+        if (loop !== undefined) throw bridgeError("bad_value", { command: "player_set", field: "loop", expected: "a Listening recording open (a Speech project plays block by block)" });
         if (rate !== undefined && !RATES.includes(rate)) throw bridgeError("bad_value", { command: "player_set", field: "rate", expected: RATES.join(", ") });
         if (rate !== undefined) changeRate(rate);
         if (level === undefined) return;

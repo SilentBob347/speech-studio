@@ -9,7 +9,7 @@ import { playSfx } from "../lib/sfx";
 import { speechApi } from "../lib/speech";
 import { requestOpen } from "../lib/openProject";
 import { openEditor } from "../lib/editorBridge";
-import { AGENT_ACTION, JOBS_CHANGED, bridgeError, isMine, label, numberArg, settle, takeArgs, textArg, useBridgeCommand, type BridgeArgs, type ChangeNotice } from "../lib/mcpBridge";
+import { AGENT_ACTION, JOBS_CHANGED, bridgeError, isMine, label, boolArg, numberArg, settle, takeArgs, textArg, useBridgeCommand, type BridgeArgs, type ChangeNotice } from "../lib/mcpBridge";
 
 let voiceSample: { name: string; audio: HTMLAudioElement } | null = null;
 let voiceVolume = 1;
@@ -190,9 +190,10 @@ export default function BridgeHost() {
   });
 
   useBridgeCommand("player_set", async (args) => {
-    takeArgs("player_set", args, ["volume", "rate"]);
+    takeArgs("player_set", args, ["volume", "rate", "loop"]);
     const volume = numberArg("player_set", args, "volume");
     const rate = numberArg("player_set", args, "rate");
+    const loop = boolArg("player_set", args, "loop");
     if (volume !== undefined && (volume < 0 || volume > 1)) throw bridgeError("bad_value", { command: "player_set", field: "volume", expected: "between 0 and 1" });
     if (volume !== undefined) {
       voiceVolume = volume;
@@ -200,10 +201,10 @@ export default function BridgeHost() {
     }
     const editor = openEditor();
     if (!editor) {
-      if (rate !== undefined) throw bridgeError("no_screen", { command: "player_set" });
+      if (rate !== undefined || loop !== undefined) throw bridgeError("no_screen", { command: "player_set" });
       return { volume: voiceVolume };
     }
-    editor.player.set({ volume, rate });
+    editor.player.set({ volume, rate, loop });
     await settle();
     return editor.player.state();
   });

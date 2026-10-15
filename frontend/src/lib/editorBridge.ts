@@ -21,7 +21,7 @@ export type EditorPlayer = {
   play: (asked: PlayRequest) => void;
   pause: () => void;
   seek: (seconds: number) => void;
-  set: (settings: { volume?: number; rate?: number }) => void;
+  set: (settings: { volume?: number; rate?: number; loop?: boolean }) => void;
 };
 
 let current: OpenEditor | null = null;
