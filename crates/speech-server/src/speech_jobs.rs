@@ -1108,6 +1108,24 @@ impl<'a> Placer<'a> {
     }
 }
 
+/// The gain the loudness step put on each sample of the mix (level and limiter alike), for the speakers' tracks: where
+/// the mix was near silence (room tone may have been added there) the last gain carries on.
+fn gain_envelope(before: &[f32], after: &[f32]) -> Vec<f32> {
+    let mut last = 1.0f32;
+    before
+        .iter()
+        .enumerate()
+        .map(|(n, b)| {
+            if b.abs() > 1e-4 {
+                if let Some(a) = after.get(n) {
+                    last = (a / b).clamp(0.0, 100.0);
+                }
+            }
+            last
+        })
+        .collect()
+}
+
 /// Перебивание обрывает предыдущую реплику: её звук после `cut` уходит из склейки за 30 мс; перебивание, что начато
 /// раньше самой реплики, её не трогает.
 fn cut_tail(mix: &mut [f32], prev_at: usize, prev: &[f32], cut: usize) {
@@ -1259,6 +1277,9 @@ pub struct ExportOpts {
     /// A file per chapter, all levelled as one book: the loudness is set on the whole mix before it is cut, so the
     /// chapters keep their levels against each other.
     pub per_chapter: bool,
+    /// Beside the file a ZIP with a track per speaker, as long as the file, with only that speaker's lines in their
+    /// places and the file's own gain on them, so the tracks add up to the file.
+    pub stems: bool,
     /// Экспортировать, хотя дубли не влезли в реплику по длительности.
     pub allow_duration: bool,
     pub quality: crate::media::Quality,
@@ -1301,6 +1322,8 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
     let mut prev_end: Option<usize> = None;
     // how each block was voiced, for the recipe written next to the file
     let mut made: Vec<(f64, Value)> = Vec::new();
+    let mut stems: std::collections::BTreeMap<String, Vec<f32>> = std::collections::BTreeMap::new();
+    let mut prev_speaker = String::new();
     for (i, b) in blocks.iter().enumerate() {
         progress(json!({ "type": "progress", "stage": "speech_export", "msg": t!("speech-export-block", n = (i + 1) as i64, total = blocks.len() as i64), "pct": (i * 90 / blocks.len()) as i64 }));
         let take = b.active.and_then(|n| b.takes.iter().find(|t| t.n == n)).ok_or_else(|| t!("speech-export-not-ready", count = 1))?;
@@ -1328,6 +1351,9 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         let at = placer.place(b, take.fit_lead, samples.len());
         if let Some((prev_at, prev)) = prev_audio.as_ref().filter(|(pa, pv)| b.cut_previous && at < pa + pv.len()) {
             cut_tail(&mut mix, *prev_at, prev, at);
+            if let Some(track) = stems.get_mut(&prev_speaker) {
+                cut_tail(track, *prev_at, prev, at);
+            }
             let cut = at as f64 / SR as f64;
             if let Some(m) = marks.last_mut() {
                 m["end"] = json!(cut);
@@ -1365,11 +1391,30 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
                 for (k, s) in b.iter().enumerate().take(at.saturating_sub(b_at)) {
                     mix[b_at + k] += *s;
                 }
+                if opts.stems {
+                    let track = stems.entry(blocks[i].speaker.clone()).or_default();
+                    if track.len() < at {
+                        track.resize(at, 0.0);
+                    }
+                    for (k, s) in b.iter().enumerate().take(at.saturating_sub(b_at)) {
+                        track[b_at + k] += *s;
+                    }
+                }
             }
         }
         for (k, s) in samples.iter().enumerate() {
             mix[at + k] += *s;
         }
+        if opts.stems {
+            let track = stems.entry(b.speaker.clone()).or_default();
+            if track.len() < at + samples.len() {
+                track.resize(at + samples.len(), 0.0);
+            }
+            for (k, s) in samples.iter().enumerate() {
+                track[at + k] += *s;
+            }
+        }
+        prev_speaker = b.speaker.clone();
         prev_end = Some(at + samples.len());
         if let Some(own) = b.pause_ms.filter(|_| i + 1 == blocks.len()) {
             mix.resize(mix.len() + (SR as i64 * own.max(0) / 1000) as usize, 0.0);
@@ -1377,6 +1422,7 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         prev_audio = Some((at, samples));
     }
     progress(json!({ "type": "progress", "stage": "speech_export", "msg": t!("speech-export-loudness"), "pct": 92 }));
+    let unlevelled = opts.stems.then(|| mix.clone());
     let levelled = match loudness(&project.settings.loudness) {
         Some((i, tp, _)) => Some(crate::loudness::level(&mut mix, SR, i, peak_for(&opts.format, tp), project.settings.loudness != "acx")?),
         None => None,
@@ -1403,6 +1449,17 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         crate::acx::room_tone(&mut mix, SR, 0.0, 0.0);
     }
     let acx_report = if acx { Some(crate::acx::report(&mix, SR)?) } else { None };
+    if let Some(before) = &unlevelled {
+        let after = &mix[if acx { (0.8 * SR as f64) as usize } else { 0 }..];
+        let head = mix.len() - after.len();
+        let gains = gain_envelope(before, after);
+        for track in stems.values_mut() {
+            track.resize(before.len(), 0.0);
+            track.iter_mut().zip(&gains).for_each(|(s, g)| *s *= g);
+            track.splice(0..0, std::iter::repeat_n(0.0, head));
+            track.resize(mix.len(), 0.0);
+        }
+    }
     let exports = dir.join("exports");
     std::fs::create_dir_all(&exports).map_err(|e| format!("{}: {e}", exports.display()))?;
     let base = file_stem(&project.name, opts.chapter.as_deref().and_then(|id| project.chapters.iter().find(|c| c.id == id)).map(|c| c.title.as_str()));
@@ -1534,8 +1591,26 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         std::fs::write(exports.join(&player), crate::read_along::player_html(&project.name, &file, &timed_blocks)).map_err(|e| format!("{player}: {e}"))?;
         outputs.push(json!({ "file": file, "subtitles": subtitles, "subtitle_files": subtitle_files, "timings": timings, "player": player, "recipe": recipe, "chapters": chapter_list, "path": target.to_string_lossy(), "duration": z - a }));
     }
+    let stems_zip = if opts.stems && !stems.is_empty() {
+        progress(json!({ "type": "progress", "stage": "speech_export", "msg": t!("speech-export-stems", count = stems.len() as i64), "pct": 99 }));
+        let zip_name = format!("{base} - {}.zip", t!("speech-by-speaker"));
+        let path = exports.join(&zip_name);
+        let file = std::fs::File::create(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+        let mut zip = zip::ZipWriter::new(file);
+        // FLAC is compressed already, and a track is mostly silence it squeezes well
+        let options = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
+        for (k, (speaker, track)) in stems.iter().enumerate() {
+            let bytes = audio_post::encode::flac(&audio_post::Stereo::new(track.clone(), track.clone(), SR)).map_err(|e| e.to_string())?;
+            zip.start_file(format!("{:02} {}.flac", k + 1, file_stem(speaker, None)), options).map_err(|e| e.to_string())?;
+            std::io::Write::write_all(&mut zip, &bytes).map_err(|e| e.to_string())?;
+        }
+        zip.finish().map_err(|e| e.to_string())?;
+        Some(zip_name)
+    } else {
+        None
+    };
     let first = outputs.first().cloned().unwrap_or(Value::Null);
-    Ok(json!({ "file": first["file"], "subtitles": first["subtitles"], "subtitle_files": first["subtitle_files"], "timings": first["timings"], "player": first["player"], "recipe": first["recipe"], "chapters": first["chapters"], "path": first["path"], "parts": if outputs.len() > 1 { Value::Array(outputs) } else { Value::Null }, "tag_problems": tag_problems, "acx": acx_report, "duration": total, "marks": marks, "lufs_before": levelled.map(|l| l.before), "lufs": levelled.map(|l| l.after) }))
+    Ok(json!({ "stems": stems_zip, "file": first["file"], "subtitles": first["subtitles"], "subtitle_files": first["subtitle_files"], "timings": first["timings"], "player": first["player"], "recipe": first["recipe"], "chapters": first["chapters"], "path": first["path"], "parts": if outputs.len() > 1 { Value::Array(outputs) } else { Value::Null }, "tag_problems": tag_problems, "acx": acx_report, "duration": total, "marks": marks, "lufs_before": levelled.map(|l| l.before), "lufs": levelled.map(|l| l.after) }))
 }
 
 /// How a block was voiced: the take in the file and what made it, to make it again.
@@ -1707,6 +1782,20 @@ mod tests {
         assert_eq!(file_stem("Глава: 1/2?", None), "Глава 1 2");
         assert_eq!(file_stem("Книга", Some("Пролог")), "Книга - Пролог");
         assert_eq!(file_stem("  ", None), "speech");
+    }
+
+    #[test]
+    fn speakers_tracks_take_the_mixs_gain_sample_by_sample_and_add_up_to_it() {
+        let a: Vec<f32> = (0..2400).map(|i| (i as f32 * 0.05).sin() * 0.3).collect();
+        let b: Vec<f32> = (0..2400).map(|i| if i > 1200 { (i as f32 * 0.11).sin() * 0.5 } else { 0.0 }).collect();
+        let before: Vec<f32> = a.iter().zip(&b).map(|(x, y)| x + y).collect();
+        let mut after = before.clone();
+        after.iter_mut().enumerate().for_each(|(n, s)| *s *= if n < 1500 { 2.0 } else { 0.5 });
+        let g = gain_envelope(&before, &after);
+        for n in 0..before.len() {
+            let sum = a[n] * g[n] + b[n] * g[n];
+            assert!((sum - after[n]).abs() < 1e-4, "{n}: {sum} {}", after[n]);
+        }
     }
 
     #[test]

@@ -178,7 +178,7 @@ export const speechApi = {
   autoCast: (pid: string) => getCoded<{ picks: { speaker: string; voice: string | null }[] }>(`/projects/${pid}/auto-cast`),
   exportCheck: (pid: string) => getCoded<{ problems: ExportProblem[] }>(`/projects/${pid}/export-check`),
   timeline: (pid: string) => getCoded<{ blocks: TimelineBlock[] }>(`/projects/${pid}/timeline`),
-  export: (pid: string, format: ExportFormat, chapter?: string, perBlock = false, partMinutes = 0, allowDuration = false, quality: ExportQuality = {}, perChapter = false) => postCoded<{ job_id: string }>(`/projects/${pid}/export`, { format, chapter, per_block: perBlock, part_minutes: partMinutes || undefined, per_chapter: perChapter || undefined, allow_duration: allowDuration || undefined, ...quality }),
+  export: (pid: string, format: ExportFormat, chapter?: string, perBlock = false, partMinutes = 0, allowDuration = false, quality: ExportQuality = {}, perChapter = false, stems = false) => postCoded<{ job_id: string }>(`/projects/${pid}/export`, { format, chapter, per_block: perBlock, part_minutes: partMinutes || undefined, per_chapter: perChapter || undefined, stems: stems || undefined, allow_duration: allowDuration || undefined, ...quality }),
   exportsToFolder: (pid: string, files: string[], folder?: string) => postCoded<{ folder: string | null; copied?: number }>(`/projects/${pid}/exports-to-folder`, folder ? { files, folder } : { files }),
   fromSubtitles: (file: File, name?: string) => {
     const form = new FormData();

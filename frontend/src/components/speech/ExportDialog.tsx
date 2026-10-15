@@ -32,6 +32,8 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
   const [perBlock, setPerBlock] = useState(false);
   const [partMinutes, setPartMinutes] = useState(0);
   const [allowDuration, setAllowDuration] = useState(false);
+  const [withStems, setWithStems] = useState(false);
+  const [stems, setStems] = useState<string | null>(null);
   type Part = { file: string; subtitles: string; timings: string; chapters: string | null; duration: number };
   const [parts, setParts] = useState<Part[] | null>(null);
   const [timings, setTimings] = useState<string | null>(null);
@@ -59,8 +61,8 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
     setBusy(true);
     setError(null);
     try {
-      const { job_id } = await speechApi.export(pid, format, undefined, perBlock, perBlock ? 0 : Math.max(partMinutes, 0), allowDuration, { sample_rate: rate || undefined, bits: bits || undefined, kbps: kbps || undefined }, !perBlock && partMinutes === -1);
-      const r = (await followJob(job_id, "export")) as { file: string; files?: string[]; subtitles?: string; subtitle_files?: string[]; timings?: string; player?: string; recipe?: string; chapters?: string | null; parts?: Part[] | null; acx?: AcxReport | null };
+      const { job_id } = await speechApi.export(pid, format, undefined, perBlock, perBlock ? 0 : Math.max(partMinutes, 0), allowDuration, { sample_rate: rate || undefined, bits: bits || undefined, kbps: kbps || undefined }, !perBlock && partMinutes === -1, !perBlock && withStems);
+      const r = (await followJob(job_id, "export")) as { file: string; files?: string[]; subtitles?: string; subtitle_files?: string[]; timings?: string; player?: string; recipe?: string; chapters?: string | null; parts?: Part[] | null; acx?: AcxReport | null; stems?: string | null };
       if (r.files) { setClips(r.files); setRecipe(r.recipe ?? null); return; }
       setAcx(r.acx ?? null);
       setFile(r.file);
@@ -70,6 +72,7 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
       setPlayer(r.player ?? null);
       setRecipe(r.recipe ?? null);
       setParts(r.parts ?? null);
+      setStems(r.stems ?? null);
       onDone(r.file);
     } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
   };
@@ -143,6 +146,12 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
                 <span className="text-[11px] text-[var(--color-muted)]">{t("speech.partsHint")}</span>
               </label>
             )}
+            {!perBlock && (
+              <label className="flex items-start gap-2 text-[12px] cursor-pointer">
+                <input type="checkbox" checked={withStems} onChange={(e) => { setWithStems(e.target.checked); setFile(null); setStems(null); }} className="mt-0.5 w-4 h-4 accent-[var(--color-accent)]" />
+                <span>{t("speech.stems")}<span className="block text-[11px] text-[var(--color-muted)]">{t("speech.stemsHint")}</span></span>
+              </label>
+            )}
             {clips && (
               <div className="space-y-1.5">
                 <p className="text-[12px]">{t("speech.clipsDone", { n: clips.length })}</p>
@@ -164,6 +173,7 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
                 {!parts && player && <FileActions pid={pid} file={player} label={t("speech.savePlayer")} />}
                 {!parts && timings && <FileActions pid={pid} file={timings} label={t("speech.saveTimings")} />}
                 {!parts && recipe && <FileActions pid={pid} file={recipe} label={t("speech.saveRecipe")} />}
+                {stems && <FileActions pid={pid} file={stems} label={t("speech.saveStems")} />}
               </div>
             ) : (
               <button onClick={run} disabled={busy} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[13px] font-semibold disabled:opacity-40">
