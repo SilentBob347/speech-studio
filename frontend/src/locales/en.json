@@ -1148,7 +1148,8 @@
     "directionPresetsOnly": "{{engine}} reads the direction only with the model's own voices; with this voice it will not change the sound.",
     "abWith": "Compare with",
     "ab": "A/B",
-    "abHint": "Switch between take #{{a}} and #{{b}} from the same moment"
+    "abHint": "Switch between take #{{a}} and #{{b}} from the same moment",
+    "saveRecipe": "How it was made (.json): engines, voices, seeds and settings"
   },
   "tags": {
     "emotion": "Emotion",

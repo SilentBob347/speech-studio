@@ -1148,7 +1148,8 @@
     "directionPresetsOnly": "{{engine}} solo lee la indicación con las voces propias del modelo; con esta voz no cambiará el sonido.",
     "abWith": "Comparar con",
     "ab": "A/B",
-    "abHint": "Alternar entre la toma #{{a}} y la #{{b}} desde el mismo momento"
+    "abHint": "Alternar entre la toma #{{a}} y la #{{b}} desde el mismo momento",
+    "saveRecipe": "Cómo se hizo (.json): motores, voces, semillas y ajustes"
   },
   "tags": {
     "emotion": "Emoción",

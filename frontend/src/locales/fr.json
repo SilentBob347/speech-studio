@@ -1148,7 +1148,8 @@
     "directionPresetsOnly": "{{engine}} ne lit l'indication qu'avec les voix propres du modèle ; avec cette voix, elle ne changera pas le son.",
     "abWith": "Comparer avec",
     "ab": "A/B",
-    "abHint": "Passer de la prise #{{a}} à la #{{b}} au même moment"
+    "abHint": "Passer de la prise #{{a}} à la #{{b}} au même moment",
+    "saveRecipe": "Comment c'est fait (.json) : moteurs, voix, graines et réglages"
   },
   "tags": {
     "emotion": "Émotion",

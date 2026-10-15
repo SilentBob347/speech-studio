@@ -1127,7 +1127,7 @@ pub fn encode_audio(src: &Path, dst: &Path, format: &str, acx: bool) -> Result<(
 }
 
 /// The export's sample rate, bit depth (WAV, FLAC) and bitrate (MP3, OGG, M4A); none set — the format's own.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, serde::Serialize)]
 pub struct Quality {
     pub rate: Option<u32>,
     pub bits: Option<u16>,

@@ -1136,6 +1136,8 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
     let chapter_of: std::collections::HashMap<&str, usize> = project.chapters.iter().enumerate().flat_map(|(ci, c)| c.blocks.iter().map(move |b| (b.id.as_str(), ci))).collect();
     let mut chapter_starts: Vec<(usize, f64)> = Vec::new();
     let mut prev_end: Option<usize> = None;
+    // how each block was voiced, for the recipe written next to the file
+    let mut made: Vec<(f64, Value)> = Vec::new();
     for (i, b) in blocks.iter().enumerate() {
         progress(json!({ "type": "progress", "stage": "speech_export", "msg": t!("speech-export-block", n = (i + 1) as i64, total = blocks.len() as i64), "pct": (i * 90 / blocks.len()) as i64 }));
         let take = b.active.and_then(|n| b.takes.iter().find(|t| t.n == n)).ok_or_else(|| t!("speech-export-not-ready", count = 1))?;
@@ -1169,6 +1171,7 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
             }
         }
         cues.push((at as f64 / SR as f64, (at + samples.len()) as f64 / SR as f64, b.speaker.clone(), crate::speech_text::visible(&b.text)));
+        made.push((at as f64 / SR as f64, recipe_block(b, take)));
         let words = take.qc.as_ref().map(|q| q.timed.iter().map(|(w, a, z)| (w.clone(), at as f64 / SR as f64 + place(*a), at as f64 / SR as f64 + place(*z))).collect()).unwrap_or_default();
         timed.push((at as f64 / SR as f64, (at + samples.len()) as f64 / SR as f64, b.speaker.clone(), crate::speech_text::visible(&b.text), words));
         if mix.len() < at + samples.len() {
@@ -1209,6 +1212,7 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
             c.0 += head;
             c.1 += head;
         });
+        made.iter_mut().for_each(|m| m.0 += head);
         timed.iter_mut().for_each(|t| {
             t.0 += head;
             t.1 += head;
@@ -1324,13 +1328,32 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         let lyrics = format!("{name}.lrc");
         std::fs::write(exports.join(&lyrics), lrc(&part_timed)).map_err(|e| format!("{lyrics}: {e}"))?;
         subtitle_files.push(lyrics);
+        let recipe = format!("{name}.recipe.json");
+        let body = json!({
+            "made_with": format!("Speech Studio {}", env!("CARGO_PKG_VERSION")),
+            "project": project.name,
+            "file": file,
+            "export": { "format": opts.format, "quality": opts.quality, "chapter": opts.chapter, "part": (bounds.len() > 1).then_some(k + 1), "parts": bounds.len() },
+            "settings": project.settings,
+            "blocks": made.iter().filter(|m| within(m.0)).map(|(s, m)| { let mut m = m.clone(); m["start"] = json!(s - a); m }).collect::<Vec<_>>(),
+        });
+        std::fs::write(exports.join(&recipe), serde_json::to_vec_pretty(&body).map_err(|e| e.to_string())?).map_err(|e| format!("{recipe}: {e}"))?;
         let timings = format!("{name}.timings.json");
         let body = json!({ "file": file, "blocks": part_timed.iter().map(|(s, e, who, text, words)| json!({ "start": s, "end": e, "speaker": who, "text": text, "words": words.iter().map(|(w, ws, we)| json!({ "word": w, "start": ws, "end": we })).collect::<Vec<_>>() })).collect::<Vec<_>>() });
         std::fs::write(exports.join(&timings), serde_json::to_vec_pretty(&body).map_err(|e| e.to_string())?).map_err(|e| format!("{timings}: {e}"))?;
-        outputs.push(json!({ "file": file, "subtitles": subtitles, "subtitle_files": subtitle_files, "timings": timings, "chapters": chapter_list, "path": target.to_string_lossy(), "duration": z - a }));
+        outputs.push(json!({ "file": file, "subtitles": subtitles, "subtitle_files": subtitle_files, "timings": timings, "recipe": recipe, "chapters": chapter_list, "path": target.to_string_lossy(), "duration": z - a }));
     }
     let first = outputs.first().cloned().unwrap_or(Value::Null);
-    Ok(json!({ "file": first["file"], "subtitles": first["subtitles"], "subtitle_files": first["subtitle_files"], "timings": first["timings"], "chapters": first["chapters"], "path": first["path"], "parts": if outputs.len() > 1 { Value::Array(outputs) } else { Value::Null }, "tag_problems": tag_problems, "acx": acx_report, "duration": total, "marks": marks, "lufs_before": levelled.map(|l| l.before), "lufs": levelled.map(|l| l.after) }))
+    Ok(json!({ "file": first["file"], "subtitles": first["subtitles"], "subtitle_files": first["subtitle_files"], "timings": first["timings"], "recipe": first["recipe"], "chapters": first["chapters"], "path": first["path"], "parts": if outputs.len() > 1 { Value::Array(outputs) } else { Value::Null }, "tag_problems": tag_problems, "acx": acx_report, "duration": total, "marks": marks, "lufs_before": levelled.map(|l| l.before), "lufs": levelled.map(|l| l.after) }))
+}
+
+/// How a block was voiced: the take in the file and what made it, to make it again.
+fn recipe_block(b: &Block, take: &Take) -> Value {
+    json!({
+        "block": b.id, "speaker": b.speaker, "text": take.text, "take": take.n, "engine": take.engine, "voice": take.voice,
+        "seed": take.seed, "temperature": take.temperature, "top_k": take.top_k, "top_p": take.top_p, "max_tokens": take.max_tokens,
+        "direction": take.direction, "source": take.source, "wer": take.qc.as_ref().map(|q| q.wer),
+    })
 }
 
 /// Where a long export is cut into parts of at most `limit` seconds: at the last chapter start that keeps a part under
@@ -1358,6 +1381,7 @@ fn export_clips(p: &SpeechPaths, pid: &str, project: &SpeechProject, blocks: &[&
     let folder = p.workspace.join(pid).join("exports").join(&base);
     std::fs::create_dir_all(&folder).map_err(|e| format!("{}: {e}", folder.display()))?;
     let mut files = Vec::new();
+    let mut made = Vec::new();
     for (i, b) in blocks.iter().enumerate() {
         progress(json!({ "type": "progress", "stage": "speech_export", "msg": t!("speech-export-block", n = (i + 1) as i64, total = blocks.len() as i64), "pct": (i * 100 / blocks.len()) as i64 }));
         let take = b.active.and_then(|n| b.takes.iter().find(|t| t.n == n)).ok_or_else(|| t!("speech-export-not-ready", count = 1))?;
@@ -1373,9 +1397,21 @@ fn export_clips(p: &SpeechPaths, pid: &str, project: &SpeechProject, blocks: &[&
         let name = format!("{:03} {}.{}", i + 1, file_stem(&label, None), opts.format);
         let meta = crate::media::AudioMeta { title: crate::speech_text::visible(&b.text), artist: project.voice_of(b).unwrap_or_default(), album: project.name.clone(), ..Default::default() };
         crate::media::encode_audio_meta(&wav, &folder.join(&name), &opts.format, project.settings.loudness == "acx", &meta, &opts.quality)?;
+        let mut how = recipe_block(b, take);
+        how["file"] = json!(name);
+        made.push(how);
         files.push(format!("{base}/{name}"));
     }
-    Ok(json!({ "files": files, "folder": folder.to_string_lossy() }))
+    let body = json!({
+        "made_with": format!("Speech Studio {}", env!("CARGO_PKG_VERSION")),
+        "project": project.name,
+        "export": { "format": opts.format, "quality": opts.quality, "chapter": opts.chapter, "per_block": true },
+        "settings": project.settings,
+        "blocks": made,
+    });
+    let recipe = folder.join("recipe.json");
+    std::fs::write(&recipe, serde_json::to_vec_pretty(&body).map_err(|e| e.to_string())?).map_err(|e| format!("{}: {e}", recipe.display()))?;
+    Ok(json!({ "files": files, "recipe": format!("{base}/recipe.json"), "folder": folder.to_string_lossy() }))
 }
 
 fn hms(t: f64) -> String {

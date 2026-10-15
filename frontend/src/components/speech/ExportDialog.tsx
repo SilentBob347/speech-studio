@@ -34,6 +34,7 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
   type Part = { file: string; subtitles: string; timings: string; chapters: string | null; duration: number };
   const [parts, setParts] = useState<Part[] | null>(null);
   const [timings, setTimings] = useState<string | null>(null);
+  const [recipe, setRecipe] = useState<string | null>(null);
   const [clips, setClips] = useState<string[] | null>(null);
   const [clipsSaved, setClipsSaved] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -57,13 +58,14 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
     setError(null);
     try {
       const { job_id } = await speechApi.export(pid, format, undefined, perBlock, perBlock ? 0 : partMinutes, allowDuration, { sample_rate: rate || undefined, bits: bits || undefined, kbps: kbps || undefined });
-      const r = (await followJob(job_id, "export")) as { file: string; files?: string[]; subtitles?: string; subtitle_files?: string[]; timings?: string; chapters?: string | null; parts?: Part[] | null; acx?: AcxReport | null };
-      if (r.files) { setClips(r.files); return; }
+      const r = (await followJob(job_id, "export")) as { file: string; files?: string[]; subtitles?: string; subtitle_files?: string[]; timings?: string; recipe?: string; chapters?: string | null; parts?: Part[] | null; acx?: AcxReport | null };
+      if (r.files) { setClips(r.files); setRecipe(r.recipe ?? null); return; }
       setAcx(r.acx ?? null);
       setFile(r.file);
       setSubs(r.subtitle_files ?? (r.subtitles ? [r.subtitles] : []));
       setChapterList(r.chapters ?? null);
       setTimings(r.timings ?? null);
+      setRecipe(r.recipe ?? null);
       setParts(r.parts ?? null);
       onDone(r.file);
     } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
@@ -142,7 +144,7 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
             {clips && (
               <div className="space-y-1.5">
                 <p className="text-[12px]">{t("speech.clipsDone", { n: clips.length })}</p>
-                <button onClick={() => speechApi.exportsToFolder(pid, clips).then((r) => setClipsSaved(r.folder), (e: unknown) => setError(errorText(e)))} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[12px] font-semibold">{t("speech.clipsToFolder")}</button>
+                <button onClick={() => speechApi.exportsToFolder(pid, recipe ? [...clips, recipe] : clips).then((r) => setClipsSaved(r.folder), (e: unknown) => setError(errorText(e)))} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[12px] font-semibold">{t("speech.clipsToFolder")}</button>
                 {clipsSaved && <p className="text-[11px] text-[var(--color-muted)] break-all">{t("files.savedTo", { path: clipsSaved })}</p>}
               </div>
             )}
@@ -158,6 +160,7 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
                 {!parts && chapterList && <FileActions pid={pid} file={chapterList} label={t("speech.saveChapters")} />}
                 {!parts && subs.map((f) => <FileActions key={f} pid={pid} file={f} label={t("speech.saveSubs", { ext: f.slice(f.lastIndexOf(".")) })} />)}
                 {!parts && timings && <FileActions pid={pid} file={timings} label={t("speech.saveTimings")} />}
+                {!parts && recipe && <FileActions pid={pid} file={recipe} label={t("speech.saveRecipe")} />}
               </div>
             ) : (
               <button onClick={run} disabled={busy} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[13px] font-semibold disabled:opacity-40">
