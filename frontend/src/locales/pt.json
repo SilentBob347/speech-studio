@@ -1821,5 +1821,22 @@
       "window": "Janela",
       "editor": "Projeto"
     }
+  },
+  "engineTable": {
+    "title": "Qual motor escolher",
+    "hint": "O que cada motor de voz sabe fazer: clonar uma voz a partir de uma gravação, vozes próprias, etiquetas de emoção e som, marcas de acento, indicações de direção. O motor é escolhido nas configurações do projeto.",
+    "loading": "Carregando os motores…",
+    "engine": "Motor",
+    "where": "Onde",
+    "langs": "Idiomas",
+    "clone": "Clonar voz",
+    "voices": "Vozes próprias",
+    "tags": "Etiquetas",
+    "stress": "Acentos",
+    "direction": "Indicações",
+    "local": "neste computador",
+    "cloud": "nuvem",
+    "anyLang": "sem lista",
+    "modelLangs": "conforme o modelo"
   }
 }

@@ -4,6 +4,7 @@ import { Check, Copy, HelpCircle, Star, X } from "lucide-react";
 import { DONATE } from "../../lib/links";
 import { named } from "../../lib/a11y";
 import { useEscapeLayer } from "../../lib/escape";
+import EngineTable from "./EngineTable";
 
 function HelpSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -38,7 +39,7 @@ export default function HelpModal({ onClose }: { onClose: () => void }) {
   const chip = "inline-flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[11px] text-[var(--color-muted)] hover:border-[var(--color-accent)] hover:text-[var(--color-text)] transition-colors";
   return (
     <div className="fixed inset-0 z-50 grid place-items-center glass-scrim anim-fade" onClick={onClose}>
-      <div role="dialog" aria-modal="true" aria-labelledby="help-title" className="w-[min(92vw,640px)] max-h-[86vh] overflow-y-auto rounded-xl glass-panel anim-pop p-5" onClick={(e) => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" aria-labelledby="help-title" className="w-[min(92vw,760px)] max-h-[86vh] overflow-y-auto rounded-xl glass-panel anim-pop p-5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-2">
           <span id="help-title" className="flex items-center gap-2 font-semibold"><HelpCircle size={17} className="text-[var(--color-accent)]" />{t("help.title")}</span>
           <button onClick={onClose} {...named(t("a11y.close"))} className="text-[var(--color-muted)] hover:text-[var(--color-text)]"><X size={16} /></button>
@@ -62,6 +63,11 @@ export default function HelpModal({ onClose }: { onClose: () => void }) {
               <li key={i} className="flex gap-2 text-[13px] leading-relaxed"><Check size={14} className="text-[var(--color-accent)] shrink-0 mt-[3px]" /><span>{f}</span></li>
             ))}
           </ul>
+        </HelpSection>
+
+        <HelpSection title={t("engineTable.title")}>
+          <p className="text-[12px] leading-relaxed text-[var(--color-muted)] mb-2">{t("engineTable.hint")}</p>
+          <EngineTable />
         </HelpSection>
 
         <HelpSection title={t("help.sectionsTitle")}>

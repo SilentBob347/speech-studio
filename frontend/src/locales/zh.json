@@ -1821,5 +1821,22 @@
       "window": "窗口",
       "editor": "项目"
     }
+  },
+  "engineTable": {
+    "title": "选择哪个引擎",
+    "hint": "每个配音引擎能做什么：根据录音克隆声音、自带声音、情感和音效标签、重音标记、导演提示。引擎在项目设置中选择。",
+    "loading": "正在加载引擎…",
+    "engine": "引擎",
+    "where": "运行位置",
+    "langs": "语言",
+    "clone": "声音克隆",
+    "voices": "自带声音",
+    "tags": "标签",
+    "stress": "重音",
+    "direction": "提示",
+    "local": "本机",
+    "cloud": "云端",
+    "anyLang": "无列表",
+    "modelLangs": "取决于模型"
   }
 }

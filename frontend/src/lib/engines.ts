@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { speechApi, type EngineCaps } from "./speech";
 import { prettyVoice } from "./voices";
 
+/** Engines that voice through a provider's servers: languages and voices are the chosen model's. */
+export const CLOUD_ENGINES: readonly string[] = ["openrouter", "google", "fal", "runware"];
+
 let cache: EngineCaps[] | null = null;
 let loading: Promise<EngineCaps[]> | null = null;
 

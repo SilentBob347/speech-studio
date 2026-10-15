@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Dices, X } from "lucide-react";
-import { useEngines } from "../../lib/engines";
+import { CLOUD_ENGINES, useEngines } from "../../lib/engines";
 import { type Loudness, type ParamSpec, type SeedMode, type SpeechProject } from "../../lib/speech";
 import { named } from "../../lib/a11y";
 import { useEscapeLayer } from "../../lib/escape";
@@ -34,7 +34,7 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
   const s = project.settings;
   const engines = useEngines();
   const engine = engines?.find((e) => e.id === s.engine) ?? null;
-  const local = !["openrouter", "google", "fal", "runware"].includes(s.engine);
+  const local = !CLOUD_ENGINES.includes(s.engine);
   const blocks = project.chapters.flatMap((c) => c.blocks).filter((b) => !b.hidden && b.text.trim());
   const catalogEngine = s.engine === "fal" || s.engine === "runware" ? s.engine : null;
   const continuable = engine?.continuation ?? false;

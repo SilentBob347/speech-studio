@@ -1821,5 +1821,22 @@
       "window": "Fenêtre",
       "editor": "Projet"
     }
+  },
+  "engineTable": {
+    "title": "Quel moteur choisir",
+    "hint": "Ce que sait faire chaque moteur de voix : cloner une voix depuis un enregistrement, ses propres voix, des balises d'émotion et de son, les accents toniques, les indications de direction. Le moteur se choisit dans les réglages du projet.",
+    "loading": "Chargement des moteurs…",
+    "engine": "Moteur",
+    "where": "Où",
+    "langs": "Langues",
+    "clone": "Clonage de voix",
+    "voices": "Voix intégrées",
+    "tags": "Balises",
+    "stress": "Accents toniques",
+    "direction": "Indications",
+    "local": "sur cet ordinateur",
+    "cloud": "dans le cloud",
+    "anyLang": "sans liste",
+    "modelLangs": "selon le modèle"
   }
 }

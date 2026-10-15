@@ -1821,5 +1821,22 @@
       "window": "Window",
       "editor": "Project"
     }
+  },
+  "engineTable": {
+    "title": "Which engine to choose",
+    "hint": "What each voicing engine can do: cloning a voice from a recording, ready voices of its own, emotion and sound tags, stress marks, director's notes. The engine is chosen in the project settings.",
+    "loading": "Loading the engines…",
+    "engine": "Engine",
+    "where": "Runs",
+    "langs": "Languages",
+    "clone": "Voice cloning",
+    "voices": "Own voices",
+    "tags": "Tags",
+    "stress": "Stress marks",
+    "direction": "Notes",
+    "local": "on this computer",
+    "cloud": "cloud",
+    "anyLang": "no list",
+    "modelLangs": "per model"
   }
 }
