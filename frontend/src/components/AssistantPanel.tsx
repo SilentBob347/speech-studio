@@ -67,6 +67,10 @@ export default function AssistantPanel({ onClose }: { onClose: () => void }) {
   const [draft, setDraft] = useState("");
   const end = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    document.documentElement.toggleAttribute("data-assistant", true);
+    return () => document.documentElement.removeAttribute("data-assistant");
+  }, []);
+  useEffect(() => {
     const load = () => chatModels().then((answer) => {
       setModels(answer.models);
       setWho({ assistant: answer.assistant, hasKey: answer.has_key });

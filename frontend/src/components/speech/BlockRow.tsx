@@ -208,9 +208,9 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
       <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-x-3 gap-y-1 px-2 py-2 sm:flex sm:gap-3">
         <div className="flex flex-col items-center gap-1 pt-1 -mr-1">
           <button type="button" ref={setActivatorNodeRef} {...attributes} {...listeners} aria-label={t("speech.drag")} title={t("speech.drag")}
-            className="cursor-grab touch-none rounded text-[var(--color-muted)] opacity-0 group-hover:opacity-100 focus-visible:opacity-100"><GripVertical size={13} /></button>
+            className="cursor-grab touch-none rounded text-[var(--color-muted)] pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 focus-visible:opacity-100"><GripVertical size={13} /></button>
           <input type="checkbox" checked={selected} onChange={() => undefined} onClick={(e) => a.select(e.shiftKey)} {...named(t("speech.selectBlock"))}
-            className={`w-3.5 h-3.5 accent-[var(--color-accent)] ${selecting || selected ? "" : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100"}`} />
+            className={`w-3.5 h-3.5 accent-[var(--color-accent)] ${selecting || selected ? "" : "pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 focus-visible:opacity-100"}`} />
         </div>
         <div className="min-w-0 pt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 sm:block sm:w-28 sm:shrink-0 sm:space-y-1">
           <input list="speech-speakers" value={block.speaker} onChange={(e) => a.patch({ speaker: e.target.value })} aria-label={t("speech.speaker")}
