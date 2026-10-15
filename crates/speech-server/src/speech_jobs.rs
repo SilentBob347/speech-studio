@@ -320,77 +320,107 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
         (None, None) => None,
     };
     let lang = if project.settings.lang == "auto" { "" } else { project.settings.lang.as_str() };
-    let mut out: Vec<f32> = Vec::new();
     let mut ignored = stx::Ignored::default();
-    let (mut seed, mut temperature, mut secs, mut retried) = (0u64, project.settings.params.temperature, 0.0, Vec::new());
+    let (mut secs, mut retried) = (0.0, Vec::<String>::new());
     let fresh = seed_for(&b.id, n);
     let mut params = take_params(&project.settings.params, n);
     if let Some(seed) = REPEAT_SEED.with(|s| s.get()) {
         params.seed_mode = "fixed".into();
         params.seed = seed % tts_host::SEED_RANGE;
     }
-    let mut rate = 1.0f64;
     let stress = project.settings.auto_stress && crate::stress::is_russian(&b.text, &project.settings.lang);
     let text = crate::prep::prepare(&b.text, &prep_opts(p, project, own, voice.as_deref(), entries, stress)).map_err(|e| t!("stress-failed", detail = e))?.text;
     let max_chars = manifest.as_ref().map_or(usize::MAX, |m| m.max_chars.max(1));
+    let speeds = manifest.as_ref().is_some_and(|m| m.params.iter().any(|s| s.key == "speed"));
+    if let Some(ahead) = tempo_ahead(project, b).filter(|_| speeds) {
+        params.speed = (params.speed * ahead).min(SPEED_MAX);
+    }
     let live = std::sync::Arc::new(crate::live::Phrase::begin(pid, &b.id));
-    for (k, piece) in stx::pieces(&text).into_iter().enumerate() {
-        match piece {
-            Piece::Pause(ms) => {
-                live.pause(ms, SR);
-                out.extend(std::iter::repeat_n(0.0, (SR as u64 * ms as u64 / 1000) as usize))
-            }
-            Piece::Rate(r) => rate = r,
-            Piece::Say(text) => {
-                let retimed = (rate - 1.0).abs() > 1e-3;
-                let (say, ig) = stx::for_engine(&text, lang, own);
-                ignored.accent |= ig.accent;
-                ignored.phonemes |= ig.phonemes;
-                ignored.stress |= ig.stress;
-                if say.is_empty() {
-                    continue;
+    let mut render = |params: &tts_host::Params, salt: u64, live: Option<&std::sync::Arc<crate::live::Phrase>>| -> Result<(Vec<f32>, u64, f64), String> {
+        let mut out: Vec<f32> = Vec::new();
+        let (mut seed, mut temperature) = (0u64, params.temperature);
+        let mut rate = 1.0f64;
+        for (k, piece) in stx::pieces(&text).into_iter().enumerate() {
+            match piece {
+                Piece::Pause(ms) => {
+                    if let Some(l) = live {
+                        l.pause(ms, SR);
+                    }
+                    out.extend(std::iter::repeat_n(0.0, (SR as u64 * ms as u64 / 1000) as usize))
                 }
-                for (j, (phrase, gap)) in stx::phrases(&say, max_chars).iter().enumerate() {
-                    if *gap > 0 {
-                        live.pause(*gap, SR);
-                        out.extend(std::iter::repeat_n(0.0, (SR * gap / 1000) as usize));
+                Piece::Rate(r) => rate = r,
+                Piece::Say(text) => {
+                    let retimed = (rate - 1.0).abs() > 1e-3;
+                    let (say, ig) = stx::for_engine(&text, lang, own);
+                    ignored.accent |= ig.accent;
+                    ignored.phonemes |= ig.phonemes;
+                    ignored.stress |= ig.stress;
+                    if say.is_empty() {
+                        continue;
                     }
-                    let req = tts_host::Request {
-                        text: phrase,
-                        lang,
-                        ref_wav: reference.as_ref().map(|(w, _)| w.as_path()),
-                        ref_text: reference.as_ref().and_then(|(_, t)| t.as_deref()),
-                        preset: preset.as_deref(),
-                        instruct: Some(b.direction.trim()).filter(|d| !d.is_empty() && crate::qwen_tts::is_engine(own)),
-                        params: &params,
-                        fresh_seed: fresh.wrapping_add(k as u64).wrapping_add((j as u64) << 32),
-                        live: (!retimed).then(|| live.clone()),
-                    };
-                    let s = tts_host::synth(&engine, &req)?;
-                    if (k == 0 && j == 0) || seed == 0 {
-                        seed = s.seed;
-                        temperature = s.temperature;
-                    }
-                    secs += s.seconds;
-                    retried.extend(s.defects.iter().map(|d| d.to_string()));
-                    let mut samples = resample_to(s.samples, s.sr);
-                    fade_edges(&mut samples, SR);
-                    if retimed {
-                        let samples = at_rate(&samples, rate)?;
-                        live.chunk(&samples, SR);
-                        out.extend(samples);
-                    } else {
-                        out.extend(samples);
+                    for (j, (phrase, gap)) in stx::phrases(&say, max_chars).iter().enumerate() {
+                        if *gap > 0 {
+                            if let Some(l) = live {
+                                l.pause(*gap, SR);
+                            }
+                            out.extend(std::iter::repeat_n(0.0, (SR * gap / 1000) as usize));
+                        }
+                        let req = tts_host::Request {
+                            text: phrase,
+                            lang,
+                            ref_wav: reference.as_ref().map(|(w, _)| w.as_path()),
+                            ref_text: reference.as_ref().and_then(|(_, t)| t.as_deref()),
+                            preset: preset.as_deref(),
+                            instruct: Some(b.direction.trim()).filter(|d| !d.is_empty() && crate::qwen_tts::is_engine(own)),
+                            params,
+                            fresh_seed: fresh.wrapping_add(salt).wrapping_add(k as u64).wrapping_add((j as u64) << 32),
+                            live: live.filter(|_| !retimed).cloned(),
+                        };
+                        let s = tts_host::synth(&engine, &req)?;
+                        if (k == 0 && j == 0) || seed == 0 {
+                            seed = s.seed;
+                            temperature = s.temperature;
+                        }
+                        secs += s.seconds;
+                        retried.extend(s.defects.iter().map(|d| d.to_string()));
+                        let mut samples = resample_to(s.samples, s.sr);
+                        fade_edges(&mut samples, SR);
+                        if retimed {
+                            let samples = at_rate(&samples, rate)?;
+                            if let Some(l) = live {
+                                l.chunk(&samples, SR);
+                            }
+                            out.extend(samples);
+                        } else {
+                            out.extend(samples);
+                        }
                     }
                 }
             }
         }
-    }
-    ignored.stress = stx::has_stress(&b.text) && !manifest.as_ref().is_some_and(|m| m.reads.stress);
+        Ok((out, seed, temperature))
+    };
+    let (out, mut seed, mut temperature) = render(&params, 0, Some(&live))?;
     if out.is_empty() {
         return Err(t!("speech-block-silent"));
     }
-    let fitted = fit_to_cue(project, b, out)?;
+    let mut fitted = fit_to_cue(project, b, out)?;
+    if fitted.over {
+        // the fitplan ladder of Dub: once more, faster while the engine's speed has room, else another seed
+        let mut again = params.clone();
+        if speeds && params.speed < SPEED_MAX {
+            again.speed = (params.speed * fitted.needed / fitted.stretch.max(1.0)).min(SPEED_MAX);
+        } else {
+            again.seed_mode = "random".into();
+        }
+        let (second, s2, t2) = render(&again, FIT_RETRY_SALT, None)?;
+        retried.push("fit".to_string());
+        let second = fit_to_cue(project, b, second)?;
+        if !second.samples.is_empty() && second.needed < fitted.needed {
+            (fitted, params, seed, temperature) = (second, again, s2, t2);
+        }
+    }
+    ignored.stress = stx::has_stress(&b.text) && !manifest.as_ref().is_some_and(|m| m.reads.stress);
     let out = fitted.samples;
     let take = Take {
         n,
@@ -423,15 +453,18 @@ struct Fitted {
     stretch: f64,
     lead: f64,
     over: bool,
+    /// Во сколько раз клип длиннее места, что ему нашлось; 1 — влез без ускорения.
+    needed: f64,
 }
 
-/// В проекте по таймкодам — уложить клип в его реплику (механизм подгонки Dub): до начала следующей реплики;
-/// не влезает — начать раньше, в тишину перед репликой; ещё не влезает — ускорить до предела; дальше — пометить.
-fn fit_to_cue(project: &SpeechProject, b: &Block, samples: Vec<f32>) -> Result<Fitted, String> {
-    let (Some(start), Some(end)) = (b.start, b.end) else { return Ok(Fitted { samples, stretch: 1.0, lead: 0.0, over: false }) };
-    if !project.settings.timeline {
-        return Ok(Fitted { samples, stretch: 1.0, lead: 0.0, over: false });
-    }
+/// Быстрее этого движок со скоростью речи не разгоняется подгонкой.
+const SPEED_MAX: f64 = 1.6;
+/// Сдвиг сида повтора подгонки, чтобы повтор не совпал с первым синтезом.
+const FIT_RETRY_SALT: u64 = 0x5eed_f17;
+
+/// Место реплики блока в проекте по таймкодам: слот от её начала до следующей, сколько тишины перед ней и правила.
+fn cue_slot(project: &SpeechProject, b: &Block) -> Option<(dub_core::fit::Slot, f64, dub_core::fit::FitRules)> {
+    let (true, Some(start), Some(end)) = (project.settings.timeline, b.start, b.end) else { return None };
     let timed: Vec<&Block> = project.blocks().filter(|x| !x.hidden && x.start.is_some()).collect();
     let at = timed.iter().position(|x| x.id == b.id);
     let next_start = at.and_then(|i| timed.get(i + 1)).and_then(|x| x.start).unwrap_or(end.max(start) + 3600.0);
@@ -442,17 +475,32 @@ fn fit_to_cue(project: &SpeechProject, b: &Block, samples: Vec<f32>) -> Result<F
         max_stretch: project.settings.max_stretch,
         lead_into_silence: project.settings.lead_into_silence,
     };
-    let slot = dub_core::fit::slot(start, end, start, next_start, &rules);
+    Some((dub_core::fit::slot(start, end, start, next_start, &rules), (start - prev_end).max(0.0), rules))
+}
+
+/// Темп заранее (подгонка Dub): во сколько раз быстрее говорить, чтобы текст по оценке длины влез в реплику вместе с
+/// тишиной перед ней; None — влезает и так.
+fn tempo_ahead(project: &SpeechProject, b: &Block) -> Option<f64> {
+    let (slot, free, rules) = cue_slot(project, b)?;
+    let lang = if project.settings.lang == "auto" { if crate::stress::is_russian(&b.text, "auto") { "ru" } else { "en" } } else { project.settings.lang.as_str() };
+    let est = dub_core::fit::estimate(&crate::speech_text::visible(&b.text), dub_core::fit::table_cps(lang));
+    let room = slot.target + dub_core::fit::lead(est, &slot, free, &rules);
+    (room > 0.0 && est > room).then(|| (est / room).min(SPEED_MAX))
+}
+
+/// В проекте по таймкодам — уложить клип в его реплику (механизм подгонки Dub): до начала следующей реплики;
+/// не влезает — начать раньше, в тишину перед репликой; ещё не влезает — ускорить до предела; дальше — пометить.
+fn fit_to_cue(project: &SpeechProject, b: &Block, samples: Vec<f32>) -> Result<Fitted, String> {
+    let Some((slot, free, rules)) = cue_slot(project, b) else { return Ok(Fitted { samples, stretch: 1.0, lead: 0.0, over: false, needed: 1.0 }) };
     let clip = samples.len() as f64 / SR as f64;
-    let lead = dub_core::fit::lead(clip, &slot, (start - prev_end).max(0.0), &rules);
-    let target = slot.target + lead;
-    let needed = dub_core::fit::needed(clip, target);
+    let lead = dub_core::fit::lead(clip, &slot, free, &rules);
+    let needed = dub_core::fit::needed(clip, slot.target + lead);
     if needed <= 1.0 + 1e-6 {
-        return Ok(Fitted { samples, stretch: 1.0, lead, over: false });
+        return Ok(Fitted { samples, stretch: 1.0, lead, over: false, needed });
     }
     let stretch = needed.min(slot.cap);
     let samples = at_rate(&samples, stretch)?;
-    Ok(Fitted { samples, stretch, lead, over: dub_core::fit::over(needed, slot.cap) })
+    Ok(Fitted { samples, stretch, lead, over: dub_core::fit::over(needed, slot.cap), needed })
 }
 
 /// Реф продолжения: дубль предыдущего блока (24 кГц моно) и его видимый текст.
@@ -1401,6 +1449,24 @@ mod tests {
         assert_eq!((mix[999], mix[1000]), (1.0, 1.0));
         assert!(mix[1000 + fade / 2] > 0.4 && mix[1000 + fade / 2] < 0.6);
         assert!(mix[1000 + fade..].iter().all(|v| v.abs() < 1e-6));
+    }
+
+    #[test]
+    fn a_text_too_long_for_its_cue_is_spoken_faster_ahead() {
+        let block = |id: &str, text: &str, start: f64, end: f64| Block { id: id.into(), speaker: "A".into(), text: text.into(), start: Some(start), end: Some(end), ..Default::default() };
+        let mut project = SpeechProject::default();
+        project.settings.timeline = true;
+        project.settings.lang = "ru".into();
+        project.chapters = vec![sp::Chapter {
+            id: "c".into(),
+            title: String::new(),
+            blocks: vec![block("a", "Да.", 0.0, 2.0), block("b", "Очень длинная реплика, которая никак не помещается в одну секунду эфира.", 2.0, 3.0), block("c", "Нет.", 3.0, 4.0)],
+        }];
+        assert_eq!(tempo_ahead(&project, &project.chapters[0].blocks[0]), None);
+        let faster = tempo_ahead(&project, &project.chapters[0].blocks[1]).expect("too long for one second");
+        assert!(faster > 1.0 && faster <= SPEED_MAX, "{faster}");
+        project.settings.timeline = false;
+        assert_eq!(tempo_ahead(&project, &project.chapters[0].blocks[1]), None, "without cues there is nothing to fit");
     }
 
     #[test]
