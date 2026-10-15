@@ -170,6 +170,8 @@ pub struct Settings {
     pub auto_stress: bool,
     /// Русский текст перед озвучкой проходит нормализацию: числа, даты, единицы словами (normalize_ru.rs).
     pub normalize: bool,
+    /// Группы правил нормализации, которые не читать словами (`normalize_ru::GROUPS`): телефоны, коды…
+    pub normalize_off: Vec<String>,
     /// Блоки звучат во времени своих реплик (проект из субтитров), а не друг за другом.
     pub timeline: bool,
     /// Предел ускорения клипа под реплику (как в Dub).
@@ -193,7 +195,7 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { lang: "auto".into(), engine: "higgs".into(), params: Params::default(), voice: None, pause_same_ms: 300, pause_switch_ms: 600, loudness: "video".into(), qc: QcSettings::default(), auto_stress: true, normalize: true, timeline: false, max_stretch: 1.25, lead_into_silence: true, room_tone: false, breaths: false, continuation: false, tidy_pauses: true, cloud_model: String::new(), cloud_voice: String::new(), cloud_values: serde_json::Map::new() }
+        Settings { lang: "auto".into(), engine: "higgs".into(), params: Params::default(), voice: None, pause_same_ms: 300, pause_switch_ms: 600, loudness: "video".into(), qc: QcSettings::default(), auto_stress: true, normalize: true, normalize_off: Vec::new(), timeline: false, max_stretch: 1.25, lead_into_silence: true, room_tone: false, breaths: false, continuation: false, tidy_pauses: true, cloud_model: String::new(), cloud_voice: String::new(), cloud_values: serde_json::Map::new() }
     }
 }
 
@@ -287,6 +289,9 @@ impl SpeechProject {
             return Err(format!("this is a {} project, not a speech one", self.kind));
         }
         self.settings.params.checked()?;
+        if let Some(g) = self.settings.normalize_off.iter().find(|g| !crate::normalize_ru::GROUPS.contains(&g.as_str())) {
+            return Err(format!("normalize_off: {g} is not one of {}", crate::normalize_ru::GROUPS.join(", ")));
+        }
         if !(1.0..=2.0).contains(&self.settings.max_stretch) {
             return Err(format!("max_stretch {} is outside 1.0..2.0", self.settings.max_stretch));
         }

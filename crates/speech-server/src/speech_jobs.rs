@@ -103,6 +103,7 @@ pub fn prep_opts<'a>(p: &'a SpeechPaths, project: &'a SpeechProject, engine: &'a
         engine,
         entries,
         normalize: project.settings.normalize,
+        normalize_off: &project.settings.normalize_off,
         stress,
         models_root: &p.models_root,
     }

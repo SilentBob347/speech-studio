@@ -1227,7 +1227,16 @@
     "noRefText": "no reference text",
     "refTextNeeded": "{{engine}} does not clone a voice without its reference text: open the voice in the library and press {{button}}.",
     "voiceVariant": "Voice variant",
-    "variantBase": "main"
+    "variantBase": "main",
+    "normalizeGroups": "What to read as words",
+    "normalizeGroup_numbers": "numbers",
+    "normalizeGroup_dates": "dates and years",
+    "normalizeGroup_time": "time and scores",
+    "normalizeGroup_money": "money",
+    "normalizeGroup_phones": "phone numbers",
+    "normalizeGroup_web": "e-mail and sites",
+    "normalizeGroup_codes": "codes",
+    "normalizeGroup_roman": "Roman numerals"
   },
   "tags": {
     "emotion": "Emotion",

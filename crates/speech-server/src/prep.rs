@@ -38,6 +38,8 @@ pub struct Opts<'a> {
     /// Записи сверху вниз: проект, затем глобальные.
     pub entries: &'a [Entry],
     pub normalize: bool,
+    /// Группы правил нормализации, выключенные в проекте (`normalize_ru::GROUPS`).
+    pub normalize_off: &'a [String],
     pub stress: bool,
     pub models_root: &'a Path,
 }
@@ -62,7 +64,7 @@ pub fn prepare(text: &str, o: &Opts) -> Result<Prepared, String> {
     let mut t = applied.text;
     let russian = lang == "ru";
     if russian && o.normalize {
-        let n = crate::normalize_ru::normalize(&t);
+        let n = crate::normalize_ru::normalize_with(&t, o.normalize_off);
         p.steps.extend(n.changes.into_iter().map(|c| Step { layer: "normalizer", rule: c.rule.to_string(), from: c.from, to: c.to }));
         p.unknown = n.unknown;
         t = n.text;
@@ -128,7 +130,7 @@ mod tests {
     use super::*;
 
     fn opts<'a>(entries: &'a [Entry]) -> Opts<'a> {
-        Opts { lang: "auto", voice: None, engine: "higgs", entries, normalize: true, stress: false, models_root: Path::new(".") }
+        Opts { lang: "auto", voice: None, engine: "higgs", entries, normalize: true, normalize_off: &[], stress: false, models_root: Path::new(".") }
     }
 
     #[test]

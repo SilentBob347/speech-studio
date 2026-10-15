@@ -855,10 +855,115 @@ fn restore(text: &str, kept: &[String]) -> String {
     out
 }
 
+static EMAIL: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)*\.[A-Za-z]{2,}").expect("email"));
+static URL: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)(?:https?://|www\.)[^\s,;()<>«»]*[^\s,;()<>«».!?:]|\b[a-z0-9\-]+(?:\.[a-z0-9\-]+)*\.(?:com|ru|org|net|io|ai|dev|app|studio|info|me|tv|co|edu|gov|su|by|kz|ua)\b(?:/(?:[^\s,;()<>«»]*[^\s,;()<>«».!?:])?)?").expect("url")
+});
+static PHONE_RU: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(\+7|8)[\s\-]?\(?(\d{3})\)?[\s\-]?(\d{3})[\s\-]?(\d{2})[\s\-]?(\d{2})").expect("phone"));
+static PHONE_INTL: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\+(\d{1,3})[\s\-]?\(?(\d{1,4})\)?((?:[\s\-]?\d{2,4}){2,4})").expect("phone"));
+static CODE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\b([A-Z]{1,4})-?(\d{2,})\b").expect("code"));
+
+/// Латинские буквы так, как их называют по-русски, читая код или аббревиатуру.
+fn latin_letter(c: char) -> &'static str {
+    match c.to_ascii_uppercase() {
+        'A' => "эй", 'B' => "би", 'C' => "си", 'D' => "ди", 'E' => "и", 'F' => "эф", 'G' => "джи", 'H' => "эйч", 'I' => "ай",
+        'J' => "джей", 'K' => "кей", 'L' => "эл", 'M' => "эм", 'N' => "эн", 'O' => "оу", 'P' => "пи", 'Q' => "кью", 'R' => "ар",
+        'S' => "эс", 'T' => "ти", 'U' => "ю", 'V' => "ви", 'W' => "дабл-ю", 'X' => "экс", 'Y' => "уай", _ => "зед",
+    }
+}
+
+fn digit_words(digits: &str) -> String {
+    digits.chars().filter_map(|c| c.to_digit(10)).map(|d| cardinal(&BigInt::from(d), Case::Nom, Gender::Masc, false)).collect::<Vec<_>>().join(" ")
+}
+
+/// Группа цифр телефона: с нуля — цифрами, иначе числом («сорок пять», «восемьсот»).
+fn phone_group(g: &str) -> String {
+    if g.len() > 1 && g.starts_with('0') {
+        return digit_words(g);
+    }
+    g.parse::<BigInt>().map(|n| cardinal(&n, Case::Nom, Gender::Masc, false)).unwrap_or_else(|_| digit_words(g))
+}
+
+fn rule_phone_ru(c: &regex::Captures, _: &str, _: &str) -> Option<String> {
+    let head = if &c[1] == "+7" { "плюс семь".to_string() } else { "восемь".to_string() };
+    Some(std::iter::once(head).chain((2..=5).map(|i| phone_group(&c[i]))).collect::<Vec<_>>().join(", "))
+}
+
+fn rule_phone_intl(c: &regex::Captures, _: &str, _: &str) -> Option<String> {
+    let mut parts = vec![format!("плюс {}", phone_group(&c[1])), phone_group(&c[2])];
+    parts.extend(c[3].split(|ch: char| ch == ' ' || ch == '-').filter(|g| !g.is_empty()).map(phone_group));
+    Some(parts.join(", "))
+}
+
+/// Знаки адреса словами: точка, слэш, дефис, подчёркивание; латинские слова остаются как есть.
+fn spoken_address(s: &str) -> String {
+    let mut out = String::new();
+    for ch in s.chars() {
+        match ch {
+            '@' => out.push_str(" собака "),
+            '.' => out.push_str(" точка "),
+            '/' => out.push_str(" слэш "),
+            '-' => out.push_str(" дефис "),
+            '_' => out.push_str(" подчёркивание "),
+            _ => out.push(ch),
+        }
+    }
+    out.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+fn rule_email(c: &regex::Captures, _: &str, _: &str) -> Option<String> {
+    Some(spoken_address(&c[0]))
+}
+
+/// Адрес сайта без схемы и www, без параметров и якоря; точка в конце предложения — не часть адреса.
+fn rule_url(c: &regex::Captures, _: &str, _: &str) -> Option<String> {
+    let whole = &c[0];
+    let lower = whole.to_ascii_lowercase();
+    let mut rest = &whole[lower.find("://").map_or(0, |i| i + 3)..];
+    if rest.to_ascii_lowercase().starts_with("www.") {
+        rest = &rest[4..];
+    }
+    let rest = rest.split(['?', '#']).next().unwrap_or("").trim_end_matches(['.', '!', '?', '/', ':']);
+    (!rest.is_empty()).then(|| spoken_address(rest))
+}
+
+fn rule_code(c: &regex::Captures, _: &str, _: &str) -> Option<String> {
+    let letters = c[1].chars().map(latin_letter).collect::<Vec<_>>().join(" ");
+    Some(format!("{letters}, {}", digit_words(&c[2])))
+}
+
+/// Группы правил, которые проект может выключить: что из них не читать словами.
+pub const GROUPS: [&str; 8] = ["numbers", "dates", "time", "money", "phones", "web", "codes", "roman"];
+
+fn group_of(rule: &str) -> &'static str {
+    match rule {
+        "date" | "year" | "century" => "dates",
+        "time" | "score" => "time",
+        "money" => "money",
+        "phone" => "phones",
+        "email" | "url" => "web",
+        "code" => "codes",
+        "roman" => "roman",
+        _ => "numbers",
+    }
+}
+
 /// Нормализовать русский текст блока: что заменено каким правилом и что осталось нечитаемым.
 pub fn normalize(text: &str) -> Normalized {
+    normalize_with(text, &[])
+}
+
+/// То же без групп правил `off` (из `GROUPS`): их совпадения остаются как написаны.
+pub fn normalize_with(text: &str, off: &[String]) -> Normalized {
+    let on = |rule: &str| !off.iter().any(|g| g == group_of(rule));
+    let pass = |t: &str, re: &Regex, name: &'static str, rule: Rule, changes: &mut Vec<Change>| if on(name) { pass(t, re, name, rule, changes) } else { t.to_string() };
     let (mut t, kept) = protect(text);
     let mut changes = Vec::new();
+    t = pass(&t, &EMAIL, "email", rule_email, &mut changes);
+    t = pass(&t, &URL, "url", rule_url, &mut changes);
+    t = pass(&t, &PHONE_RU, "phone", rule_phone_ru, &mut changes);
+    t = pass(&t, &PHONE_INTL, "phone", rule_phone_intl, &mut changes);
+    t = pass(&t, &CODE, "code", rule_code, &mut changes);
     t = pass(&t, &YEAR_RANGE, "year", rule_year_range, &mut changes);
     t = pass(&t, &DATE_NUM, "date", rule_date_num, &mut changes);
     t = pass(&t, &DATE_WORD, "date", rule_date_word, &mut changes);
@@ -871,7 +976,9 @@ pub fn normalize(text: &str) -> Normalized {
     t = pass(&t, &ORDINAL_SUFFIX, "ordinal", rule_ordinal_suffix, &mut changes);
     t = pass(&t, &CURRENCY_PREFIX, "money", rule_currency_prefix, &mut changes);
     t = pass(&t, &FRACTION, "fraction", rule_fraction, &mut changes);
-    t = number_pass(&t, &mut changes);
+    if on("number") {
+        t = number_pass(&t, &mut changes);
+    }
     let unknown: Vec<String> = t
         .split_whitespace()
         .filter(|w| w.chars().any(|c| c.is_ascii_digit()) || LATIN.is_match(w))
@@ -887,6 +994,27 @@ mod tests {
 
     fn b(n: i64) -> BigInt {
         BigInt::from(n)
+    }
+
+    #[test]
+    fn phones_mail_sites_and_codes_are_read_as_people_say_them() {
+        let n = |t: &str| normalize(t).text;
+        assert_eq!(n("Звоните +7 (495) 123-45-67."), "Звоните плюс семь, четыреста девяносто пять, сто двадцать три, сорок пять, шестьдесят семь.");
+        assert_eq!(n("или 8 800 555-35-35"), "или восемь, восемьсот, пятьсот пятьдесят пять, тридцать пять, тридцать пять");
+        assert_eq!(n("+44 20 7946 0958"), "плюс сорок четыре, двадцать, семь тысяч девятьсот сорок шесть, ноль девять пять восемь");
+        assert_eq!(n("пишите info@example.com, ответим"), "пишите info собака example точка com, ответим");
+        assert_eq!(n("сайт https://www.speech.studio/docs?x=1."), "сайт speech точка studio слэш docs.");
+        assert_eq!(n("на example.ru и всё"), "на example точка ru и всё");
+        assert_eq!(n("Код заказа AB-1234"), "Код заказа эй би, один два три четыре");
+        assert_eq!(n("т. е. 5 кг"), normalize("т. е. 5 кг").text);
+    }
+
+    #[test]
+    fn a_group_turned_off_stays_as_written() {
+        let off = |groups: &[&str], t: &str| normalize_with(t, &groups.iter().map(|g| g.to_string()).collect::<Vec<_>>()).text;
+        assert_eq!(off(&["codes"], "Код AB-1234, 5 штук"), "Код AB-1234, пять штук");
+        assert_eq!(off(&["numbers"], "Код AB-1234, 5 штук"), "Код эй би, один два три четыре, 5 штук");
+        assert_eq!(off(&["web"], "пишите на info@example.com"), "пишите на info@example.com");
     }
 
     #[test]

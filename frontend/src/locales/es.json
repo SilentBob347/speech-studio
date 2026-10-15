@@ -1227,7 +1227,16 @@
     "noRefText": "sin texto de referencia",
     "refTextNeeded": "{{engine}} no clona una voz sin el texto de su referencia: abre la voz en la biblioteca y pulsa {{button}}.",
     "voiceVariant": "Variante de voz",
-    "variantBase": "principal"
+    "variantBase": "principal",
+    "normalizeGroups": "Qué leer con palabras",
+    "normalizeGroup_numbers": "números",
+    "normalizeGroup_dates": "fechas y años",
+    "normalizeGroup_time": "hora y marcadores",
+    "normalizeGroup_money": "dinero",
+    "normalizeGroup_phones": "teléfonos",
+    "normalizeGroup_web": "correo y sitios",
+    "normalizeGroup_codes": "códigos",
+    "normalizeGroup_roman": "números romanos"
   },
   "tags": {
     "emotion": "Emoción",

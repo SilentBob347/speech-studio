@@ -1227,7 +1227,16 @@
     "noRefText": "无参考文本",
     "refTextNeeded": "{{engine}} 没有参考文本无法克隆声音：在声音库中打开该声音并点击“{{button}}”。",
     "voiceVariant": "声音变体",
-    "variantBase": "主声音"
+    "variantBase": "主声音",
+    "normalizeGroups": "哪些读成文字",
+    "normalizeGroup_numbers": "数字",
+    "normalizeGroup_dates": "日期和年份",
+    "normalizeGroup_time": "时间和比分",
+    "normalizeGroup_money": "金额",
+    "normalizeGroup_phones": "电话号码",
+    "normalizeGroup_web": "邮箱和网址",
+    "normalizeGroup_codes": "编码",
+    "normalizeGroup_roman": "罗马数字"
   },
   "tags": {
     "emotion": "情绪",

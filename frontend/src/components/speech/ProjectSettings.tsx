@@ -28,6 +28,8 @@ const field = "mt-1 w-full bg-[var(--color-surface-2)] border border-[var(--colo
 const label = "block text-[12px] text-[var(--color-muted)]";
 
 /** The project's synthesis: language, sampling, seed, pauses between lines and the loudness of the export. */
+const NORMALIZE_GROUPS = ["numbers", "dates", "time", "money", "phones", "web", "codes", "roman"] as const;
+
 export default function ProjectSettings({ project, onChange, onClose }: { project: SpeechProject; onChange: (f: (p: SpeechProject) => SpeechProject) => void; onClose: () => void }) {
   const { t, i18n } = useTranslation();
   useEscapeLayer(onClose);
@@ -139,6 +141,20 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
           <input type="checkbox" checked={s.normalize} onChange={(e) => set((p) => { p.settings.normalize = e.target.checked; })} className="mt-0.5 w-4 h-4 accent-[var(--color-accent)]" />
           <span>{t("speech.normalize")}<span className="block text-[11px] text-[var(--color-muted)]">{t("speech.normalizeHint")}</span></span>
         </label>
+        {s.normalize && (
+          <fieldset className="ml-6 -mt-1">
+            <legend className="text-[11px] text-[var(--color-muted)] mb-1">{t("speech.normalizeGroups")}</legend>
+            <div className="flex flex-wrap gap-1">
+              {NORMALIZE_GROUPS.map((g) => {
+                const on = !(s.normalize_off ?? []).includes(g);
+                return (
+                  <button key={g} type="button" aria-pressed={on} onClick={() => set((p) => { const off = new Set(p.settings.normalize_off ?? []); if (on) off.add(g); else off.delete(g); p.settings.normalize_off = NORMALIZE_GROUPS.filter((x) => off.has(x)); })}
+                    className={`px-2 py-0.5 rounded-md border text-[11px] ${on ? "border-[var(--color-accent)] text-[var(--color-text)]" : "border-[var(--color-border)] text-[var(--color-muted)] line-through"}`}>{t(`speech.normalizeGroup_${g}`)}</button>
+                );
+              })}
+            </div>
+          </fieldset>
+        )}
         <label className="flex items-start gap-2 text-[13px] cursor-pointer">
           <input type="checkbox" checked={s.auto_stress} onChange={(e) => set((p) => { p.settings.auto_stress = e.target.checked; })} className="mt-0.5 w-4 h-4 accent-[var(--color-accent)]" />
           <span>{t("speech.autoStress")}<span className="block text-[11px] text-[var(--color-muted)]">{t("speech.autoStressHint")}</span></span>

@@ -123,8 +123,8 @@ pub(super) fn tools() -> Vec<Tool> {
         // ---------------------------------------------------------------- text preparation
         Tool {
             name: "text_prepare",
-            description: "How a text will be read: the pronunciation dictionary, Russian normalisation (numbers, dates, units in words with their cases) and stress marks with ё, each step traced, and the text the engine gets.",
-            schema: || object(json!({ "text": { "type": "string" }, "lang": { "type": "string" }, "voice": { "type": "string" }, "engine": { "type": "string" }, "normalize": { "type": "boolean" }, "stress": { "type": "boolean" } }), &["text"]),
+            description: "How a text will be read: the pronunciation dictionary, Russian normalisation (numbers, dates, time, money, phones, e-mail and sites, codes, Roman numerals in words with their cases) and stress marks with ё, each step traced, and the text the engine gets. With a project's pid its dictionary, engine and settings apply (normalize, normalize_off, auto_stress; a block's id adds its voice); lang overrides the project's language.",
+            schema: || object(json!({ "text": { "type": "string" }, "pid": pid(), "block": { "type": "string" }, "lang": { "type": "string" } }), &["text"]),
             call: |args| post("/text/prepare".into(), args.clone()),
         },
         Tool {

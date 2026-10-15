@@ -1227,7 +1227,16 @@
     "noRefText": "нет текста рефа",
     "refTextNeeded": "{{engine}} не клонирует голос без текста рефа: откройте голос в библиотеке и нажмите «{{button}}».",
     "voiceVariant": "Вариант голоса",
-    "variantBase": "основной"
+    "variantBase": "основной",
+    "normalizeGroups": "Что читать словами",
+    "normalizeGroup_numbers": "числа",
+    "normalizeGroup_dates": "даты и годы",
+    "normalizeGroup_time": "время и счёт",
+    "normalizeGroup_money": "деньги",
+    "normalizeGroup_phones": "телефоны",
+    "normalizeGroup_web": "почта и сайты",
+    "normalizeGroup_codes": "коды и артикулы",
+    "normalizeGroup_roman": "римские цифры"
   },
   "tags": {
     "emotion": "Эмоция",
