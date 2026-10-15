@@ -11,7 +11,7 @@ use crate::speech_text as stx;
 
 #[derive(Serialize, Clone, Debug, PartialEq)]
 pub struct Step {
-    /// `dictionary`, `normalizer`, `stress`, `engine`.
+    /// `ssml`, `dictionary`, `normalizer`, `stress`, `engine`.
     pub layer: &'static str,
     pub rule: String,
     pub from: String,
@@ -57,7 +57,9 @@ pub fn prepare(text: &str, o: &Opts) -> Result<Prepared, String> {
     let lang = block_lang(text, o.lang);
     let mut p = Prepared::default();
     let scope = Scope { lang: &lang, voice: o.voice, engine: o.engine };
-    let applied = pron_dict::apply(text, o.entries, &scope, false);
+    let (text, ssml) = crate::ssml::to_markup(text);
+    p.steps.extend(ssml.into_iter().map(|h| Step { layer: "ssml", rule: h.rule.to_string(), from: h.from, to: h.to }));
+    let applied = pron_dict::apply(&text, o.entries, &scope, false);
     p.steps.extend(applied.hits.iter().map(|h| Step { layer: "dictionary", rule: h.id.clone(), from: h.from.clone(), to: h.to.clone() }));
     p.ignored_phonemes = applied.ignored;
     p.broken = applied.broken;
@@ -86,7 +88,7 @@ pub fn prepare(text: &str, o: &Opts) -> Result<Prepared, String> {
             engine.push(out);
         }
     }
-    p.ignored.stress = stx::has_stress(text) && !crate::engines::get(o.engine).is_some_and(|e| e.reads.stress);
+    p.ignored.stress = stx::has_stress(&text) && !crate::engines::get(o.engine).is_some_and(|e| e.reads.stress);
     p.engine_text = engine.join(" ");
     p.text = t;
     Ok(p)

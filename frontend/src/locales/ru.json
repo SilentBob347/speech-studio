@@ -1392,7 +1392,8 @@
     "ignoredPhonemes": "Higgs не читает [[фонемы]].",
     "ignoredTags": "Незнакомые движку теги вырезаны: {{tags}}",
     "ignoredDictPhonemes": "Правила-фонемы пропущены для этого движка: {{words}}",
-    "stressMissing": "Ударения и ё выключены: модель RUAccent не скачана."
+    "stressMissing": "Ударения и ё выключены: модель RUAccent не скачана.",
+    "layer_ssml": "SSML"
   },
   "search": {
     "open": "Найти",

@@ -1392,7 +1392,8 @@
     "ignoredPhonemes": "Higgs no lee los [[fonemas]].",
     "ignoredTags": "Se quitan las etiquetas que el motor no conoce: {{tags}}",
     "ignoredDictPhonemes": "Reglas de fonemas omitidas para este motor: {{words}}",
-    "stressMissing": "Acentos y ё desactivados: el modelo RUAccent no está descargado."
+    "stressMissing": "Acentos y ё desactivados: el modelo RUAccent no está descargado.",
+    "layer_ssml": "SSML"
   },
   "search": {
     "open": "Buscar",

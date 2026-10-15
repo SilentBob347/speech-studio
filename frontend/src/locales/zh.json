@@ -1392,7 +1392,8 @@
     "ignoredPhonemes": "Higgs 不读取 [[音素]]。",
     "ignoredTags": "已去除引擎不认识的标签：{{tags}}",
     "ignoredDictPhonemes": "此引擎跳过了音素规则：{{words}}",
-    "stressMissing": "重音和 ё 已关闭：未下载 RUAccent 模型。"
+    "stressMissing": "重音和 ё 已关闭：未下载 RUAccent 模型。",
+    "layer_ssml": "SSML"
   },
   "search": {
     "open": "查找",

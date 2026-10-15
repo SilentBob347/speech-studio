@@ -55,6 +55,7 @@ mod tagging;
 mod tts_text;
 mod tts_trim;
 mod speaker_profiles;
+mod ssml;
 mod speech_api;
 mod speech_jobs;
 mod speech_project;

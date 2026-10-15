@@ -5,6 +5,7 @@ import { speechApi, type Prepared, type PrepLayer } from "../../lib/speech";
 import { errorText } from "../../lib/voices";
 
 const LAYER_TINT: Record<PrepLayer, string> = {
+  ssml: "text-[#8fc8ff] border-[#8fc8ff]/40",
   dictionary: "text-[#b8a4ff] border-[#b8a4ff]/40",
   normalizer: "text-[#7ee0c3] border-[#7ee0c3]/40",
   stress: "text-[#ffc46b] border-[#ffc46b]/40",

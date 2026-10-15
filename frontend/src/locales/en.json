@@ -1392,7 +1392,8 @@
     "ignoredPhonemes": "Higgs does not read [[phonemes]].",
     "ignoredTags": "Tags the engine does not know are cut: {{tags}}",
     "ignoredDictPhonemes": "Phoneme rules skipped for this engine: {{words}}",
-    "stressMissing": "Stress and ё are off: the RUAccent model is not downloaded."
+    "stressMissing": "Stress and ё are off: the RUAccent model is not downloaded.",
+    "layer_ssml": "SSML"
   },
   "search": {
     "open": "Find",

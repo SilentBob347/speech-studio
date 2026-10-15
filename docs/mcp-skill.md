@@ -103,7 +103,7 @@ connected and the address to paste.
   with subtitles in SRT, VTT, ASS and LRC, M4B with chapters, `part_minutes` for long books, or `per_block`; `allow_duration` lets only the
   too-long takes through), `project_lint` (before voicing: what would go wrong block by block, errors and warnings), `project_exports`, `project_exports_all` (every built audio file of every project, newest first, with its recipe: how it was made), `project_timeline` (blocks on the export's time scale with overlaps; a
   block's `cut_previous` cuts the reply it interrupts, a previous block's `pause_ms` of 0 joins them), `project_delete`.
-  A block's `pause_ms` is the pause after it; a negative one makes the next block interrupt. While a voicing runs:
+  A block's `pause_ms` is the pause after it; a negative one makes the next block interrupt. Inside a block, `[pause 500ms]` and `[rate:0.9]` work with every engine, and a pasted SSML subset turns into them (`<break>`, `<prosody rate>`, `<sub alias>`, `<say-as interpret-as="characters">`; `text_prepare` shows how). While a voicing runs:
   `project_queue`, `project_queue_remove`, `project_queue_clear`; `speech_live_watch` hears the blocks as they are
   voiced (each block's sound as a WAV file). `history_list` lists the takes voiced lately.
 - **Projects from files**: `project_create_from_subtitles` (SRT, VTT, ASS), `book_preview` + `book_chapter` +

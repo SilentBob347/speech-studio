@@ -71,7 +71,7 @@ export type DictEntry = {
   /** Checked by ear: approved, fix, or empty when not checked. */
   review?: "" | "approved" | "fix";
 };
-export type PrepLayer = "dictionary" | "normalizer" | "stress" | "engine";
+export type PrepLayer = "ssml" | "dictionary" | "normalizer" | "stress" | "engine";
 export type PrepStep = { layer: PrepLayer; rule: string; from: string; to: string };
 export type Prepared = {
   text: string; engine_text: string; steps: PrepStep[]; unknown: string[];
