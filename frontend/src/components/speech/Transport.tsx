@@ -1,6 +1,6 @@
 import { useEffect, useState, type RefObject } from "react";
 import { useTranslation } from "react-i18next";
-import { Pause, Play, RotateCcw, RotateCw, SkipBack, SkipForward, Square } from "lucide-react";
+import { Pause, PencilLine, Play, RotateCcw, RotateCw, SkipBack, SkipForward, Square } from "lucide-react";
 import { named } from "../../lib/a11y";
 
 export const RATES = [0.75, 1, 1.25, 1.5, 2];
@@ -13,7 +13,7 @@ function clock(s: number): string {
 }
 
 /** The editor's player bar: what plays, where in it, and the controls to move through the project. */
-export default function Transport({ blocks, audio, playing, paused, rate, start, tint, onPlay, onPause, onResume, onStop, onSkip, onRate, onShow }: {
+export default function Transport({ blocks, audio, playing, paused, rate, start, tint, onPlay, onPause, onResume, onStop, onSkip, onRate, onShow, onEdit }: {
   /** Every block in reading order; duration is null for a block without a take. */
   blocks: TransportBlock[];
   audio: RefObject<HTMLAudioElement | null>;
@@ -30,6 +30,8 @@ export default function Transport({ blocks, audio, playing, paused, rate, start,
   onSkip: (step: 1 | -1) => void;
   onRate: (rate: number) => void;
   onShow: (id: string) => void;
+  /** Stops on the sentence being read and opens it for editing in its block. */
+  onEdit: () => void;
 }) {
   const { t } = useTranslation();
   const [time, setTime] = useState({ at: 0, of: 0 });
@@ -82,6 +84,7 @@ export default function Transport({ blocks, audio, playing, paused, rate, start,
         className="shrink-0 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md px-1.5 py-1 text-[12px] tabnum">
         {RATES.map((r) => <option key={r} value={r}>{r}×</option>)}
       </select>
+      {playing && <button onClick={onEdit} className={round} {...named(t("transport.edit"))}><PencilLine size={14} /></button>}
       {playing && <button onClick={onStop} className={round} {...named(t("transport.stop"))}><Square size={14} /></button>}
     </div>
   );

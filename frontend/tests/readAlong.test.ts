@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { textWords, wordAt, wordTimes } from "../src/lib/readAlong";
+import { sentenceAt, textWords, wordAt, wordTimes } from "../src/lib/readAlong";
 
 describe("the word that sounds", () => {
   const text = "<|emotion:joy|>Привет, [pause 500ms] м+ир и **солнце**!";
@@ -19,5 +19,13 @@ describe("the word that sounds", () => {
     expect(word(wordAt(times, 0))).toBe("Привет");
     expect(word(wordAt(times, 1.99))).toBe("солнце");
     expect(times[times.length - 1].end).toBeCloseTo(2);
+  });
+
+  it("finds the sentence around a word", () => {
+    const s = "Раз два. Три «четыре»! Пять";
+    const cut = (r: [number, number]) => s.slice(r[0], r[1]);
+    expect(cut(sentenceAt(s, s.indexOf("два")))).toBe("Раз два.");
+    expect(cut(sentenceAt(s, s.indexOf("четыре")))).toBe("Три «четыре»!");
+    expect(cut(sentenceAt(s, s.indexOf("Пять")))).toBe("Пять");
   });
 });

@@ -1923,7 +1923,8 @@
     "fromSelected": "Écouter depuis le bloc sélectionné",
     "position": "Position dans le bloc",
     "rate": "Vitesse",
-    "idle": "Blocs doublés : {{voiced}} sur {{total}} · {{length}}"
+    "idle": "Blocs doublés : {{voiced}} sur {{total}} · {{length}}",
+    "edit": "Modifier la phrase : pause et sélection de la phrase lue dans son bloc"
   },
   "batch": {
     "speechTitle": "Lot de doublage",

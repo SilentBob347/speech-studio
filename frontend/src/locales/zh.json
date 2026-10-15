@@ -1923,7 +1923,8 @@
     "fromSelected": "从选中的段落试听",
     "position": "段落内的位置",
     "rate": "速度",
-    "idle": "已配音段落：{{voiced}} / {{total}} · {{length}}"
+    "idle": "已配音段落：{{voiced}} / {{total}} · {{length}}",
+    "edit": "修改这句：暂停并在所在块中选中正在朗读的句子"
   },
   "batch": {
     "speechTitle": "批量配音",

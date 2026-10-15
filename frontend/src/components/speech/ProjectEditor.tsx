@@ -7,6 +7,7 @@ import { activeTake, engineOf, newId, spliceChars, SPEAKER_TINTS, speechApi, str
 import { openSettings } from "../../lib/settingsNav";
 import { useSpeechProject } from "../../lib/useSpeechProject";
 import BookImport from "./BookImport";
+import { sentenceAt, wordAt, wordTimes } from "../../lib/readAlong";
 import { useLivePlayback } from "../../lib/livePlayback";
 import { useEngines } from "../../lib/engines";
 import { followJob } from "../../lib/followJob";
@@ -263,6 +264,18 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   const stopAudio = useCallback(() => { audio.current?.pause(); setPlaying(null); setPaused(false); setQueue([]); }, []);
   const pauseAudio = () => { if (!playing) return; audio.current?.pause(); setPaused(true); };
   const resumeAudio = () => { if (!playing || !audio.current) return; setPaused(false); audio.current.play().catch((e: unknown) => { setPlaying(null); setJobError(errorText(e)); }); };
+  const editSpoken = () => {
+    const b = playing ? blocks.find((x) => x.id === playing) : null;
+    if (!b) return;
+    const take = b.takes.find((tk) => tk.n === playingTake) ?? activeTake(b);
+    const word = take && (!take.text || take.text === b.text) ? wordAt(wordTimes(b.text, take.duration, take.qc?.timed), audio.current?.currentTime ?? 0) : null;
+    pauseAudio();
+    const field = document.getElementById(`block-${b.id}`)?.querySelector("textarea");
+    if (!field) return;
+    field.scrollIntoView({ block: "center" });
+    field.focus();
+    if (word) field.setSelectionRange(...sentenceAt(b.text, word[0]));
+  };
   const changeRate = (r: number) => { rate.current = r; setSpeed(r); if (audio.current) audio.current.playbackRate = r; };
   const playBlock = useCallback((b: Block, rest: string[], n?: number, at = 0) => {
     const take = (n == null ? null : b.takes.find((tk) => tk.n === n)) ?? activeTake(b);
@@ -799,7 +812,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
         <aside ref={setSide} aria-label={t("speech.blockPanel")} className={`${wide && panel ? "block" : "hidden"} w-80 shrink-0 border-l border-[var(--color-border)] bg-[var(--color-surface)]/60 overflow-y-auto`} />
       </div>
       <Transport blocks={transportBlocks} audio={audio} playing={playing} paused={paused} rate={speed} start={selected[0] ?? blocks[0]?.id ?? null} tint={tintOf}
-        onPlay={listenFrom} onPause={pauseAudio} onResume={resumeAudio} onStop={stopAudio} onSkip={skip} onRate={changeRate} onShow={showBlock} />
+        onPlay={listenFrom} onPause={pauseAudio} onResume={resumeAudio} onStop={stopAudio} onSkip={skip} onRate={changeRate} onShow={showBlock} onEdit={editSpoken} />
       {enriched && (
         <EnrichDialog changes={enriched.changes} refused={enriched.refused} mode={enriched.mode} onClose={() => setEnriched(null)}
           onApply={(kept) => { edit((p) => { for (const b of blockList(p)) { const c = kept.find((x) => x.id === b.id); if (c && b.text === c.before) b.text = c.after; } return p; }); setEnriched(null); }} />

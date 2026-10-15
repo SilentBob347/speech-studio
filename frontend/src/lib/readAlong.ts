@@ -36,3 +36,11 @@ export function wordAt(times: { at: [number, number]; start: number }[], t: numb
   }
   return found;
 }
+
+/** The sentence of `text` holding position `at`: from the end of the sentence before it to its own closing mark. */
+export function sentenceAt(text: string, at: number): [number, number] {
+  let start = 0;
+  for (const m of text.slice(0, at).matchAll(/[.!?…]+["»”)]*\s+|\n+/g)) start = (m.index ?? 0) + m[0].length;
+  const end = /[.!?…]+["»”)]*(?=\s|$)|\n/.exec(text.slice(at));
+  return [start, end ? at + end.index + (end[0] === "\n" ? 0 : end[0].length) : text.length];
+}

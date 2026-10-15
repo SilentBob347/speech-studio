@@ -1923,7 +1923,8 @@
     "fromSelected": "Listen from the selected block",
     "position": "Position in the block",
     "rate": "Speed",
-    "idle": "Voiced {{voiced}} of {{total}} blocks · {{length}}"
+    "idle": "Voiced {{voiced}} of {{total}} blocks · {{length}}",
+    "edit": "Edit the line: pause and select the sentence being read in its block"
   },
   "batch": {
     "speechTitle": "Voicing batch",

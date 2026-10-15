@@ -1923,7 +1923,8 @@
     "fromSelected": "Escuchar desde el bloque seleccionado",
     "position": "Posición en el bloque",
     "rate": "Velocidad",
-    "idle": "Bloques con voz: {{voiced}} de {{total}} · {{length}}"
+    "idle": "Bloques con voz: {{voiced}} de {{total}} · {{length}}",
+    "edit": "Editar la frase: pausa y selecciona la oración que suena en su bloque"
   },
   "batch": {
     "speechTitle": "Lote de locución",
