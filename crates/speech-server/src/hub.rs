@@ -91,6 +91,26 @@ pub fn router<S: Clone + Send + Sync + 'static>() -> axum::Router<S> {
     HUB.get().and_then(Option::as_ref).map(studio_hub_client::Hub::router).unwrap_or_default()
 }
 
+/// The other programs of timoncool's on this computer and their data folders, to take models from.
+pub fn neighbors() -> Vec<(String, std::path::PathBuf)> {
+    HUB.get().and_then(Option::as_ref).map(|hub| hub.neighbors().into_iter().map(|n| (n.app, n.data_dir)).collect()).unwrap_or_default()
+}
+
+/// A model download finished: the step between installing the studio and the first voicing.
+pub fn setup_ready() {
+    if let Some(hub) = HUB.get().and_then(Option::as_ref) {
+        hub.setup_ready();
+    }
+}
+
+/// A model download failed, with its error code (network, disk_space, hash_mismatch...): the detail is in the
+/// window's language and would split one cause into rows per language.
+pub fn setup_failed(reason: &str) {
+    if let Some(hub) = HUB.get().and_then(Option::as_ref) {
+        hub.setup_failed(reason);
+    }
+}
+
 /// A finished job, counted as `<kind>_done`, `<kind>_failed` or `<kind>_cancelled` (frame previews are not counted);
 /// a failure keeps its reason, which the hub client scrubs, and finished work names the models it ran on.
 pub fn job_ended(kind: JobKind, status: JobStatus, error: Option<&str>) {
