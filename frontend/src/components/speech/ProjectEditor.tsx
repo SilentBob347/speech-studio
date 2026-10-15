@@ -11,6 +11,8 @@ import { followJob } from "../../lib/followJob";
 import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
 import EditorMore from "../EditorMore";
+import StepBar from "./StepBar";
+import { useSimpleMode } from "../../lib/simpleMode";
 import EnrichDialog, { type EnrichChange } from "./EnrichDialog";
 import { cloudApi } from "../../lib/cloud";
 import Transport, { RATES, type TransportBlock } from "./Transport";
@@ -70,6 +72,8 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [history, setHistory] = useState(false);
   const [castOpen, setCastOpen] = useState(false);
+  const simple = useSimpleMode();
+  const [exported, setExported] = useState(false);
   const [casting, setCasting] = useState(false);
   const castCharacters = async () => {
     if (!project) return;
@@ -531,16 +535,18 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
         <div className="hidden md:flex items-center gap-1.5 ml-auto">
           <button onClick={() => setSettings(true)} className={bar} {...named(t("speech.projectSettings"))}><Settings2 size={13} /><span className="hidden min-[1700px]:inline">{t("speech.projectSettings")}</span></button>
           <button onClick={() => setSearching((v) => !v)} aria-pressed={searching} className={bar} {...named(t("search.title"))}><Search size={13} /><span className="hidden min-[1700px]:inline">{t("search.open")}</span></button>
+          {!simple && <>
           <button onClick={() => setTimelineOpen((v) => !v)} aria-pressed={timelineOpen} className={bar} {...named(t("timeline.hint"))}><ChartGantt size={13} /><span className="hidden min-[1700px]:inline">{t("timeline.open")}</span></button>
           <button onClick={() => setDictionary(true)} className={bar} {...named(t("speech.dictionaryHint"))}><BookOpen size={13} /><span className="hidden min-[1700px]:inline">{t("speech.dictionary")}</span></button>
           <button onClick={() => void castCharacters()} disabled={casting} className={bar} {...named(t("speech.castCharactersHint"))}>{casting ? <Loader2 size={13} className="animate-spin" /> : <Drama size={13} />}<span className="hidden min-[1700px]:inline">{t("speech.castCharacters")}</span></button>
+          </>}
         </div>
         <EditorMore className="ml-auto md:ml-0" items={[
           { icon: Settings2, label: t("speech.projectSettings"), act: () => setSettings(true), narrowOnly: true },
           { icon: Search, label: t("search.open"), act: () => setSearching((v) => !v), narrowOnly: true },
-          { icon: ChartGantt, label: t("timeline.open"), act: () => setTimelineOpen((v) => !v), narrowOnly: true },
-          { icon: BookOpen, label: t("speech.dictionary"), act: () => setDictionary(true), narrowOnly: true },
-          { icon: Drama, label: t("speech.castCharacters"), act: () => void castCharacters(), disabled: casting, narrowOnly: true },
+          { icon: ChartGantt, label: t("timeline.open"), act: () => setTimelineOpen((v) => !v), narrowOnly: !simple },
+          { icon: BookOpen, label: t("speech.dictionary"), act: () => setDictionary(true), narrowOnly: !simple },
+          { icon: Drama, label: t("speech.castCharacters"), act: () => void castCharacters(), disabled: casting, narrowOnly: !simple },
           { icon: Users, label: t("speech.cast"), act: () => setCastOpen((v) => !v), belowLarge: true },
           { icon: History, label: t("history.open"), act: () => setHistory(true) },
           { icon: Wand2, label: selected.length ? t("enrich.runSelected", { n: selected.length }) : t("enrich.run"), act: () => void enrich(selected.length ? selected : null), disabled: enriching },
@@ -549,6 +555,14 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           { icon: Download, label: t("speech.export"), act: () => setExporting(true), narrowOnly: true },
         ]} />
       </div>
+      {simple && (
+        <StepBar steps={[
+          { id: "text", done: blocks.some((b) => b.text.trim()), run: () => { const first = blocks[0]; if (first) document.getElementById(`block-${first.id}`)?.querySelector("textarea")?.focus(); } },
+          { id: "voices", done: blocks.length > 0 && blocks.every((b) => voiceOf(project, b) !== null || engines?.find((e) => e.id === engineOf(project, b))?.needs_voice === false), run: () => { setCastOpen(true); document.getElementById("speech-cast")?.scrollIntoView({ block: "nearest" }); } },
+          { id: "voice", done: (counts.ready ?? 0) > 0 && (counts.ready ?? 0) >= blocks.length - (counts.skipped ?? 0), run: () => { if (!job) void runSynth({}); } },
+          { id: "export", done: exported, run: () => setExporting(true) },
+        ]} />
+      )}
 
       {selected.length > 0 && (
         <div role="toolbar" aria-label={t("speech.selection")} className="flex flex-wrap items-center gap-2 px-5 py-2 border-b border-[var(--color-border)] bg-[color-mix(in_oklab,var(--color-accent)_8%,var(--color-surface))]">
@@ -580,7 +594,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           onReplace={(changes) => edit((p) => { for (const b of blockList(p)) if (changes[b.id] !== undefined) b.text = changes[b.id]; return p; })} />
       )}
       <div className="relative flex-1 min-h-0 flex">
-        <aside aria-label={t("speech.cast")} className={`${castOpen ? "absolute inset-y-0 left-0 z-20 block bg-[var(--color-surface)] shadow-xl" : "hidden"} lg:static lg:block lg:shadow-none w-64 shrink-0 border-r border-[var(--color-border)] overflow-y-auto p-4 space-y-3`}>
+        <aside id="speech-cast" aria-label={t("speech.cast")} className={`${castOpen ? "absolute inset-y-0 left-0 z-20 block bg-[var(--color-surface)] shadow-xl" : "hidden"} lg:static lg:block lg:shadow-none w-64 shrink-0 border-r border-[var(--color-border)] overflow-y-auto p-4 space-y-3`}>
           <h2 className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)] flex items-center gap-1.5"><Users size={12} />{t("speech.cast")}</h2>
           <label className="block text-[11px] text-[var(--color-muted)]">{t("speech.projectVoice")}
             <VoicePicker engine={project.settings.engine} value={project.settings.voice} onChange={(v) => edit((p) => { p.settings.voice = v; return p; })} label={t("speech.projectVoice")}
@@ -628,7 +642,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
                   const index = blocks.indexOf(b);
                   const rendering = !!job && (job.ids === null ? ["pending", "stale", "failed"].includes(stateOf(b)) : job.ids.includes(b.id));
                   const note = notes[b.id];
-                  return <BlockRow key={b.id} pid={pid} engine={engineOf(project, b)} projectEngine={project.settings.engine} speakerEngine={project.cast_engines?.[b.speaker] || null} voice={voiceOf(project, b)} block={b} index={index} state={stateOf(b)} fit={project.status?.[b.id]?.fit} rendering={rendering} playing={playing === b.id} playingTake={playing === b.id ? playingTake : null} tint={tintOf(b.speaker)}
+                  return <BlockRow key={b.id} pid={pid} engine={engineOf(project, b)} projectEngine={project.settings.engine} speakerEngine={project.cast_engines?.[b.speaker] || null} voice={voiceOf(project, b)} block={b} index={index} state={stateOf(b)} fit={project.status?.[b.id]?.fit} rendering={rendering} playing={playing === b.id} playingTake={playing === b.id ? playingTake : null} simple={simple} tint={tintOf(b.speaker)}
                     stressing={!!stressing?.includes(b.id)} doubts={note && note.text === b.text ? note.words : []}
                     selected={selected.includes(b.id)} selecting={selected.length > 0} open={panel === b.id} side={wide ? side : null} a={actions(b)} />;
                 })}
@@ -659,7 +673,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           onClose={() => setRecast(null)} />
       )}
       {settings && <ProjectSettings project={project} onChange={edit} onClose={() => setSettings(false)} />}
-      {exporting && <ExportDialog pid={pid} project={project} onClose={() => setExporting(false)} onVoiceMissing={(ids) => { setExporting(false); void runSynth({ ids, force: true }); }} onDone={(file) => pushActivity(t("speech.exported", { file }), "done")} />}
+      {exporting && <ExportDialog pid={pid} project={project} onClose={() => setExporting(false)} onVoiceMissing={(ids) => { setExporting(false); void runSynth({ ids, force: true }); }} onDone={(file) => { setExported(true); pushActivity(t("speech.exported", { file }), "done"); }} />}
     </main>
   );
 }

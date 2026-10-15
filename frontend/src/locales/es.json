@@ -1842,5 +1842,21 @@
     "cloud": "nube",
     "anyLang": "sin lista",
     "modelLangs": "según el modelo"
+  },
+  "simple": {
+    "title": "Modo sencillo",
+    "hint": "Pasos del texto al archivo sobre el proyecto; lo menos usado va a Más, el panel del bloque deja solo lo necesario para la voz",
+    "turnOn": "Activar el modo sencillo",
+    "turnOff": "Desactivar el modo sencillo",
+    "steps": "Pasos del proyecto",
+    "step_text": "Texto",
+    "step_voices": "Voces",
+    "step_voice": "Locución",
+    "step_export": "Archivo",
+    "next_text": "Pega o escribe el texto en los bloques.",
+    "next_voices": "Pulsa Voces y elige una voz para cada hablante.",
+    "next_voice": "Pulsa Locución: el estudio pone voz a los bloques y los comprueba de oído.",
+    "next_export": "Pulsa Archivo para generar el audio con subtítulos.",
+    "allDone": "Listo: el archivo está hecho. Puedes editar bloques y generarlo de nuevo."
   }
 }

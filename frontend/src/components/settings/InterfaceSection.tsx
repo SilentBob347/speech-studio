@@ -1,7 +1,8 @@
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AudioLines, Languages, Music, SunMoon } from "lucide-react";
+import { AudioLines, Footprints, Languages, Music, SunMoon } from "lucide-react";
 import { livePlaybackEnabled, setLivePlaybackEnabled } from "../../lib/livePlayback";
+import { setSimpleMode, useSimpleMode } from "../../lib/simpleMode";
 import { DUB_LANGS, LANGS, setLang, type Lang } from "../../lib/i18n";
 import { playSfx, setSfxEnabled, sfxEnabled } from "../../lib/sfx";
 import SettingSwitch from "./SettingSwitch";
@@ -14,6 +15,7 @@ export default function InterfaceSection() {
   const [sfx, setSfx] = useState(sfxEnabled());
   const [live, setLive] = useState(livePlaybackEnabled());
   const [theme, setThemeState] = useState<Theme>(savedTheme());
+  const simple = useSimpleMode();
   const selectId = useId();
   const themeId = useId();
   return (
@@ -44,6 +46,7 @@ export default function InterfaceSection() {
         onToggle={() => { const v = !sfx; setSfx(v); setSfxEnabled(v); if (v) playSfx("notify"); }} />
       <SettingSwitch icon={AudioLines} label={t("prefs.livePlayback")} hint={t("prefs.livePlaybackHint")} on={live}
         onToggle={() => { const v = !live; setLive(v); setLivePlaybackEnabled(v); }} />
+      <SettingSwitch icon={Footprints} label={t("simple.title")} hint={t("simple.hint")} on={simple} onToggle={() => setSimpleMode(!simple)} />
     </div>
   );
 }

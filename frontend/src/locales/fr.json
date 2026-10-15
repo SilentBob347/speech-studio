@@ -1842,5 +1842,21 @@
     "cloud": "dans le cloud",
     "anyLang": "sans liste",
     "modelLangs": "selon le modèle"
+  },
+  "simple": {
+    "title": "Mode simple",
+    "hint": "Les étapes du texte au fichier au-dessus du projet ; le plus rare va dans Plus, le panneau du bloc ne garde que l'essentiel",
+    "turnOn": "Activer le mode simple",
+    "turnOff": "Désactiver le mode simple",
+    "steps": "Étapes du projet",
+    "step_text": "Texte",
+    "step_voices": "Voix",
+    "step_voice": "Doublage",
+    "step_export": "Fichier",
+    "next_text": "Collez ou écrivez le texte dans les blocs.",
+    "next_voices": "Appuyez sur Voix et choisissez une voix pour chaque locuteur.",
+    "next_voice": "Appuyez sur Doublage : le studio dit les blocs et les vérifie à l'oreille.",
+    "next_export": "Appuyez sur Fichier pour générer l'audio avec sous-titres.",
+    "allDone": "Terminé : le fichier est prêt. Vous pouvez modifier les blocs et le refaire."
   }
 }

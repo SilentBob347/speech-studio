@@ -1842,5 +1842,21 @@
     "cloud": "nuvem",
     "anyLang": "sem lista",
     "modelLangs": "conforme o modelo"
+  },
+  "simple": {
+    "title": "Modo simples",
+    "hint": "Passos do texto ao arquivo acima do projeto; o menos usado vai para Mais, o painel do bloco mantém só o necessário",
+    "turnOn": "Ativar o modo simples",
+    "turnOff": "Desativar o modo simples",
+    "steps": "Passos do projeto",
+    "step_text": "Texto",
+    "step_voices": "Vozes",
+    "step_voice": "Locução",
+    "step_export": "Arquivo",
+    "next_text": "Cole ou escreva o texto nos blocos.",
+    "next_voices": "Pressione Vozes e escolha uma voz para cada orador.",
+    "next_voice": "Pressione Locução: o estúdio dá voz aos blocos e confere de ouvido.",
+    "next_export": "Pressione Arquivo para gerar o áudio com legendas.",
+    "allDone": "Pronto: o arquivo foi gerado. Você pode editar os blocos e gerar de novo."
   }
 }

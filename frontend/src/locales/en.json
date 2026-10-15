@@ -1842,5 +1842,21 @@
     "cloud": "cloud",
     "anyLang": "no list",
     "modelLangs": "per model"
+  },
+  "simple": {
+    "title": "Simple mode",
+    "hint": "Steps from text to file above the project; rarer actions go to More, the block panel keeps only what voicing needs",
+    "turnOn": "Turn simple mode on",
+    "turnOff": "Turn simple mode off",
+    "steps": "Project steps",
+    "step_text": "Text",
+    "step_voices": "Voices",
+    "step_voice": "Voicing",
+    "step_export": "File",
+    "next_text": "Paste or write the text into the blocks.",
+    "next_voices": "Press Voices and choose a voice for each speaker.",
+    "next_voice": "Press Voicing: the studio voices the blocks and checks them by ear.",
+    "next_export": "Press File to build the audio with subtitles.",
+    "allDone": "Done: the file is built. You can edit blocks and build it again."
   }
 }

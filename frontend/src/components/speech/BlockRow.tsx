@@ -100,7 +100,7 @@ function sentenceStart(value: string, cursor: number): number {
   return start;
 }
 
-export default function BlockRow({ pid, engine, projectEngine, speakerEngine, voice, block, index, state, fit, rendering, playing, playingTake, tint, stressing, doubts, selected, selecting, open, side, a }: {
+export default function BlockRow({ pid, engine, projectEngine, speakerEngine, voice, block, index, state, fit, rendering, playing, playingTake, simple, tint, stressing, doubts, selected, selecting, open, side, a }: {
   pid: string;
   /** The engine that voices this block (its own, its speaker's or the project's). */
   engine: string;
@@ -124,6 +124,8 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
   playing: boolean;
   /** The take sounding now while this block plays. */
   playingTake: number | null;
+  /** The beginner's mode: the panel keeps what voicing a block needs and leaves out notes, review, tags and own refs. */
+  simple: boolean;
   tint: string;
   a: BlockActions;
 }) {
@@ -189,7 +191,7 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
         </label>
         {block.takes.length > 1 && take && <TakeCompare block={block} active={take.n} playingTake={playingTake} onAB={a.ab} />}
       </div>
-      <div className="flex flex-wrap items-end gap-2">
+      {!simple && <div className="flex flex-wrap items-end gap-2">
         <label className="flex-1 min-w-48 text-[11px] text-[var(--color-muted)]">{t("speech.note")}
           <input value={block.note} onChange={(e) => a.patch({ note: e.target.value })} placeholder={t("speech.noteHint")}
             className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]" />
@@ -201,13 +203,14 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
               className={`w-4 h-4 rounded-sm border-2 ${block.marker === m ? "border-[var(--color-text)]" : "border-transparent"}`} style={{ background: MARKERS[m] }} />
           ))}
         </div>
-      </div>
+      </div>}
       <label className="block text-[11px] text-[var(--color-muted)]">{t("speech.direction")}
         <input value={block.direction} onChange={(e) => a.patch({ direction: e.target.value })} placeholder={t("speech.directionHint")}
           className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]" />
         {caps && block.direction.trim() && !caps.direction && <span className="mt-0.5 block text-[var(--color-warn)]">{t("speech.directionIgnored", { engine: caps.name })}</span>}
         {caps && block.direction.trim() && caps.direction && caps.direction_presets_only && voice !== null && !caps.presets.some((p) => p.id === voice) && <span className="mt-0.5 block text-[var(--color-warn)]">{t("speech.directionPresetsOnly", { engine: caps.name })}</span>}
       </label>
+      {!simple && <>
       <div role="radiogroup" aria-label={t("review.title")} className="flex flex-wrap items-center gap-1 text-[11px]">
         <span className="text-[var(--color-muted)] mr-1">{t("review.title")}</span>
         {(["", "approved", "fix"] as const).map((r) => (
@@ -225,6 +228,7 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
         <summary className="cursor-pointer text-[11px] text-[var(--color-muted)]">{t("speech.tagsTitle")}</summary>
         <div className="mt-2"><TagPalette engine={engine} onInsert={insertTag} onWrap={wrapTag} /></div>
       </details>
+      </>}
       <div className="flex flex-wrap gap-1">
         <button onClick={() => a.split(text.current?.selectionStart ?? block.text.length)} className={icon + " inline-flex items-center gap-1 text-[11px]"}><Scissors size={12} />{t("speech.split")}</button>
         <button onClick={a.mergeNext} className={icon + " inline-flex items-center gap-1 text-[11px]"}><Combine size={12} />{t("speech.mergeNext")}</button>

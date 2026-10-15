@@ -1842,5 +1842,21 @@
     "cloud": "云端",
     "anyLang": "无列表",
     "modelLangs": "取决于模型"
+  },
+  "simple": {
+    "title": "简易模式",
+    "hint": "项目上方显示从文本到文件的步骤；不常用的操作放入“更多”，块面板只保留配音所需",
+    "turnOn": "开启简易模式",
+    "turnOff": "关闭简易模式",
+    "steps": "项目步骤",
+    "step_text": "文本",
+    "step_voices": "声音",
+    "step_voice": "配音",
+    "step_export": "文件",
+    "next_text": "在块中粘贴或输入文本。",
+    "next_voices": "点击“声音”，为每位说话人选择声音。",
+    "next_voice": "点击“配音”：工作室为各块配音并试听检查。",
+    "next_export": "点击“文件”生成带字幕的音频。",
+    "allDone": "完成：文件已生成。可以修改块后重新生成。"
   }
 }
