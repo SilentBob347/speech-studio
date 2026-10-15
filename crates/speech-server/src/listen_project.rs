@@ -55,12 +55,33 @@ pub struct Settings {
     pub separate: bool,
     /// Скрывать галлюцинации распознавателя.
     pub filter: bool,
+    /// Подсказка распознавателю: тема и термины записи. Уходит только в Whisper (`--initial_prompt`), вместе с
+    /// написаниями из исправлений.
+    pub prompt: String,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { engine: String::new(), cloud_model: String::new(), lang: "auto".into(), speakers: 0, separate: false, filter: true }
+        Settings { engine: String::new(), cloud_model: String::new(), lang: "auto".into(), speakers: 0, separate: false, filter: true, prompt: String::new() }
     }
+}
+
+/// Подсказка Whisper: текст из настроек и, через запятую, верные написания из исправлений (без повторов).
+pub fn whisper_prompt(project: &ListenProject) -> Option<String> {
+    let mut terms: Vec<&str> = Vec::new();
+    for f in &project.fixes {
+        let say = f.say.trim();
+        if !say.is_empty() && !terms.contains(&say) {
+            terms.push(say);
+        }
+    }
+    let text = project.settings.prompt.trim();
+    let prompt = match (text.is_empty(), terms.is_empty()) {
+        (_, true) => text.to_string(),
+        (true, false) => terms.join(", "),
+        (false, false) => format!("{text} {}", terms.join(", ")),
+    };
+    (!prompt.is_empty()).then_some(prompt)
 }
 
 /// «Как распознаватель коверкает термин» → термин; применяется к словам после распознавания.
@@ -312,6 +333,16 @@ pub fn source_path(workspace: &Path, pid: &str, project: &ListenProject) -> Resu
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_whisper_prompt_joins_the_hint_and_the_corrected_spellings_once() {
+        let mut p = ListenProject::default();
+        assert_eq!(whisper_prompt(&p), None);
+        p.fixes = vec![Fix { heard: "гит хаб".into(), say: "GitHub".into() }, Fix { heard: "гитхаб".into(), say: "GitHub".into() }, Fix { heard: "ку вен".into(), say: "Qwen".into() }];
+        assert_eq!(whisper_prompt(&p).as_deref(), Some("GitHub, Qwen"));
+        p.settings.prompt = " Подкаст о нейросетях. ".into();
+        assert_eq!(whisper_prompt(&p).as_deref(), Some("Подкаст о нейросетях. GitHub, Qwen"));
+    }
 
     fn w(text: &str, start: f64, end: f64, cut: bool) -> Word {
         Word { text: text.into(), start, end, cut }

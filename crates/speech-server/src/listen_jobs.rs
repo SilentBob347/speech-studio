@@ -225,12 +225,12 @@ fn diarize(p: &ListenPaths, wav: &Path, speakers: u8) -> Result<Vec<dub_asr::Tur
     Ok(turns.turns)
 }
 
-fn recognise(p: &ListenPaths, engine: &Engine, wav: &Path, work: &Path, lang: &str, turns: &[dub_asr::Turn]) -> Result<Vec<Line>, String> {
+fn recognise(p: &ListenPaths, engine: &Engine, wav: &Path, work: &Path, lang: &str, turns: &[dub_asr::Turn], prompt: Option<String>) -> Result<Vec<Line>, String> {
     let lang = if lang.is_empty() { "auto" } else { lang };
     let lines = match engine {
         Engine::Local(choice, _) => {
             std::env::set_var("DUB_ASR_BACKEND", crate::models::stage_backend(&p.models_root, "asr_backend"));
-            let segments = crate::models::build_engine(choice).transcribe(wav, lang).map_err(|e| e.localize())?;
+            let segments = crate::models::build_engine(choice, prompt).transcribe(wav, lang).map_err(|e| e.localize())?;
             dub_asr::split_at_speaker_turns(segments, turns)
                 .into_iter()
                 .map(|(s, spk)| {
@@ -313,7 +313,7 @@ pub fn transcribe(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Resul
         Vec::new()
     };
     step(progress, t!("listen-step-asr"), 45);
-    let mut lines = recognise(p, &engine, &wav, &work, &s.lang, &turns)?;
+    let mut lines = recognise(p, &engine, &wav, &work, &s.lang, &turns, lp::whisper_prompt(&project))?;
     let mut hidden = 0;
     if s.filter {
         step(progress, t!("listen-step-filter"), 85);

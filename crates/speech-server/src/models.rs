@@ -709,13 +709,12 @@ fn whisper_cuda_libs_present(bin: &std::path::Path) -> bool {
     cublas && cudnn
 }
 
-/// Построить ASR-движок из выбора (boxed trait-object): analyze не знает деталей резолва.
-pub fn build_engine(choice: &AsrChoice) -> Box<dyn dub_asr::AsrEngine> {
+/// Построить ASR-движок из выбора (boxed trait-object): analyze не знает деталей резолва. `prompt` — подсказка
+/// распознавателю; её понимает только Whisper, Parakeet подсказок не принимает.
+pub fn build_engine(choice: &AsrChoice, prompt: Option<String>) -> Box<dyn dub_asr::AsrEngine> {
     match choice {
         AsrChoice::Parakeet(dir) => Box::new(dub_asr::Asr::new(dir)),
-        AsrChoice::Whisper { bin, model_dir, model, compute, device,
-        } => Box::new(dub_asr::WhisperAsr::new(bin, model_dir, model, compute, device,
-        )),
+        AsrChoice::Whisper { bin, model_dir, model, compute, device } => Box::new(dub_asr::WhisperAsr::new(bin, model_dir, model, compute, device).with_prompt(prompt)),
     }
 }
 

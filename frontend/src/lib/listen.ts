@@ -7,7 +7,7 @@ export type ListenLine = {
   approx: boolean; flag: HallucinationFlag | null; evidence: string | null; hidden: boolean;
 };
 export type ListenEngine = "" | "parakeet" | "whisper" | "openrouter" | "fal";
-export type ListenSettings = { engine: ListenEngine; cloud_model: string; lang: string; speakers: number; separate: boolean; filter: boolean };
+export type ListenSettings = { engine: ListenEngine; cloud_model: string; lang: string; speakers: number; separate: boolean; filter: boolean; prompt: string };
 export type ListenFix = { heard: string; say: string };
 export type ListenMade = { by: string; at: number; lang: string; separated: boolean; hidden: number };
 export type ListenProject = {

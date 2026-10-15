@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus, Trash2, X } from "lucide-react";
 import type { ListenEngine, ListenProject } from "../../lib/listen";
@@ -6,16 +7,21 @@ import { useEscapeLayer } from "../../lib/escape";
 import OpenRouterModelSelect from "../OpenRouterModelSelect";
 import CloudModelPicker from "../cloud/CloudModelPicker";
 import { LANG_CHOICES } from "../speech/langs";
+import { api, slot } from "../../lib/api";
 
 const ENGINES: ListenEngine[] = ["", "parakeet", "whisper", "openrouter", "fal"];
 const SPEAKERS = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 
-/** How the recording is recognised: engine, language, speakers, voice separation, hallucination filter, corrections. */
+/** How the recording is recognised: engine, language, speakers, voice separation, hallucination filter, a hint for Whisper
+ * (the only engine that takes one), corrections. */
 export default function ListenSettings({ project, onChange, onClose }: { project: ListenProject; onChange: (p: ListenProject) => void; onClose: () => void }) {
   const { t } = useTranslation();
   useEscapeLayer(onClose);
   const s = project.settings;
   const set = (patch: Partial<ListenProject["settings"]>) => onChange({ ...project, settings: { ...s, ...patch } });
+  const [studioAsr, setStudioAsr] = useState<string | undefined>();
+  useEffect(() => { api.capabilities().then((c) => setStudioAsr(slot(c.selection, "asr_engine")), () => undefined); }, []);
+  const whisper = s.engine === "whisper" || (s.engine === "" && studioAsr === "whisper");
   const fixes = project.fixes;
   const setFixes = (next: ListenProject["fixes"]) => onChange({ ...project, fixes: next });
   const field = "w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md px-2 py-1.5 text-[13px] focus:border-[var(--color-accent)] focus:outline-none";
@@ -50,6 +56,12 @@ export default function ListenSettings({ project, onChange, onClose }: { project
             </select>
           </label>
         </div>
+        {whisper && (
+          <label className={label}>{t("listen.prompt")}
+            <textarea value={s.prompt ?? ""} onChange={(e) => set({ prompt: e.target.value })} rows={2} placeholder={t("listen.promptPlaceholder")} className={`${field} resize-y`} />
+            <span className="block text-[11px] leading-relaxed">{t("listen.promptHint")}</span>
+          </label>
+        )}
         <label className={check}>
           <input type="checkbox" checked={s.separate} onChange={(e) => set({ separate: e.target.checked })} className="mt-0.5 w-4 h-4 accent-[var(--color-accent)]" />
           <span>{t("listen.separate")}<span className="block text-[11px] text-[var(--color-muted)]">{t("listen.separateHint")}</span></span>

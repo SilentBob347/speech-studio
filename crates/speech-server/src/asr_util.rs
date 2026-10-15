@@ -31,7 +31,7 @@ pub fn transcribe(repo_root: &Path, models_root: &Path, audio: &Path, lang: &str
         }
     }
     std::env::set_var("DUB_ASR_BACKEND", crate::models::stage_backend(models_root, "asr_backend"));
-    let mut asr = crate::models::build_engine(&choice);
+    let mut asr = crate::models::build_engine(&choice, None);
     let segments = asr.transcribe(&wav, if lang.is_empty() { "auto" } else { lang }).map_err(|e| e.localize())?;
     let text = segments.iter().map(|s| s.text.trim()).filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" ");
     let words = segments.iter().flat_map(|s| s.words.iter()).map(|w| Word { word: w.word.clone(), start: w.start, end: w.end }).collect();
