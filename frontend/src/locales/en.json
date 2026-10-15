@@ -967,7 +967,6 @@
     "exportLoudness": "Loudness: {{preset}}",
     "exportRun": "Make the file",
     "tagsTitle": "Expression tags",
-    "quality": "Quality",
     "asrCheck": "Check every new take by ear",
     "asrCheckHint": "Each new take is recognised and compared with its text; a take that does not match is voiced once more.",
     "strictness": "Strictness",
@@ -1753,5 +1752,22 @@
     "speechOpen": "Batch of files",
     "speechHint": "Each .txt becomes its own project with the settings above: voiced one after another, then \"Save all to a folder\"",
     "formats": "Formats"
+  },
+  "share": {
+    "title": "Share",
+    "text": "\"{{title}}\" - voiced in Speech Studio",
+    "file": "Send the file…",
+    "fileUnavailable": "Sending files is not available here",
+    "fileRefused": "The system does not take this file for sending - save it and send it yourself",
+    "failed": "Could not share: {{reason}}",
+    "copyText": "Copy the text with the link",
+    "copied": "Text with the link copied",
+    "places": {
+      "telegram": "Telegram",
+      "x": "X (Twitter)",
+      "vk": "VK",
+      "whatsapp": "WhatsApp",
+      "reddit": "Reddit"
+    }
   }
 }

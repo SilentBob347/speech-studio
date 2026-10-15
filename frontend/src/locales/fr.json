@@ -967,7 +967,6 @@
     "exportLoudness": "Volume : {{preset}}",
     "exportRun": "Créer le fichier",
     "tagsTitle": "Balises d’expression",
-    "quality": "Qualité",
     "asrCheck": "Vérifier chaque nouvelle prise à l’oreille",
     "asrCheckHint": "Chaque nouvelle prise est reconnue et comparée à son texte ; celle qui ne correspond pas est remise en voix une fois.",
     "strictness": "Rigueur",
@@ -1753,5 +1752,22 @@
     "speechOpen": "Lot de fichiers",
     "speechHint": "Chaque .txt devient son propre projet avec les réglages ci-dessus : doublés l'un après l'autre, puis « Tout enregistrer dans un dossier »",
     "formats": "Formats"
+  },
+  "share": {
+    "title": "Partager",
+    "text": "« {{title}} » – doublé dans Speech Studio",
+    "file": "Envoyer le fichier…",
+    "fileUnavailable": "L’envoi de fichiers n’est pas disponible ici",
+    "fileRefused": "Le système n’accepte pas ce fichier pour l’envoi – enregistrez-le et envoyez-le vous-même",
+    "failed": "Partage impossible : {{reason}}",
+    "copyText": "Copier le texte avec le lien",
+    "copied": "Texte avec le lien copié",
+    "places": {
+      "telegram": "Telegram",
+      "x": "X (Twitter)",
+      "vk": "VK",
+      "whatsapp": "WhatsApp",
+      "reddit": "Reddit"
+    }
   }
 }

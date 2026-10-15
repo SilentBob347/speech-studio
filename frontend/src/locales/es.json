@@ -967,7 +967,6 @@
     "exportLoudness": "Volumen: {{preset}}",
     "exportRun": "Crear el archivo",
     "tagsTitle": "Etiquetas de expresión",
-    "quality": "Calidad",
     "asrCheck": "Comprobar de oído cada toma nueva",
     "asrCheckHint": "Cada toma nueva se reconoce y se compara con su texto; la que no coincide se locuta otra vez.",
     "strictness": "Rigor",
@@ -1753,5 +1752,22 @@
     "speechOpen": "Lote de archivos",
     "speechHint": "Cada .txt se convierte en su propio proyecto con los ajustes de arriba: se locutan por turno y luego «Guardar todo en una carpeta»",
     "formats": "Formatos"
+  },
+  "share": {
+    "title": "Compartir",
+    "text": "«{{title}}»: locutado en Speech Studio",
+    "file": "Enviar el archivo…",
+    "fileUnavailable": "Aquí no se pueden enviar archivos",
+    "fileRefused": "El sistema no acepta este archivo para enviarlo: guárdalo y envíalo tú mismo",
+    "failed": "No se pudo compartir: {{reason}}",
+    "copyText": "Copiar el texto con el enlace",
+    "copied": "Texto con el enlace copiado",
+    "places": {
+      "telegram": "Telegram",
+      "x": "X (Twitter)",
+      "vk": "VK",
+      "whatsapp": "WhatsApp",
+      "reddit": "Reddit"
+    }
   }
 }

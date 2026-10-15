@@ -967,7 +967,6 @@
     "exportLoudness": "响度：{{preset}}",
     "exportRun": "生成文件",
     "tagsTitle": "表现力标签",
-    "quality": "质量",
     "asrCheck": "逐个听检新版本",
     "asrCheckHint": "每个新版本都会被识别并与文本比较；不匹配的版本会再配一次。",
     "strictness": "严格程度",
@@ -1753,5 +1752,22 @@
     "speechOpen": "批量文件",
     "speechHint": "每个 .txt 成为一个使用上方设置的项目：依次配音，然后「全部保存到文件夹」",
     "formats": "格式"
+  },
+  "share": {
+    "title": "分享",
+    "text": "“{{title}}”——用 Speech Studio 配音",
+    "file": "发送文件…",
+    "fileUnavailable": "此处无法发送文件",
+    "fileRefused": "系统不接受发送此文件——请保存后自行发送",
+    "failed": "无法分享：{{reason}}",
+    "copyText": "复制带链接的文字",
+    "copied": "已复制带链接的文字",
+    "places": {
+      "telegram": "Telegram",
+      "x": "X (Twitter)",
+      "vk": "VK",
+      "whatsapp": "WhatsApp",
+      "reddit": "Reddit"
+    }
   }
 }
