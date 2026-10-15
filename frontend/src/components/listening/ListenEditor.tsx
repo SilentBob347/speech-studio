@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, AudioLines, ChevronDown, ChevronUp, Download, Eye, EyeOff, FileCheck2, Loader2, Pause, Play, Redo2, Scissors, Search, Settings2, Undo2, UserPlus, Users, Wand2, X } from "lucide-react";
+import { ArrowLeft, AudioLines, ChevronDown, ChevronUp, Download, Eye, EyeOff, FileCheck2, Loader2, Pause, Play, Redo2, RotateCcw, RotateCw, Scissors, Search, Settings2, Undo2, UserPlus, Users, Wand2, X } from "lucide-react";
 import { useListenProject } from "../../lib/useSpeechProject";
 import {
   activeToken, clock, cutSeconds, listenApi, mergeNext, newSpeaker, restoreAll, setLineText, speakerColor, splitLine, toggleCut, tokensOf, type ListenLine,
@@ -16,11 +16,11 @@ import { CLOUD_ENGINE_NAMES, askCloud } from "../../lib/cloudConsent";
 import { bridgeError, flash } from "../../lib/mcpBridge";
 import Transcript, { type Selection } from "./Transcript";
 import EditorMore from "../EditorMore";
+import { RATES } from "../speech/Transport";
 import ListenSettings from "./ListenSettings";
 import ListenExport from "./ListenExport";
 import ReferenceCheck from "./ReferenceCheck";
 
-const RATES = [0.75, 1, 1.25, 1.5, 2];
 
 /** A recording and its transcript: playback, recognition, speakers, editing, cutting by text, exports. */
 export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onBack: () => void; onOpen: (pid: string) => void }) {
@@ -274,19 +274,6 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
         )}
       </header>
 
-      <div className="px-3 md:px-5 py-2 border-b border-[var(--color-border)] flex items-center gap-3">
-        <button onClick={toggle} className="grid place-items-center w-8 h-8 rounded-full bg-[var(--color-accent)] text-[var(--color-on-accent)]" {...named(playing ? t("listen.pause") : t("listen.play"))}>{playing ? <Pause size={14} /> : <Play size={14} />}</button>
-        <span className="mono text-[12px] tabnum text-[var(--color-muted)] w-24">{clock(time)} / {clock(duration || project.duration)}</span>
-        <input type="range" min={0} max={duration || project.duration || 1} step={0.05} value={time} onChange={(e) => seek(Number(e.target.value))} aria-label={t("listen.position")} className="flex-1 accent-[var(--color-accent)]" />
-        <select value={rate} onChange={(e) => { const r = Number(e.target.value); setRate(r); if (audio.current) audio.current.playbackRate = r; }} aria-label={t("listen.rate")}
-          className="bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md px-1.5 py-1 text-[12px] tabnum">
-          {RATES.map((r) => <option key={r} value={r}>{r}×</option>)}
-        </select>
-        <audio ref={audio} src={listenApi.audioUrl(pid)} preload="metadata"
-          onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)} onPlay={() => setPlaying(true)} onPause={() => { setPlaying(false); setTime(audio.current?.currentTime ?? 0); }}
-          onEnded={() => setPlaying(false)} onSeeked={(e) => setTime(e.currentTarget.currentTime)} />
-      </div>
-
       {Object.keys(project.speakers).length > 0 && (
         <div className="px-5 py-2 border-b border-[var(--color-border)] flex flex-wrap items-center gap-2">
           <Users size={13} className="text-[var(--color-muted)]" />
@@ -349,6 +336,20 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
       {dialog === "settings" && <ListenSettings project={project} onChange={(p) => edit(() => p)} onClose={() => setDialog(null)} />}
       {dialog === "export" && <ListenExport pid={pid} onClose={() => setDialog(null)} />}
       {dialog === "check" && <ReferenceCheck pid={pid} reference={project.reference} onReference={(reference) => edit((p) => ({ ...p, reference }))} onAlign={(lines) => edit((p) => ({ ...p, lines }))} onClose={() => setDialog(null)} />}
+      <div role="region" aria-label={t("transport.label")} className="shrink-0 px-3 md:px-5 py-2 border-t border-[var(--color-border)] bg-[var(--color-surface)]/80 flex items-center gap-2 md:gap-3">
+        <button onClick={toggle} className="grid place-items-center w-8 h-8 rounded-full bg-[var(--color-accent)] text-[var(--color-on-accent)]" {...named(playing ? t("listen.pause") : t("listen.play"))}>{playing ? <Pause size={14} /> : <Play size={14} />}</button>
+        <button onClick={() => seek(Math.max(0, time - 5))} className="grid place-items-center w-8 h-8 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)] max-md:hidden" {...named(t("transport.back5"))}><RotateCcw size={14} /></button>
+        <button onClick={() => seek(Math.min(duration || project.duration, time + 5))} className="grid place-items-center w-8 h-8 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)] max-md:hidden" {...named(t("transport.forward5"))}><RotateCw size={14} /></button>
+        <span className="mono text-[12px] tabnum text-[var(--color-muted)] w-24 shrink-0">{clock(time)} / {clock(duration || project.duration)}</span>
+        <input type="range" min={0} max={duration || project.duration || 1} step={0.05} value={time} onChange={(e) => seek(Number(e.target.value))} aria-label={t("listen.position")} className="flex-1 accent-[var(--color-accent)]" />
+        <select value={rate} onChange={(e) => { const r = Number(e.target.value); setRate(r); if (audio.current) audio.current.playbackRate = r; }} aria-label={t("listen.rate")}
+          className="bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md px-1.5 py-1 text-[12px] tabnum">
+          {RATES.map((r) => <option key={r} value={r}>{r}×</option>)}
+        </select>
+        <audio ref={audio} src={listenApi.audioUrl(pid)} preload="metadata"
+          onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)} onPlay={() => setPlaying(true)} onPause={() => { setPlaying(false); setTime(audio.current?.currentTime ?? 0); }}
+          onEnded={() => setPlaying(false)} onSeeked={(e) => setTime(e.currentTarget.currentTime)} />
+      </div>
     </main>
   );
 }
