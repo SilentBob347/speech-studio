@@ -51,7 +51,7 @@ Sur le même port, le studio parle l’API audio d’OpenAI — `POST /v1/audio/
 
 **Voix et moteurs**
 
-- **Cinq moteurs locaux** — [Higgs Audio v3](https://huggingface.co/bosonai) (clonage, émotions et sons), **Fish Audio Drama 3** (la voix ouverte la plus forte, pour les cartes de 24 Go), **Supertonic 3** (rapide, dix voix intégrées), **Qwen3-TTS 1.7B** (neuf voix intégrées, clonage, une consigne par bloc) et **Qwen3-TTS avec l’accent tonique russe**, la LoRA de siriusfreak appliquée à la volée.
+- **Cinq moteurs locaux** — [Higgs Audio v3](https://huggingface.co/bosonai) (clonage, émotions et sons), **Fish Audio Drama 3** (la voix ouverte la plus forte ; entière sur une carte de 24 Go, dès 6 Go avec ses experts en mémoire vive), **Supertonic 3** (rapide, dix voix intégrées), **Qwen3-TTS 1.7B** (neuf voix intégrées, clonage, une consigne par bloc) et **Qwen3-TTS avec l’accent tonique russe**, la LoRA de siriusfreak appliquée à la volée.
 - **Moteur par personnage et par bloc** au-dessus de celui du projet ; un moteur qui ne peut pas parler avec la voix choisie dit quelle voix intégrée il prendra.
 - **Bibliothèque de voix** — un pack de voix en un clic, 743 voix russes du catalogue cloud, enregistrement au micro, import de fichiers et de ZIP, photo, genre, âge, langue, tags et consentement ; la transcription de la référence est reconnue une fois et gardée.
 - **Nettoyage d’une référence** — Mel-Band Roformer sépare la voix de la musique, **DPDFNet** retire le bruit avec un réglage d’intensité pour que la voix reste vivante ; l’original est conservé.
@@ -103,7 +103,7 @@ Listening — transcription avec locuteurs et temps par mot, lecteur karaoké, m
 ## Configuration requise
 
 - **OS :** Windows 10 / 11 (x64) ; Linux x86-64 en version expérimentale
-- **GPU :** NVIDIA avec 8 Go de VRAM ou plus et un pilote récent ; Drama 3 demande 24 Go. Sans NVIDIA, seuls les chemins CPU et cloud de *Ce qui tourne où* fonctionnent, et cette configuration n’est pas testée
+- **GPU :** NVIDIA avec 8 Go de VRAM ou plus et un pilote récent ; Drama 3 tient entier dans 24 Go ; dès 6 Go ses experts (18 Go) restent en mémoire vive, qui doit alors faire 32 Go, et la VRAM qu’il prend se règle dans les Réglages (Auto ou de 5 à 24 Go). Sans NVIDIA, seuls les chemins CPU et cloud de *Ce qui tourne où* fonctionnent, et cette configuration n’est pas testée
 - **WebView2** — préinstallé sur Windows 11 ; sur Windows 10, l’installateur le récupère
 - **Disque :** environ 9 Go pour les modèles, moteurs et bibliothèques par défaut, plus ce que vous ajoutez (Drama 3 fait 23 Go)
 
@@ -280,7 +280,7 @@ Le code de l’application est sous [MIT](LICENSE). **Les modèles non** : chacu
 | Composant | Licence | Ce que cela veut dire |
 |---|---|---|
 | Higgs Audio v3 (Boson AI) | [Boson Higgs TTS 3 Research and Non-Commercial License](https://huggingface.co/bosonai/higgs-tts-3-4b/blob/main/LICENSE) | Recherche et usage personnel ; les créateurs peuvent monétiser leur propre contenu avec le Creator Use Grant s’ils citent Higgs Audio de Boson AI ; un produit ou service pour autrui exige une licence de Boson |
-| Fish Audio Drama 3 | [Fish Audio Research License](https://huggingface.co/fishaudio/drama-3/blob/main/LICENSE.md) | Recherche et usage non commercial ; l’usage commercial exige une licence de Fish Audio |
+| Fish Audio Drama 3 | [Fish Audio Community License](https://huggingface.co/fishaudio/drama-3/blob/main/LICENSE) | Recherche et usage non commercial ; usage commercial tant que votre chiffre d’affaires annuel reste sous 500 000 USD, au-delà une licence de Fish Audio ; pas de service hébergé de synthèse vocale |
 | Qwen3-TTS (Qwen) | Apache-2.0 |  |
 | LoRA d’accent russe de Qwen3-TTS (siriusfreak) | Apache-2.0 |  |
 | Supertonic 3 (Supertone) | BigScience OpenRAIL-M | Lisez ses restrictions d’usage |

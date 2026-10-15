@@ -51,7 +51,7 @@ Speech Studio 打开时，会在 `http://127.0.0.1:8797/mcp` 提供 MCP：Claude
 
 **声音与引擎**
 
-- **五个本地引擎**——[Higgs Audio v3](https://huggingface.co/bosonai)（克隆、情绪和声音效果）、**Fish Audio Drama 3**（最强的开源声音，需要 24 GB 显卡）、**Supertonic 3**（快速，十个内置声音）、**Qwen3-TTS 1.7B**（九个内置声音、克隆、每块一条指令）以及**带俄语重音的 Qwen3-TTS**（运行时加载 siriusfreak 的 LoRA）。
+- **五个本地引擎**——[Higgs Audio v3](https://huggingface.co/bosonai)（克隆、情绪和声音效果）、**Fish Audio Drama 3**（最强的开源声音；24 GB 显卡可整体加载，6 GB 起专家放在内存中）、**Supertonic 3**（快速，十个内置声音）、**Qwen3-TTS 1.7B**（九个内置声音、克隆、每块一条指令）以及**带俄语重音的 Qwen3-TTS**（运行时加载 siriusfreak 的 LoRA）。
 - **角色和块可以有自己的引擎**，覆盖项目引擎；不能说当前声音的引擎会告诉你它会改用哪个内置声音。
 - **声音库**——一键导入声音包、云端目录中的 743 个俄语声音、麦克风录音、导入文件和 ZIP、照片、性别、年龄、语言、标签和授权说明；参考音频的文本只识别一次并保存。
 - **清理参考音频**——Mel-Band Roformer 把人声从音乐中分离，**DPDFNet** 去除噪声并可调节强度，让语音保持自然；原始文件会保留。
@@ -103,7 +103,7 @@ Listening——带说话人和逐词时间的文字稿、卡拉 OK 播放器、�
 ## 系统要求
 
 - **系统：** Windows 10 / 11（x64）；Linux x86-64 为实验性构建
-- **显卡：** 8 GB 或以上显存的 NVIDIA 显卡和较新的驱动；Drama 3 需要 24 GB。没有 NVIDIA 时只能运行“各阶段在哪里运行”中的 CPU 和云端路径，这种配置未经测试
+- **显卡：** 8 GB 或以上显存的 NVIDIA 显卡和较新的驱动；Drama 3 可整体放入 24 GB；6 GB 起其专家（18 GB）放在内存中，此时需要 32 GB 内存，占用多少显存在设置中选择（“自动”或 5 至 24 GB）。没有 NVIDIA 时只能运行“各阶段在哪里运行”中的 CPU 和云端路径，这种配置未经测试
 - **WebView2**——Windows 11 已预装；Windows 10 上安装程序会自动获取
 - **磁盘：** 默认模型、引擎和运行库约 9 GB，另加你添加的内容（Drama 3 为 23 GB）
 
@@ -280,7 +280,7 @@ Linux x86-64 的 .deb 和 AppImage 为**实验性**：同一份代码，配上�
 | 组件 | 许可证 | 含义 |
 |---|---|---|
 | Higgs Audio v3（Boson AI） | [Boson Higgs TTS 3 Research and Non-Commercial License](https://huggingface.co/bosonai/higgs-tts-3-4b/blob/main/LICENSE) | 研究和个人使用；数字创作者在注明 Boson AI 的 Higgs Audio 时可依据 Creator Use Grant 将自己的内容变现；为他人提供产品或服务需要 Boson 的许可 |
-| Fish Audio Drama 3 | [Fish Audio Research License](https://huggingface.co/fishaudio/drama-3/blob/main/LICENSE.md) | 研究和非商业使用；商业使用需要 Fish Audio 的许可 |
+| Fish Audio Drama 3 | [Fish Audio Community License](https://huggingface.co/fishaudio/drama-3/blob/main/LICENSE) | 研究和非商业使用；年收入低于 50 万美元时可商业使用，超过则需 Fish Audio 许可；不得提供托管的文字转语音服务 |
 | Qwen3-TTS（Qwen） | Apache-2.0 |  |
 | Qwen3-TTS 俄语重音 LoRA（siriusfreak） | Apache-2.0 |  |
 | Supertonic 3（Supertone） | BigScience OpenRAIL-M | 请阅读其使用限制 |
