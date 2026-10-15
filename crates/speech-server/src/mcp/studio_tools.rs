@@ -379,6 +379,33 @@ pub(super) fn tools() -> Vec<Tool> {
             call: |args| get(project_path(args, &format!("/takes/{}", segment(&text(args, "file")?)))?),
         },
         Tool {
+            name: "project_track_import",
+            description: "Put sounds of this computer on a track of the book or play - music, sounds, ambience - beside the voices: paths are sound files and folders (a folder gives its sound files by name), copied into the project's media and laid one after another from at seconds (by default after the track's last clip), on the track whose id track names or a new one called name. The export mixes the tracks under the voices; each clip's start, cut and mix and each track's gain_db and muted are edited with project_update. Answers the project.",
+            schema: || object(json!({ "pid": pid(), "paths": { "type": "array", "items": { "type": "string" } }, "track": { "type": "string" }, "name": { "type": "string" }, "at": { "type": "number", "minimum": 0 } }), &["pid", "paths"]),
+            call: |args| post(project_path(args, "/tracks/import")?, body_without(args, &["pid"])),
+        },
+        Tool {
+            name: "project_track_upload",
+            description: "Put one sound file on a track by uploading a copy of it, as the window does with a file picked there (project_track_import reads files and folders where they lie): path is the file, track the id of a track or none for a new one called name, at its start in seconds. Answers the project.",
+            schema: || object(json!({ "pid": pid(), "path": { "type": "string" }, "track": { "type": "string" }, "name": { "type": "string" }, "at": { "type": "number", "minimum": 0 } }), &["pid", "path"]),
+            call: |args| {
+                let fields = ["track", "name", "at"].iter().filter_map(|k| args.get(*k).map(|v| (k.to_string(), v.as_str().map(str::to_string).unwrap_or_else(|| v.to_string())))).collect();
+                upload(&project_path(args, "/tracks/upload")?, local_file(args, "path")?, "file", fields)
+            },
+        },
+        Tool {
+            name: "project_media_file",
+            description: "A track clip's sound as a file on this computer: file is the clip's file from project_get (its tracks).",
+            schema: || object(json!({ "pid": pid(), "file": { "type": "string" } }), &["pid", "file"]),
+            call: |args| get(project_path(args, &format!("/media/{}", segment(&text(args, "file")?)))?),
+        },
+        Tool {
+            name: "project_media_peaks",
+            description: "A track clip's waveform as the track editor draws it: peaks of each 1/25 s (0..1, not scaled) and its length in seconds; file is the clip's file from project_get.",
+            schema: || object(json!({ "pid": pid(), "file": { "type": "string" } }), &["pid", "file"]),
+            call: |args| get(project_path(args, &format!("/media/{}/peaks", segment(&text(args, "file")?)))?),
+        },
+        Tool {
             name: "project_take_peaks",
             description: "A take's waveform as the track editor draws it: peaks of each 1/25 s (the loudest sample, 0..1, not scaled) and its length in seconds; file is the take's name from project_get.",
             schema: || object(json!({ "pid": pid(), "file": { "type": "string" } }), &["pid", "file"]),

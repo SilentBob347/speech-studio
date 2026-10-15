@@ -480,7 +480,7 @@ fn annotations(name: &str) -> Value {
         "studio_wait", "proxy_test", "openrouter_verify", "ui_screenshot", "ui_read_page", "ui_console", "url_probe", "url_probe_cookies_text", "studio_health",
         "engine_tags", "voice_sample", "voice_design_sample", "dictionary_try_file", "project_dictionary_counts", "project_unknown_words", "cloud_model_form",
         "cloud_estimate", "cloud_keys", "cloud_spend", "openai_api_log", "openai_api_models", "listen_audio", "project_queue", "history_list",
-        "speech_live_watch", "job_events", "book_preview", "book_chapter", "project_take_file", "project_take_peaks", "project_export_file", "agent_status", "windows_watch",
+        "speech_live_watch", "job_events", "book_preview", "book_chapter", "project_take_file", "project_take_peaks", "project_media_file", "project_media_peaks", "project_export_file", "agent_status", "windows_watch",
         "player_state",
     ];
     // writes over what was stored, so the earlier content is gone: a client asks first

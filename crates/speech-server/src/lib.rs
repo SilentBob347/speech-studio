@@ -88,6 +88,7 @@ mod url_import;
 mod vad;
 mod voice_api;
 mod voice_fx;
+mod tracks;
 mod voice_jobs;
 mod voice_library;
 mod wavio;
@@ -557,6 +558,10 @@ pub fn build_router(state: AppState) -> Router {
         .route("/projects/{pid}/save-export", post(speech_api::save_export))
         .route("/projects/{pid}/takes/{file}", get(speech_api::take_file))
         .route("/projects/{pid}/takes/{file}/peaks", get(speech_api::take_peaks))
+        .route("/projects/{pid}/media/{file}", get(speech_api::media_file))
+        .route("/projects/{pid}/media/{file}/peaks", get(speech_api::media_peaks))
+        .route("/projects/{pid}/tracks/import", post(speech_api::tracks_import))
+        .route("/projects/{pid}/tracks/upload", post(speech_api::tracks_upload))
         .route("/projects/{pid}/dictionary/try", post(speech_api::try_rule))
         .route("/projects/{pid}/tries/{file}", get(speech_api::try_file))
         .route("/projects/{pid}/exports/{file}", get(speech_api::export_file))

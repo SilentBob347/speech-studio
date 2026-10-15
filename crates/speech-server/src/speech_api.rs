@@ -539,26 +539,50 @@ pub async fn take_file(State(st): State<AppState>, AxPath((pid, file)): AxPath<(
 /// Peaks per second of a take's waveform for the track editor.
 const PEAKS_PER_SECOND: u32 = 25;
 
-/// GET /projects/{pid}/takes/{file}/peaks — the take's waveform as `PEAKS_PER_SECOND` peaks a second (the loudest sample
-/// of each slice, 0..1, not scaled, so takes compare), kept beside the take in `.fx`.
 pub async fn take_peaks(State(st): State<AppState>, AxPath((pid, file)): AxPath<(String, String)>) -> Response {
     if !sp::is_pid(&pid) || !safe_file(&file) {
         return refuse(StatusCode::BAD_REQUEST, "bad_request", file);
     }
-    let path = st.workspace.join(&pid).join("takes").join(&file);
+    peaks_of(st.workspace.join(&pid).join("takes").join(&file)).await
+}
+
+/// GET /projects/{pid}/media/{file}/peaks — a track clip's sound as the track editor draws it, as a take's.
+pub async fn media_peaks(State(st): State<AppState>, AxPath((pid, file)): AxPath<(String, String)>) -> Response {
+    if !sp::is_pid(&pid) || !safe_file(&file) {
+        return refuse(StatusCode::BAD_REQUEST, "bad_request", file);
+    }
+    peaks_of(crate::tracks::media_dir(&st.workspace, &pid).join(&file)).await
+}
+
+/// GET /projects/{pid}/media/{file} — a track clip's sound file, to listen to.
+pub async fn media_file(State(st): State<AppState>, AxPath((pid, file)): AxPath<(String, String)>, req: axum::http::Request<axum::body::Body>) -> Response {
+    if !sp::is_pid(&pid) || !safe_file(&file) {
+        return refuse(StatusCode::BAD_REQUEST, "bad_request", file);
+    }
+    let path = crate::tracks::media_dir(&st.workspace, &pid).join(&file);
     if !path.is_file() {
         return refuse(StatusCode::NOT_FOUND, "no_file", file);
     }
+    crate::serve_file_range(&path, req, None).await
+}
+
+/// A sound's waveform as `PEAKS_PER_SECOND` peaks a second (the loudest sample of each slice, 0..1, not scaled, so
+/// sounds compare), kept beside it in `.fx`.
+async fn peaks_of(path: std::path::PathBuf) -> Response {
+    if !path.is_file() {
+        return refuse(StatusCode::NOT_FOUND, "no_file", path.display().to_string());
+    }
     let made = joined(
         tokio::task::spawn_blocking(move || -> Result<Value, String> {
-            let out = path.parent().unwrap_or(Path::new(".")).join(".fx").join(format!("{file}.peaks.json"));
+            let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+            let out = path.parent().unwrap_or(Path::new(".")).join(".fx").join(format!("{name}.peaks.json"));
             let fresh = std::fs::metadata(&out).and_then(|m| m.modified()).ok() >= std::fs::metadata(&path).and_then(|m| m.modified()).ok();
             if out.is_file() && fresh {
                 let text = std::fs::read_to_string(&out).map_err(|e| format!("{}: {e}", out.display()))?;
                 return serde_json::from_str(&text).map_err(|e| format!("{}: {e}", out.display()));
             }
-            let tmp = tempfile::Builder::new().prefix("take-peaks-").tempdir().map_err(|e| e.to_string())?;
-            let wav = tmp.path().join("take.wav");
+            let tmp = tempfile::Builder::new().prefix("peaks-").tempdir().map_err(|e| e.to_string())?;
+            let wav = tmp.path().join("sound.wav");
             crate::media::extract_audio(&path, &wav, crate::speech_jobs::SR, 1)?;
             let (samples, sr) = crate::wavio::read_mono_f32(&wav)?;
             let slice = (sr / PEAKS_PER_SECOND).max(1) as usize;
@@ -573,6 +597,97 @@ pub async fn take_peaks(State(st): State<AppState>, AxPath((pid, file)): AxPath<
     match made {
         Ok(Ok(body)) => Json(body).into_response(),
         Ok(Err(e)) => refuse(StatusCode::INTERNAL_SERVER_ERROR, "peaks_failed", e),
+        Err(r) => r,
+    }
+}
+
+#[derive(serde::Deserialize)]
+pub struct TrackImport {
+    paths: Vec<String>,
+    #[serde(default)]
+    track: Option<String>,
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    at: Option<f64>,
+}
+
+/// POST /projects/{pid}/tracks/import {paths, track?, name?, at?} — sound files and folders of this computer onto a
+/// track: copied into the project's `media/`, one after another from `at` (by default after the track's last clip), on
+/// the track `track` or a new one named `name` (by default after the folder or the first file).
+pub async fn tracks_import(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<TrackImport>) -> Response {
+    if !sp::is_pid(&pid) {
+        return refuse(StatusCode::BAD_REQUEST, "bad_request", pid);
+    }
+    let p = paths(&st);
+    let res = joined(tokio::task::spawn_blocking(crate::mcp::carry(move || -> Result<Value, String> {
+        let given: Vec<std::path::PathBuf> = body.paths.iter().map(std::path::PathBuf::from).collect();
+        let files = crate::tracks::expand(&given)?;
+        let name = body.name.clone().filter(|n| !n.trim().is_empty()).unwrap_or_else(|| given.first().and_then(|g| if g.is_dir() { g.file_name() } else { g.file_stem() }).map(|n| n.to_string_lossy().into_owned()).unwrap_or_default());
+        place_files(&p, &pid, &files, body.track.as_deref(), &name, body.at)
+    }))
+    .await);
+    project_answer(res)
+}
+
+/// POST /projects/{pid}/tracks/upload (multipart: file…, track?, name?, at?) — the window's sound files onto a track,
+/// as `tracks/import` lays them.
+pub async fn tracks_upload(State(st): State<AppState>, AxPath(pid): AxPath<String>, mut multipart: axum::extract::Multipart) -> Response {
+    if !sp::is_pid(&pid) {
+        return refuse(StatusCode::BAD_REQUEST, "bad_request", pid);
+    }
+    let tmp = match tempfile::Builder::new().prefix("tracks-upload-").tempdir() {
+        Ok(t) => t,
+        Err(e) => return refuse(StatusCode::INTERNAL_SERVER_ERROR, "upload_failed", e.to_string()),
+    };
+    let (mut files, mut track, mut name, mut at) = (Vec::new(), None, String::new(), None);
+    while let Ok(Some(field)) = multipart.next_field().await {
+        match field.name().unwrap_or("") {
+            "file" => {
+                let original = field.file_name().map(|n| n.rsplit(['/', '\\']).next().unwrap_or(n).to_string()).unwrap_or_else(|| "sound.wav".into());
+                let bytes = match field.bytes().await {
+                    Ok(b) => b,
+                    Err(e) => return refuse(StatusCode::BAD_REQUEST, "bad_request", e.to_string()),
+                };
+                let dir = tmp.path().join(files.len().to_string());
+                if let Err(e) = std::fs::create_dir_all(&dir).and_then(|()| std::fs::write(dir.join(&original), &bytes)) {
+                    return refuse(StatusCode::INTERNAL_SERVER_ERROR, "upload_failed", e.to_string());
+                }
+                files.push(dir.join(&original));
+            }
+            "track" => track = Some(field.text().await.unwrap_or_default()).filter(|t| !t.is_empty()),
+            "name" => name = field.text().await.unwrap_or_default(),
+            "at" => at = field.text().await.ok().and_then(|t| t.parse::<f64>().ok()),
+            _ => {}
+        }
+    }
+    if files.is_empty() {
+        return refuse(StatusCode::BAD_REQUEST, "no_file", t!("tracks-no-files"));
+    }
+    let p = paths(&st);
+    let res = joined(tokio::task::spawn_blocking(crate::mcp::carry(move || -> Result<Value, String> {
+        let _keep = tmp;
+        let files = crate::tracks::expand(&files)?;
+        let name = if name.trim().is_empty() { files.first().and_then(|f| f.file_stem()).map(|n| n.to_string_lossy().into_owned()).unwrap_or_default() } else { name };
+        place_files(&p, &pid, &files, track.as_deref(), &name, at)
+    }))
+    .await);
+    project_answer(res)
+}
+
+fn place_files(p: &SpeechPaths, pid: &str, files: &[std::path::PathBuf], track: Option<&str>, name: &str, at: Option<f64>) -> Result<Value, String> {
+    let mut project = sp::load(&p.workspace, pid)?;
+    let clips = crate::tracks::clips_of(&p.workspace, pid, files, at.unwrap_or(0.0))?;
+    crate::tracks::place(&mut project, track, name, clips, at)?;
+    sp::save(&p.workspace, pid, &project)?;
+    Ok(shown(p, &project))
+}
+
+fn project_answer(res: Result<Result<Value, String>, Response>) -> Response {
+    match res {
+        Ok(Ok(v)) => Json(v).into_response(),
+        Ok(Err(e)) if e.starts_with(crate::mcp::PROJECT_CHANGED) => refuse(StatusCode::CONFLICT, crate::mcp::PROJECT_CHANGED, e),
+        Ok(Err(e)) => refuse(StatusCode::BAD_REQUEST, "bad_tracks", e),
         Err(r) => r,
     }
 }

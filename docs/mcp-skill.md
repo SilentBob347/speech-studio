@@ -115,6 +115,13 @@ connected and the address to paste.
 - **Projects from files**: `project_create_from_subtitles` (SRT, VTT, ASS), `book_preview` + `book_chapter` +
   `project_create_from_book` (an audiobook of the chosen chapters; `dialogue` puts direct speech under its own speaker; `into` rebuilds a project from the edited book keeping the voiced blocks of unchanged paragraphs, `dry_run` counts first), `project_package` / `project_import_package` (one
   `.speechproj` file to move a project), `listen_to_speech` (a recording's transcript).
+- **Tracks of a book or play** (music, sounds, ambience beside the voices): `project_track_import` (sound files and
+  folders of this computer onto a track, copied into the project's media, one after another), `project_track_upload`
+  (one file by upload, as the window does), `project_media_file` and `project_media_peaks` (a clip's sound and its
+  waveform). The project's `tracks` - each with `id`, `name`, `gain_db`, `muted` and `clips` (`file`, `label`, `start`
+  in seconds on the export's scale, `duration`, `cut`, `mix`) - are edited with `project_update`; the export mixes every
+  track that is not muted under the voices (not when one chapter is exported alone), and the tracks by speaker give each
+  track its own stem. No ducking: the levels are set by the tracks' and clips' gains.
 - **Takes and exports as files**: `project_take_file`, `project_take_peaks` (a take's waveform, 25 peaks a second, as the track editor draws it), `project_export_file`, `project_export_save` (copy to a path),
   `project_exports_to_folder`, `project_export_reveal`, `project_export_save_as`.
 - **Expression tags differ per engine** (take them from `engine_tags` or `engines_list`, never across engines):

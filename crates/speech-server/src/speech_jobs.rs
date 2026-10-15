@@ -1457,6 +1457,9 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         }
         prev_audio = Some((at, samples));
     }
+    if !project.tracks.is_empty() && opts.chapter.is_none() {
+        crate::tracks::mix_in(&p.workspace, pid, &project, SR, &mut mix, work.path(), opts.stems.then_some(&mut stems))?;
+    }
     progress(json!({ "type": "progress", "stage": "speech_export", "msg": t!("speech-export-loudness"), "pct": 92 }));
     let unlevelled = opts.stems.then(|| mix.clone());
     let levelled = match loudness(&project.settings.loudness) {

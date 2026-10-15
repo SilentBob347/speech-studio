@@ -300,6 +300,44 @@ pub struct SpeechProject {
     /// Ключ инструмента агента «одним вызовом»: повторный вызов с теми же входами находит этот проект.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub key: String,
+    /// The book's or the play's own tracks beside the voices — music, sounds, ambience — mixed into the export.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tracks: Vec<Track>,
+}
+
+/// A track of the book or play: its clips on the export's time scale, its gain over theirs, muted or not.
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+#[serde(default)]
+pub struct Track {
+    pub id: String,
+    pub name: String,
+    pub gain_db: f64,
+    pub muted: bool,
+    pub clips: Vec<TrackClip>,
+}
+
+/// A sound on a track: a copy in the project's `media/`, where it starts in the export, the part of it kept and its
+/// montage; a song made in a music studio keeps where it came from (`source`: the studio, the song, the form's values).
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+#[serde(default)]
+pub struct TrackClip {
+    pub id: String,
+    pub file: String,
+    pub label: String,
+    pub start: f64,
+    pub duration: f64,
+    pub cut: Option<[f64; 2]>,
+    #[serde(skip_serializing_if = "Mix::is_flat")]
+    pub mix: Mix,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<Value>,
+}
+
+impl TrackClip {
+    /// The part of the file the clip plays, in seconds.
+    pub fn kept(&self) -> [f64; 2] {
+        self.cut.unwrap_or([0.0, self.duration])
+    }
 }
 
 /// A character's gender (`female`, `male`) and age (`child`, `teen`, `adult`, `senior`), each empty when unknown.
@@ -322,7 +360,7 @@ pub struct BookMeta {
 
 impl Default for SpeechProject {
     fn default() -> Self {
-        SpeechProject { kind: KIND.into(), version: 1, name: String::new(), created: 0, settings: Settings::default(), cast: BTreeMap::new(), cast_engines: BTreeMap::new(), cast_params: BTreeMap::new(), characters: BTreeMap::new(), cast_fx: BTreeMap::new(), chapters: Vec::new(), dictionary: Vec::new(), book: None, key: String::new() }
+        SpeechProject { kind: KIND.into(), version: 1, name: String::new(), created: 0, settings: Settings::default(), cast: BTreeMap::new(), cast_engines: BTreeMap::new(), cast_params: BTreeMap::new(), characters: BTreeMap::new(), cast_fx: BTreeMap::new(), chapters: Vec::new(), dictionary: Vec::new(), book: None, key: String::new(), tracks: Vec::new() }
     }
 }
 
@@ -413,6 +451,22 @@ impl SpeechProject {
             return Err(format!("this is a {} project, not a speech one", self.kind));
         }
         self.settings.params.checked()?;
+        let mut seen_tracks = std::collections::HashSet::new();
+        for track in &self.tracks {
+            if track.id.is_empty() || !seen_tracks.insert(track.id.as_str()) {
+                return Err(format!("track id {:?} is empty or repeated", track.id));
+            }
+            if !Mix::GAIN_DB.contains(&track.gain_db) {
+                return Err(format!("track {}: gain {} dB must be {}..{}", track.name, track.gain_db, Mix::GAIN_DB.start(), Mix::GAIN_DB.end()));
+            }
+            for clip in &track.clips {
+                let [a, z] = clip.kept();
+                let mix_ok = Mix::GAIN_DB.contains(&clip.mix.gain_db) && clip.mix.fade_in >= 0.0 && clip.mix.fade_out >= 0.0;
+                if clip.id.is_empty() || !seen_tracks.insert(clip.id.as_str()) || !crate::speech_api::safe_file(&clip.file) || !(clip.start >= 0.0) || !(a >= 0.0 && z > a && z <= clip.duration + 1e-3) || !mix_ok {
+                    return Err(format!("track {}: clip {:?} ({}) needs its own id, a file of media/, a start not below 0, a cut inside its {} s and a gain {}..{} dB", track.name, clip.id, clip.file, clip.duration, Mix::GAIN_DB.start(), Mix::GAIN_DB.end()));
+                }
+            }
+        }
         if let Some(b) = self.blocks().find(|b| !Mix::GAIN_DB.contains(&b.mix.gain_db) || !(b.mix.fade_in >= 0.0 && b.mix.fade_out >= 0.0 && b.mix.fade_in.is_finite() && b.mix.fade_out.is_finite())) {
             return Err(format!("block {}: gain {} dB must be {}..{} and fades {} s, {} s not below 0", b.id, b.mix.gain_db, Mix::GAIN_DB.start(), Mix::GAIN_DB.end(), b.mix.fade_in, b.mix.fade_out));
         }
