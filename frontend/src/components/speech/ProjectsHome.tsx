@@ -83,6 +83,9 @@ export default function ProjectsHome({ onOpen }: { onOpen: (pid: string) => void
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("speech.namePlaceholder")} aria-label={t("speech.name")} className={field} maxLength={120} />
           <textarea value={text} onChange={(e) => setText(e.target.value)} rows={8} placeholder={t("speech.textPlaceholder")} aria-label={t("speech.text")}
             className={`${field} resize-y leading-relaxed min-h-[160px]`} />
+          {!text.trim() && (
+            <button onClick={() => { setText(t("speech.sample")); setSplit("paragraphs"); }} className="-mt-1 text-[12px] text-[var(--color-accent)] hover:underline">{t("speech.sampleInsert")}</button>
+          )}
           <div className="grid gap-2 grid-cols-2 sm:grid-cols-4">
             <label className="text-[11px] text-[var(--color-muted)] space-y-1">
               <span className="block">{t("speech.voice")}</span>

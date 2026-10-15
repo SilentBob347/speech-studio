@@ -863,6 +863,8 @@
     "create": "Criar",
     "splitBy": "Divisão",
     "startWith": "Ou comece a partir de",
+    "sampleInsert": "Inserir um diálogo de exemplo",
+    "sample": "Noite. Uma única lâmpada está acesa no pequeno estúdio.\n\nAna: Você ouviu? Acho que deu certo.\n\nOtávio: Toca de novo, desde o começo.",
     "markupHint": "Pausas: [pause 500ms] ou sil<[300]>. Cada motor tem suas próprias tags de emoção e estilo: a paleta fica nos ajustes do bloco.",
     "recent": "Projetos recentes",
     "noProjects": "Ainda não há projetos.",

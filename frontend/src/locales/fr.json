@@ -863,6 +863,8 @@
     "create": "Créer",
     "splitBy": "Découpage",
     "startWith": "Ou commencez depuis",
+    "sampleInsert": "Insérer un dialogue d'exemple",
+    "sample": "Le soir. Une seule lampe est allumée dans le petit studio.\n\nAnne : Tu entends ? Je crois que ça marche.\n\nOlivier : Remets-le, depuis le tout début.",
     "markupHint": "Pauses : [pause 500ms] ou sil<[300]>. Chaque moteur a ses propres balises d'émotion et de ton : leur palette est dans les réglages du bloc.",
     "recent": "Projets récents",
     "noProjects": "Aucun projet pour l’instant.",
