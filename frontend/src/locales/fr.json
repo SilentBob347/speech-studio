@@ -1361,7 +1361,7 @@
     "denoise": "Réduire le bruit avant la reconnaissance",
     "denoiseHint": "DPDFNet : bruit de rue, ronflement, souffle. L’intensité indique jusqu’où le bruit peut descendre sous l’original ; 18 dB garde une voix naturelle.",
     "vad": "Découpe aux pauses",
-    "vadHint": "Silero VAD repère la parole, et le moteur local reçoit l’enregistrement en morceaux de 90 secondes au plus, coupés aux pauses et non au milieu d’un mot. Le silence entre les morceaux n’est pas reconnu.",
+    "vadHint": "Silero VAD repère la parole, et Parakeet reçoit l’enregistrement en morceaux de 90 secondes au plus, coupés aux pauses et non au milieu d’un mot. Le silence entre les morceaux n’est pas reconnu. Whisper découpe l’enregistrement lui-même.",
     "vad_threshold": "Seuil de parole",
     "vad_hysteresis": "Hystérésis",
     "vad_min_speech_ms": "Parole min., ms",

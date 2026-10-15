@@ -1013,6 +1013,7 @@ listen-step-diarize = Recherche des locuteurs
 listen-step-asr = Reconnaissance de la parole
 listen-step-asr-piece = Reconnaissance de la parole : morceau { $n } sur { $total }
 listen-step-denoise = Réduction du bruit
+listen-no-speech = Aucune parole trouvée dans l’enregistrement : si elle est faible, baissez le seuil de parole (actuellement { $threshold }) dans Reconnaissance → Découpe aux pauses.
 listen-step-filter = Recherche d’hallucinations du reconnaisseur
 listen-step-done = Terminé : { $lines } lignes
 listen-nothing-marked = aucun mot n’est marqué pour suppression

@@ -1361,7 +1361,7 @@
     "denoise": "Quitar el ruido antes de reconocer",
     "denoiseHint": "DPDFNet: ruido de calle, zumbido, siseo. La intensidad es cuánto por debajo del original puede bajar el ruido; 18 dB mantiene la voz natural.",
     "vad": "Corte en las pausas",
-    "vadHint": "Silero VAD encuentra la voz y el reconocedor local recibe la grabación en fragmentos de hasta 90 segundos cortados en las pausas, no a mitad de palabra. El silencio entre fragmentos no se reconoce.",
+    "vadHint": "Silero VAD encuentra la voz y Parakeet recibe la grabación en fragmentos de hasta 90 segundos cortados en las pausas, no a mitad de palabra. El silencio entre fragmentos no se reconoce. Whisper corta la grabación por sí mismo.",
     "vad_threshold": "Umbral de voz",
     "vad_hysteresis": "Histéresis",
     "vad_min_speech_ms": "Voz mín., ms",

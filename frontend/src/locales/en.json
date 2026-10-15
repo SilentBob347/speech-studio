@@ -1361,7 +1361,7 @@
     "denoise": "Remove noise before recognition",
     "denoiseHint": "DPDFNet: street noise, hum, hiss. Strength is how far below the original the noise may go; 18 dB keeps speech natural.",
     "vad": "Cutting at pauses",
-    "vadHint": "Silero VAD finds the speech, and a local recogniser gets the recording in pieces of up to 90 seconds cut at pauses, not mid-word. Silence between pieces is not recognised.",
+    "vadHint": "Silero VAD finds the speech, and Parakeet gets the recording in pieces of up to 90 seconds cut at pauses, not mid-word. Silence between pieces is not recognised. Whisper cuts the recording itself.",
     "vad_threshold": "Speech threshold",
     "vad_hysteresis": "Hysteresis",
     "vad_min_speech_ms": "Min. speech, ms",

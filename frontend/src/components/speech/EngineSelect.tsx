@@ -6,11 +6,14 @@ import type { EngineCaps } from "../../lib/speech";
 /** The engine of one speaker or block over the project's: local engines and the project's own (a cloud engine is set up
  * for the whole project). An engine that is not ready is greyed with the reason; one that cannot speak the voice in use
  * says which of its own voices it takes instead, and choosing it hands that voice over with the engine. */
-export default function EngineSelect({ value, onChange, inherit, projectEngine, voice, label, className }: {
+export default function EngineSelect({ value, onChange, inherit, inheritEngine, projectEngine, voice, label, className }: {
   value: string | null;
-  /** `voice` is set when the voice in use does not suit the engine chosen: its first own voice. */
-  onChange: (engine: string | null, voice?: string) => void;
+  /** `voice` is set when the voice in use does not suit the engine chosen: its first own voice, or null to drop an
+   * own voice the inherited engine cannot speak. */
+  onChange: (engine: string | null, voice?: string | null) => void;
   inherit: string;
+  /** The engine `inherit` stands for. */
+  inheritEngine: string;
   projectEngine: string;
   /** The voice the block or speaker would speak with. */
   voice: string | null;
@@ -26,7 +29,12 @@ export default function EngineSelect({ value, onChange, inherit, projectEngine, 
   };
   const choices = engines.filter((e) => !(e.id in CLOUD_ENGINE_NAMES) || e.id === projectEngine);
   return (
-    <select value={value ?? ""} onChange={(ev) => { const e = engines.find((x) => x.id === ev.target.value); onChange(e ? e.id : null, e ? swap(e) : undefined); }} aria-label={label} className={className}>
+    <select value={value ?? ""} onChange={(ev) => {
+      const e = engines.find((x) => x.id === ev.target.value);
+      if (e) { onChange(e.id, swap(e)); return; }
+      const inherited = engines.find((x) => x.id === inheritEngine);
+      onChange(null, isPreset && inherited && !inherited.presets.some((p) => p.id === voice) ? null : undefined);
+    }} aria-label={label} className={className}>
       <option value="">{inherit}</option>
       {choices.map((e) => {
         const instead = e.id === value ? undefined : swap(e);

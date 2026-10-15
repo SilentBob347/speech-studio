@@ -80,10 +80,16 @@ pub fn denoise(model: &Path, input: &[f32], limit_db: Option<f32>, progress: &dy
     let inv = planner.plan_fft_inverse(win);
     let mut buf = fwd.make_input_vec();
     let mut spec = fwd.make_output_vec();
-    let mut noisy: Vec<Vec<Complex32>> = Vec::with_capacity(frames);
-    let mut clean: Vec<Vec<Complex32>> = Vec::with_capacity(frames);
+    // the attenuation limit blends in the noisy frame NOISY_FRAME_OFFSET frames back: only those are kept
+    let mut recent: std::collections::VecDeque<Vec<Complex32>> = std::collections::VecDeque::with_capacity(NOISY_FRAME_OFFSET + 1);
+    let alpha = limit_db.map(|db| 10f32.powf(-db / 20.0));
+    let total = padded.len();
+    let mut out = vec![0f32; total];
+    let mut norm = vec![0f32; total];
+    let mut time = inv.make_output_vec();
     let mut state = m.init_state.clone();
     let mut frame_ri = vec![0f32; bins * 2];
+    let mut cleaned = inv.make_input_vec();
     for t in 0..frames {
         for (k, b) in buf.iter_mut().enumerate() {
             *b = padded[t * hop + k] * window[k];
@@ -93,43 +99,41 @@ pub fn denoise(model: &Path, input: &[f32], limit_db: Option<f32>, progress: &dy
             frame_ri[2 * k] = c.re;
             frame_ri[2 * k + 1] = c.im;
         }
-        noisy.push(spec.clone());
-        let out = m
+        recent.push_back(spec.clone());
+        if recent.len() > NOISY_FRAME_OFFSET + 1 {
+            recent.pop_front();
+        }
+        let out_m = m
             .session
             .run(ort::inputs![
                 "spec" => TensorRef::from_array_view((vec![1i64, 1, bins as i64, 2], frame_ri.as_slice())).map_err(|e| e.to_string())?,
                 "state_in" => TensorRef::from_array_view((vec![state.len() as i64], state.as_slice())).map_err(|e| e.to_string())?,
             ])
             .map_err(|e| format!("dpdfnet: {e}"))?;
-        let (_, e) = out["spec_e"].try_extract_tensor::<f32>().map_err(|e| format!("dpdfnet: {e}"))?;
-        clean.push((0..bins).map(|k| Complex32::new(e[2 * k], e[2 * k + 1])).collect());
-        let (_, s) = out["state_out"].try_extract_tensor::<f32>().map_err(|e| format!("dpdfnet: {e}"))?;
+        let (_, e) = out_m["spec_e"].try_extract_tensor::<f32>().map_err(|e| format!("dpdfnet: {e}"))?;
+        for (k, c) in cleaned.iter_mut().enumerate() {
+            *c = Complex32::new(e[2 * k], e[2 * k + 1]);
+        }
+        let (_, s) = out_m["state_out"].try_extract_tensor::<f32>().map_err(|e| format!("dpdfnet: {e}"))?;
         let len = state.len();
         state.copy_from_slice(&s[..len]);
-        if t % 500 == 0 {
-            progress(t as f32 / frames as f32);
-        }
-    }
-    if let Some(db) = limit_db {
-        let alpha = 10f32.powf(-db / 20.0);
-        for t in 0..frames {
-            for k in 0..bins {
-                let reference = if t >= NOISY_FRAME_OFFSET { noisy[t - NOISY_FRAME_OFFSET][k] } else { Complex32::new(0.0, 0.0) };
-                clean[t][k] = reference * alpha + clean[t][k] * (1.0 - alpha);
+        drop(out_m);
+        if let Some(alpha) = alpha {
+            let reference = (recent.len() == NOISY_FRAME_OFFSET + 1).then(|| &recent[0]);
+            for (k, c) in cleaned.iter_mut().enumerate() {
+                let r = reference.map_or(Complex32::new(0.0, 0.0), |r| r[k]);
+                *c = r * alpha + *c * (1.0 - alpha);
             }
         }
-    }
-    let total = padded.len();
-    let mut out = vec![0f32; total];
-    let mut norm = vec![0f32; total];
-    let mut time = inv.make_output_vec();
-    for (t, frame) in clean.iter_mut().enumerate() {
-        frame[0].im = 0.0;
-        frame[bins - 1].im = 0.0;
-        inv.process(frame, &mut time).map_err(|e| format!("istft: {e}"))?;
+        cleaned[0].im = 0.0;
+        cleaned[bins - 1].im = 0.0;
+        inv.process(&mut cleaned, &mut time).map_err(|e| format!("istft: {e}"))?;
         for k in 0..win {
             out[t * hop + k] += time[k] / win as f32 * window[k];
             norm[t * hop + k] += window[k] * window[k];
+        }
+        if t % 500 == 0 {
+            progress(t as f32 / frames as f32);
         }
     }
     let wave: Vec<f32> = (pad..total - pad).map(|i| if norm[i] > f32::MIN_POSITIVE { out[i] / norm[i] } else { out[i] }).collect();

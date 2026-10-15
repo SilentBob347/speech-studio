@@ -240,6 +240,9 @@ fn recognise_by_pauses(p: &ListenPaths, choice: &crate::models::AsrChoice, wav: 
     let probs = crate::vad::probabilities(&model, &samples)?;
     let spans = crate::vad::speech(&probs, samples.len(), vad);
     let windows = crate::vad::windows(&spans, &probs, crate::vad::MAX_WINDOW_SECS);
+    if windows.is_empty() {
+        return Err(t!("listen-no-speech", threshold = format!("{:.2}", vad.threshold)));
+    }
     let mut asr = crate::models::build_engine(choice, prompt);
     let mut all = Vec::new();
     for (k, &(a, b)) in windows.iter().enumerate() {
@@ -266,7 +269,11 @@ fn recognise(p: &ListenPaths, engine: &Engine, wav: &Path, work: &Path, s: &lp::
     let lines = match engine {
         Engine::Local(choice, _) => {
             std::env::set_var("DUB_ASR_BACKEND", crate::models::stage_backend(&p.models_root, "asr_backend"));
-            let segments = recognise_by_pauses(p, choice, wav, work, lang, &s.vad, prompt, progress)?;
+            // Whisper windows a long recording itself; Parakeet gets it in pieces cut at pauses
+            let segments = match choice {
+                crate::models::AsrChoice::Whisper { .. } => crate::models::build_engine(choice, prompt).transcribe(wav, lang).map_err(|e| e.localize())?,
+                crate::models::AsrChoice::Parakeet(_) => recognise_by_pauses(p, choice, wav, work, lang, &s.vad, prompt, progress)?,
+            };
             dub_asr::split_at_speaker_turns(segments, turns)
                 .into_iter()
                 .map(|(s, spk)| {
@@ -328,7 +335,7 @@ pub fn transcribe(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Resul
     let diar = s.speakers != 1;
     crate::ensure_job_components(&p.repo_root, &p.models_root, s.speakers > 1, diar, &|ev| progress(ev))?;
     let mut extra = Vec::new();
-    if matches!(engine, Engine::Local(..)) {
+    if matches!(engine, Engine::Local(crate::models::AsrChoice::Parakeet(_), _)) {
         extra.push("silero-vad");
     }
     if s.denoise {

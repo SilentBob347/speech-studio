@@ -1361,7 +1361,7 @@
     "denoise": "识别前先降噪",
     "denoiseHint": "DPDFNet：街道噪声、嗡嗡声、嘶嘶声。强度表示噪声最多比原声低多少；18 dB 能保持语音自然。",
     "vad": "按停顿切分",
-    "vadHint": "Silero VAD 找出语音，本地识别引擎按停顿把录音切成最长 90 秒的片段，不会切在词中间。片段之间的静音不参与识别。",
+    "vadHint": "Silero VAD 找出语音，Parakeet 按停顿把录音切成最长 90 秒的片段，不会切在词中间。片段之间的静音不参与识别。Whisper 会自行切分录音。",
     "vad_threshold": "语音阈值",
     "vad_hysteresis": "迟滞",
     "vad_min_speech_ms": "最短语音（毫秒）",

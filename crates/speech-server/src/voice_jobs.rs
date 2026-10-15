@@ -89,6 +89,7 @@ pub fn design(p: &VoicePaths, description: &str, sample: &str, lang: &str, count
     crate::ensure_components(&p.repo_root, &["qwen3-tts-engine", model], &|ev| progress(ev))?;
     crate::tts_host::make_room();
     let engine = crate::tts_host::qwen_design(&p.models_root)?;
+    drop_old_designs(&p.voices_dir);
     let id = uuid::Uuid::new_v4().simple().to_string()[..12].to_string();
     let dir = design_dir(&p.voices_dir, &id);
     std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
@@ -115,6 +116,17 @@ pub fn design(p: &VoicePaths, description: &str, sample: &str, lang: &str, count
         out.push(json!({ "k": k, "seconds": s.samples.len() as f64 / s.sr.max(1) as f64, "seed": s.seed }));
     }
     Ok(json!({ "id": id, "candidates": out }))
+}
+
+/// Кандидаты прошлых дизайнов старше суток: их уже не сохраняют, а место они занимают в папке голосов.
+fn drop_old_designs(voices: &Path) {
+    let Ok(rd) = std::fs::read_dir(voices.join(".design")) else { return };
+    for e in rd.flatten() {
+        let old = e.metadata().and_then(|m| m.modified()).ok().and_then(|t| t.elapsed().ok()).is_some_and(|age| age.as_secs() > 24 * 3600);
+        if old {
+            let _ = std::fs::remove_dir_all(e.path());
+        }
+    }
 }
 
 /// Кандидат дизайна — голос библиотеки: звук с громкостью рефа, текст образца — его транскрипт, описание — источник.

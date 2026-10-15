@@ -1013,6 +1013,7 @@ listen-step-diarize = Encontrando os falantes
 listen-step-asr = Reconhecendo a fala
 listen-step-asr-piece = Reconhecendo a fala: trecho { $n } de { $total }
 listen-step-denoise = Removendo o ruído
+listen-no-speech = Nenhuma fala encontrada na gravação: se houver fala baixa, reduza o limiar de fala (agora { $threshold }) em Reconhecimento → Corte nas pausas.
 listen-step-filter = Verificando alucinações do reconhecedor
 listen-step-done = Pronto: { $lines } linhas
 listen-nothing-marked = nenhuma palavra está marcada para remoção

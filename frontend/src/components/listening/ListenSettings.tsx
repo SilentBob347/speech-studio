@@ -13,7 +13,7 @@ const ENGINES: ListenEngine[] = ["", "parakeet", "whisper", "openrouter", "fal"]
 const SPEAKERS = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 
 /** How the recording is recognised: engine, language, speakers, noise removal, voice separation, hallucination filter, a
- * hint for Whisper (the only engine that takes one), how a local recogniser's pieces are cut at pauses, corrections. */
+ * hint for Whisper (the only engine that takes one), how Parakeet's pieces are cut at pauses, corrections. */
 export default function ListenSettings({ project, onChange, onClose }: { project: ListenProject; onChange: (p: ListenProject) => void; onClose: () => void }) {
   const { t } = useTranslation();
   useEscapeLayer(onClose);
@@ -25,7 +25,7 @@ export default function ListenSettings({ project, onChange, onClose }: { project
   }, []);
   const effective = s.engine || studioAsr;
   const whisper = effective === "whisper";
-  const local = effective === "parakeet" || effective === "whisper";
+  const local = effective === "parakeet";
   const vad = { ...VAD_DEFAULTS, ...s.vad };
   const setVad = (patch: Partial<VadConfig>) => set({ vad: { ...vad, ...patch } });
   const vadFields: { key: keyof VadConfig; step: number; min: number; max: number }[] = [

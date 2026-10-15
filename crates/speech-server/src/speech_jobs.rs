@@ -252,7 +252,7 @@ fn google_batch(p: &SpeechPaths, pid: &str, ids: &[String], force: bool, progres
     let entries = dictionary(p, &project);
     let mut keys = keys(p, &project);
     let mut phrases = Vec::new();
-    for b in project.blocks().filter(|b| ids.contains(&b.id)) {
+    for b in project.blocks().filter(|b| ids.contains(&b.id) && project.engine_of(b) == "google") {
         let state = sp::status(b, &keys.remove(&b.id).unwrap_or_default());
         if state == "skipped" || (!force && state == "ready") {
             continue;
@@ -984,11 +984,12 @@ fn cut_tail(mix: &mut [f32], prev_at: usize, prev: &[f32], cut: usize) {
 }
 
 /// Шкала проекта для окна: каждый блок, что войдёт в экспорт, с началом и концом в секундах (по дублю или, пока его
-/// нет, по оценке длины текста) и перекрытием с предыдущим; перебивание, что обрывает предыдущую реплику, укорачивает её.
+/// нет, по оценке длины текста) и перекрытием с тем из прежних, что звучит дольше всех; перебивание, что обрывает
+/// предыдущую реплику, укорачивает её.
 pub fn timeline(project: &SpeechProject) -> Vec<Value> {
     const RATE: u32 = 1000;
     let mut placer = Placer::new(project, RATE);
-    let mut prev: Option<(&str, f64)> = None;
+    let mut furthest: Option<(&str, f64)> = None;
     let mut rows: Vec<Value> = Vec::new();
     for b in project.blocks().filter(|b| !b.hidden && !b.text.trim().is_empty()) {
         let take = b.active.and_then(|n| b.takes.iter().find(|t| t.n == n));
@@ -996,12 +997,14 @@ pub fn timeline(project: &SpeechProject) -> Vec<Value> {
         let secs = take.map(|t| t.duration).unwrap_or_else(|| dub_core::fit::estimate(&crate::speech_text::visible(&b.text), dub_core::fit::table_cps(lang)));
         let start = placer.place(b, take.map(|t| t.fit_lead).unwrap_or(0.0), (secs * RATE as f64) as usize) as f64 / RATE as f64;
         let end = start + secs;
-        let overlap = prev.filter(|(_, prev_end)| *prev_end > start + 1e-3).map(|(id, prev_end)| json!({ "with": id, "secs": round3(prev_end - start) }));
+        let overlap = furthest.filter(|(_, prev_end)| *prev_end > start + 1e-3).map(|(id, prev_end)| json!({ "with": id, "secs": round3(prev_end - start) }));
         if let (true, Some(last)) = (b.cut_previous && overlap.is_some(), rows.last_mut()) {
             last["end"] = json!(round3(start));
         }
         rows.push(json!({ "block": b.id, "speaker": b.speaker, "start": round3(start), "end": round3(end), "voiced": take.is_some(), "overlap": overlap, "cut_previous": b.cut_previous }));
-        prev = Some((b.id.as_str(), end));
+        if b.cut_previous || furthest.is_none_or(|(_, e)| end >= e) {
+            furthest = Some((b.id.as_str(), end));
+        }
     }
     rows
 }

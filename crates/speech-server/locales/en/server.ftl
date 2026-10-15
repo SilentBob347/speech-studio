@@ -1019,6 +1019,7 @@ listen-step-diarize = Finding the speakers
 listen-step-asr = Recognising speech
 listen-step-asr-piece = Recognising speech: piece { $n } of { $total }
 listen-step-denoise = Removing noise
+listen-no-speech = No speech found in the recording: if there is quiet speech, lower the speech threshold (now { $threshold }) in Recognition → Cutting at pauses.
 listen-step-filter = Checking for recogniser hallucinations
 listen-step-done = Done: { $lines } lines
 listen-nothing-marked = no words are marked for removal

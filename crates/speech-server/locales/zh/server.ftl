@@ -815,6 +815,7 @@ listen-step-diarize = 正在识别说话人
 listen-step-asr = 正在识别语音
 listen-step-asr-piece = 正在识别语音：第 { $n } 段，共 { $total } 段
 listen-step-denoise = 正在降噪
+listen-no-speech = 录音中未找到语音：如果有较轻的语音，请在“识别 → 按停顿切分”中降低语音阈值（当前 { $threshold }）。
 listen-step-filter = 正在检查识别器幻觉
 listen-step-done = 完成：{ $lines } 行
 listen-nothing-marked = 没有标记要删除的词

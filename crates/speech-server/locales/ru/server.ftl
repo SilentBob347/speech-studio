@@ -1039,6 +1039,7 @@ listen-step-diarize = Ищу спикеров
 listen-step-asr = Распознаю речь
 listen-step-asr-piece = Распознаю речь: кусок { $n } из { $total }
 listen-step-denoise = Убираю шум
+listen-no-speech = Речь в записи не найдена: если она там есть, но тихая, понизьте порог речи (сейчас { $threshold }) в «Распознавание → Нарезка по паузам».
 listen-step-filter = Проверяю галлюцинации распознавателя
 listen-step-done = Готово: строк { $lines }
 listen-nothing-marked = нет слов, отмеченных к удалению
