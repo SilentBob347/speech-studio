@@ -683,12 +683,29 @@ fn voice_embedding(embedder: &mut dub_faces::VoiceEmbedder, audio: &Path) -> Res
 
 /// Проверить новые дубли блоков: текст — распознаванием (WER), голос — похожестью на реф; лучший по
 /// «прошёл всё → WER → похожесть» становится активным; блоки, где не прошёл ни один, — в ответе.
+/// Дубль, где вместо речи музыка или шум: его звук в 16 кГц через Silero VAD.
+fn non_speech(p: &SpeechPaths, file: &Path) -> Result<bool, String> {
+    let model = crate::vad::model_path(&p.models_root);
+    if !model.is_file() {
+        return Err(t!("vad-missing"));
+    }
+    let tmp = tempfile::Builder::new().prefix("vad-").tempdir().map_err(|e| e.to_string())?;
+    let wav = tmp.path().join("take16.wav");
+    crate::media::to_16k_mono(file, &wav)?;
+    let (samples, _) = crate::wavio::read_mono_f32(&wav)?;
+    let probs = crate::vad::probabilities(&model, &samples)?;
+    Ok(crate::qc::non_speech(&samples, &probs, crate::vad::FRAME))
+}
+
 fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, progress: &dyn Fn(Value)) -> Result<Vec<String>, String> {
     tts_host::make_room();
     let settings = sp::load(&p.workspace, pid)?.settings;
     let asr_on = settings.qc.asr_check || settings.qc.takes > 1;
     let sim_on = settings.qc.similarity;
     crate::ensure_job_components(&p.repo_root, &p.models_root, sim_on, false, &|ev| progress(ev))?;
+    if asr_on {
+        crate::ensure_components(&p.repo_root, &["silero-vad"], &|ev| progress(ev))?;
+    }
     let mut embedder = if sim_on {
         Some(dub_faces::VoiceEmbedder::load(&dub_faces::wespeaker_path(&p.models_root)).map_err(|e| e.to_string())?)
     } else {
@@ -731,6 +748,9 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, pr
                 c.issues = crate::qc::timing_issues(&heard.words, take.duration, pause);
                 if crate::qc::repeated(&crate::qc::normalize(&expected), &crate::qc::normalize(&heard_said)) {
                     c.issues.push("repeat".to_string());
+                }
+                if non_speech(p, &file)? {
+                    c.issues.push("noise".to_string());
                 }
                 c.timed = heard.words.iter().map(|w| (w.word.clone(), (w.start * 1000.0).round() / 1000.0, (w.end * 1000.0).round() / 1000.0)).collect();
                 c

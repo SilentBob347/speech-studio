@@ -1060,6 +1060,7 @@
     "qcIssue_tail": "du son après le dernier mot",
     "qcIssue_stretched": "un mot étiré",
     "qcIssue_repeat": "phrase répétée",
+    "qcIssue_noise": "musique ou bruit au lieu de la parole",
     "qcIssue_gap": "une coupure au milieu",
     "castCharacters": "Personnages",
     "castCharactersHint": "Le modèle réalisateur répartit le texte entre narrateur et personnages, mot pour mot ; chapitre après chapitre",

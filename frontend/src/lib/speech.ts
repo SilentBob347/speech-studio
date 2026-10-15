@@ -6,7 +6,7 @@ export type Take = {
   qc: QcCheck | null; cost: number | null; estimate: number | null; text: string; direction: string; fit_stretch: number; fit_lead: number; fit_over: boolean; first_ms?: number;
 };
 export type QcCheck = { text_checked: boolean; wer: number; words: number; inserted: number; deleted: number; substituted: number; heard: string; passed: boolean; similarity: number | null; similar: boolean | null; issues: QcIssue[] };
-export type QcIssue = "tail" | "stretched" | "gap" | "repeat";
+export type QcIssue = "tail" | "stretched" | "gap" | "repeat" | "noise";
 export type QcSettings = { asr_check: boolean; strictness: "strict" | "normal" | "lenient"; takes: number; similarity: boolean };
 export type Block = {
   id: string; speaker: string; voice: string | null; text: string; direction: string; pause_ms: number | null; cut_previous?: boolean; engine?: string | null;

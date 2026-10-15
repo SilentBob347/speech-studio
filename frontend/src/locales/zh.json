@@ -1060,6 +1060,7 @@
     "qcIssue_tail": "最后一个词之后还有声音",
     "qcIssue_stretched": "拖长的词",
     "qcIssue_repeat": "重复短语",
+    "qcIssue_noise": "是音乐或噪声而不是语音",
     "qcIssue_gap": "中间有断裂",
     "castCharacters": "角色",
     "castCharactersHint": "导演模型逐字将文本分为旁白和角色；逐章进行",

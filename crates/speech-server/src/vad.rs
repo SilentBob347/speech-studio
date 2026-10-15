@@ -9,7 +9,7 @@ use ort::value::TensorRef;
 use serde::{Deserialize, Serialize};
 
 pub const SR: usize = 16_000;
-const FRAME: usize = 512;
+pub const FRAME: usize = 512;
 const CONTEXT: usize = 64;
 /// Кусок для распознавателя не длиннее стольких секунд (окна Dub `WindowConfig::chunk_size`).
 pub const MAX_WINDOW_SECS: f64 = 90.0;

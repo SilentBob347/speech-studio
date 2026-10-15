@@ -141,6 +141,19 @@ pub fn timing_issues(words: &[crate::ref_pick::Word], duration: f64, pause_secs:
 const MAX_THRESHOLD: f64 = 0.6;
 
 /// Порог WER по строгости (`strict`, `normal`, `lenient`): в коротком блоке допускается слово-другое.
+/// Музыка или шум вместо речи (open-tts-eval): в громкой части клипа (кадры VAD не тише −30 дБ от пика) речь по
+/// Silero VAD — меньше половины. Меньше трети секунды громкого звука — судить не по чему.
+pub fn non_speech(samples: &[f32], probs: &[f32], frame: usize) -> bool {
+    let rms: Vec<f32> = samples.chunks(frame).map(|c| (c.iter().map(|v| v * v).sum::<f32>() / c.len().max(1) as f32).sqrt()).collect();
+    let peak = rms.iter().cloned().fold(0.0f32, f32::max);
+    let loud: Vec<usize> = (0..rms.len().min(probs.len())).filter(|&i| rms[i] >= peak * 0.0316).collect();
+    if loud.len() < 10 {
+        return false;
+    }
+    let speech = loud.iter().filter(|&&i| probs[i] >= 0.5).count();
+    (speech as f64) < loud.len() as f64 * 0.5
+}
+
 pub fn threshold(words: usize, strictness: &str) -> f64 {
     let (base, slack): (f64, f64) = match strictness {
         "strict" => (0.10, 1.0),
@@ -184,6 +197,10 @@ mod tests {
     fn the_same_words_pass_whatever_the_case_punctuation_and_yo() {
         let c = check("Ёлка, ЗЕЛЁНАЯ! <|emotion:awe|> [pause 300ms] стоит.", "елка зеленая стоит", "normal");
         assert_eq!((c.wer, c.passed), (0.0, true));
+        let loud = vec![0.3f32; 512 * 20];
+        assert!(non_speech(&loud, &[0.1; 20], 512), "loud and not speech");
+        assert!(!non_speech(&loud, &[0.9; 20], 512));
+        assert!(!non_speech(&loud[..512 * 5], &[0.1; 5], 512), "too short to judge");
     }
 
     #[test]

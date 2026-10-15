@@ -1060,6 +1060,7 @@
     "qcIssue_tail": "som depois da última palavra",
     "qcIssue_stretched": "uma palavra arrastada",
     "qcIssue_repeat": "frase repetida",
+    "qcIssue_noise": "música ou ruído em vez de fala",
     "qcIssue_gap": "um corte no meio",
     "castCharacters": "Personagens",
     "castCharactersHint": "O modelo diretor divide o texto entre narrador e personagens, palavra por palavra; capítulo por capítulo",

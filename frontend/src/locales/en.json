@@ -1060,6 +1060,7 @@
     "qcIssue_tail": "sound after the last word",
     "qcIssue_stretched": "a stretched word",
     "qcIssue_repeat": "repeated phrase",
+    "qcIssue_noise": "music or noise instead of speech",
     "qcIssue_gap": "a gap inside",
     "castCharacters": "Characters",
     "castCharactersHint": "The director model splits the text into the narrator and characters, word for word; each chapter in turn",
