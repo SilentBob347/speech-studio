@@ -701,7 +701,8 @@ pub fn prepare_ref(voices: &Path, name: &str, limit: f64) -> Result<(PathBuf, Op
     let stamp = meta.modified().ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map(|d| d.as_secs()).unwrap_or(0);
     let cache = voices.join(".work").join("refs");
     std::fs::create_dir_all(&cache).map_err(|e| format!("{}: {e}", cache.display()))?;
-    let tag = blake3::hash(format!("{name}|{}|{stamp}|{limit:.1}", meta.len()).as_bytes()).to_hex()[..16].to_string();
+    let words = crate::voice_library::read_words(voices, name);
+    let tag = blake3::hash(format!("{name}|{}|{stamp}|{limit:.1}|{}", meta.len(), words.is_some()).as_bytes()).to_hex()[..16].to_string();
     let wav = cache.join(format!("{tag}.wav"));
     let txt = cache.join(format!("{tag}.txt"));
     if wav.is_file() {
@@ -710,7 +711,7 @@ pub fn prepare_ref(voices: &Path, name: &str, limit: f64) -> Result<(PathBuf, Op
     let duration = crate::media::duration(&audio)?;
     let (start, end, text) = if duration <= limit + 0.5 {
         (0.0, duration, lib.transcript.clone())
-    } else if let Some(words) = crate::voice_library::read_words(voices, name) {
+    } else if let Some(words) = words {
         let tmp = cache.join(format!("{tag}-16k.wav"));
         crate::media::to_16k_mono(&audio, &tmp)?;
         let (samples, sr) = crate::wavio::read_mono_f32(&tmp)?;

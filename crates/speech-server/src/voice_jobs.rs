@@ -40,6 +40,27 @@ pub fn transcribe(p: &VoicePaths, name: &str, progress: &dyn Fn(Value)) -> Resul
     Ok(json!({ "name": name, "transcript": text }))
 }
 
+/// Тайминги слов рефа длиннее `limit`, если их нет: по ним из длинного рефа берётся кусок с его текстом, без них —
+/// первые `limit` секунд без текста, а Drama 3 без текста не клонирует. Расшифровку голоса не трогает.
+pub fn ensure_words(p: &VoicePaths, name: &str, limit: f64) -> Result<(), String> {
+    if lib::read_words(&p.voices_dir, name).is_some() {
+        return Ok(());
+    }
+    let audio = lib::audio_path(&p.voices_dir, name).ok_or_else(|| t!("voice-missing", name = name.to_string()))?;
+    if crate::media::duration(&audio)? <= limit + 0.5 {
+        return Ok(());
+    }
+    let card = lib::read_card(&p.voices_dir, name)?;
+    // распознавание рядом с целой моделью озвучки не входит и в 24 ГБ
+    crate::tts_host::unload();
+    crate::ensure_job_components(&p.repo_root, &p.models_root, false, false, &|_| {})?;
+    let heard = crate::asr_util::transcribe(&p.repo_root, &p.models_root, &audio, &card.lang, name)?;
+    if heard.words.is_empty() {
+        return Err(t!("voice-no-speech", name = name.to_string()));
+    }
+    lib::write_words(&p.voices_dir, name, &heard.words)
+}
+
 /// Голос без музыки и шума: Roformer отделяет вокал, он заменяет звук голоса, исходник остаётся в `.originals`.
 pub fn clean(p: &VoicePaths, name: &str, progress: &dyn Fn(Value)) -> Result<Value, String> {
     let audio = lib::audio_path(&p.voices_dir, name).ok_or_else(|| t!("voice-missing", name = name.to_string()))?;

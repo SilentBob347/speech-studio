@@ -301,6 +301,14 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
         (false, Some(_)) if clones_too => None,
         (false, Some(v)) => return Err(t!("speech-voice-not-preset", voice = v.to_string(), engine = manifest.as_ref().map_or("", |m| m.name).to_string())),
     };
+    let limit = if own == crate::qwen_tts::ENGINE_STRESS { ref_limit(&p.models_root).min(crate::qwen_tts::STRESS_REF_SECS) } else { ref_limit(&p.models_root) };
+    let clones = preset.is_none();
+    let continues = manifest.as_ref().is_some_and(|m| m.continuation);
+    let continued = sp::continuation_source(project, b).filter(|(_, t)| clones && continues && t.duration > 0.5 && t.duration <= limit + 0.5);
+    if let (None, Some(v)) = (&continued, voice.as_deref().filter(|_| clones)) {
+        let vp = crate::voice_jobs::VoicePaths { repo_root: p.repo_root.clone(), models_root: p.models_root.clone(), voices_dir: p.voices_dir.clone() };
+        crate::voice_jobs::ensure_words(&vp, v, limit)?;
+    }
     let engine = if drama {
         tts_host::drama(&p.models_root)?
     } else if own == crate::supertonic::ENGINE {
@@ -310,10 +318,6 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
     } else {
         tts_host::engine(&higgs_config(p))?
     };
-    let limit = if own == crate::qwen_tts::ENGINE_STRESS { ref_limit(&p.models_root).min(crate::qwen_tts::STRESS_REF_SECS) } else { ref_limit(&p.models_root) };
-    let clones = preset.is_none();
-    let continues = manifest.as_ref().is_some_and(|m| m.continuation);
-    let continued = sp::continuation_source(project, b).filter(|(_, t)| clones && continues && t.duration > 0.5 && t.duration <= limit + 0.5);
     let reference = match (continued, voice.as_deref().filter(|_| clones)) {
         (Some((src, take)), _) => Some(continuation_ref(&takes_dir(p, pid), take, &src.text)?),
         (None, Some(v)) => Some(tts_host::prepare_ref(&p.voices_dir, v, limit)?),
