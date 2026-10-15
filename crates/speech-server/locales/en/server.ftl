@@ -1121,3 +1121,6 @@ project-missing = project { $pid } is gone: it was deleted or not created yet
 media-bad-rate = { $rate } Hz does not suit { $format }
 media-bad-bits = { $bits }-bit does not suit { $format } (WAV: 16, 24, 32; FLAC: 16, 24)
 media-bad-kbps = { $kbps } kbps does not suit { $format } (MP3, OGG, M4A: 64 to 320)
+speech-own-ref-missing = the own reference file { $file } is not in the project's refs folder - upload the reference again
+speech-own-ref-no-file = no reference file came
+speech-no-block = the project has no block { $id }

@@ -917,3 +917,6 @@ project-missing = 项目 { $pid } 已不存在：已被删除或尚未创建
 media-bad-rate = { $format } 不支持 { $rate } Hz
 media-bad-bits = { $format } 不支持 { $bits } 位（WAV：16、24、32；FLAC：16、24）
 media-bad-kbps = { $format } 不支持 { $kbps } kbps（MP3、OGG、M4A：64 到 320）
+speech-own-ref-missing = 项目 refs 文件夹中缺少自定义参考 { $file }：请重新上传
+speech-own-ref-no-file = 没有收到参考文件
+speech-no-block = 项目中没有段落 { $id }

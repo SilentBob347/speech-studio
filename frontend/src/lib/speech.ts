@@ -12,7 +12,10 @@ export type Block = {
   id: string; speaker: string; voice: string | null; text: string; direction: string; pause_ms: number | null; cut_previous?: boolean; engine?: string | null;
   hidden: boolean; takes: Take[]; active: number | null; pinned: number | null; error: { key: string; text: string } | null;
   note: string; marker: Marker | ""; start: number | null; end: number | null;
+  /** The block's own reference clip in the project's refs instead of a voice; whole continues the clip's speech. */
+  own_ref?: OwnRef | null;
 };
+export type OwnRef = { file: string; text: string; whole: boolean };
 export type Marker = "red" | "amber" | "green" | "blue" | "violet";
 export const MARKERS: Record<Marker, string> = { red: "#ff6b6b", amber: "#ffc46b", green: "#7ee0c3", blue: "#4cc2ff", violet: "#b8a4ff" };
 export type Chapter = { id: string; title: string; blocks: Block[] };
@@ -116,6 +119,12 @@ export const speechApi = {
     if (name) form.append("name", name);
     form.append("file", file, file.name);
     return fetch(`${BASE}/projects/from-subtitles`, { method: "POST", body: form }).then(coded<{ project_id: string; project: SpeechProject }>);
+  },
+  setOwnRef: (pid: string, block: string, file: File, whole: boolean) => {
+    const form = new FormData();
+    form.append("file", file, file.name);
+    if (whole) form.append("whole", "1");
+    return fetch(`${BASE}/projects/${pid}/blocks/${block}/ref`, { method: "POST", body: form }).then(coded<SpeechProject>);
   },
   bookPreview: (file: File) => {
     const form = new FormData();

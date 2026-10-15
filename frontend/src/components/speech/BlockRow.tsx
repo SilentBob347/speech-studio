@@ -39,6 +39,8 @@ export type BlockActions = {
   panel: (open: boolean) => void;
   /** The user is in this block: an open side panel moves to it. */
   focus: () => void;
+  /** Uploads a clip as this block's own reference; its text is recognised. */
+  ownRef: (file: File, whole: boolean) => Promise<void>;
 };
 
 function AutoText({ value, onCommit, label, inputRef, stale }: { value: string; onCommit: (v: string) => void; label: string; inputRef: React.RefObject<HTMLTextAreaElement | null>; stale: boolean }) {
@@ -179,6 +181,7 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
         {caps && block.direction.trim() && !caps.direction && <span className="mt-0.5 block text-[var(--color-warn)]">{t("speech.directionIgnored", { engine: caps.name })}</span>}
         {caps && block.direction.trim() && caps.direction && caps.direction_presets_only && voice !== null && !caps.presets.some((p) => p.id === voice) && <span className="mt-0.5 block text-[var(--color-warn)]">{t("speech.directionPresetsOnly", { engine: caps.name })}</span>}
       </label>
+      <OwnRefField block={block} a={a} />
       <details open={howRead} onToggle={(e) => setHowRead(e.currentTarget.open)} className="rounded-md border border-[var(--color-border)] px-2 py-1.5">
         <summary className="cursor-pointer text-[11px] text-[var(--color-muted)]">{t("speech.howRead")}</summary>
         {howRead && <div className="mt-2"><PrepareView pid={pid} block={block.id} text={block.text} /></div>}
@@ -292,5 +295,52 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
       {open && !side && panel}
       {open && side && createPortal(panel, side)}
     </li>
+  );
+}
+
+/** The block's own reference instead of a voice: a clip with its text; "whole" continues the clip's speech. */
+function OwnRefField({ block, a }: { block: Block; a: BlockActions }) {
+  const { t } = useTranslation();
+  const input = useRef<HTMLInputElement>(null);
+  const [whole, setWhole] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const r = block.own_ref;
+  const upload = async (f: File) => {
+    setBusy(true);
+    setError(null);
+    try { await a.ownRef(f, whole); } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally { setBusy(false); }
+  };
+  const field = "mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]";
+  return (
+    <fieldset className="rounded-md border border-[var(--color-border)] px-2 py-1.5 space-y-1.5">
+      <legend className="px-1 text-[11px] text-[var(--color-muted)]">{t("speech.ownRef")}</legend>
+      {r ? (
+        <>
+          <div className="flex items-center gap-2 text-[12px]">
+            <span className="mono truncate flex-1" title={r.file}>{r.file}</span>
+            <button onClick={() => a.patch({ own_ref: null })} className="px-1.5 rounded border border-[var(--color-border)] text-[11px] hover:border-[var(--color-warn)] hover:text-[var(--color-warn)]">{t("speech.ownRefClear")}</button>
+          </div>
+          <label className="block text-[11px] text-[var(--color-muted)]">{t("speech.ownRefText")}
+            <textarea value={r.text} rows={2} onChange={(e) => a.patch({ own_ref: { ...r, text: e.target.value } })} className={`${field} resize-y`} />
+          </label>
+          <label className="flex items-center gap-1.5 text-[11px]">
+            <input type="checkbox" checked={r.whole} onChange={(e) => a.patch({ own_ref: { ...r, whole: e.target.checked } })} className="accent-[var(--color-accent)]" />{t("speech.ownRefWhole")}
+          </label>
+        </>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <button onClick={() => input.current?.click()} disabled={busy} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--color-border)] text-[11px] hover:border-[var(--color-accent)] disabled:opacity-40">
+            {busy ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}{t("speech.ownRefUpload")}
+          </button>
+          <label className="flex items-center gap-1.5 text-[11px]">
+            <input type="checkbox" checked={whole} onChange={(e) => setWhole(e.target.checked)} className="accent-[var(--color-accent)]" />{t("speech.ownRefWhole")}
+          </label>
+          <input ref={input} type="file" accept="audio/*,video/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void upload(f); }} />
+        </div>
+      )}
+      <p className="text-[10px] text-[var(--color-muted)]">{t("speech.ownRefHint")}</p>
+      {error && <p role="alert" className="text-[11px] text-[var(--color-warn)] break-words">{error}</p>}
+    </fieldset>
   );
 }

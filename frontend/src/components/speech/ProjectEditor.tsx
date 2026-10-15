@@ -56,7 +56,7 @@ function useWide(): boolean {
 
 export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: () => void }) {
   const { t } = useTranslation();
-  const { project, error, saving, edit, undo, redo, canUndo, canRedo, flush } = useSpeechProject(pid);
+  const { project, error, saving, edit, undo, redo, canUndo, canRedo, flush, reload } = useSpeechProject(pid);
   const [job, setJob] = useState<{ id: string; ids: string[] | null } | null>(null);
   const [jobError, setJobError] = useState<string | null>(null);
   const [playing, setPlaying] = useState<string | null>(null);
@@ -412,6 +412,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
     select: (range) => selectBlock(b.id, range),
     panel: (open) => setPanel(open ? b.id : null),
     focus: () => { if (wide && panel && panel !== b.id) setPanel(b.id); },
+    ownRef: async (file, whole) => { await flush(); await speechApi.setOwnRef(pid, b.id, file, whole).catch((e: unknown) => { throw new Error(errorText(e)); }); reload(); },
     setText: (text) => edit((p) => { const at = locate(p, b.id); if (at) p.chapters[at[0]].blocks[at[1]].text = text; return p; }),
     patch: (change) => edit((p) => { const at = locate(p, b.id); if (at) Object.assign(p.chapters[at[0]].blocks[at[1]], change); return p; }),
     split: (pos) => edit((p) => {

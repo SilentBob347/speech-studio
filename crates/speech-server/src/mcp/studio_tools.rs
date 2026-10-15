@@ -253,6 +253,21 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         // ---------------------------------------------------------------- Listening: sound in
         Tool {
+            name: "block_ref_set",
+            description: "Give one block of a Speech project its own reference instead of a library voice: a sound file on this computer and what is said in it (text; empty - the studio recognises it). whole true puts the whole clip into the engine's context, so the block continues that clip's speech (Higgs); otherwise the clip is cut to the reference limit like a library voice. The block goes stale. Clear it with project_update, own_ref null.",
+            schema: || object(json!({ "pid": pid(), "block": { "type": "string", "description": "block id from project_get" }, "path": { "type": "string", "description": "a sound or video file on this computer" }, "text": { "type": "string" }, "whole": { "type": "boolean" } }), &["pid", "block", "path"]),
+            call: |args| {
+                let mut fields = Vec::new();
+                if let Some(t) = args.get("text").and_then(Value::as_str) {
+                    fields.push(("text".to_string(), t.to_string()));
+                }
+                if args.get("whole").and_then(Value::as_bool) == Some(true) {
+                    fields.push(("whole".to_string(), "1".to_string()));
+                }
+                upload(&project_path(args, &format!("/blocks/{}/ref", segment(&text(args, "block")?)))?, local_file(args, "path")?, "file", fields)
+            },
+        },
+        Tool {
             name: "listen_upload",
             description: "Make a Listening recording of a sound or video file by uploading a copy of it, as the window does with a dropped file (listen_create_from_file reads it where it lies). Answers the recording's id.",
             schema: || id_only("path", "a sound or video file on this computer"),

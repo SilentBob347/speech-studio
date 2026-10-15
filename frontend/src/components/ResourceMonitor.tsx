@@ -71,7 +71,7 @@ export default function ResourceMonitor() {
     const slot = dockSlot();
     if (!slot) return null;
     return createPortal(
-      <button onClick={fl.pop} title={t("monitor.popOut")}
+      <button onClick={fl.pop} title={t("monitor.popOut")} aria-label={t("monitor.popOut")}
         className="inline-flex shrink-0 whitespace-nowrap items-center gap-2 px-2.5 h-8 rounded-md bg-[var(--color-surface-2)] border border-[var(--color-border)] hover:border-[var(--color-accent)] transition-colors">
         <Dot pct={lead} />
         {hasGpu && <span className="mono text-[11px] tabular-nums">{Math.round(hw.gpuUtilization)}%</span>}

@@ -93,7 +93,7 @@ connected and the address to paste.
 - **Projects**: `projects_list`, `project_create` (paragraphs become blocks; "Anna: ..." lines become a dialogue),
   `project_get`, `project_update` (send the whole project back with your edits; changed blocks go stale),
   `project_synth` (new and stale blocks, or `ids`, `force`, `from`), `project_export_check` (what keeps the export back:
-  missing, stale, failed, a take file changed after voicing, a take longer than its cue), `project_export` (one file
+  missing, stale, failed, a take file changed after voicing, a take longer than its cue), `block_ref_set` (a block's own reference clip and its text instead of a voice; `whole` continues that clip's speech), `project_export` (one file
   with subtitles in SRT, VTT, ASS and LRC, M4B with chapters, `part_minutes` for long books, or `per_block`; `allow_duration` lets only the
   too-long takes through), `project_exports`, `project_timeline` (blocks on the export's time scale with overlaps; a
   block's `cut_previous` cuts the reply it interrupts, a previous block's `pause_ms` of 0 joins them), `project_delete`.

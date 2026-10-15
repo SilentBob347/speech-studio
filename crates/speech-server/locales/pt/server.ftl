@@ -1115,3 +1115,6 @@ project-missing = o projeto { $pid } não existe mais: foi excluído ou ainda n�
 media-bad-rate = { $rate } Hz não serve para { $format }
 media-bad-bits = { $bits } bits não serve para { $format } (WAV: 16, 24, 32; FLAC: 16, 24)
 media-bad-kbps = { $kbps } kbps não serve para { $format } (MP3, OGG, M4A: de 64 a 320)
+speech-own-ref-missing = falta o arquivo de referência próprio { $file } na pasta refs do projeto: envie-o de novo
+speech-own-ref-no-file = o arquivo de referência não chegou
+speech-no-block = o projeto não tem o bloco { $id }

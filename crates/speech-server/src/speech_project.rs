@@ -72,12 +72,24 @@ pub struct BlockError {
     pub text: String,
 }
 
+/// Свой реф реплики вместо голоса: звук в `refs/` проекта и что в нём сказано. `whole` — клип целиком в контекст
+/// движка (продолжение речи), иначе он режется до предела рефа, как голос библиотеки.
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+#[serde(default)]
+pub struct OwnRef {
+    pub file: String,
+    pub text: String,
+    pub whole: bool,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 #[serde(default)]
 pub struct Block {
     pub id: String,
     pub speaker: String,
     pub voice: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub own_ref: Option<OwnRef>,
     pub text: String,
     pub direction: String,
     pub pause_ms: Option<i64>,
@@ -524,7 +536,9 @@ pub fn synth_key(project: &SpeechProject, b: &Block, voice_tag: &str, engine: &s
     if project.settings.auto_stress && crate::stress::is_russian(&b.text, &project.settings.lang) {
         h.update(b"auto-stress\x1f");
     }
-    if let Some((src, take)) = continuation_source(project, b) {
+    if let Some(r) = &b.own_ref {
+        h.update(format!("own-ref:{}:{}:{}\x1f", r.file, r.text.trim(), r.whole).as_bytes());
+    } else if let Some((src, take)) = continuation_source(project, b) {
         h.update(format!("continue:{}:{}\x1f", src.id, take.file).as_bytes());
     }
     if !prep.is_empty() {

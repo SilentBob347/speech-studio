@@ -1141,3 +1141,6 @@ project-missing = проекта { $pid } больше нет: его удали
 media-bad-rate = частота { $rate } Гц не подходит для { $format }
 media-bad-bits = разрядность { $bits } бит не подходит для { $format } (WAV: 16, 24, 32; FLAC: 16, 24)
 media-bad-kbps = битрейт { $kbps } кбит/с не подходит для { $format } (MP3, OGG, M4A: от 64 до 320)
+speech-own-ref-missing = нет файла своего рефа { $file } в папке refs проекта — загрузите реф заново
+speech-own-ref-no-file = не пришёл файл рефа
+speech-no-block = в проекте нет блока { $id }

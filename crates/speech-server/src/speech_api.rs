@@ -334,6 +334,64 @@ pub async fn export_check(State(st): State<AppState>, AxPath(pid): AxPath<String
     }
 }
 
+/// POST /projects/{pid}/blocks/{bid}/ref (multipart: file, text?, whole?) — свой реф реплики: звук в `refs/` проекта
+/// (WAV 24 кГц моно), его текст (пустой — распознаётся) и «весь клип в контекст».
+pub async fn own_ref(State(st): State<AppState>, AxPath((pid, bid)): AxPath<(String, String)>, mut multipart: axum::extract::Multipart) -> Response {
+    if !sp::is_pid(&pid) || !sp::is_pid(&bid) {
+        return refuse(StatusCode::BAD_REQUEST, "bad_request", format!("{pid}/{bid}"));
+    }
+    let (mut bytes, mut name, mut text, mut whole) = (Vec::new(), String::new(), String::new(), false);
+    while let Ok(Some(field)) = multipart.next_field().await {
+        match field.name().unwrap_or("") {
+            "file" => {
+                name = field.file_name().unwrap_or("ref.wav").to_string();
+                match field.bytes().await {
+                    Ok(b) => bytes = b.to_vec(),
+                    Err(e) => return refuse(StatusCode::BAD_REQUEST, "bad_request", e.to_string()),
+                }
+            }
+            "text" => text = field.text().await.unwrap_or_default(),
+            "whole" => whole = matches!(field.text().await.unwrap_or_default().as_str(), "1" | "true"),
+            _ => {}
+        }
+    }
+    if bytes.is_empty() {
+        return refuse(StatusCode::BAD_REQUEST, "no_file", t!("speech-own-ref-no-file"));
+    }
+    let p = paths(&st);
+    let res = joined(tokio::task::spawn_blocking(crate::mcp::carry(move || -> Result<Value, String> {
+        let mut project = sp::load(&p.workspace, &pid)?;
+        if !project.blocks().any(|b| b.id == bid) {
+            return Err(t!("speech-no-block", id = bid.clone()));
+        }
+        let refs = p.workspace.join(&pid).join("refs");
+        std::fs::create_dir_all(&refs).map_err(|e| format!("{}: {e}", refs.display()))?;
+        let ext = Path::new(&name).extension().and_then(|e| e.to_str()).unwrap_or("wav").to_ascii_lowercase();
+        let raw = refs.join(format!(".upload-{bid}.{ext}"));
+        std::fs::write(&raw, &bytes).map_err(|e| format!("{}: {e}", raw.display()))?;
+        let file = format!("{bid}-{}.wav", &blake3::hash(&bytes).to_hex()[..8]);
+        let wav = refs.join(&file);
+        let made = crate::media::extract_audio(&raw, &wav, crate::speech_jobs::SR, 1);
+        let _ = std::fs::remove_file(&raw);
+        made?;
+        let text = if text.trim().is_empty() { crate::asr_util::transcribe(&p.repo_root, &p.models_root, &wav, &project.settings.lang, &name)?.text } else { text.trim().to_string() };
+        for c in project.chapters.iter_mut() {
+            for b in c.blocks.iter_mut().filter(|b| b.id == bid) {
+                b.own_ref = Some(sp::OwnRef { file: file.clone(), text: text.clone(), whole });
+            }
+        }
+        sp::save(&p.workspace, &pid, &project)?;
+        Ok(shown(&p, &project))
+    }))
+    .await);
+    match res {
+        Ok(Ok(v)) => Json(v).into_response(),
+        Ok(Err(e)) if e.starts_with(crate::mcp::PROJECT_CHANGED) => refuse(StatusCode::CONFLICT, crate::mcp::PROJECT_CHANGED, e),
+        Ok(Err(e)) => refuse(StatusCode::BAD_REQUEST, "bad_ref", e),
+        Err(r) => r,
+    }
+}
+
 /// POST /projects/{pid}/export {format, chapter?, per_block?, part_minutes?, allow_duration?, sample_rate?, bits?, kbps?} —
 /// файл экспорта задачей.
 pub async fn export(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<Value>) -> Response {

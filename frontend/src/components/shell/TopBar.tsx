@@ -104,7 +104,7 @@ function StatusBar() {
   return (
     <div className="relative flex-1 min-w-0 flex justify-center px-3">
       <span className="sr-only" role="status" aria-live="polite">{text}</span>
-      <button onClick={() => { setOpen((o) => !o); setSeen(Date.now()); }} title={t("status.log")} aria-expanded={open}
+      <button onClick={() => { setOpen((o) => !o); setSeen(Date.now()); }} title={t("status.log")} aria-label={`${t("status.log")}: ${text}`} aria-expanded={open}
         className="inline-flex items-center gap-2 max-w-full px-3 py-1 rounded-md text-[12px] text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)] transition-colors">
         {busy
           ? <Loader2 size={13} className="animate-spin text-[var(--color-accent)] shrink-0" />

@@ -309,8 +309,9 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
     let limit = if own == crate::qwen_tts::ENGINE_STRESS { ref_limit(&p.models_root).min(crate::qwen_tts::STRESS_REF_SECS) } else { ref_limit(&p.models_root) };
     let clones = preset.is_none();
     let continues = manifest.as_ref().is_some_and(|m| m.continuation);
-    let continued = sp::continuation_source(project, b).filter(|(_, t)| clones && continues && t.duration > 0.5 && t.duration <= limit + 0.5);
-    if let (None, Some(v)) = (&continued, voice.as_deref().filter(|_| clones)) {
+    let own_ref = b.own_ref.as_ref().filter(|r| clones && !r.file.is_empty());
+    let continued = sp::continuation_source(project, b).filter(|(_, t)| own_ref.is_none() && clones && continues && t.duration > 0.5 && t.duration <= limit + 0.5);
+    if let (None, None, Some(v)) = (own_ref, &continued, voice.as_deref().filter(|_| clones)) {
         let vp = crate::voice_jobs::VoicePaths { repo_root: p.repo_root.clone(), models_root: p.models_root.clone(), voices_dir: p.voices_dir.clone() };
         crate::voice_jobs::ensure_words(&vp, v, limit)?;
     }
@@ -323,10 +324,11 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
     } else {
         tts_host::engine(&higgs_config(p))?
     };
-    let reference = match (continued, voice.as_deref().filter(|_| clones)) {
-        (Some((src, take)), _) => Some(continuation_ref(&takes_dir(p, pid), take, &src.text)?),
-        (None, Some(v)) => Some(tts_host::prepare_ref(&p.voices_dir, v, limit)?),
-        (None, None) => None,
+    let reference = match (own_ref, continued, voice.as_deref().filter(|_| clones)) {
+        (Some(r), _, _) => Some(own_reference(&p.workspace.join(pid), r, limit)?),
+        (None, Some((src, take)), _) => Some(continuation_ref(&takes_dir(p, pid), take, &src.text)?),
+        (None, None, Some(v)) => Some(tts_host::prepare_ref(&p.voices_dir, v, limit)?),
+        (None, None, None) => None,
     };
     let lang = if project.settings.lang == "auto" { "" } else { project.settings.lang.as_str() };
     let mut ignored = stx::Ignored::default();
@@ -460,7 +462,7 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
         top_k: params.top_k,
         top_p: params.top_p,
         max_tokens: params.max_tokens,
-        voice: preset.clone().or_else(|| voice.clone()).unwrap_or_default(),
+        voice: b.own_ref.as_ref().filter(|r| clones && !r.file.is_empty()).map(|r| format!("ref:{}", r.file)).or_else(|| preset.clone()).or_else(|| voice.clone()).unwrap_or_default(),
         engine: engine_tag(p, project, own),
         fit_stretch: fitted.stretch,
         fit_lead: fitted.lead,
@@ -528,6 +530,24 @@ fn fit_to_cue(project: &SpeechProject, b: &Block, samples: Vec<f32>) -> Result<F
 }
 
 /// Реф продолжения: дубль предыдущего блока (24 кГц моно) и его видимый текст.
+/// Реф реплики из `refs/` проекта: целиком (продолжение клипа) или его начало до предела рефа.
+fn own_reference(project_dir: &Path, r: &sp::OwnRef, limit: f64) -> Result<(PathBuf, Option<String>), String> {
+    let src = project_dir.join("refs").join(&r.file);
+    if !src.is_file() {
+        return Err(t!("speech-own-ref-missing", file = r.file.clone()));
+    }
+    let text = Some(r.text.trim().to_string()).filter(|t| !t.is_empty());
+    if r.whole || crate::media::duration(&src)? <= limit + 0.5 {
+        return Ok((src, text));
+    }
+    let cut = project_dir.join("refs").join(format!(".{}-{limit:.1}.wav", r.file.trim_end_matches(".wav")));
+    if !cut.is_file() {
+        crate::media::trim_ref(&src, &cut, 0.0, limit)?;
+    }
+    // a cut reference no longer says the whole transcript, so the engine clones the timbre without it
+    Ok((cut, None))
+}
+
 fn continuation_ref(takes: &Path, take: &sp::Take, text: &str) -> Result<(PathBuf, Option<String>), String> {
     let src = takes.join(&take.file);
     let wav = takes.join(format!(".ref-{}.wav", take.file.trim_end_matches(".flac")));
