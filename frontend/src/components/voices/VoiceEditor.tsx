@@ -219,6 +219,10 @@ export default function VoiceEditor({ voice, all, onClose, onChanged, onRenamed,
               <Scissors size={12} />{t("voices.trimOpen")}
             </button>
           </div>
+          <label className="mb-2 flex items-start gap-2 text-[12px] cursor-pointer">
+            <input type="checkbox" checked={voice.card.rotate} onChange={(e) => void setCard({ rotate: e.target.checked })} className="mt-0.5 w-3.5 h-3.5 accent-[var(--color-accent)]" />
+            <span><span className="block">{t("voices.rotate")}</span><span className="block text-[11px] text-[var(--color-muted)]">{t("voices.rotateHint", { s: refLimit })}</span></span>
+          </label>
           {trimming && <div className="mb-2"><RefTrim url={api.voiceSampleUrl(voice.name, false, voice.size)} limit={refLimit} busy={busy === "apply"} onApply={trim} /></div>}
           {pieces && pieces.length === 0 && <p className="text-[12px] text-[var(--color-muted)]">{t("voices.noPieces")}</p>}
           {pieces && pieces.length > 0 && (

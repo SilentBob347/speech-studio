@@ -239,6 +239,8 @@ export type VoiceCard = {
   variant_of: string; variant: string;
   /** What the voice may be used for: an SPDX id or the terms in words. */
   license: string;
+  /** A long reference gives each new take its next good piece. */
+  rotate: boolean;
 };
 export type VoiceEntry = { name: string; audio: string; size: number; transcript: string | null; photo: string | null; original: boolean; card: VoiceCard };
 export type RefIssue = "long_pause" | "noisy" | "clipped" | "short";

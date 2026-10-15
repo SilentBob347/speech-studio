@@ -692,9 +692,9 @@ pub fn synth(engine: &Tts, req: &Request) -> Result<Synth, String> {
 }
 
 /// Реф голоса под лимит движка: короткий — как есть (WAV); длинный — лучший кусок по словам распознавания с его
-/// текстом, а без таймингов — первые `limit` секунд без текста (клон по одному звуку). Готовые куски кэшируются
-/// по размеру и времени файла.
-pub fn prepare_ref(voices: &Path, name: &str, limit: f64) -> Result<(PathBuf, Option<String>), String> {
+/// текстом (у голоса с `rotate` — кусок по очереди для дубля `take`), а без таймингов — первые `limit` секунд без
+/// текста (клон по одному звуку). Готовые куски кэшируются по размеру и времени файла.
+pub fn prepare_ref(voices: &Path, name: &str, limit: f64, take: u32) -> Result<(PathBuf, Option<String>), String> {
     let lib = crate::voice_library::get(voices, name)?;
     let audio = crate::voice_library::audio_path(voices, name).ok_or_else(|| t!("voice-missing", name = name.to_string()))?;
     let meta = std::fs::metadata(&audio).map_err(|e| format!("{}: {e}", audio.display()))?;
@@ -702,7 +702,8 @@ pub fn prepare_ref(voices: &Path, name: &str, limit: f64) -> Result<(PathBuf, Op
     let cache = voices.join(".work").join("refs");
     std::fs::create_dir_all(&cache).map_err(|e| format!("{}: {e}", cache.display()))?;
     let words = crate::voice_library::read_words(voices, name);
-    let tag = blake3::hash(format!("{name}|{}|{stamp}|{limit:.1}|{}", meta.len(), words.is_some()).as_bytes()).to_hex()[..16].to_string();
+    let turn = if lib.card.rotate { take.saturating_sub(1) as usize } else { 0 };
+    let tag = blake3::hash(format!("{name}|{}|{stamp}|{limit:.1}|{}|{turn}", meta.len(), words.is_some()).as_bytes()).to_hex()[..16].to_string();
     let wav = cache.join(format!("{tag}.wav"));
     let txt = cache.join(format!("{tag}.txt"));
     if wav.is_file() {
@@ -716,8 +717,9 @@ pub fn prepare_ref(voices: &Path, name: &str, limit: f64) -> Result<(PathBuf, Op
         crate::media::to_16k_mono(&audio, &tmp)?;
         let (samples, sr) = crate::wavio::read_mono_f32(&tmp)?;
         let _ = std::fs::remove_file(&tmp);
-        match crate::ref_pick::candidates(&words, &samples, sr, (limit * 0.4).min(5.0), limit, 1).into_iter().next() {
-            Some(c) => (c.start, c.end, Some(c.text)),
+        let pieces = crate::ref_pick::candidates(&words, &samples, sr, (limit * 0.4).min(5.0), limit, if lib.card.rotate { 4 } else { 1 });
+        match pieces.get(turn % pieces.len().max(1)) {
+            Some(c) => (c.start, c.end, Some(c.text.clone())),
             None => (0.0, limit, None),
         }
     } else {

@@ -917,7 +917,9 @@
     "attr_manner_cheerful": "joyeuse",
     "attr_manner_melancholic": "mélancolique",
     "license": "Licence",
-    "licenseHint": "CC-BY-4.0 ou en clair : « usage personnel seulement »"
+    "licenseHint": "CC-BY-4.0 ou en clair : « usage personnel seulement »",
+    "rotate": "Un autre extrait de référence à chaque prise",
+    "rotateHint": "Si la référence dépasse {{s}} s, chaque nouvelle prise prend le suivant de ses quatre meilleurs extraits : les prises varient davantage et la voix ne dépend pas d'un seul clip."
   },
   "speech": {
     "projectSettings": "Réglages du projet",

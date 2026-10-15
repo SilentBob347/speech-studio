@@ -44,6 +44,8 @@ pub struct VoiceCard {
     pub variant: String,
     /// What the voice may be used for: an SPDX id such as CC-BY-4.0, or the terms in words.
     pub license: String,
+    /// A long reference gives each new take its next good piece instead of always the best one.
+    pub rotate: bool,
 }
 
 impl Default for VoiceCard {
@@ -62,6 +64,7 @@ impl Default for VoiceCard {
             variant_of: String::new(),
             variant: String::new(),
             license: String::new(),
+            rotate: false,
         }
     }
 }
@@ -182,6 +185,7 @@ pub fn apply_patch(card: &mut VoiceCard, patch: &Value) -> Result<(), String> {
             "favorite" => card.favorite = v.as_bool().ok_or("favorite must be true or false")?,
             "variant_of" => card.variant_of = v.as_str().ok_or("variant_of must be a voice name")?.trim().chars().take(200).collect(),
             "variant" => card.variant = v.as_str().ok_or("variant must be a string")?.trim().chars().take(32).collect(),
+            "rotate" => card.rotate = v.as_bool().ok_or("rotate must be true or false")?,
             "license" => card.license = v.as_str().ok_or("license must be a string")?.trim().chars().take(120).collect(),
             "tags" => {
                 let arr = v.as_array().ok_or("tags must be a list")?;

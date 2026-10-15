@@ -917,7 +917,9 @@
     "attr_manner_cheerful": "alegre",
     "attr_manner_melancholic": "melancólica",
     "license": "Licencia",
-    "licenseHint": "CC-BY-4.0 o con palabras: «solo uso personal»"
+    "licenseHint": "CC-BY-4.0 o con palabras: «solo uso personal»",
+    "rotate": "Otro fragmento de referencia en cada toma",
+    "rotateHint": "Si la referencia dura más de {{s}} s, cada toma nueva usa el siguiente de sus cuatro mejores fragmentos: las tomas varían más y la voz no depende de un solo clip."
   },
   "speech": {
     "projectSettings": "Ajustes del proyecto",

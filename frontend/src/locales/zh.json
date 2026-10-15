@@ -917,7 +917,9 @@
     "attr_manner_cheerful": "欢快",
     "attr_manner_melancholic": "忧郁",
     "license": "许可",
-    "licenseHint": "CC-BY-4.0 或文字说明：“仅限个人使用”"
+    "licenseHint": "CC-BY-4.0 或文字说明：“仅限个人使用”",
+    "rotate": "每个版本使用不同的参考片段",
+    "rotateHint": "参考音频长于 {{s}} 秒时，每个新版本依次使用四个最佳片段中的下一个：版本更多样，声音不依赖单一片段。"
   },
   "speech": {
     "projectSettings": "项目设置",
