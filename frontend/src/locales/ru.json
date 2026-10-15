@@ -1243,7 +1243,14 @@
     "langVoiceRemove": "Убрать голос для {{lang}}",
     "langVoiceAdd": "Добавить язык…",
     "blockLang": "Язык блока",
-    "blockLangProject": "как у проекта"
+    "blockLangProject": "как у проекта",
+    "qualityMode": "Режим озвучки",
+    "qualityMode_draft": "Черновик",
+    "qualityMode_normal": "Обычный",
+    "qualityMode_best": "Лучший",
+    "qualityMode_draftHint": "Быстро: один дубль без проверки на слух",
+    "qualityMode_normalHint": "Каждый дубль распознаётся и сверяется с текстом",
+    "qualityMode_bestHint": "Три дубля на блок, строгая проверка текста и сверка голоса с рефом — остаётся лучший"
   },
   "tags": {
     "emotion": "Эмоция",

@@ -1243,7 +1243,14 @@
     "langVoiceRemove": "移除 {{lang}} 的声音",
     "langVoiceAdd": "添加语言…",
     "blockLang": "块语言",
-    "blockLangProject": "与项目相同"
+    "blockLangProject": "与项目相同",
+    "qualityMode": "配音模式",
+    "qualityMode_draft": "草稿",
+    "qualityMode_normal": "普通",
+    "qualityMode_best": "最佳",
+    "qualityMode_draftHint": "快速：每块一个版本，不做试听检查",
+    "qualityMode_normalHint": "每个版本都会被识别并与文本核对",
+    "qualityMode_bestHint": "每块三个版本，严格核对文本并比对参考声音，保留最佳版本"
   },
   "tags": {
     "emotion": "情绪",

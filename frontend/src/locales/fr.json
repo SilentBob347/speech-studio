@@ -1243,7 +1243,14 @@
     "langVoiceRemove": "Retirer la voix pour {{lang}}",
     "langVoiceAdd": "Ajouter une langue…",
     "blockLang": "Langue du bloc",
-    "blockLangProject": "celle du projet"
+    "blockLangProject": "celle du projet",
+    "qualityMode": "Mode de doublage",
+    "qualityMode_draft": "Brouillon",
+    "qualityMode_normal": "Standard",
+    "qualityMode_best": "Optimal",
+    "qualityMode_draftHint": "Rapide : une prise sans vérification à l'oreille",
+    "qualityMode_normalHint": "Chaque prise est reconnue et comparée au texte",
+    "qualityMode_bestHint": "Trois prises par bloc, vérification stricte du texte et de la voix avec sa référence : la meilleure reste"
   },
   "tags": {
     "emotion": "Émotion",

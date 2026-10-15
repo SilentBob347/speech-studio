@@ -31,6 +31,13 @@ const label = "block text-[12px] text-[var(--color-muted)]";
 /** The project's synthesis: language, sampling, seed, pauses between lines and the loudness of the export. */
 const NORMALIZE_GROUPS = ["numbers", "dates", "time", "money", "phones", "web", "codes", "roman"] as const;
 
+/** How much checking a voicing gets: a fast draft, every take heard once, or several takes with the best kept. */
+const QUALITY_MODES = {
+  draft: { asr_check: false, takes: 1, similarity: false, strictness: "normal" },
+  normal: { asr_check: true, takes: 1, similarity: false, strictness: "normal" },
+  best: { asr_check: true, takes: 3, similarity: true, strictness: "strict" },
+} as const;
+
 export default function ProjectSettings({ project, onChange, onClose }: { project: SpeechProject; onChange: (f: (p: SpeechProject) => SpeechProject) => void; onClose: () => void }) {
   const { t, i18n } = useTranslation();
   useEscapeLayer(onClose);
@@ -229,6 +236,16 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
         </fieldset>
         <fieldset className="space-y-2">
           <legend className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)] mb-1">{t("speech.quality")}</legend>
+          <div role="radiogroup" aria-label={t("speech.qualityMode")} className="flex flex-wrap items-center gap-1">
+            {(Object.keys(QUALITY_MODES) as (keyof typeof QUALITY_MODES)[]).map((m) => {
+              const q = QUALITY_MODES[m];
+              const on = s.qc.asr_check === q.asr_check && s.qc.takes === q.takes && s.qc.similarity === q.similarity && s.qc.strictness === q.strictness;
+              return (
+                <button key={m} type="button" role="radio" aria-checked={on} onClick={() => set((p) => { p.settings.qc = { ...p.settings.qc, ...q }; })} title={t(`speech.qualityMode_${m}Hint`)}
+                  className={`px-2.5 py-1 rounded-md border text-[12px] ${on ? "border-[var(--color-accent)] text-[var(--color-text)]" : "border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-text)]"}`}>{t(`speech.qualityMode_${m}`)}</button>
+              );
+            })}
+          </div>
           <label className="flex items-center gap-2 text-[13px] cursor-pointer">
             <input type="checkbox" checked={s.qc.asr_check} onChange={(e) => set((p) => { p.settings.qc.asr_check = e.target.checked; })} className="w-4 h-4 accent-[var(--color-accent)]" />
             {t("speech.asrCheck")}
