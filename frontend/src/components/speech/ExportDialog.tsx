@@ -13,9 +13,11 @@ import { useEscapeLayer } from "../../lib/escape";
 // -1: a file per chapter
 const PART_MINUTES = [0, -1, 60, 120, 300, 600] as const;
 
-export default function ExportDialog({ pid, project, onClose, onVoiceMissing, onDone }: {
+export default function ExportDialog({ pid, project, onChange, flush, onClose, onVoiceMissing, onDone }: {
   pid: string;
   project: SpeechProject;
+  onChange: (f: (p: SpeechProject) => SpeechProject) => void;
+  flush: () => Promise<unknown>;
   onClose: () => void;
   onVoiceMissing: (ids: string[]) => void;
   onDone: (file: string) => void;
@@ -62,6 +64,7 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
     setBusy(true);
     setError(null);
     try {
+      await flush();
       const { job_id } = await speechApi.export(pid, format, undefined, perBlock, perBlock ? 0 : Math.max(partMinutes, 0), allowDuration, { sample_rate: rate || undefined, bits: bits || undefined, kbps: kbps || undefined }, !perBlock && partMinutes === -1, !perBlock && withStems);
       const r = (await followJob(job_id, "export")) as { file: string; files?: string[]; subtitles?: string; subtitle_files?: string[]; timings?: string; player?: string; recipe?: string; chapters?: string | null; parts?: Part[] | null; acx?: AcxReport | null; stems?: string | null; table?: string };
       if (r.files) { setClips(r.files); setRecipe(r.recipe ?? null); return; }
@@ -148,6 +151,14 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
                 <span className="text-[11px] text-[var(--color-muted)]">{t("speech.partsHint")}</span>
               </label>
             )}
+            <label className="block text-[12px] space-y-1">
+              <span>{t(perBlock ? "speech.clipName" : "speech.exportName")}</span>
+              <input value={perBlock ? project.settings.clip_name ?? "" : project.settings.export_name ?? ""} spellCheck={false}
+                onChange={(e) => { const v = e.target.value; setFile(null); setClips(null); onChange((p) => ({ ...p, settings: { ...p.settings, [perBlock ? "clip_name" : "export_name"]: v } })); }}
+                placeholder={t(perBlock ? "speech.clipNamePlaceholder" : "speech.exportNamePlaceholder")}
+                className="w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px] mono focus:border-[var(--color-accent)] outline-none" />
+              <span className="block text-[11px] text-[var(--color-muted)]">{t(perBlock ? "speech.clipNameHint" : "speech.exportNameHint")}</span>
+            </label>
             {!perBlock && (
               <label className="flex items-start gap-2 text-[12px] cursor-pointer">
                 <input type="checkbox" checked={withStems} onChange={(e) => { setWithStems(e.target.checked); setFile(null); setStems(null); }} className="mt-0.5 w-4 h-4 accent-[var(--color-accent)]" />

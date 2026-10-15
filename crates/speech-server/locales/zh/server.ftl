@@ -776,6 +776,7 @@ speech-export-not-ready = 有 { $count } 个段落阻止导出（未配音、已
 speech-export-empty = 没有可导出的内容：所有段落都是空的或已隐藏。
 speech-export-block = 正在拼接第 { $n } 段，共 { $total } 段…
 speech-export-loudness = 正在按预设调整响度…
+speech-name-template-same = 文件名模板“{ $template }”会让全部 { $count } 个文件同名：请加入 {"{"}n{"}"} 或 {"{"}chapter{"}"}
 speech-export-stems = 按角色分轨：{ $count }
 speech-by-speaker = 按角色
 speech-untitled = 未命名

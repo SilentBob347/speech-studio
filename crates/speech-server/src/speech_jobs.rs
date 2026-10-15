@@ -1499,11 +1499,22 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
     };
     let bounds: Vec<(f64, f64)> = std::iter::once(0.0).chain(cuts.iter().copied()).zip(cuts.iter().copied().chain(std::iter::once(total))).collect();
     let voice = project.settings.voice.clone().unwrap_or_default();
+    let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+    if bounds.len() > 1 && !project.settings.export_name.is_empty() {
+        let keys = name_keys(&project.settings.export_name, &EXPORT_NAME_KEYS)?;
+        if !keys.contains(&"n") && !(opts.per_chapter && keys.contains(&"chapter")) {
+            return Err(t!("speech-name-template-same", template = project.settings.export_name.clone(), count = bounds.len() as i64));
+        }
+    }
     let mut outputs = Vec::new();
     let mut tag_problems: Vec<String> = Vec::new();
     for (k, (a, z)) in bounds.iter().enumerate() {
         let chapter_title = (opts.per_chapter && bounds.len() > 1).then(|| chapters[k].2.clone());
         let name = match &chapter_title {
+            _ if !project.settings.export_name.is_empty() => {
+                let chapter = chapter_title.clone().or_else(|| chapters.iter().find(|c| c.0 >= *a - 1e-6).map(|c| c.2.clone())).unwrap_or_default();
+                fill_name(&project.settings.export_name, &[("project", &project.name), ("chapter", &chapter), ("n", &format!("{:02}", k + 1)), ("date", &today)])
+            }
             Some(title) => format!("{:02} {}", k + 1, file_stem(&project.name, Some(title))),
             None if bounds.len() > 1 => format!("{base} ({})", t!("speech-part-n", n = (k + 1) as i64)),
             None => base.clone(),
@@ -1666,6 +1677,7 @@ fn part_cuts(total: f64, limit: f64, chapters: &[f64], blocks: &[f64]) -> Vec<f6
 /// Пакет: каждый блок — отдельный файл `exports/<проект>/<NNN> <имя>.<формат>`, громкость — по пресету каждого.
 fn export_clips(p: &SpeechPaths, pid: &str, project: &SpeechProject, blocks: &[&Block], opts: &ExportOpts, work: &Path, progress: &dyn Fn(Value)) -> Result<Value, String> {
     let base = file_stem(&project.name, None);
+    let today = chrono::Local::now().format("%Y-%m-%d").to_string();
     let folder = p.workspace.join(pid).join("exports").join(&base);
     std::fs::create_dir_all(&folder).map_err(|e| format!("{}: {e}", folder.display()))?;
     let mut files = Vec::new();
@@ -1676,13 +1688,26 @@ fn export_clips(p: &SpeechPaths, pid: &str, project: &SpeechProject, blocks: &[&
         let wav = work.join(format!("{i}.wav"));
         crate::media::extract_audio(&takes_dir(p, pid).join(&take.file), &wav, SR, 1)?;
         let (samples, _) = crate::wavio::read_mono_f32(&wav)?;
-        let mut samples = if project.settings.tidy_pauses { crate::tts_trim::tidy(&samples, SR).samples } else { samples };
+        let samples = if project.settings.tidy_pauses { crate::tts_trim::tidy(&samples, SR).samples } else { samples };
+        let mut samples = match project.fx_of(b) {
+            Some(fx) => crate::voice_fx::apply(&samples, SR, fx)?,
+            None => samples,
+        };
         if let Some((target, tp, _)) = loudness(&project.settings.loudness) {
             crate::loudness::level(&mut samples, SR, target, peak_for(&opts.format, tp), project.settings.loudness != "acx")?;
         }
         crate::wavio::write_mono_f32(&wav, &samples, SR)?;
         let label = if b.note.trim().is_empty() { crate::speech_text::visible(&b.text).chars().take(40).collect::<String>() } else { b.note.trim_end_matches(".txt").to_string() };
-        let name = format!("{:03} {}.{}", i + 1, file_stem(&label, None), opts.format);
+        let stem = if project.settings.clip_name.is_empty() {
+            format!("{:03} {}", i + 1, file_stem(&label, None))
+        } else {
+            let chapter = project.chapters.iter().find(|c| c.blocks.iter().any(|x| x.id == b.id)).map(|c| c.title.as_str()).unwrap_or_default();
+            fill_name(&project.settings.clip_name, &[("project", &project.name), ("chapter", chapter), ("n", &format!("{:03}", i + 1)), ("date", &today), ("speaker", &b.speaker), ("text", &label), ("block", &b.id)])
+        };
+        if files.contains(&format!("{base}/{stem}.{}", opts.format)) {
+            return Err(t!("speech-name-template-same", template = project.settings.clip_name.clone(), count = blocks.len() as i64));
+        }
+        let name = format!("{stem}.{}", opts.format);
         let meta = crate::media::AudioMeta { title: crate::speech_text::visible(&b.text), artist: project.voice_of(b).unwrap_or_default(), album: project.name.clone(), ..Default::default() };
         crate::media::encode_audio_meta(&wav, &folder.join(&name), &opts.format, project.settings.loudness == "acx", &meta, &opts.quality)?;
         let mut how = recipe_block(b, take);
@@ -1751,6 +1776,34 @@ fn srt(cues: &[(f64, f64, String, String)]) -> String {
 /// Перекрытие соседних субтитров не длиннее этого — следствие сдвига реплики в паузу, а не перебивания: конец
 /// предыдущей подрезается до начала следующей, чтобы плеер не показывал две строки.
 const SUBTITLE_OVERLAP_TRIM: f64 = 0.5;
+
+/// What a file name template of the export may name: `{project}`, `{chapter}`, `{n}` (the file's number), `{date}`.
+pub const EXPORT_NAME_KEYS: [&str; 4] = ["project", "chapter", "n", "date"];
+/// What a file name template of the per-block export may name besides those: `{speaker}`, `{text}` (its start or
+/// note), `{block}` (its id).
+pub const CLIP_NAME_KEYS: [&str; 7] = ["project", "chapter", "n", "date", "speaker", "text", "block"];
+
+/// The `{key}`s of a file name template; a key outside `allowed` or a brace left open is refused.
+pub fn name_keys<'a>(template: &'a str, allowed: &[&str]) -> Result<Vec<&'a str>, String> {
+    let mut keys = Vec::new();
+    let mut rest = template;
+    while let Some(open) = rest.find('{') {
+        let close = rest[open..].find('}').ok_or_else(|| format!("{template}: a {{ is not closed"))? + open;
+        let key = &rest[open + 1..close];
+        if !allowed.contains(&key) {
+            return Err(format!("{template}: no {{{key}}}; a name may use {}", allowed.iter().map(|k| format!("{{{k}}}")).collect::<Vec<_>>().join(", ")));
+        }
+        keys.push(key);
+        rest = &rest[close + 1..];
+    }
+    Ok(keys)
+}
+
+/// A file name by a template: each `{key}` takes its value, the result made safe for file systems as `file_stem`.
+pub fn fill_name(template: &str, values: &[(&str, &str)]) -> String {
+    let filled = values.iter().fold(template.to_string(), |name, (key, value)| name.replace(&format!("{{{key}}}"), value));
+    file_stem(&filled, None)
+}
 
 /// Имя файла экспорта по проекту и главе: без символов, которых не любят файловые системы.
 pub fn file_stem(project: &str, chapter: Option<&str>) -> String {
@@ -1833,6 +1886,15 @@ mod tests {
         assert_eq!(lines[0], "n,start,end,chapter,speaker,text,take,engine,voice,block");
         assert_eq!(lines[1], r#"1,00:00:01.500,00:00:03.250,Глава 1,Анна,"Да, ""конечно"", приходи",2,higgs,anna,b1"#);
         assert_eq!(lines[2], "2,00:00:04.000,00:00:05.000,Глава 2,Олег,Иду,1,higgs,,b2");
+    }
+
+    #[test]
+    fn a_name_template_takes_its_keys_and_refuses_what_it_cannot_name() {
+        assert_eq!(name_keys("{n} {project} - {chapter}", &EXPORT_NAME_KEYS).unwrap(), vec!["n", "project", "chapter"]);
+        assert!(name_keys("{speaker}", &EXPORT_NAME_KEYS).unwrap_err().contains("{speaker}"));
+        assert!(name_keys("{n", &EXPORT_NAME_KEYS).is_err());
+        assert!(name_keys("{speaker}_{n}", &CLIP_NAME_KEYS).is_ok());
+        assert_eq!(fill_name("{n}. {project}: {chapter}", &[("n", "02"), ("project", "Книга"), ("chapter", "Глава/2?")]), "02. Книга Глава 2");
     }
 
     #[test]

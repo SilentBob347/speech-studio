@@ -73,7 +73,7 @@ export type SpeechSettings = {
   pause_same_ms: number; pause_switch_ms: number; loudness: Loudness; qc: QcSettings; auto_stress: boolean; normalize: boolean;
   /** Groups of the normalizer left as written: numbers, dates, time, money, phones, web, codes, roman. */
   normalize_off: string[];
-  timeline: boolean; max_stretch: number; lead_into_silence: boolean; room_tone: boolean; breaths: boolean; continuation: boolean; tidy_pauses: boolean; level_pieces: boolean; cloud_model: string; cloud_voice: string; cloud_values: Record<string, unknown>;
+  timeline: boolean; max_stretch: number; lead_into_silence: boolean; room_tone: boolean; breaths: boolean; continuation: boolean; tidy_pauses: boolean; level_pieces: boolean; export_name?: string; clip_name?: string; cloud_model: string; cloud_voice: string; cloud_values: Record<string, unknown>;
   /** The voice of each language a block is in when it is not the project's. */
   lang_voices?: Record<string, string>;
   one_voice?: boolean;

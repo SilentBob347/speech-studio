@@ -203,6 +203,12 @@ pub struct Settings {
     pub tidy_pauses: bool,
     /// Склейка выравнивает каждый кусок к общей громкости до громкости программы (Dub `normalize_voice`).
     pub level_pieces: bool,
+    /// The export's file name by a template (`speech_jobs::EXPORT_NAME_KEYS`); empty — the studio's own names.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub export_name: String,
+    /// The per-block export's file names by a template (`speech_jobs::CLIP_NAME_KEYS`); empty — the studio's own.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub clip_name: String,
     /// Движок `openrouter`: модель и голос (пусто — из «Облака»).
     pub cloud_model: String,
     pub cloud_voice: String,
@@ -220,7 +226,7 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { lang: "auto".into(), engine: "higgs".into(), params: Params::default(), voice: None, pause_same_ms: 300, pause_switch_ms: 600, loudness: "video".into(), qc: QcSettings::default(), auto_stress: true, normalize: true, normalize_off: Vec::new(), timeline: false, max_stretch: 1.25, lead_into_silence: true, room_tone: false, breaths: false, continuation: false, tidy_pauses: true, level_pieces: true, cloud_model: String::new(), cloud_voice: String::new(), cloud_values: serde_json::Map::new(), lang_voices: BTreeMap::new(), one_voice: false }
+        Settings { lang: "auto".into(), engine: "higgs".into(), params: Params::default(), voice: None, pause_same_ms: 300, pause_switch_ms: 600, loudness: "video".into(), qc: QcSettings::default(), auto_stress: true, normalize: true, normalize_off: Vec::new(), timeline: false, max_stretch: 1.25, lead_into_silence: true, room_tone: false, breaths: false, continuation: false, tidy_pauses: true, level_pieces: true, export_name: String::new(), clip_name: String::new(), cloud_model: String::new(), cloud_voice: String::new(), cloud_values: serde_json::Map::new(), lang_voices: BTreeMap::new(), one_voice: false }
     }
 }
 
@@ -366,6 +372,8 @@ impl SpeechProject {
             return Err(format!("this is a {} project, not a speech one", self.kind));
         }
         self.settings.params.checked()?;
+        crate::speech_jobs::name_keys(&self.settings.export_name, &crate::speech_jobs::EXPORT_NAME_KEYS)?;
+        crate::speech_jobs::name_keys(&self.settings.clip_name, &crate::speech_jobs::CLIP_NAME_KEYS)?;
         for (speaker, params) in &self.cast_params {
             params.checked().map_err(|e| format!("speaker {speaker}: {e}"))?;
         }

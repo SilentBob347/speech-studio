@@ -840,7 +840,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
       )}
       {settings && <ProjectSettings project={project} onChange={edit} onClose={() => setSettings(false)} />}
       {linting && <LintDialog pid={pid} blocks={blocks} onClose={() => setLinting(false)} onJump={(id) => { setSelected([id]); document.getElementById(`block-${id}`)?.scrollIntoView({ block: "center", behavior: "smooth" }); }} />}
-      {exporting && <ExportDialog pid={pid} project={project} onClose={() => setExporting(false)} onVoiceMissing={(ids) => { setExporting(false); void runSynth({ ids, force: true }); }} onDone={(file) => { setExported(true); pushActivity(t("speech.exported", { file }), "done"); }} />}
+      {exporting && <ExportDialog pid={pid} project={project} onChange={edit} flush={flush} onClose={() => setExporting(false)} onVoiceMissing={(ids) => { setExporting(false); void runSynth({ ids, force: true }); }} onDone={(file) => { setExported(true); pushActivity(t("speech.exported", { file }), "done"); }} />}
     </main>
   );
 }

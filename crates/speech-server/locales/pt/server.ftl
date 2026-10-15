@@ -974,6 +974,7 @@ speech-export-not-ready = { $count } blocos impedem a exportação (sem locuçã
 speech-export-empty = Não há nada para exportar: todos os blocos estão vazios ou ocultos.
 speech-export-block = Juntando { $n } de { $total }…
 speech-export-loudness = Ajustando o volume ao predefinido…
+speech-name-template-same = O modelo de nome “{ $template }” dá o mesmo nome aos { $count } arquivos: adicione {"{"}n{"}"} ou {"{"}chapter{"}"}
 speech-export-stems = Faixas por personagem: { $count }
 speech-by-speaker = por personagem
 speech-untitled = Sem título

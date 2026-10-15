@@ -1000,6 +1000,7 @@ speech-export-not-ready = Экспорту мешают блоки: { $count } (
 speech-export-empty = Экспортировать нечего: все блоки пустые или скрыты.
 speech-export-block = Склеиваю { $n } из { $total }…
 speech-export-loudness = Привожу громкость к пресету…
+speech-name-template-same = Шаблон имени «{ $template }» даёт всем { $count } файлам одно имя: добавьте {"{"}n{"}"} или {"{"}chapter{"}"}
 speech-export-stems = Дорожки по персонажам: { $count }
 speech-by-speaker = по персонажам
 speech-untitled = Без названия

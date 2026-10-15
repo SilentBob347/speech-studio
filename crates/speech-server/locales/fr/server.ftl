@@ -974,6 +974,7 @@ speech-export-not-ready = { $count } blocs empêchent l’export (non voisés, p
 speech-export-empty = Rien à exporter : tous les blocs sont vides ou masqués.
 speech-export-block = Assemblage { $n } sur { $total }…
 speech-export-loudness = Mise au volume du préréglage…
+speech-name-template-same = Le modèle de nom « { $template } » donne le même nom aux { $count } fichiers : ajoutez {"{"}n{"}"} ou {"{"}chapter{"}"}
 speech-export-stems = Pistes par personnage : { $count }
 speech-by-speaker = par personnage
 speech-untitled = Sans titre
