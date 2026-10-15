@@ -673,7 +673,7 @@ pub async fn book_preview(State(st): State<AppState>, mut multipart: axum::extra
                     json!({ "index": i, "title": c.title, "chars": chars, "est_secs": dub_core::fit::estimate(&c.text, cps), "head": c.text.chars().take(240).collect::<String>(), "skip": c.skip })
                 })
                 .collect();
-            Ok(json!({ "id": id, "title": book.title, "author": book.author, "lang": lang, "cover": book.cover.is_some(), "chapters": chapters }))
+            Ok(json!({ "id": id, "title": book.title, "author": book.author, "lang": lang, "cover": book.cover.is_some(), "chapters": chapters, "removed": book.removed }))
         })
         .await,
     );

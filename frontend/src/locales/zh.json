@@ -1410,7 +1410,8 @@
     "summary": "章节：{{n}} / {{of}} · 约 {{time}}",
     "create": "创建项目",
     "minutes": "{{m}} 分钟",
-    "hours": "{{h}} 小时 {{m}} 分钟"
+    "hours": "{{h}} 小时 {{m}} 分钟",
+    "removed": "已从文本中移除：脚注标记 {{notes}} 个，网址 {{links}} 个"
   },
   "files": {
     "saveAs": "将 {{file}} 另存为…",

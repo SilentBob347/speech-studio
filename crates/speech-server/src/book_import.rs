@@ -24,6 +24,26 @@ pub struct Book {
     pub chapters: Vec<Chapter>,
     #[serde(skip)]
     pub cover: Option<(Vec<u8>, String)>,
+    /// What was taken out of the text because a book's reader does not say it: footnote marks and site addresses.
+    #[serde(default)]
+    pub removed: Removed,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+pub struct Removed {
+    pub notes: usize,
+    pub links: usize,
+}
+
+static NOTE_MARK: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\[\d{1,3}\]|\[\*\]|[¹²³⁴⁵⁶⁷⁸⁹⁰]+").expect("note mark"));
+static LINK: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)[ \t]*\(?\b(?:https?://|www\.)[^\s<>«»]*[^\s<>«».,;:!?)]\)?").expect("link"));
+
+/// Footnote marks and site addresses out of a chapter, counted.
+fn strip_marks(text: &str, removed: &mut Removed) -> String {
+    removed.notes += NOTE_MARK.find_iter(text).count();
+    let t = NOTE_MARK.replace_all(text, "");
+    removed.links += LINK.find_iter(&t).count();
+    LINK.replace_all(&t, "").into_owned()
 }
 
 pub const FORMATS: [&str; 8] = ["epub", "fb2", "pdf", "docx", "html", "htm", "md", "txt"];
@@ -79,10 +99,12 @@ pub fn parse(file_name: &str, bytes: &[u8]) -> Result<Book, String> {
     if book.title.trim().is_empty() {
         book.title = std::path::Path::new(file_name).file_stem().and_then(|s| s.to_str()).unwrap_or("book").to_string();
     }
+    let mut removed = std::mem::take(&mut book.removed);
     for c in &mut book.chapters {
-        c.text = tidy(&c.text);
+        c.text = tidy(&strip_marks(&c.text, &mut removed));
         c.title = SPACES.replace_all(c.title.trim(), " ").into_owned();
     }
+    book.removed = removed;
     book.chapters.retain(|c| !c.text.is_empty() || !c.title.is_empty());
     if book.chapters.is_empty() {
         return Err(t!("book-empty", name = file_name.to_string()));
@@ -114,6 +136,13 @@ fn html_text(doc: &scraper::Html) -> String {
                 scraper::Node::Element(e) => {
                     let name = e.name();
                     if matches!(name, "script" | "style" | "head" | "title" | "nav") {
+                        continue;
+                    }
+                    // a footnote and its mark: EPUB 3 and DPUB-ARIA say so, older books put the number in <sup>
+                    let kind = e.attr("epub:type").or_else(|| e.attr("role")).unwrap_or("");
+                    if ["noteref", "footnote", "endnote", "rearnote", "doc-noteref", "doc-footnote", "doc-endnote"].iter().any(|k| kind.contains(k))
+                        || (name == "sup" && child.children().all(|c| c.value().as_text().is_some_and(|t| t.trim().chars().all(|ch| ch.is_ascii_digit() || ch == '*' || ch == '[' || ch == ']'))))
+                    {
                         continue;
                     }
                     let block = matches!(name, "p" | "div" | "br" | "li" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "blockquote" | "section" | "tr" | "pre");
@@ -203,7 +232,8 @@ fn fb2(xml: &str) -> Result<Book, String> {
             match c.tag_name().name() {
                 "title" => {}
                 "p" | "v" | "subtitle" | "text-author" => {
-                    out.push_str(&c.descendants().filter(|d| d.is_text()).map(|d| d.text().unwrap_or("")).collect::<String>());
+                    let note = |d: &roxmltree::Node| d.ancestors().any(|a| a.tag_name().name() == "a" && a.attribute("type") == Some("note"));
+                    out.push_str(&c.descendants().filter(|d| d.is_text() && !note(d)).map(|d| d.text().unwrap_or("")).collect::<String>());
                     out.push_str("\n\n");
                 }
                 "empty-line" => out.push_str("\n\n"),
@@ -426,6 +456,17 @@ mod tests {
         assert_eq!(h.chapters.len(), 2);
         assert_eq!(h.chapters[0].skip.as_deref(), Some("toc"));
         assert_eq!(h.chapters[1].text, "Абзац один.\n\nДва.");
+    }
+
+    #[test]
+    fn footnote_marks_and_site_addresses_are_taken_out_and_counted() {
+        let xml = r##"<?xml version="1.0" encoding="utf-8"?><FictionBook xmlns:l="http://www.w3.org/1999/xlink"><description><title-info><book-title>К</book-title></title-info></description><body><section><p>Слово<a l:href="#n1" type="note">[1]</a> тут.</p></section></body></FictionBook>"##;
+        assert_eq!(parse("n.fb2", xml.as_bytes()).unwrap().chapters[0].text, "Слово тут.");
+        let html = r##"<html><body><h1>Глава</h1><p>Он сказал<a epub:type="noteref" href="#n1">1</a> и ушёл<sup>2</sup>.</p><aside epub:type="footnote"><p>Пояснение.</p></aside></body></html>"##;
+        assert_eq!(parse("n.html", html.as_bytes()).unwrap().chapters[0].text, "Он сказал и ушёл.");
+        let b = parse("n.txt", "Текст[1] со сноской¹ и ссылкой (https://example.com/page). Конец.".as_bytes()).unwrap();
+        assert_eq!(b.chapters[0].text, "Текст со сноской и ссылкой. Конец.");
+        assert_eq!(b.removed, Removed { notes: 2, links: 1 });
     }
 
     #[test]

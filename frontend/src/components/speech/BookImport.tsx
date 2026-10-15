@@ -52,6 +52,7 @@ export default function BookImport({ preview, onClose, onCreated }: { preview: B
           <BookOpen size={16} className="text-[var(--color-accent)]" />
           <h2 id="book-title" className="font-semibold">{t("book.title")}</h2>
           <span className="text-[12px] text-[var(--color-muted)] truncate">{[preview.author, preview.lang.toUpperCase()].filter(Boolean).join(" · ")}</span>
+          {(preview.removed.notes > 0 || preview.removed.links > 0) && <span className="text-[11px] text-[var(--color-muted)]">{t("book.removed", { notes: preview.removed.notes, links: preview.removed.links })}</span>}
           <button onClick={onClose} disabled={busy} {...named(t("a11y.close"))} className="ml-auto text-[var(--color-muted)] hover:text-[var(--color-text)]"><X size={16} /></button>
         </div>
         <div className="flex flex-wrap items-center gap-2 px-5 py-2.5">

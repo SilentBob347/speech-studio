@@ -1410,7 +1410,8 @@
     "summary": "Chapters: {{n}} of {{of}} · about {{time}}",
     "create": "Create the project",
     "minutes": "{{m}} min",
-    "hours": "{{h}} h {{m}} min"
+    "hours": "{{h}} h {{m}} min",
+    "removed": "taken out of the text: {{notes}} footnote marks, {{links}} site addresses"
   },
   "files": {
     "saveAs": "Save {{file}} as…",

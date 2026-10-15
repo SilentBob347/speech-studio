@@ -94,6 +94,8 @@ export type StressResult = { text: string; words: StressWord[]; russian: boolean
 export type BookPreview = {
   id: string; title: string; author: string; lang: string; cover: boolean;
   chapters: { index: number; title: string; chars: number; est_secs: number; head: string; skip: "cover" | "front" | "toc" | "empty" | null }[];
+  /** Footnote marks and site addresses taken out of the text. */
+  removed: { notes: number; links: number };
 };
 export type HistoryTake = {
   pid: string; project: string; block: string; speaker: string; text: string; n: number; file: string; created: number;

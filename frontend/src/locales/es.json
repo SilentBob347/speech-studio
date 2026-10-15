@@ -1410,7 +1410,8 @@
     "summary": "Capítulos: {{n}} de {{of}} · unos {{time}}",
     "create": "Crear el proyecto",
     "minutes": "{{m}} min",
-    "hours": "{{h}} h {{m}} min"
+    "hours": "{{h}} h {{m}} min",
+    "removed": "quitado del texto: {{notes}} marcas de nota, {{links}} direcciones web"
   },
   "files": {
     "saveAs": "Guardar {{file}} como…",
