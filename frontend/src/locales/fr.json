@@ -1657,7 +1657,7 @@
     "engine_parakeet": "Parakeet (GPU, rapide)",
     "engine_whisper": "Whisper (100 langues)",
     "engine_openrouter": "OpenRouter (cloud)",
-    "engineHint_default": "Le reconnaisseur choisi dans Réglages → Modèles.",
+    "engineHint_default": "Le reconnaisseur de Réglages → Modèles ; si c’est Parakeet et que la langue de l’enregistrement n’est pas parmi ses 25 (européennes), Whisper reconnaît.",
     "engineHint_parakeet": "Parakeet TDT : rapide sur la carte graphique, horaires des mots exacts, 25 langues européennes et le russe.",
     "engineHint_whisper": "Whisper : environ 100 langues, plus lent ; invente plus souvent du texte sur le silence, le filtre ci-dessous le repère.",
     "engineHint_openrouter": "Un modèle cloud du catalogue OpenRouter : payant, demande la clé ; horaires des mots approximatifs.",

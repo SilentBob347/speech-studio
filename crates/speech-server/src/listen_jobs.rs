@@ -31,8 +31,17 @@ enum Engine {
 
 fn engine_for(p: &ListenPaths, project: &ListenProject) -> Result<Engine, String> {
     let mut sel = crate::models::load_selection(&p.models_root);
+    let lang = project.settings.lang.as_str();
+    let mut for_lang = false;
     let picked = match project.settings.engine.as_str() {
-        "" => sel.get("asr_engine").and_then(Value::as_str).unwrap_or("parakeet").to_string(),
+        // the studio's recogniser, but a language Parakeet does not know goes to Whisper
+        "" => match sel.get("asr_engine").and_then(Value::as_str).unwrap_or("parakeet") {
+            "parakeet" if !matches!(lang, "" | "auto") && !crate::models::parakeet_knows(lang) => {
+                for_lang = true;
+                "whisper".to_string()
+            }
+            e => e.to_string(),
+        },
         e => e.to_string(),
     };
     if picked == "fal" {
@@ -55,9 +64,8 @@ fn engine_for(p: &ListenPaths, project: &ListenProject) -> Result<Engine, String
     let choice = crate::models::resolve_asr_choice(&p.repo_root, &p.models_root, &sel);
     let whisper = matches!(choice, crate::models::AsrChoice::Whisper { .. });
     if picked == "whisper" && !whisper {
-        return Err(t!("listen-whisper-missing"));
+        return Err(if for_lang { t!("listen-whisper-for-lang", lang = lang.to_string()) } else { t!("listen-whisper-missing") });
     }
-    let lang = project.settings.lang.as_str();
     if !whisper && !matches!(lang, "" | "auto") && !crate::models::parakeet_knows(lang) {
         return Err(t!("listen-parakeet-lang", lang = lang.to_string()));
     }

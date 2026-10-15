@@ -1144,3 +1144,4 @@ music-placing = Je pose la chanson sur la piste…
 music-track = Musique
 listen-export-rules = Pas de règles de sous-titres « { $rules } » ; il y a : { $known }
 itn-no-lang = Les nombres en chiffres ne sont pas connus pour { $lang } : seulement ru, en, es, fr, pt, de, it, nl, da
+listen-whisper-for-lang = Parakeet ne connaît pas { $lang } : il faut Whisper, qui n’est pas installé ; téléchargez-le dans Réglages → Modèles ou choisissez un reconnaisseur en ligne

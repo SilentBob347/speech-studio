@@ -1150,3 +1150,4 @@ music-placing = Putting the song on the track…
 music-track = Music
 listen-export-rules = No subtitle rules “{ $rules }”; there are: { $known }
 itn-no-lang = Numbers as digits are not known for { $lang }: only ru, en, es, fr, pt, de, it, nl, da
+listen-whisper-for-lang = Parakeet does not know { $lang } — it needs Whisper, which is not installed: download it in Settings → Models or pick a cloud recogniser

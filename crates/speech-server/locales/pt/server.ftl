@@ -1144,3 +1144,4 @@ music-placing = Colocando a música na faixa…
 music-track = Música
 listen-export-rules = Não há regras de legenda “{ $rules }”; há: { $known }
 itn-no-lang = Números em algarismos não são conhecidos para { $lang }: só ru, en, es, fr, pt, de, it, nl, da
+listen-whisper-for-lang = O Parakeet não conhece { $lang }: precisa do Whisper, que não está instalado; baixe-o em Configurações → Modelos ou escolha um reconhecedor na nuvem

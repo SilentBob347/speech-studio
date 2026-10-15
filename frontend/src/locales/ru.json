@@ -1657,7 +1657,7 @@
     "engine_parakeet": "Parakeet (видеокарта, быстро)",
     "engine_whisper": "Whisper (100 языков)",
     "engine_openrouter": "OpenRouter (облако)",
-    "engineHint_default": "Распознаватель, выбранный в «Настройки → Модели».",
+    "engineHint_default": "Распознаватель из «Настройки → Модели»; если это Parakeet, а язык записи он не знает (их у него 25, европейские), распознаёт Whisper.",
     "engineHint_parakeet": "Parakeet TDT: быстро на видеокарте, точное время слов, 25 европейских языков и русский.",
     "engineHint_whisper": "Whisper: около 100 языков, медленнее; чаще выдумывает текст на тишине — это ловит фильтр ниже.",
     "engineHint_openrouter": "Облачная модель из каталога OpenRouter: платно, нужен ключ; время слов приблизительное.",

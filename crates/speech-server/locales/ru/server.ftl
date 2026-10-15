@@ -1170,3 +1170,4 @@ music-placing = Кладу песню на дорожку…
 music-track = Музыка
 listen-export-rules = Нет правил субтитров «{ $rules }»; есть: { $known }
 itn-no-lang = Числа цифрами для языка { $lang } не умею: только ru, en, es, fr, pt, de, it, nl, da
+listen-whisper-for-lang = Parakeet не знает язык { $lang } — для него нужен Whisper, а он не установлен: скачайте его в «Настройки → Модели» или выберите облачный распознаватель
