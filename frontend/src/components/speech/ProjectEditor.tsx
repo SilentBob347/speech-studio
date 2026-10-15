@@ -11,6 +11,7 @@ import { followJob } from "../../lib/followJob";
 import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
 import EditorMore from "../EditorMore";
+import { cloudApi } from "../../lib/cloud";
 import Transport, { RATES, type TransportBlock } from "./Transport";
 import { useStore } from "../../store";
 import { usePublishEditor } from "../../lib/editorBridge";
@@ -130,6 +131,19 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   }), [blocks, project]);
   const counts = blocks.reduce<Record<string, number>>((acc, b) => { const s = stateOf(b); acc[s] = (acc[s] ?? 0) + 1; return acc; }, {});
   const dirty = (counts.pending ?? 0) + (counts.stale ?? 0) + (counts.failed ?? 0);
+  const paid = project && (project.settings.engine === "fal" || project.settings.engine === "runware") && project.settings.cloud_model ? project.settings.engine : null;
+  const paidBlocks = paid && project ? blocks.filter((b) => ["pending", "stale", "failed"].includes(stateOf(b)) && engineOf(project, b) === paid) : [];
+  const paidChars = paidBlocks.reduce((n, b) => n + b.text.length, 0);
+  const [cost, setCost] = useState<{ usd: number | null; exact: boolean | null } | null>(null);
+  useEffect(() => {
+    if (!paid || !project || !paidBlocks.length) { setCost(null); return; }
+    let alive = true;
+    const timer = window.setTimeout(() => {
+      cloudApi.estimate(paid, project.settings.cloud_model, project.settings.cloud_values ?? {}, paidBlocks.length, paidChars)
+        .then((c) => { if (alive) setCost(c); }, () => { if (alive) setCost(null); });
+    }, 400);
+    return () => { alive = false; window.clearTimeout(timer); };
+  }, [paid, project?.settings.cloud_model, project?.settings.cloud_values, paidBlocks.length, paidChars]);
   // the blocks a character's voice reaches: theirs, without a voice of their own
   const castBlocks = (speaker: string) => blocks.filter((b) => b.speaker === speaker && !b.voice && !b.hidden);
   const setCast = (speaker: string, v: string | null) => edit((p) => { if (v) p.cast[speaker] = v; else delete p.cast[speaker]; return p; });
@@ -458,7 +472,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           {job ? (
             <button onClick={stopSynth} className={`${bar} flex-1 md:flex-none justify-center border-[var(--color-warn)] text-[var(--color-warn)]`}><Square size={13} />{t("speech.stop")}</button>
           ) : (
-            <button onClick={() => void runSynth({})} disabled={!dirty} className={`${bar} flex-1 md:flex-none justify-center whitespace-nowrap bg-[var(--color-accent)] text-[var(--color-on-accent)] border-transparent`}><Sparkles size={13} />{t("speech.voiceDirty", { n: dirty })}</button>
+            <button onClick={() => void runSynth({})} disabled={!dirty} className={`${bar} flex-1 md:flex-none justify-center whitespace-nowrap bg-[var(--color-accent)] text-[var(--color-on-accent)] border-transparent`}><Sparkles size={13} />{t("speech.voiceDirty", { n: dirty })}{cost?.usd != null && <span className="tabnum font-normal opacity-80">{cost.exact ? "" : "≈ "}${cost.usd < 0.01 ? cost.usd.toFixed(4) : cost.usd.toFixed(2)}</span>}</button>
           )}
           <button onClick={() => setExporting(true)} className={`${bar} max-md:hidden`}><Download size={13} />{t("speech.export")}</button>
         </div>
