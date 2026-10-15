@@ -1104,7 +1104,8 @@
     "native_ko": "native Korean",
     "engineVoices": "The model's voices",
     "libraryClone": "Library — clone",
-    "directionIgnored": "{{engine}} does not read directions: it will not change the sound."
+    "directionIgnored": "{{engine}} does not read directions: it will not change the sound.",
+    "directionPresetsOnly": "{{engine}} reads the direction only with the model's own voices; with this voice it will not change the sound."
   },
   "tags": {
     "emotion": "Emotion",

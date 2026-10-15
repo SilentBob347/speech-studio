@@ -128,9 +128,12 @@ export function showElement(selector: string): void {
 
 // ---------------------------------------------------------------- what is on screen
 
-const INTERACTIVE = 'button, a[href], input, textarea, select, [role="button"], [role="tab"], [role="menuitem"], [role="checkbox"], [role="switch"], [role="slider"], [contenteditable="true"], [data-mcp-context]';
+const INTERACTIVE = 'button, a[href], input, textarea, select, summary, [role="button"], [role="tab"], [role="menuitem"], [role="option"], [role="checkbox"], [role="switch"], [role="slider"], [contenteditable="true"], [data-mcp-context]';
 
 function visible(element: Element): boolean {
+  // a closed <details> keeps a box for its content, though nothing but its summary is drawn
+  const folded = element.closest("details:not([open])");
+  if (folded && !element.closest("summary")) return false;
   const box = element.getBoundingClientRect();
   if (box.width === 0 || box.height === 0) return false;
   const style = getComputedStyle(element);
@@ -258,10 +261,11 @@ export function readPage(): string {
       if (seen.has(element) || !visible(element)) continue;
       seen.add(element);
       const tag = element.tagName.toLowerCase();
-      const kind = element.getAttribute("role") || (tag === "input" ? `input ${(element as HTMLInputElement).type}` : tag);
+      const kind = element.getAttribute("role") || (tag === "input" ? `input ${(element as HTMLInputElement).type}` : tag === "summary" ? "section" : tag);
       const context = element.closest("[data-mcp-context]")?.getAttribute("data-mcp-context");
       const pressed = element.getAttribute("aria-checked") ?? element.getAttribute("aria-pressed") ?? element.getAttribute("aria-selected");
-      const state = pressed ? (pressed === "true" ? " on" : " off") : "";
+      const folding = tag === "summary" ? element.closest("details") : null;
+      const state = folding ? (folding.open ? " open" : " closed") : pressed ? (pressed === "true" ? " on" : " off") : "";
       const disabled = (element as HTMLButtonElement).disabled ? " (disabled)" : "";
       if (context) {
         const row = rows.get(context) ?? { at: lines.length, parts: [] };

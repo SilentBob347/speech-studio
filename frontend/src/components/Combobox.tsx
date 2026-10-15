@@ -70,6 +70,7 @@ export default function Combobox({ value, options, onChange, label, placeholder,
         aria-activedescendant={open && shown[active] ? `${list}-${active}` : undefined}
         value={open ? q : current} placeholder={open ? current || placeholder : placeholder} title={current}
         onFocus={() => { setOpen(true); setQ(""); setActive(Math.max(0, shown.findIndex((o) => o.value === value))); }}
+        onClick={() => { if (!open) { setOpen(true); setQ(""); setActive(Math.max(0, shown.findIndex((o) => o.value === value))); } }}
         onChange={(e) => { setQ(e.target.value); setOpen(true); setActive(0); }}
         onKeyDown={(e) => {
           if (e.key === "ArrowDown") { e.preventDefault(); setOpen(true); step(1); }

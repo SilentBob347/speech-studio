@@ -1104,7 +1104,8 @@
     "native_ko": "coréen natif",
     "engineVoices": "Voix du modèle",
     "libraryClone": "Bibliothèque — clonage",
-    "directionIgnored": "{{engine}} ne lit pas les indications : le son n’en changera pas."
+    "directionIgnored": "{{engine}} ne lit pas les indications : le son n’en changera pas.",
+    "directionPresetsOnly": "{{engine}} ne lit l'indication qu'avec les voix propres du modèle ; avec cette voix, elle ne changera pas le son."
   },
   "tags": {
     "emotion": "Émotion",
