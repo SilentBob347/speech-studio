@@ -19,9 +19,19 @@ export type Chapter = { id: string; title: string; blocks: Block[] };
 export type SeedMode = "fixed" | "random" | "inc" | "dec";
 export type SpeechParams = { temperature: number; top_k: number; top_p: number; seed_mode: SeedMode; seed: number; max_tokens: number; steps: number; speed: number };
 export type ParamSpec = { key: "temperature" | "top_k" | "top_p" | "max_tokens" | "steps" | "speed"; kind: "float" | "int"; min: number; max: number; step: number; default: number };
-export type EnginePreset = { id: string; name: string; gender: "female" | "male"; native: string };
+export type EnginePreset = { id: string; name: string; gender: "female" | "male"; native: string; description: string };
 export type EngineCaps = {
   id: string; name: string; languages: string[]; params: ParamSpec[]; seed_modes: SeedMode[]; tag_format: string;
+  /** Expression tags by category; `scope` wraps a span (`<whisper>…</whisper>`), the rest go at a position. */
+  tags: [string, string[]][];
+  /** Tag categories and values that go at the start of the sentence; the rest go at a position. */
+  sentence_tags: string[];
+  /** Tag categories followed, with no space, by the sound's onomatopoeia: `<|sfx:laughter|>Ha-ha,`. */
+  glued_tags: string[];
+  /** The block's direction reaches the engine. */
+  direction: boolean;
+  /** The direction reaches the engine only with its own voices (`presets`). */
+  direction_presets_only: boolean;
   clone: string; continuation: boolean; streaming: boolean; deterministic_seed: boolean; max_chars: number;
   reads: { stress: boolean; yo: boolean; phonemes: boolean; accent: boolean };
   presets: EnginePreset[];

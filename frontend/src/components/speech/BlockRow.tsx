@@ -7,7 +7,8 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import VoicePicker from "./VoicePicker";
 import EngineSelect from "./EngineSelect";
-import TagPalette from "./TagPalette";
+import TagPalette, { type TagPlace } from "./TagPalette";
+import { useEngines } from "../../lib/engines";
 import PrepareView from "./PrepareView";
 
 const STATE_DOT: Record<BlockState | "rendering", string> = {
@@ -55,6 +56,13 @@ function AutoText({ value, onCommit, label, inputRef, stale }: { value: string; 
   );
 }
 
+/** Where the sentence holding `cursor` starts: after the last sentence end or line break before it, its tags kept. */
+function sentenceStart(value: string, cursor: number): number {
+  let start = 0;
+  for (const m of value.slice(0, cursor).matchAll(/[.!?…]+["»”)]*\s+|\n+/g)) start = (m.index ?? 0) + m[0].length;
+  return start;
+}
+
 export default function BlockRow({ pid, engine, projectEngine, speakerEngine, voice, block, index, state, fit, rendering, playing, tint, stressing, doubts, selected, selecting, a }: {
   pid: string;
   /** The engine that voices this block (its own, its speaker's or the project's). */
@@ -82,13 +90,24 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
   const [howRead, setHowRead] = useState(false);
   const text = useRef<HTMLTextAreaElement>(null);
   const take = activeTake(block);
-  const insertTag = (tag: string) => {
+  const insertTag = (tag: string, place: TagPlace) => {
     const el = text.current;
     const value = el?.value ?? block.text;
-    const at = el?.selectionStart ?? value.length;
+    const cursor = el?.selectionStart ?? value.length;
+    const at = place === "sentence" ? sentenceStart(value, cursor) : cursor;
     const before = value.slice(0, at);
-    a.setText(`${before}${before && !before.endsWith(" ") ? " " : ""}${tag} ${value.slice(at).trimStart()}`.trimEnd());
+    const after = value.slice(at).trimStart();
+    const gap = before && !/\s$/.test(before) ? " " : "";
+    a.setText(place === "inline" ? `${before}${gap}${tag} ${after}`.trimEnd() : `${before}${gap}${tag}${after}`);
   };
+  const wrapTag = (open: string, close: string) => {
+    const el = text.current;
+    const value = el?.value ?? block.text;
+    const from = el?.selectionStart ?? value.length;
+    const to = el?.selectionEnd ?? from;
+    a.setText(`${value.slice(0, from)}${open}${value.slice(from, to)}${close}${value.slice(to)}`);
+  };
+  const caps = useEngines()?.find((e) => e.id === engine);
   const shown: BlockState | "rendering" = rendering ? "rendering" : state;
   const icon = "p-1.5 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)] disabled:opacity-30";
   return (
@@ -223,6 +242,7 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
           <label className="block text-[11px] text-[var(--color-muted)]">{t("speech.direction")}
             <input value={block.direction} onChange={(e) => a.patch({ direction: e.target.value })} placeholder={t("speech.directionHint")}
               className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]" />
+            {caps && block.direction.trim() && (!caps.direction || (caps.direction_presets_only && voice !== null && !caps.presets.some((p) => p.id === voice))) && <span className="mt-0.5 block text-[var(--color-warn)]">{t("speech.directionIgnored", { engine: caps.name })}</span>}
           </label>
           <details open={howRead} onToggle={(e) => setHowRead(e.currentTarget.open)} className="rounded-md border border-[var(--color-border)] px-2 py-1.5">
             <summary className="cursor-pointer text-[11px] text-[var(--color-muted)]">{t("speech.howRead")}</summary>
@@ -230,7 +250,7 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
           </details>
           <details className="rounded-md border border-[var(--color-border)] px-2 py-1.5">
             <summary className="cursor-pointer text-[11px] text-[var(--color-muted)]">{t("speech.tagsTitle")}</summary>
-            <div className="mt-2"><TagPalette onInsert={insertTag} /></div>
+            <div className="mt-2"><TagPalette engine={engine} onInsert={insertTag} onWrap={wrapTag} /></div>
           </details>
           <div className="flex flex-wrap gap-1">
             <button onClick={() => a.split(text.current?.selectionStart ?? block.text.length)} className={icon + " inline-flex items-center gap-1 text-[11px]"}><Scissors size={12} />{t("speech.split")}</button>

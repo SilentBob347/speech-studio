@@ -17,6 +17,19 @@ pub const DIR: &str = "supertonic3";
 pub const ENGINE: &str = "supertonic";
 /// The preset voices, as the voice style files are named.
 pub const VOICES: &[&str] = &["F1", "F2", "F3", "F4", "F5", "M1", "M2", "M3", "M4", "M5"];
+/// The voices as Supertone describes them (`supertonic-py/docs/voices.md`): character, then what each suits.
+pub const VOICE_DESCRIPTIONS: [(&str, &str); 10] = [
+    ("F1", "Calm female voice with a slightly low tone; steady and composed. Customer service, guided instructions, meditative content, professional narration."),
+    ("F2", "Bright, cheerful female voice; lively, playful and youthful. Youth content, playful ads, social media videos, character voices."),
+    ("F3", "Clear, professional announcer-style female voice; articulate and broadcast-ready. Commercials, documentaries, news-style narration."),
+    ("F4", "Crisp, confident female voice; distinct and expressive with strong delivery. Business explainers, training videos, product announcements."),
+    ("F5", "Kind, gentle female voice; soft-spoken, calm and soothing. Audiobooks, supportive messages, wellness content, empathetic narration."),
+    ("M1", "Lively, upbeat male voice with confident energy and a clear tone. Promotional videos, upbeat explainers, general narration."),
+    ("M2", "Deep, robust male voice; calm, composed and serious. Corporate content, serious announcements, documentaries."),
+    ("M3", "Polished, authoritative male voice; confident and trustworthy. Business presentations, leadership messages, high-trust narration."),
+    ("M4", "Soft, neutral-toned male voice; gentle, youthful and friendly. Educational content, friendly explainers, onboarding guides."),
+    ("M5", "Warm, soft-spoken male voice; calm and soothing, a natural storyteller. Audiobooks, bedtime stories, reflective narration."),
+];
 pub const LANGS: &[&str] = &[
     "en", "ko", "ja", "ar", "bg", "cs", "da", "de", "el", "es", "et", "fi", "fr", "hi", "hr", "hu", "id", "it", "lt", "lv", "nl", "pl",
     "pt", "ro", "ru", "sk", "sl", "sv", "tr", "uk", "vi",

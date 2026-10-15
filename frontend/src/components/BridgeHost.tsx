@@ -9,10 +9,19 @@ import { playSfx } from "../lib/sfx";
 import { speechApi } from "../lib/speech";
 import { requestOpen } from "../lib/openProject";
 import { openEditor } from "../lib/editorBridge";
-import { AGENT_ACTION, JOBS_CHANGED, bridgeError, isMine, label, takeArgs, textArg, useBridgeCommand, type BridgeArgs, type ChangeNotice } from "../lib/mcpBridge";
+import { AGENT_ACTION, JOBS_CHANGED, bridgeError, isMine, label, numberArg, settle, takeArgs, textArg, useBridgeCommand, type BridgeArgs, type ChangeNotice } from "../lib/mcpBridge";
+
+let voiceSample: { name: string; audio: HTMLAudioElement } | null = null;
+let voiceVolume = 1;
+
+const stopVoiceSample = () => {
+  voiceSample?.audio.pause();
+  voiceSample = null;
+};
+
 
 // Команды агента, которые пользователь видит подписью «Агент: …» (что только смотрит — не показываем).
-const SHOWN = ["screenshot", "click", "type", "select", "press_key", "scroll", "navigate", "open_settings", "open_help", "editor_open", "editor_select"] as const;
+const SHOWN = ["screenshot", "click", "type", "select", "press_key", "scroll", "navigate", "open_settings", "open_help", "editor_open", "editor_select", "player_play", "player_pause", "player_seek", "player_set"] as const;
 type Shown = (typeof SHOWN)[number];
 
 function actionLabel(t: TFunction<"t">, command: string, args: BridgeArgs): string | null {
@@ -114,6 +123,83 @@ export default function BridgeHost() {
     if (!editor) throw bridgeError("no_screen", { command: "editor_select" });
     if (!editor.select(id)) throw bridgeError("no_line", { id });
     return { selected: id, pid: editor.pid };
+  });
+
+  useBridgeCommand("player_state", (args) => {
+    takeArgs("player_state", args, []);
+    const editor = openEditor();
+    const voice = voiceSample && !voiceSample.audio.paused ? { name: voiceSample.name, position: voiceSample.audio.currentTime, duration: Number.isFinite(voiceSample.audio.duration) ? voiceSample.audio.duration : null } : null;
+    return { voice, editor: editor ? { kind: editor.kind, pid: editor.pid, ...editor.player.state() } : null };
+  });
+
+  useBridgeCommand("player_play", async (args) => {
+    takeArgs("player_play", args, ["id", "on", "from", "voice"]);
+    const voice = textArg("player_play", args, "voice");
+    const id = textArg("player_play", args, "id");
+    const from = numberArg("player_play", args, "from");
+    if (args.on !== undefined && typeof args.on !== "boolean") throw bridgeError("bad_value", { command: "player_play", field: "on", expected: "true or false" });
+    const editor = openEditor();
+    if (voice) {
+      editor?.player.pause();
+      stopVoiceSample();
+      const audio = new Audio(api.voiceSampleUrl(voice));
+      audio.volume = voiceVolume;
+      voiceSample = { name: voice, audio };
+      audio.onended = () => { if (voiceSample?.audio === audio) voiceSample = null; };
+      try {
+        await audio.play();
+      } catch (e) {
+        voiceSample = null;
+        throw bridgeError("failed", { command: "player_play", reason: `the sample of ${voice} does not play: ${e instanceof Error ? e.message : String(e)}` });
+      }
+      return { playing: { voice } };
+    }
+    if (!editor) throw bridgeError("no_screen", { command: "player_play" });
+    stopVoiceSample();
+    editor.player.play({ id, on: args.on as boolean | undefined, from });
+    await settle();
+    return { playing: editor.player.state() };
+  });
+
+  useBridgeCommand("player_pause", (args) => {
+    takeArgs("player_pause", args, []);
+    stopVoiceSample();
+    openEditor()?.player.pause();
+    return { playing: false };
+  });
+
+  useBridgeCommand("player_seek", async (args) => {
+    takeArgs("player_seek", args, ["seconds"]);
+    const seconds = numberArg("player_seek", args, "seconds");
+    if (seconds === undefined) throw bridgeError("missing", { command: "player_seek", field: "seconds" });
+    if (voiceSample && !voiceSample.audio.paused) {
+      voiceSample.audio.currentTime = Math.max(0, seconds);
+      return { voice: voiceSample.name, position: voiceSample.audio.currentTime };
+    }
+    const editor = openEditor();
+    if (!editor) throw bridgeError("no_screen", { command: "player_seek" });
+    editor.player.seek(Math.max(0, seconds));
+    await settle();
+    return editor.player.state();
+  });
+
+  useBridgeCommand("player_set", async (args) => {
+    takeArgs("player_set", args, ["volume", "rate"]);
+    const volume = numberArg("player_set", args, "volume");
+    const rate = numberArg("player_set", args, "rate");
+    if (volume !== undefined && (volume < 0 || volume > 1)) throw bridgeError("bad_value", { command: "player_set", field: "volume", expected: "between 0 and 1" });
+    if (volume !== undefined) {
+      voiceVolume = volume;
+      if (voiceSample) voiceSample.audio.volume = volume;
+    }
+    const editor = openEditor();
+    if (!editor) {
+      if (rate !== undefined) throw bridgeError("no_screen", { command: "player_set" });
+      return { volume: voiceVolume };
+    }
+    editor.player.set({ volume, rate });
+    await settle();
+    return editor.player.state();
   });
 
   useBridgeCommand("notify", (args) => {

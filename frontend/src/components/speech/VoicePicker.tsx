@@ -34,6 +34,7 @@ export default function VoicePicker({ value, onChange, inherit, label, className
     ...presets.map((p) => ({
       value: p.id,
       label: `${p.name} · ${t(p.gender === "female" ? "voice.g_female" : "voice.g_male")}${p.native ? ` · ${t(`speech.native_${p.native}` as "speech.native_en")}` : ""}`,
+      hint: String(t(`presetVoice.${caps?.id}.${p.id}` as "presetVoice.supertonic.F1", { defaultValue: p.description })),
       group: own,
     })),
     ...voices.map((v) => ({

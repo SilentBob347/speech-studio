@@ -51,6 +51,12 @@ const MESSAGES = {
   no_line: (a: BridgeArgs) => `No block or line ${a.id} in the open project; editor_state, project_get or listen_get lists them.`,
   no_project: (a: BridgeArgs) => `No project ${a.pid}: ${a.reason}. projects_list names them.`,
   failed: (a: BridgeArgs) => `${a.command} failed: ${a.reason}`,
+  no_take: (a: BridgeArgs) => `Block ${a.id} has no take yet: voice it first (project_synth), or play it with on true to voice it and play from it.`,
+  nothing_plays: () => "Nothing plays in this project: player_play a block first.",
+  not_loaded: () => "The recording's sound is not loaded yet; call the tool again.",
+  speech_from: () => "from is a moment of a Listening recording; in a Speech project name the block by id.",
+  listening_on: () => "on plays a Speech project from a block on; in a recording play a line (id) or from a moment (from).",
+  speech_rate: () => "A Speech project plays its takes as they were voiced; rate is for a Listening recording.",
 } as const;
 
 export type BridgeErrorCode = keyof typeof MESSAGES;
@@ -164,6 +170,9 @@ function textOf(element: Element): string {
 }
 
 export function label(element: Element): string {
+  const named = (element.getAttribute("aria-labelledby") ?? "").split(/\s+/).filter(Boolean)
+    .map((id) => document.getElementById(id)?.textContent ?? "").join(" ").replace(/\s+/g, " ").trim();
+  if (named) return named.slice(0, 80);
   const own = element.getAttribute("aria-label") || element.getAttribute("title") || "";
   if (own) return own.slice(0, 80);
   if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) {
@@ -315,7 +324,7 @@ function setValue(element: HTMLElement, value: string): void {
   }
 }
 
-const settle = () => new Promise((resolve) => setTimeout(resolve, 250));
+export const settle = () => new Promise((resolve) => setTimeout(resolve, 250));
 
 // ---------------------------------------------------------------- what the page logged
 
@@ -461,7 +470,7 @@ const builtIn: Record<string, Handler> = {
 export const BUILT_IN_COMMANDS = Object.keys(builtIn);
 
 /** Commands that only look: the user is not shown them as the agent's actions. */
-const LOOKING = new Set(["read_page", "console", "editor_state"]);
+const LOOKING = new Set(["read_page", "console", "editor_state", "player_state"]);
 
 // ---------------------------------------------------------------- what changed behind the window
 

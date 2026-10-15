@@ -19,7 +19,9 @@ use tower::ServiceExt;
 
 mod assistant;
 mod atomic;
+mod guides;
 mod speech_tools;
+mod studio_tools;
 mod window;
 
 pub(crate) use assistant::{ask_agent, follow_agent_steps};
@@ -61,6 +63,8 @@ enum Payload {
     /// the page itself.
     Window { command: &'static str, args: Value, seconds: u64,
     },
+    /// A stream the window follows (server-sent events), read for `seconds` or until it ends.
+    Stream { body: Option<Value>, seconds: u64 },
 }
 
 struct Call {
@@ -472,9 +476,18 @@ fn annotations(name: &str) -> Value {
         "shorten", "pin", "refresh",
     ];
     // reads whose names the rules above miss
-    const READ_NAMES: &[&str] = &["studio_wait", "proxy_test", "openrouter_verify", "ui_screenshot", "ui_read_page", "ui_console", "url_probe"];
+    const READ_NAMES: &[&str] = &[
+        "studio_wait", "proxy_test", "openrouter_verify", "ui_screenshot", "ui_read_page", "ui_console", "url_probe", "url_probe_cookies_text", "studio_health",
+        "engine_tags", "voice_sample", "voice_design_sample", "dictionary_try_file", "project_dictionary_counts", "project_unknown_words", "cloud_model_form",
+        "cloud_estimate", "cloud_keys", "cloud_spend", "openai_api_log", "openai_api_models", "listen_audio", "project_queue", "history_list",
+        "speech_live_watch", "job_events", "book_preview", "book_chapter", "project_take_file", "project_export_file", "agent_status", "windows_watch",
+        "player_state",
+    ];
     // writes over what was stored, so the earlier content is gone: a client asks first
-    const OVERWRITES: &[&str] = &["openrouter_set_key", "voice_transcript_set"];
+    const OVERWRITES: &[&str] = &[
+        "openrouter_set_key", "voice_transcript_set", "cloud_set_key", "openai_api_key_create", "openai_api_log_clear", "journal_clear", "project_queue_clear",
+        "project_queue_remove", "window_command_drop",
+    ];
     let changes = CHANGES.iter().any(|verb| name.split('_').any(|word| word == *verb));
     let read_only = READ_NAMES.contains(&name) || !changes && READS.iter().any(|part| name.ends_with(part) || name.contains(&format!("{part}_")));
     let destructive = name.ends_with("_delete") || name.ends_with("_cancel") || name.contains("_cancel_") || name.ends_with("_delete_key") || OVERWRITES.contains(&name);
@@ -484,7 +497,8 @@ fn annotations(name: &str) -> Value {
         || name.starts_with("openrouter_") && !matches!(name, "openrouter_status" | "openrouter_delete_key")
         || matches!(
             name,
-            "models_download" | "voice_download" | "voices_download_pack" | "voices_catalog" | "proxy_test" | "url_probe" | "project_create_from_url" | "url_fetch_resume" | "url_tool_update"
+            "models_download" | "voice_download" | "voices_download_pack" | "voices_catalog" | "proxy_test" | "url_probe" | "url_probe_cookies_text" | "project_create_from_url" | "url_fetch_resume" | "url_tool_update"
+                | "cloud_catalog_refresh" | "cloud_model_form" | "cloud_set_key" | "assistant_chat" | "assistant_models"
         );
     let title = name.replace('_', " ");
     // a one-call tool on a file finds its project again and answers from the finished work
@@ -552,6 +566,27 @@ const JOURNAL: &[(&str, &str, &str)] = &[
     ("url_fetch_delete", "delete", "download"),
     ("url_tool_update", "update", "tool"),
     ("job_cancel", "cancel", "job"),
+    ("project_create_from_url", "create", "listening"),
+    ("project_create_from_subtitles", "create", "project"),
+    ("project_create_from_book", "create", "project"),
+    ("project_import_package", "import", "project"),
+    ("project_package", "export", "project"),
+    ("project_export_save", "export", "file"),
+    ("project_exports_to_folder", "export", "file"),
+    ("project_export_save_as", "export", "file"),
+    ("project_queue_clear", "cancel", "job"),
+    ("project_queue_remove", "cancel", "job"),
+    ("dictionary_try", "synth", "file"),
+    ("listen_upload", "create", "listening"),
+    ("listen_record_stop", "record", "listening"),
+    ("cloud_set_key", "set", "key"),
+    ("cloud_delete_key", "delete", "key"),
+    ("cloud_catalog_refresh", "refresh", "catalog"),
+    ("openai_api_key_create", "set", "key"),
+    ("openai_api_key_delete", "delete", "key"),
+    ("studio_language_set", "update", "setting"),
+    ("models_import_pick", "import", "model"),
+    ("diagnostics_report", "create", "file"),
 ];
 
 /// The name a journal line gives what a tool changed: a name the agent passed, else the project's name, else the id it
@@ -700,7 +735,7 @@ fn resource(uri: &str) -> Option<(&'static str, String)> {
         SKILL_URI => Some(("text/markdown", SKILL.to_string())),
         LANGUAGES_URI => Some(("application/json", serde_json::to_string_pretty(&languages()).unwrap_or_default(),
         )),
-        _ => None,
+        _ => uri.strip_prefix(guides::GUIDE_URI).and_then(guides::guide).map(|text| ("text/plain", text)),
     }
 }
 
@@ -1250,6 +1285,8 @@ fn tools() -> &'static [Tool] {
         all.extend(speech_tools::tools());
         all.extend(atomic::tools());
         all.extend(window::tools());
+        all.extend(studio_tools::tools());
+        all.extend(guides::tools());
         all.extend(assistant::tools());
         all
     })
@@ -1269,16 +1306,22 @@ struct Reply {
     bytes: axum::body::Bytes,
 }
 
-/// Builds the route's request, calls it inside the process and returns what it
-/// answered. A page instead of an answer means the route is not there.
-async fn call_route_raw(call: Call) -> Result<Reply, String> {
+/// Builds the route's request and calls it inside the process. A page instead of an answer means the route is not
+/// there.
+async fn respond(call: Call) -> Result<Response, String> {
     let api = studio_api()?;
     let asked = format!("{} {}", call.method, call.path);
-    let builder = Request::builder().method(call.method).uri(&call.path).header(header::HOST, "127.0.0.1").header(window::AGENT_HEADER, "1");
+    let mut builder = Request::builder().method(call.method).uri(&call.path).header(header::HOST, "127.0.0.1").header(window::AGENT_HEADER, "1");
+    // the OpenAI-compatible routes ask other programs for the key; a tool is the studio itself
+    if call.path.starts_with("/v1/") {
+        if let Some((token, _)) = crate::credentials::api_token() {
+            builder = builder.header(header::AUTHORIZATION, format!("Bearer {token}"));
+        }
+    }
     let request = match call.payload {
-        Payload::None => builder.body(Body::empty()),
+        Payload::None | Payload::Stream { body: None, .. } => builder.body(Body::empty()),
         Payload::Window { command, .. } => return Err(format!("{command} is a command of the studio's window, not a route")),
-        Payload::Json(body) => builder.header(header::CONTENT_TYPE, "application/json").body(Body::from(body.to_string())),
+        Payload::Json(body) | Payload::Stream { body: Some(body), .. } => builder.header(header::CONTENT_TYPE, "application/json").body(Body::from(body.to_string())),
         Payload::Form { fields, files } => {
             let boundary = format!("studio-mcp-{}", uuid::Uuid::new_v4().simple());
             let mut parts: Vec<Part> = Vec::new();
@@ -1299,14 +1342,27 @@ async fn call_route_raw(call: Call) -> Result<Reply, String> {
     }
     .map_err(|error| error.to_string())?;
     let response = api.oneshot(request).await.map_err(|error| error.to_string())?;
-    let status = response.status();
-    let mime = response.headers().get(header::CONTENT_TYPE).and_then(|value| value.to_str().ok()).unwrap_or_default().to_string();
-    let bytes = axum::body::to_bytes(response.into_body(), 64 * 1024 * 1024).await.map_err(|error| error.to_string())?;
-    if mime.starts_with("text/html") {
+    if mime_of(&response).starts_with("text/html") {
         return Err(format!("The studio has no route {asked}: its page answered instead."));
     }
-    Ok(Reply { status, mime, bytes,
-    })
+    Ok(response)
+}
+
+fn mime_of(response: &Response) -> String {
+    response.headers().get(header::CONTENT_TYPE).and_then(|value| value.to_str().ok()).unwrap_or_default().to_string()
+}
+
+/// A route's whole answer.
+async fn reply_of(response: Response) -> Result<Reply, String> {
+    let status = response.status();
+    let mime = mime_of(&response);
+    let bytes = axum::body::to_bytes(response.into_body(), 64 * 1024 * 1024).await.map_err(|error| error.to_string())?;
+    Ok(Reply { status, mime, bytes })
+}
+
+/// Calls a route inside the process and returns what it answered.
+async fn call_route_raw(call: Call) -> Result<Reply, String> {
+    reply_of(respond(call).await?).await
 }
 
 /// A route's answer as text, cut to a size an agent reads.
@@ -1504,6 +1560,125 @@ pub(crate) enum Answer {
     Window(Value),
 }
 
+/// A route answered with a file, not with data: audio, video, an archive.
+fn is_file_answer(mime: &str) -> bool {
+    let mime = mime.split(';').next().unwrap_or_default().trim();
+    mime.starts_with("audio/") || mime.starts_with("video/") || matches!(mime, "application/octet-stream" | "application/zip")
+}
+
+/// The studio's `agent-files` folder, where the files tools answer with are kept.
+pub(super) async fn agent_files() -> Result<PathBuf, String> {
+    let paths = fetch("/app/paths").await?;
+    let data = paths["data_dir"].as_str().ok_or("the studio named no data folder")?;
+    let folder = Path::new(data).join("agent-files");
+    tokio::fs::create_dir_all(&folder).await.map_err(|e| format!("{}: {e}", folder.display()))?;
+    Ok(folder)
+}
+
+/// The file a route answered with, written as it comes into the `agent-files` folder: the agent gets its path, size
+/// and type. A type that names no format keeps the extension of the file the route was asked for.
+async fn keep_file(name: &str, asked: &str, response: Response) -> Result<Value, String> {
+    let mime = mime_of(&response).split(';').next().unwrap_or_default().trim().to_string();
+    let ext = match mime.as_str() {
+        "audio/wav" | "audio/x-wav" | "audio/wave" | "audio/pcm" => "wav",
+        "audio/flac" => "flac",
+        "audio/mpeg" => "mp3",
+        "audio/ogg" => "ogg",
+        "audio/mp4" | "audio/aac" | "audio/x-m4a" => "m4a",
+        "video/mp4" => "mp4",
+        "application/zip" => "zip",
+        "application/octet-stream" => Path::new(asked.split('?').next().unwrap_or_default()).extension().and_then(|ext| ext.to_str()).unwrap_or("bin"),
+        other => other.rsplit('/').next().unwrap_or("bin"),
+    };
+    let file = agent_files().await?.join(format!("{name}-{}.{ext}", chrono_stamp()));
+    let written = async {
+        let mut out = tokio::fs::File::create(&file).await.map_err(|e| e.to_string())?;
+        let mut body = response.into_body().into_data_stream();
+        let mut bytes = 0u64;
+        while let Some(chunk) = futures_util::StreamExt::next(&mut body).await {
+            let chunk = chunk.map_err(|e| e.to_string())?;
+            bytes += chunk.len() as u64;
+            tokio::io::AsyncWriteExt::write_all(&mut out, &chunk).await.map_err(|e| e.to_string())?;
+        }
+        tokio::io::AsyncWriteExt::flush(&mut out).await.map_err(|e| e.to_string())?;
+        Ok::<u64, String>(bytes)
+    }
+    .await;
+    match written {
+        Ok(bytes) => Ok(json!({ "file": file.to_string_lossy(), "mime": mime, "bytes": bytes })),
+        Err(error) => {
+            let _ = tokio::fs::remove_file(&file).await;
+            Err(format!("{}: {error}", file.display()))
+        }
+    }
+}
+
+/// A stream the window follows, read for `seconds` or until it ends: its events in order.
+async fn read_stream(name: &str, call: Call, seconds: u64) -> Result<Value, String> {
+    let response = respond(call).await?;
+    if !response.status().is_success() {
+        return Err(reply_text(&reply_of(response).await?));
+    }
+    let until = tokio::time::Instant::now() + Duration::from_secs(seconds);
+    let mut body = response.into_body().into_data_stream();
+    let mut pending: Vec<u8> = Vec::new();
+    let mut events = Vec::new();
+    let ended = loop {
+        match tokio::time::timeout_at(until, futures_util::StreamExt::next(&mut body)).await {
+            Err(_) => break false,
+            Ok(None) => break true,
+            Ok(Some(Err(error))) => return Err(format!("{name}: {error}")),
+            Ok(Some(Ok(chunk))) => {
+                pending.extend(chunk.iter().filter(|byte| **byte != b'\r'));
+                while let Some(at) = pending.windows(2).position(|pair| pair == b"\n\n") {
+                    let event: Vec<u8> = pending.drain(..at + 2).collect();
+                    let event = String::from_utf8_lossy(&event);
+                    let data: Vec<&str> = event.lines().filter_map(|line| line.strip_prefix("data:")).map(|data| data.strip_prefix(' ').unwrap_or(data)).collect();
+                    if !data.is_empty() {
+                        let data = data.join("\n");
+                        events.push(serde_json::from_str(&data).unwrap_or(Value::String(data)));
+                    }
+                }
+            }
+        }
+    };
+    Ok(json!({ "events": events, "ended": ended }))
+}
+
+/// Several tools in one call, run as `tools/call` runs each. Its future is boxed: it runs tools, and a tool runs it.
+fn batch(args: &Value) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Value, String>> + Send + '_>> {
+    Box::pin(async move {
+    let calls = args.get("calls").and_then(Value::as_array).ok_or("'calls' must be a list of {name, arguments}")?;
+    let keep_going = args.get("keep_going").and_then(Value::as_bool).unwrap_or(false);
+    let mut done = Vec::new();
+    for call in calls {
+        let name = call.get("name").and_then(Value::as_str).unwrap_or_default();
+        let arguments = call.get("arguments").cloned().unwrap_or_else(|| json!({}));
+        let answer = match tools().iter().find(|tool| tool.name == name) {
+            None => Err(format!("Unknown tool: {name}; tools/list names them all.")),
+            Some(tool) if tool.name == "studio_batch" => Err("studio_batch does not run inside itself.".into()),
+            Some(tool) => run_tool(tool, &arguments).await,
+        };
+        let failed = answer.is_err();
+        done.push(match answer {
+            Ok(Answer::Json(value)) | Ok(Answer::Window(value)) => json!({ "name": name, "result": value }),
+            Ok(Answer::Text(text)) => json!({ "name": name, "result": text }),
+            Ok(Answer::Image { mime, .. }) => json!({ "name": name, "result": format!("a picture ({mime}): call {name} alone to see it") }),
+            Err(error) => json!({ "name": name, "error": error }),
+        });
+        if failed && !keep_going {
+            break;
+        }
+    }
+    Ok(json!({ "calls": done }))
+    })
+}
+
+/// A name part that keeps files of one tool apart: milliseconds since 1970.
+fn chrono_stamp() -> u128 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0)
+}
+
 /// Runs a tool as `tools/call` runs one, for an agent and for the Assistant panel alike, and journals its change.
 async fn run_tool(tool: &'static Tool, args: &Value) -> Result<Answer, String> {
     let name = tool.name;
@@ -1520,6 +1695,20 @@ async fn run_tool(tool: &'static Tool, args: &Value) -> Result<Answer, String> {
         call if call.path == "composite:wait" => Answer::Json(wait_for(args).await?),
         call if call.path == "composite:questions" => Answer::Json(assistant::wait_for_questions(args).await),
         call if call.path == "composite:answer" => Answer::Json(assistant::answer_question(args)?),
+        call if call.path == "composite:agent" => Answer::Json(status().await.0),
+        call if call.path == "composite:windows" => Answer::Json(window::watch(args).await),
+        call if call.path == "composite:window_focus" => Answer::Json(window::focus(args)?),
+        call if call.path == "composite:window_drop" => Answer::Json(window::drop_command(args)?),
+        call if call.path == "composite:batch" => Answer::Json(batch(args).await?),
+        call if call.path == "composite:guide" => {
+            let topic = text(args, "topic")?;
+            Answer::Text(guides::guide(&topic).ok_or_else(|| format!("No guide {topic}: {}.", guides::TOPICS.iter().map(|(topic, _)| *topic).collect::<Vec<_>>().join(", ")))?)
+        }
+        call @ Call { payload: Payload::Stream { .. }, .. } => {
+            let seconds = if let Payload::Stream { seconds, .. } = &call.payload { *seconds } else { WAIT_DEFAULT };
+            let read = read_stream(name, call, seconds).await?;
+            Answer::Json(if name == "speech_live_watch" { studio_tools::live_files(read).await? } else { read })
+        }
         call if call.path.starts_with(atomic::PREFIX) => {
             let state = atomic::run(&call.path[atomic::PREFIX.len()..], args).await?;
             journal_call(name, &target, Some(&state));
@@ -1529,7 +1718,14 @@ async fn run_tool(tool: &'static Tool, args: &Value) -> Result<Answer, String> {
             if QUEUED_BEHIND_JOBS.contains(&name) {
                 graphics_card_free().await?;
             }
-            let reply = call_route_raw(call).await?;
+            let asked = call.path.clone();
+            let response = respond(call).await?;
+            if response.status().is_success() && is_file_answer(&mime_of(&response)) {
+                let file = keep_file(name, &asked, response).await?;
+                journal_call(name, &target, None);
+                return Ok(Answer::Json(file));
+            }
+            let reply = reply_of(response).await?;
             if !reply.status.is_success() {
                 return Err(reply_text(&reply));
             }
@@ -1639,11 +1835,14 @@ pub async fn handle(headers: HeaderMap, body: axum::body::Bytes) -> Response {
         })),
         ),
         "ping" => rpc(id, json!({})),
-        "resources/list" => rpc(id, cacheable(json!({ "resources": [
-            { "uri": SKILL_URI, "name": "studio skill", "title": "How to drive the studio", "description": "How to drive Speech Studio: every tool by area, the ground rules, step-by-step recipes.", "mimeType": "text/markdown" },
-            { "uri": LANGUAGES_URI, "name": "languages", "title": "Languages", "description": "The language codes a project is voiced or recognised in: lang.", "mimeType": "application/json" },
-        ] })),
-        ),
+        "resources/list" => {
+            let mut list = vec![
+                json!({ "uri": SKILL_URI, "name": "studio skill", "title": "How to drive the studio", "description": "How to drive Speech Studio: every tool by area, the ground rules, step-by-step recipes.", "mimeType": "text/markdown" }),
+                json!({ "uri": LANGUAGES_URI, "name": "languages", "title": "Languages", "description": "The language codes a project is voiced or recognised in: lang.", "mimeType": "application/json" }),
+            ];
+            list.extend(guides::resources());
+            rpc(id, cacheable(json!({ "resources": list })))
+        }
         "resources/templates/list" => rpc(id, cacheable(json!({ "resourceTemplates": [] }))),
         "resources/read" => {
             let uri = params.get("uri").and_then(Value::as_str).unwrap_or_default();
@@ -1654,15 +1853,17 @@ pub async fn handle(headers: HeaderMap, body: axum::body::Bytes) -> Response {
                 None => rpc_error(id, -32002, format!("Resource not found: {uri}")),
             }
         }
-        "prompts/list" => rpc(id, cacheable(json!({ "prompts": [
-            { "name": "studio", "title": "Studio skill", "description": "Load the studio's skill: the tools, the ground rules and the recipes." },
-        ] })),
-        ),
+        "prompts/list" => {
+            let mut list = vec![json!({ "name": "studio", "title": "Studio skill", "description": "Load the studio's skill: the tools, the ground rules and the recipes." })];
+            list.extend(guides::prompts());
+            rpc(id, cacheable(json!({ "prompts": list })))
+        }
         "prompts/get" => {
             let name = params.get("name").and_then(Value::as_str).unwrap_or_default();
+            let arguments = params.get("arguments").cloned().unwrap_or(Value::Null);
             let text = match name {
                 "studio" => Some(SKILL.to_string()),
-                _ => None,
+                other => guides::prompt(other, &arguments),
             };
             match text {
                 Some(text) => rpc(id, json!({ "messages": [{ "role": "user", "content": { "type": "text", "text": text } }] }),
@@ -1731,11 +1932,137 @@ fn moment(text: &str, end: bool) -> Result<i64, String> {
 }
 
 /// What an agent is told when it connects.
-const INSTRUCTIONS: &str = "You drive Speech Studio on this computer: it voices text (Speech) and recognises speech and checks a voicing (Listening). Every tool runs the same code as a control of the studio, through the routes its window calls. Start with studio_status. Long work - downloads and link fetches - is a job: start it, then studio_wait with its job_id instead of polling. Look ids up instead of guessing them: voices_list, models_status, url_fetches_list. Files on this computer are passed by path. To work in front of the user, use the ui_* tools (ui_navigate opens speech or listening); they need the window open, the rest works without it. The whole guide is the resource studio://skill (prompt 'studio').";
+const INSTRUCTIONS: &str = "You drive Speech Studio on this computer: it voices text (Speech) and recognises speech and checks a voicing (Listening). Every tool runs the same code as a control of the studio, through the routes its window calls, and every change to projects, recordings, voices, models, keys and settings is written into its activity journal. Start with studio_status. Long work - voicing, export, recognition, downloads and link fetches - is a job: start it, then studio_wait with its job_id instead of polling. Look ids up instead of guessing them: voices_list, models_status, projects_list, url_fetches_list. Files on this computer are passed by path, and a sound a tool answers comes back as a file path. Before writing text for an engine read studio_guide: tags (each engine reads its own), podcast, audiobook. To work in front of the user, use the ui_* tools (ui_navigate opens speech or listening), editor_* for the open project and player_* to play it to the user; they need the window open, the rest works without it. studio_batch runs several tools in one call. The whole guide is the resource studio://skill (prompt 'studio'); prompts write_podcast and make_audiobook start those tasks.";
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ---------------------------------------------------------------- every route is a tool (as in Dub Studio)
+
+    /// The routes of build_router: (METHOD, path pattern).
+    fn router_routes() -> Vec<(String, String)> {
+        let source = include_str!("lib.rs").replace("\r\n", "\n");
+        let body = source.split("pub fn build_router(").nth(1).expect("build_router").split("\n}\n").next().unwrap();
+        let code: String = body.lines().map(|line| line.split("//").next().unwrap_or_default()).collect::<Vec<_>>().join("\n");
+        let mut routes = Vec::new();
+        for chunk in code.split(".route(").skip(1) {
+            let path = chunk.trim_start().strip_prefix('"').and_then(|rest| rest.split('"').next()).expect("a route's path").to_string();
+            let handlers = chunk.split(".fallback(").next().unwrap().split(".layer(").next().unwrap().split(".with_state(").next().unwrap();
+            for method in ["get", "post", "patch", "put", "delete"] {
+                let call = format!("{method}(");
+                let called = handlers.match_indices(&call).any(|(at, _)| !handlers[..at].chars().last().is_some_and(|c| c.is_alphanumeric() || c == '_'));
+                if called {
+                    routes.push((method.to_uppercase(), path.clone()));
+                }
+            }
+        }
+        routes
+    }
+
+    fn route_of(pattern: &str, path: &str) -> bool {
+        let path = path.split('?').next().unwrap_or_default();
+        let (wanted, given): (Vec<&str>, Vec<&str>) = (pattern.split('/').collect(), path.split('/').collect());
+        wanted.len() == given.len() && wanted.iter().zip(&given).all(|(part, value)| part.starts_with('{') && !value.is_empty() || part == value)
+    }
+
+    /// Routes an agent is not given, and why.
+    const NOT_TOOLS: &[(&str, &str, &str)] = &[];
+
+    /// Arguments for every property of a tool, and one set more for each other choice of an enum.
+    fn samples(tool: &Tool, file: &std::path::Path) -> Vec<Value> {
+        let schema = (tool.schema)();
+        let properties = schema["properties"].as_object().cloned().unwrap_or_default();
+        let sample = |name: &str, property: &Value| -> Value {
+            if let Some(first) = property["enum"].as_array().and_then(|choices| choices.first()) {
+                return first.clone();
+            }
+            let kind = match &property["type"] {
+                Value::Array(kinds) => kinds[0].as_str().unwrap_or("string").to_string(),
+                other => other.as_str().unwrap_or("string").to_string(),
+            };
+            match (kind.as_str(), name) {
+                ("integer", _) => json!(1),
+                ("number", _) => json!(1.5),
+                ("boolean", _) => json!(true),
+                ("array", _) if property["items"]["type"] == "integer" => json!([1]),
+                ("array", n) if n.ends_with("paths") => json!([file.to_string_lossy()]),
+                ("array", _) => json!(["x1"]),
+                ("object", _) => json!({}),
+                (_, n) if n.ends_with("path") || n == "file" => json!(file.to_string_lossy()),
+                _ => json!("x1"),
+            }
+        };
+        let base: serde_json::Map<String, Value> = properties.iter().map(|(name, property)| (name.clone(), sample(name, property))).collect();
+        let mut all = vec![Value::Object(base.clone())];
+        for (name, property) in &properties {
+            for choice in property["enum"].as_array().into_iter().flatten().skip(1) {
+                let mut other = base.clone();
+                other.insert(name.clone(), choice.clone());
+                all.push(Value::Object(other));
+            }
+        }
+        all
+    }
+
+    /// The routes a composite tool serves by running the studio's code itself.
+    const COMPOSITE_ROUTES: &[(&str, &[(&str, &str)])] = &[
+        ("composite:atomic:separate_file", &[("POST", "/separate"), ("GET", "/jobs/x1")]),
+        ("composite:agent", &[("GET", "/mcp/status")]),
+        ("composite:windows", &[("GET", "/mcp/window")]),
+        ("composite:window_focus", &[("POST", "/mcp/window/focus")]),
+        ("composite:window_drop", &[("POST", "/mcp/window/result")]),
+        ("composite:batch", &[("POST", "/mcp")]),
+    ];
+
+    /// The routes a tool reaches: (METHOD, path).
+    fn reached_by(tool: &Tool, file: &std::path::Path) -> Vec<(String, String)> {
+        let mut reached = Vec::new();
+        for args in samples(tool, file) {
+            let Ok(call) = (tool.call)(&args) else { continue };
+            if matches!(call.payload, Payload::Window { .. }) {
+                continue;
+            }
+            if call.path.starts_with("composite:") {
+                let served = COMPOSITE_ROUTES.iter().find(|(kind, _)| *kind == call.path).map(|(_, routes)| *routes).unwrap_or_default();
+                reached.extend(served.iter().map(|(method, path)| (method.to_string(), path.to_string())));
+                continue;
+            }
+            reached.push((call.method.to_string(), call.path.clone()));
+        }
+        reached
+    }
+
+    #[test]
+    fn every_route_is_a_tool() {
+        let folder = tempfile::tempdir().unwrap();
+        let file = folder.path().join("clip.wav");
+        std::fs::write(&file, b"x").unwrap();
+        let routes = router_routes();
+        assert!(routes.len() > 100, "build_router read: {routes:?}");
+        let mut covered = vec![false; routes.len()];
+        for tool in tools() {
+            for (method, path) in reached_by(tool, &file) {
+                let found: Vec<usize> = routes.iter().enumerate().filter(|(_, (m, p))| *m == method && route_of(p, &path)).map(|(at, _)| at).collect();
+                assert!(!found.is_empty(), "{} calls {method} {path}, a route the studio does not have", tool.name);
+                for at in found {
+                    covered[at] = true;
+                }
+            }
+        }
+        let by_tool = covered.clone();
+        let mut stale = Vec::new();
+        for (method, path) in NOT_TOOLS.iter().map(|(method, path, _)| (method, path)) {
+            let at = routes.iter().position(|(m, p)| m == method && p == path).unwrap_or_else(|| panic!("{method} {path} of NOT_TOOLS is not a route of build_router"));
+            if by_tool[at] {
+                stale.push(format!("{method} {path}"));
+            }
+            covered[at] = true;
+        }
+        assert!(stale.is_empty(), "these routes of NOT_TOOLS are reached by a tool: drop them from NOT_TOOLS: {stale:?}");
+        let missing: Vec<String> = routes.iter().zip(&covered).filter(|(_, done)| !**done).map(|((method, path), _)| format!("{method} {path}")).collect();
+        assert!(missing.is_empty(), "these routes have no tool: give each one, or put it into NOT_TOOLS with why: {missing:#?}");
+    }
 
     #[test]
     fn every_journaled_tool_exists_and_changes_something() {
@@ -1754,6 +2081,34 @@ mod tests {
             assert!(en["journal"]["verb"][verb].is_string(), "{tool}: no words for the verb {verb}");
             assert!(en["journal"]["kind"][kind].is_string(), "{tool}: no words for the kind {kind}");
         }
+    }
+
+    #[test]
+    fn every_tool_is_in_the_skill() {
+        let missing: Vec<&str> = tools().iter().map(|tool| tool.name).filter(|name| !SKILL.contains(&format!("`{name}`"))).collect();
+        assert!(missing.is_empty(), "docs/mcp-skill.md does not name {missing:?}");
+    }
+
+    #[test]
+    fn every_guide_reads_and_every_prompt_takes_its_arguments() {
+        for (topic, _) in guides::TOPICS {
+            let (mime, text) = resource(&format!("{}{topic}", guides::GUIDE_URI)).unwrap_or_else(|| panic!("no guide {topic}"));
+            assert_eq!(mime, "text/plain");
+            assert!(text.len() > 300, "{topic}: {text}");
+        }
+        let tags = guides::guide("tags").unwrap();
+        assert!(tags.starts_with("- **Expression tags differ per engine**"), "the skill's tags part leads the guide");
+        for engine in crate::engines::all() {
+            assert!(tags.contains(&format!("({})", engine.id)), "{} is missing from the tags guide", engine.id);
+        }
+        assert!(guides::guide("podcast").unwrap().contains("podcast scriptwriter"));
+        assert!(guides::guide("audiobook").unwrap().contains("VERBATIM"));
+        for prompt in guides::prompts() {
+            let name = prompt["name"].as_str().unwrap();
+            let text = guides::prompt(name, &json!({ "topic": "кофе по утрам", "path": "C:/books/war.epub" })).unwrap_or_else(|| panic!("{name}"));
+            assert!(text.contains("кофе по утрам") || text.contains("C:/books/war.epub"), "{name} drops its argument");
+        }
+        assert!(resource("studio://guide/nothing").is_none());
     }
 
     #[test]

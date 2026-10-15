@@ -522,7 +522,11 @@
       "open_settings": "ouvre les réglages",
       "open_help": "ouvre l’aide",
       "editor_open": "ouvre un projet",
-      "editor_select": "montre un endroit du projet"
+      "editor_select": "montre un endroit du projet",
+      "player_play": "joue le son",
+      "player_pause": "arrête le son",
+      "player_seek": "déplace le lecteur",
+      "player_set": "règle le lecteur"
     }
   },
   "jobs": {
@@ -1099,14 +1103,15 @@
     "native_ja": "japonais natif",
     "native_ko": "coréen natif",
     "engineVoices": "Voix du modèle",
-    "libraryClone": "Bibliothèque — clonage"
+    "libraryClone": "Bibliothèque — clonage",
+    "directionIgnored": "{{engine}} ne lit pas les indications : le son n’en changera pas."
   },
   "tags": {
     "emotion": "Émotion",
     "prosody": "Prosodie",
     "style": "Style",
     "sfx": "Son",
-    "legend": "L’émotion et le style vont en début de phrase ; pauses et sons n’importe où. Les balises que le moteur ne connaît pas sont retirées et nommées.",
+    "legend": "Émotion, style, vitesse, hauteur et expressivité se placent en début de phrase ; pause et son, au curseur. Juste après un son, sans espace, écrivez son onomatopée (« Ha ha, », « Hum, ») : Higgs en a besoin. Les balises inconnues du moteur sont retirées et nommées.",
     "affection": "Tendresse",
     "amusement": "Amusement",
     "anger": "Colère",
@@ -1151,7 +1156,24 @@
     "sniff": "Reniflement",
     "sneeze": "Éternuement",
     "rate": "Tempo",
-    "universal": "Pause et tempo marchent avec tout moteur : le tempo dure jusqu’à la balise de tempo suivante ou la fin du bloc."
+    "universal": "Pause et tempo marchent avec tout moteur : le tempo dure jusqu’à la balise de tempo suivante ou la fin du bloc.",
+    "event": "Événement",
+    "scope": "Sur un passage",
+    "laughs": "Rire",
+    "sighs": "Soupir",
+    "gasps": "Souffle coupé",
+    "clears throat": "Raclement de gorge",
+    "hesitates": "Hésitation",
+    "whisper": "Chuchoté",
+    "slow": "Lentement",
+    "emphasis": "Insistance",
+    "none": "{{engine}} n’a pas de balises d’expression : les pauses et le tempo fonctionnent.",
+    "dramaRussian": "Les balises et indications de Drama 3 marchent mal en russe (vérifié à l’oreille).",
+    "legendDrama": "Un événement se place dans le texte ; pour un passage, sélectionnez les mots et cliquez. Drama lit l’indication du bloc comme le ton de toute la ligne.",
+    "legendPlain": "La balise se place au curseur ; celles que le moteur ne connaît pas sont retirées et nommées.",
+    "laugh": "Rire",
+    "breath": "Respiration",
+    "qwen": "Qwen3-TTS n’a pas de balises : écrivez rires et sons en onomatopées dans le texte (« ha ha », « hum »), le modèle les dit selon le contexte ; réglez le ton dans l’indication (avec les voix du modèle, pas avec un clone)."
   },
   "dict": {
     "title": "Dictionnaire de prononciation",
@@ -1652,5 +1674,30 @@
     "choiceHint_join": "La réplique commence juste après la précédente, sans pause",
     "choice_keep": "Garder le chevauchement",
     "choiceHint_keep": "Les deux répliques sonnent en même temps"
+  },
+  "presetVoice": {
+    "supertonic": {
+      "F1": "Voix féminine calme, un peu grave ; posée et stable. Service client, consignes, méditation, narration professionnelle.",
+      "F2": "Voix féminine claire et joyeuse ; vive, espiègle et jeune. Contenus jeunesse, pubs ludiques, réseaux sociaux, personnages.",
+      "F3": "Voix féminine nette de speakerine ; prête pour l’antenne. Publicité, documentaires, lecture d’informations.",
+      "F4": "Voix féminine nette et assurée ; expressive, avec du mordant. Présentations métier, vidéos de formation, annonces produit.",
+      "F5": "Voix féminine douce et bienveillante ; calme et apaisante. Livres audio, messages de soutien, bien-être, lecture empathique.",
+      "M1": "Voix masculine vive et enjouée ; assurée et claire. Vidéos promo, explications dynamiques, narration générale.",
+      "M2": "Voix masculine grave et solide ; calme, posée et sérieuse. Contenu d’entreprise, annonces sérieuses, documentaires.",
+      "M3": "Voix masculine soignée et autoritaire ; assurée et fiable. Présentations, messages de direction, narration de confiance.",
+      "M4": "Voix masculine douce et neutre ; jeune et amicale. Éducation, explications bienveillantes, guides de démarrage.",
+      "M5": "Voix masculine chaude et douce ; calme, conteur né. Livres audio, histoires du soir, lecture réfléchie."
+    },
+    "qwen3-tts": {
+      "vivian": "Voix féminine jeune, lumineuse et un peu acérée.",
+      "serena": "Voix féminine jeune, chaude et douce.",
+      "uncle_fu": "Voix masculine mûre au timbre grave et moelleux.",
+      "dylan": "Jeune voix masculine de Pékin, claire et naturelle.",
+      "eric": "Voix masculine vive de Chengdu, légèrement voilée.",
+      "ryan": "Voix masculine dynamique, très rythmée.",
+      "aiden": "Voix masculine américaine ensoleillée aux médiums clairs.",
+      "ono_anna": "Voix féminine japonaise espiègle, légère et agile.",
+      "sohee": "Voix féminine coréenne chaleureuse et très expressive."
+    }
   }
 }

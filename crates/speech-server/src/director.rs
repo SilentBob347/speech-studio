@@ -70,18 +70,23 @@ pub struct Speaker {
     pub manner: String,
 }
 
-/// Диалог подкаста на тему: строки спикеров по очереди, у каждой — короткая подсказка интонации.
-pub fn write_podcast(llm: &ChatClient, topic: &str, speakers: &[Speaker], lang: &str, minutes: u32) -> Result<Vec<Line>, String> {
-    let names: Vec<String> = speakers.iter().map(|s| s.name.clone()).collect();
-    let cast = speakers.iter().map(|s| if s.manner.trim().is_empty() { s.name.clone() } else { format!("{} — {}", s.name, s.manner.trim()) }).collect::<Vec<_>>().join("; ");
-    let words = minutes.clamp(1, 20) * 140;
-    let system = format!(
+/// Правила сценариста подкаста; их же читает агент в гайде `podcast`.
+pub fn podcast_rules(cast: &str, lang: &str, words: &str) -> String {
+    format!(
         "You are a podcast scriptwriter. Write a lively spoken dialogue for these speakers: {cast}. Each speaker keeps their \
          own manner and character. Write in the language with code \"{lang}\" (\"auto\" means the language of the topic). About \
          {words} words in total. Each line is what one speaker says aloud: no stage directions or sound effects inside the \
          text, numbers as they are said. \"direction\" is a short note on how the line sounds (tone, pace), or empty. Answer \
          with JSON only."
-    );
+    )
+}
+
+/// Диалог подкаста на тему: строки спикеров по очереди, у каждой — короткая подсказка интонации.
+pub fn write_podcast(llm: &ChatClient, topic: &str, speakers: &[Speaker], lang: &str, minutes: u32) -> Result<Vec<Line>, String> {
+    let names: Vec<String> = speakers.iter().map(|s| s.name.clone()).collect();
+    let cast = speakers.iter().map(|s| if s.manner.trim().is_empty() { s.name.clone() } else { format!("{} — {}", s.name, s.manner.trim()) }).collect::<Vec<_>>().join("; ");
+    let words = minutes.clamp(1, 20) * 140;
+    let system = podcast_rules(&cast, lang, &words.to_string());
     let lines = ask(llm, &system, topic, &lines_schema(Some(&names)), (words * 4).clamp(1_024, 8_192))?;
     if lines.is_empty() {
         return Err(t!("director-empty"));
@@ -113,16 +118,21 @@ pub fn chunks(text: &str) -> Vec<String> {
     out
 }
 
-/// Разметка куска книги: рассказчик и персонажи; `known` — уже встреченные персонажи, их имена не меняются.
-fn cast_chunk(llm: &ChatClient, chunk: &str, narrator: &str, known: &[String], lang: &str) -> Result<Vec<Line>, String> {
-    let known_list = if known.is_empty() { "none yet".to_string() } else { known.join(", ") };
-    let system = format!(
+/// Правила разметчика книги; их же читает агент в гайде `audiobook`.
+pub fn casting_rules(narrator: &str, known_list: &str, lang: &str) -> String {
+    format!(
         "You are the casting director of an audiobook. Split the text into the narrator's parts and the characters' lines. \
          The narrator is called \"{narrator}\". Characters already met: {known_list}; use exactly these names for them, and \
          give a new character a short name in the language of the text (code \"{lang}\"). Copy the text VERBATIM, in order, \
          every word and punctuation mark, only splitting it between speakers; the words that introduce a line (\"he said\") \
          belong to the narrator. \"direction\" is a short note on how a line sounds, or empty. Answer with JSON only."
-    );
+    )
+}
+
+/// Разметка куска книги: рассказчик и персонажи; `known` — уже встреченные персонажи, их имена не меняются.
+fn cast_chunk(llm: &ChatClient, chunk: &str, narrator: &str, known: &[String], lang: &str) -> Result<Vec<Line>, String> {
+    let known_list = if known.is_empty() { "none yet".to_string() } else { known.join(", ") };
+    let system = casting_rules(narrator, &known_list, lang);
     let schema = lines_schema(None);
     let max_tokens = ((chunk.chars().count() * 2) as u32).clamp(1_024, 8_192);
     let want = letters(chunk);

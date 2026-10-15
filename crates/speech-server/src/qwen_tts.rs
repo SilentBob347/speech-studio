@@ -30,16 +30,16 @@ pub const LIBRARY: &str = "qwen.dll";
 #[cfg(not(windows))]
 pub const LIBRARY: &str = "libqwen.so";
 /// The speakers of the CustomVoice checkpoints with the native language the model card gives them.
-pub const SPEAKERS: &[(&str, &str, &str, &str)] = &[
-    ("vivian", "Vivian", "female", "zh"),
-    ("serena", "Serena", "female", "zh"),
-    ("uncle_fu", "Uncle Fu", "male", "zh"),
-    ("dylan", "Dylan", "male", "zh"),
-    ("eric", "Eric", "male", "zh"),
-    ("ryan", "Ryan", "male", "en"),
-    ("aiden", "Aiden", "male", "en"),
-    ("ono_anna", "Ono Anna", "female", "ja"),
-    ("sohee", "Sohee", "female", "ko"),
+pub const SPEAKERS: &[(&str, &str, &str, &str, &str)] = &[
+    ("vivian", "Vivian", "female", "zh", "Bright, slightly edgy young female voice."),
+    ("serena", "Serena", "female", "zh", "Warm, gentle young female voice."),
+    ("uncle_fu", "Uncle Fu", "male", "zh", "Seasoned male voice with a low, mellow timbre."),
+    ("dylan", "Dylan", "male", "zh", "Youthful Beijing male voice with a clear, natural timbre."),
+    ("eric", "Eric", "male", "zh", "Lively Chengdu male voice with a slightly husky brightness."),
+    ("ryan", "Ryan", "male", "en", "Dynamic male voice with strong rhythmic drive."),
+    ("aiden", "Aiden", "male", "en", "Sunny American male voice with a clear midrange."),
+    ("ono_anna", "Ono Anna", "female", "ja", "Playful Japanese female voice with a light, nimble timbre."),
+    ("sohee", "Sohee", "female", "ko", "Warm Korean female voice with rich emotion."),
 ];
 pub const LANGS: &[&str] = &["ru", "en", "zh", "ja", "ko", "de", "fr", "es", "pt", "it"];
 pub const SAMPLE_RATE: u32 = 24_000;

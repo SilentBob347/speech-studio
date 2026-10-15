@@ -15,7 +15,7 @@ import { usePublishEditor } from "../../lib/editorBridge";
 import ErrorNote from "../ErrorNote";
 import RecastDialog from "./RecastDialog";
 import { CLOUD_ENGINE_NAMES, askCloud, askDirector } from "../../lib/cloudConsent";
-import { flash } from "../../lib/mcpBridge";
+import { bridgeError, flash } from "../../lib/mcpBridge";
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type Announcements, type DragEndEvent, type UniqueIdentifier } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import BlockRow, { type BlockActions } from "./BlockRow";
@@ -78,6 +78,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   const [stressing, setStressing] = useState<string[] | null>(null);
   const [stressMissing, setStressMissing] = useState(false);
   const audio = useRef<HTMLAudioElement | null>(null);
+  const volume = useRef(1);
   const pushActivity = useStore((s) => s.pushActivity);
 
   useEffect(() => {
@@ -133,6 +134,33 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
       flash(row);
       return true;
     },
+    player: {
+      state: () => {
+        const a = playing ? audio.current : null;
+        return { playing, queued: queue, position: a?.currentTime ?? null, duration: a && Number.isFinite(a.duration) ? a.duration : null, volume: volume.current };
+      },
+      play: ({ id, on, from }) => {
+        if (from !== undefined) throw bridgeError("speech_from");
+        if (!id) throw bridgeError("missing", { command: "player_play", field: "id" });
+        const b = blocks.find((x) => x.id === id);
+        if (!b) throw bridgeError("no_line", { id });
+        if (on) return listenFrom(b.id);
+        if (!activeTake(b)) throw bridgeError("no_take", { id });
+        playBlock(b, []);
+      },
+      pause: () => stopAudio(),
+      seek: (seconds) => {
+        const a = audio.current;
+        if (!a || !playing) throw bridgeError("nothing_plays");
+        a.currentTime = seconds;
+      },
+      set: ({ volume: level, rate }) => {
+        if (rate !== undefined) throw bridgeError("speech_rate");
+        if (level === undefined) return;
+        volume.current = level;
+        if (audio.current) audio.current.volume = level;
+      },
+    },
   });
 
   const stopAudio = useCallback(() => { audio.current?.pause(); setPlaying(null); setQueue([]); }, []);
@@ -141,6 +169,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
     if (!take) return;
     audio.current?.pause();
     const a = new Audio(`${speechApi.takeUrl(pid, take.file)}?n=${take.n}`);
+    a.volume = volume.current;
     audio.current = a;
     setPlaying(b.id);
     setQueue(rest);

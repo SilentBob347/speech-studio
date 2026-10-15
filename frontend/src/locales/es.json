@@ -522,7 +522,11 @@
       "open_settings": "abre los ajustes",
       "open_help": "abre la ayuda",
       "editor_open": "abre un proyecto",
-      "editor_select": "muestra un lugar del proyecto"
+      "editor_select": "muestra un lugar del proyecto",
+      "player_play": "reproduce el sonido",
+      "player_pause": "detiene el sonido",
+      "player_seek": "mueve el reproductor",
+      "player_set": "ajusta el reproductor"
     }
   },
   "jobs": {
@@ -1099,14 +1103,15 @@
     "native_ja": "japonés nativo",
     "native_ko": "coreano nativo",
     "engineVoices": "Voces del modelo",
-    "libraryClone": "Biblioteca — clonación"
+    "libraryClone": "Biblioteca — clonación",
+    "directionIgnored": "{{engine}} no lee las indicaciones: no cambiará el sonido."
   },
   "tags": {
     "emotion": "Emoción",
     "prosody": "Prosodia",
     "style": "Estilo",
     "sfx": "Sonido",
-    "legend": "La emoción y el estilo van al inicio de la frase; pausas y sonidos, en cualquier sitio. Las etiquetas que el motor no conoce se quitan y se nombran.",
+    "legend": "Emoción, estilo, velocidad, tono y expresividad van al inicio de la frase; la pausa y el sonido, en el cursor. Justo después de un sonido, sin espacio, escribe su onomatopeya («Ja, ja,», «Ejem,»): Higgs lo necesita. Las etiquetas que el motor no conoce se quitan y se nombran.",
     "affection": "Cariño",
     "amusement": "Diversión",
     "anger": "Enfado",
@@ -1151,7 +1156,24 @@
     "sniff": "Sorbido",
     "sneeze": "Estornudo",
     "rate": "Tempo",
-    "universal": "Pausa y tempo funcionan con cualquier motor: el tempo dura hasta la siguiente etiqueta de tempo o el final del bloque."
+    "universal": "Pausa y tempo funcionan con cualquier motor: el tempo dura hasta la siguiente etiqueta de tempo o el final del bloque.",
+    "event": "Evento",
+    "scope": "En un tramo",
+    "laughs": "Risa",
+    "sighs": "Suspiro",
+    "gasps": "Jadeo",
+    "clears throat": "Carraspeo",
+    "hesitates": "Duda",
+    "whisper": "Susurro",
+    "slow": "Despacio",
+    "emphasis": "Énfasis",
+    "none": "{{engine}} no tiene etiquetas de expresión: funcionan las pausas y el tempo.",
+    "dramaRussian": "Las etiquetas e indicaciones de Drama 3 funcionan mal en ruso (comprobado de oído).",
+    "legendDrama": "Un evento va en su lugar del texto; para un tramo, selecciona las palabras y pulsa. Drama lee la indicación del bloque como la entonación de toda la línea.",
+    "legendPlain": "La etiqueta va en el cursor; las que el motor no conoce se quitan y se nombran.",
+    "laugh": "Risa",
+    "breath": "Respiración",
+    "qwen": "Qwen3-TTS no tiene etiquetas: escribe la risa y los sonidos como onomatopeya en el texto («ja, ja», «mmm») y el modelo los dirá según el contexto; indica la entonación en la indicación (funciona con las voces del modelo, no con un clon)."
   },
   "dict": {
     "title": "Diccionario de pronunciación",
@@ -1652,5 +1674,30 @@
     "choiceHint_join": "La réplica empieza justo después de la anterior, sin pausa",
     "choice_keep": "Mantener el solapamiento",
     "choiceHint_keep": "Ambas réplicas suenan a la vez"
+  },
+  "presetVoice": {
+    "supertonic": {
+      "F1": "Voz femenina tranquila, algo grave; serena y firme. Atención al cliente, instrucciones, meditación, narración profesional.",
+      "F2": "Voz femenina luminosa y alegre; viva, juguetona y juvenil. Contenido juvenil, anuncios desenfadados, redes, personajes.",
+      "F3": "Voz femenina clara de locutora profesional; lista para emisión. Publicidad, documentales, narración informativa.",
+      "F4": "Voz femenina nítida y segura; expresiva y con fuerza. Explicaciones de negocio, vídeos formativos, anuncios de producto.",
+      "F5": "Voz femenina amable y suave; tranquila y reconfortante. Audiolibros, mensajes de apoyo, bienestar, narración empática.",
+      "M1": "Voz masculina animada y enérgica; segura y clara. Vídeos promocionales, explicaciones dinámicas, narración general.",
+      "M2": "Voz masculina grave y sólida; tranquila, serena y seria. Contenido corporativo, avisos serios, documentales.",
+      "M3": "Voz masculina pulida y con autoridad; segura y fiable. Presentaciones, mensajes de dirección, narración de confianza.",
+      "M4": "Voz masculina suave y neutra; joven y cercana. Educación, explicaciones amables, guías de inicio.",
+      "M5": "Voz masculina cálida y suave; tranquila, narrador nato. Audiolibros, cuentos para dormir, narración reflexiva."
+    },
+    "qwen3-tts": {
+      "vivian": "Voz femenina joven, brillante y algo afilada.",
+      "serena": "Voz femenina joven, cálida y dulce.",
+      "uncle_fu": "Voz masculina madura de timbre grave y suave.",
+      "dylan": "Voz masculina joven de Pekín, clara y natural.",
+      "eric": "Voz masculina viva de Chengdu con un brillo algo ronco.",
+      "ryan": "Voz masculina dinámica con mucho ritmo.",
+      "aiden": "Voz masculina estadounidense soleada con medios claros.",
+      "ono_anna": "Voz femenina japonesa juguetona, ligera y ágil.",
+      "sohee": "Voz femenina coreana cálida y muy emotiva."
+    }
   }
 }

@@ -13,7 +13,7 @@ import { useStore } from "../../store";
 import { usePublishEditor } from "../../lib/editorBridge";
 import ErrorNote from "../ErrorNote";
 import { CLOUD_ENGINE_NAMES, askCloud } from "../../lib/cloudConsent";
-import { flash } from "../../lib/mcpBridge";
+import { bridgeError, flash } from "../../lib/mcpBridge";
 import Transcript, { type Selection } from "./Transcript";
 import ListenSettings from "./ListenSettings";
 import ListenExport from "./ListenExport";
@@ -68,6 +68,37 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
       row?.scrollIntoView({ block: "center", behavior: "smooth" });
       flash(row);
       return true;
+    },
+    player: {
+      state: () => ({ playing, position: time, duration: duration || project?.duration || null, rate, volume: audio.current?.volume ?? 1 }),
+      play: ({ id, on, from }) => {
+        const a = audio.current;
+        if (!a) throw bridgeError("not_loaded");
+        if (on) throw bridgeError("listening_on");
+        if (id !== undefined) {
+          const l = lines.find((x) => x.id === id);
+          if (!l) throw bridgeError("no_line", { id });
+          return playLine(l);
+        }
+        if (from !== undefined) seek(from);
+        stopAt.current = null;
+        void a.play();
+      },
+      pause: () => audio.current?.pause(),
+      seek: (seconds) => {
+        if (!audio.current) throw bridgeError("not_loaded");
+        seek(seconds);
+      },
+      set: ({ volume, rate: speed }) => {
+        const a = audio.current;
+        if (!a) throw bridgeError("not_loaded");
+        if (speed !== undefined) {
+          if (!RATES.includes(speed)) throw bridgeError("bad_value", { command: "player_set", field: "rate", expected: RATES.join(", ") });
+          setRate(speed);
+          a.playbackRate = speed;
+        }
+        if (volume !== undefined) a.volume = volume;
+      },
     },
   });
 

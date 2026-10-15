@@ -21,14 +21,33 @@ connected and the address to paste.
 ## Ground rules
 
 - **Start with `studio_status`**: what runs now, what finished last, whether the required models are there.
+  `studio_system` (the graphics card, its memory and load, RAM), `studio_capabilities`, `studio_paths` (where the data,
+  projects and models are), `studio_health` (the service's version and folder), `agent_status` (this connection as
+  the settings show it).
 - **Long work is a job**: `studio_wait` with its `job_id` (or `until: download | idle`) instead of polling; it returns
-  within a minute with how far the work got - call it again.
+  within a minute with how far the work got - call it again. `jobs_list` (`pid` narrows it), `job_get`, `job_cancel`,
+  `job_events` (every stage and percent of a job in order, for some seconds).
+- **Several calls at once**: `studio_batch` runs a list of tools in order in one call and answers each one's result.
+- **Guides before writing**: `studio_guide` with `tags`, `podcast` or `audiobook` (the same texts are the resources
+  `studio://guide/<topic>`); prompts `write_podcast` and `make_audiobook` start those tasks with their guides.
+- **Files come back as paths**: a tool that answers sound (`voice_sample`, `project_take_file`, `project_export_file`,
+  `listen_audio`, `openai_api_speech`...) writes it into the studio's `agent-files` folder and answers its path, type
+  and size; a picture (`voice_photo_get`) comes as an image.
 - **Models**: `models_status` lists every component with its size and state, `models_download` fetches by id in the
   background (resumable, every file checked against its pinned SHA-256), `models_cancel_download` pauses,
   `models_import` takes files already on disk, `models_select` picks a quantisation, `models_remove` frees disk space,
   `engine_presets_get` / `engine_preset_apply` set everything for this computer's card or for the cloud at once.
-- **Keys never come back**: `openrouter_status`, `google_status` and `local_server_key_status` say only whether a key is
-  set and where it comes from.
+  `models_folder_open` shows the models folder to the user, `models_import_pick` lets them choose a folder to import.
+- **Settings**: `settings_get`, `settings_set` (one key to a value), `studio_language_set` (the language of the
+  studio's messages). Proxy: `proxy_settings_get`, `proxy_settings_set`, `proxy_test`.
+- **Keys never come back**: `openrouter_status`, `google_status`, `local_server_key_status`, `cloud_keys` and
+  `openai_api_status` say only whether a key is set and where it comes from. OpenRouter: `openrouter_set_key`,
+  `openrouter_delete_key`, `openrouter_verify`, `openrouter_models` (llm, vision, tts, asr), `openrouter_voices`,
+  `openrouter_catalog`, `openrouter_catalog_refresh`. Google Gemini: `google_set_key`, `google_delete_key`,
+  `google_models`. A local OpenAI-compatible server: `local_server_models`, `local_server_key_set`,
+  `local_server_key_delete`. fal and Runware: `cloud_catalog`, `cloud_catalog_refresh`, `cloud_model_form` (the settings
+  a model takes), `cloud_estimate` (its price before a run, nothing paid), `cloud_set_key`, `cloud_delete_key`,
+  `cloud_spend` (what was paid, the daily limit).
 - **Voices**: `voices_list` (`brief` for names, kind, language and gender only), `voices_catalog` (the cloud voice
   library), `voice_download`, `voices_download_pack` (the starter pack), `voice_import`, `voices_import_zip`,
   `voices_export`, `voice_rename`, `voice_delete`, `voice_card_set`, `voice_photo_set`, `voice_transcribe`,
@@ -36,15 +55,31 @@ connected and the address to paste.
   `voice_record_level`, `voice_record_stop`. Cleaning a reference: `voice_clean` (voice from music, Roformer),
   `voice_denoise` (noise, DPDFNet, `db` limits how far), `voice_restore`; its best piece: `voice_ref_candidates`,
   `voice_ref_apply`. A voice from a description: `voice_design` (description best in English or Chinese, a sample text,
-  1-6 candidates; a job) then `voice_design_keep` (one candidate into the library).
-- **By link**: `url_probe` (title, length, qualities, the site's subtitles), `url_fetches_list`, `url_fetch_get`,
-  `url_fetch_cancel`, `url_fetch_resume`, `url_fetch_delete`, `url_tool_status`, `url_tool_update`.
+  1-6 candidates; a job), `voice_design_sample` (a candidate as a file), then `voice_design_keep` (one candidate into the
+  library). `voice_sample` gives a voice's reference as a file (`original` - before cleaning), `voice_photo_get` its photo.
+- **By link**: `url_probe` (title, length, qualities, the site's subtitles; `url_probe_cookies_text` with a cookies.txt
+  given as text), `project_create_from_url` (downloads into a new Listening recording in the background),
+  `url_fetches_list`, `url_fetch_get`, `url_fetch_cancel`, `url_fetch_resume`, `url_fetch_delete`, `url_tool_status`,
+  `url_tool_update`.
+- **Dialogs for the user**: `folder_pick` (a folder they choose), `project_export_save_as` (where to save an export),
+  `models_import_pick`; `project_export_reveal`, `diagnostics_report_reveal`, `diagnostics_logs_reveal` and
+  `models_folder_open` show a file or folder in Explorer.
 - **The window**: `ui_screenshot`, `ui_read_page`, `ui_click`, `ui_type`, `ui_select`, `ui_press_key`, `ui_scroll`,
-  `ui_navigate`, `ui_open_settings`, `ui_notify`, `ui_console` work in the studio's window in front of the user; a key or
-  password field reads only as filled or empty. `editor_open` opens a project in the window, `editor_state` says what is
-  open (its blocks or lines, what is selected and playing), `editor_select` shows the user a block or a line.
-- **The journal**: every change you make (create, update, delete, voice, export...) is written into the window's
-  activity log with the name of what it changed, and stays there after a restart.
+  `ui_navigate`, `ui_open_settings`, `ui_open_help`, `ui_notify`, `ui_console` work in the studio's window in front of
+  the user; a key or password field reads only as filled or empty. `editor_open` opens a project in the window,
+  `editor_state` says what is open (its blocks or lines, what is selected and playing), `editor_select` shows the user a
+  block or a line. With several windows open: `windows_watch` (the windows and what the studio tells them),
+  `window_focus` (which one the ui_* tools work in), `window_command_drop` (give up a command no window answered).
+- **The player**, for the user to hear in the window: `player_play` (a block's take, or with `on` everything from that
+  block on, voicing what is missing; a Listening line or a moment; `voice` a library voice's sample), `player_pause`,
+  `player_seek`, `player_set` (volume; speed in Listening), `player_state`.
+- **The journal**: every change you make to projects, recordings, voices, models, keys and settings is written into the
+  window's activity log with the name of what it changed, and stays there after a restart. `journal_get` reads it,
+  `journal_note` writes a line for the user, `journal_delete` removes one, `journal_clear` empties it.
+- **Diagnostics**: `diagnostics_get` (version, system, card, components, the engines' DLLs, the latest log lines),
+  `diagnostics_report` (a ZIP for a bug report, keys masked).
+- **The Assistant panel**: `assistant_models` (the models it can work with), `assistant_chat` (talk to it as the user
+  does; it pays from the user's OpenRouter key).
 - **Being the assistant**: when the user chose «Agent (MCP)» as the assistant (Settings, Agent), what they write in the
   Assistant panel waits for you: `assistant_requests_wait`, do what the request asks with the tools (the panel shows each
   call), then `assistant_request_answer` with your answer in words, in the language the request names.
@@ -62,7 +97,25 @@ connected and the address to paste.
   with subtitles, M4B with chapters, `part_minutes` for long books, or `per_block`; `allow_duration` lets only the
   too-long takes through), `project_exports`, `project_timeline` (blocks on the export's time scale with overlaps; a
   block's `cut_previous` cuts the reply it interrupts, a previous block's `pause_ms` of 0 joins them), `project_delete`.
-  A block's `pause_ms` is the pause after it; a negative one makes the next block interrupt.
+  A block's `pause_ms` is the pause after it; a negative one makes the next block interrupt. While a voicing runs:
+  `project_queue`, `project_queue_remove`, `project_queue_clear`; `speech_live_watch` hears the blocks as they are
+  voiced (each block's sound as a WAV file). `history_list` lists the takes voiced lately.
+- **Projects from files**: `project_create_from_subtitles` (SRT, VTT, ASS), `book_preview` + `book_chapter` +
+  `project_create_from_book` (an audiobook of the chosen chapters), `project_package` / `project_import_package` (one
+  `.speechproj` file to move a project), `listen_to_speech` (a recording's transcript).
+- **Takes and exports as files**: `project_take_file`, `project_export_file`, `project_export_save` (copy to a path),
+  `project_exports_to_folder`, `project_export_reveal`, `project_export_save_as`.
+- **Expression tags differ per engine** (take them from `engine_tags` or `engines_list`, never across engines):
+  - `higgs`: `<|category:value|>`, 43 tags (`PROMPTING.md` of the model). Emotion, style and prosody speed, pitch and
+    expressiveness go at the start of the sentence: `<|emotion:sadness|>Ну что, начнём.`; pause and sound go at the spot,
+    a sound glued to its onomatopoeia with no space: `<|sfx:laughter|>Ха-ха, привет!`. Unknown tags are cut and named.
+  - `drama3`: free text in square brackets at the spot (`[laughs]`, `[sighs]`, `[clears throat]`), a span in angle
+    brackets (`<whisper>не говори ей</whisper>`, `<slow>`, `<emphasis>`); the block's `direction` becomes the line's
+    style prefix. Its tags and directions work poorly in Russian.
+  - `supertonic`: `<laugh>`, `<breath>`, `<sigh>` at the spot (the model card names these; it has ten, unpublished).
+  - `qwen3-tts`: no tags — they would be read aloud and are cut; write laughter as onomatopoeia in the text (`ха-ха`),
+    the delivery as the block's `direction`, which reaches only the model's own nine voices.
+  - Pauses `[pause 500ms]` and tempo `[rate:1.2]` work with every engine.
 - **Engines**: `engines_list` says what each engine understands (languages, sampling, tags, cloning, `needs_voice`) and
   why one is not available here (Drama 3 needs a 6 GB card, and 32 GB of RAM when the card is under 24 GB or the studio setting `drama_vram_gb` is below the whole model). Local engines: `higgs`, `drama3`, `supertonic` (its own ten
   voices), `qwen3-tts` (nine named voices, cloning, the block's direction as its instruction) and `qwen3-tts-ru` (Russian
@@ -72,7 +125,9 @@ connected and the address to paste.
   half-price batch that can take hours), `fal`, `runware`. Ask the user before a paid run.
 - **Text**: `text_prepare` shows how a text will be read (dictionary, Russian normalisation, stress marks, the engine's
   text), `text_stress` gives stress marks and ё with unsure homographs, `dictionary_get` / `dictionary_set` /
-  `dictionary_import` (Balabolka .dic, .rex, .bxd).
+  `dictionary_import` (Balabolka .dic, .rex, .bxd), `dictionary_try` + `dictionary_try_file` (hear a rule before saving
+  it), `project_dictionary_counts` (how often each rule fires in a project), `project_unknown_words` (the words no
+  dictionary knows).
 - **Director model**: `podcast_write` (topic and speakers with their manner -> a new project),
   `project_cast_characters` (one chapter split into the narrator and characters word for word).
 
@@ -83,13 +138,18 @@ connected and the address to paste.
 - **Recognition settings** (in `listen_update`): `prompt` (a hint Whisper takes, with the corrections' spellings),
   `denoise` and `denoise_db` (DPDFNet before recognition), `vad` (Silero VAD cuts a long recording for Parakeet at
   pauses: `threshold`, `hysteresis`, `min_speech_ms`, `min_silence_ms`, `pad_ms`).
-- **Projects**: `listen_create_from_file`, `listen_get`, `listen_update` (rename speakers, edit or hide lines, mark
+- **Projects**: `listen_create_from_file` (`listen_upload` uploads a copy), `listen_record_start` /
+  `listen_record_stop` (a recording from the microphone), `listen_audio` (its sound as a file), `listen_get`, `listen_update` (rename speakers, edit or hide lines, mark
   words `cut`, recognition settings, corrections), `listen_transcribe`, `listen_cut` (a new recording without the
   marked words), `listen_export`, `listen_check`, `listen_align` (the reference text laid over the recording, each word
   at the time it was heard; put the lines back with `listen_update`), `listen_to_speech` (the transcript as a Speech project),
   `listen_voices` (each speaker's best clean speech into the voice library).
 
 ## OpenAI-compatible API
+
+The studio's own tools for it: `openai_api_status`, `openai_api_key_create` (a new key, shown once),
+`openai_api_key_delete`, `openai_api_log`, `openai_api_log_clear`, and `openai_api_models`, `openai_api_speech`,
+`openai_api_transcribe` to call it as a program would.
 
 Programs that speak OpenAI's audio API can use the studio directly: `POST http://127.0.0.1:8797/v1/audio/speech`
 (`model` tts-1 / higgs / drama3, `voice` a voice name of the library, `instructions`, `speed`, `response_format` mp3,

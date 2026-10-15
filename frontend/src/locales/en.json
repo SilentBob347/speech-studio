@@ -522,7 +522,11 @@
       "open_settings": "opens the settings",
       "open_help": "opens the help",
       "editor_open": "opens a project",
-      "editor_select": "shows a place in the project"
+      "editor_select": "shows a place in the project",
+      "player_play": "plays the sound",
+      "player_pause": "stops the sound",
+      "player_seek": "moves the player",
+      "player_set": "sets the player"
     }
   },
   "jobs": {
@@ -1099,14 +1103,15 @@
     "native_ja": "native Japanese",
     "native_ko": "native Korean",
     "engineVoices": "The model's voices",
-    "libraryClone": "Library — clone"
+    "libraryClone": "Library — clone",
+    "directionIgnored": "{{engine}} does not read directions: it will not change the sound."
   },
   "tags": {
     "emotion": "Emotion",
     "prosody": "Prosody",
     "style": "Style",
     "sfx": "Sound",
-    "legend": "Emotion and style go at the start of a sentence; pauses and sounds anywhere. Tags the engine does not know are cut out and named.",
+    "legend": "Emotion, style, speed, pitch and expressiveness go to the start of the sentence; pause and sound go at the cursor. Right after a sound, with no space, write its onomatopoeia (\"Ha-ha,\", \"Ahem,\"): Higgs needs it. Tags the engine does not know are cut and named.",
     "affection": "Affection",
     "amusement": "Amusement",
     "anger": "Anger",
@@ -1151,7 +1156,24 @@
     "sniff": "Sniff",
     "sneeze": "Sneeze",
     "rate": "Tempo",
-    "universal": "Pause and tempo work with any engine: tempo lasts to the next tempo tag or the end of the block."
+    "universal": "Pause and tempo work with any engine: tempo lasts to the next tempo tag or the end of the block.",
+    "event": "Event",
+    "scope": "On a span",
+    "laughs": "Laughs",
+    "sighs": "Sighs",
+    "gasps": "Gasps",
+    "clears throat": "Clears throat",
+    "hesitates": "Hesitates",
+    "whisper": "Whisper",
+    "slow": "Slow",
+    "emphasis": "Emphasis",
+    "none": "{{engine}} has no expression tags: pauses and tempo work.",
+    "dramaRussian": "Drama 3 tags and directions work poorly in Russian (checked by ear).",
+    "legendDrama": "An event goes at its place in the text; for a span, select the words and click. Drama reads the block’s direction as the delivery of the whole line.",
+    "legendPlain": "A tag goes at the cursor; tags the engine does not know are cut and named.",
+    "laugh": "Laugh",
+    "breath": "Breath",
+    "qwen": "Qwen3-TTS has no tags: write laughter and sounds as onomatopoeia in the text (\"ha-ha\", \"hmm\") and the model voices them by context; set the delivery in the direction (works with the model’s own voices, not with a clone)."
   },
   "dict": {
     "title": "Pronunciation dictionary",
@@ -1652,5 +1674,30 @@
     "choiceHint_join": "The reply starts right after the previous one, no pause",
     "choice_keep": "Keep the overlap",
     "choiceHint_keep": "Both replies sound at once"
+  },
+  "presetVoice": {
+    "supertonic": {
+      "F1": "Calm female voice with a slightly low tone; steady and composed. Customer service, guided instructions, meditation, professional narration.",
+      "F2": "Bright, cheerful female voice; lively, playful and youthful. Youth content, playful ads, social media, character voices.",
+      "F3": "Clear, professional announcer-style female voice; broadcast-ready. Commercials, documentaries, news-style narration.",
+      "F4": "Crisp, confident female voice; expressive with strong delivery. Business explainers, training videos, product announcements.",
+      "F5": "Kind, gentle female voice; soft-spoken, calm and soothing. Audiobooks, supportive messages, wellness, empathetic narration.",
+      "M1": "Lively, upbeat male voice; confident and clear. Promotional videos, upbeat explainers, general narration.",
+      "M2": "Deep, robust male voice; calm, composed and serious. Corporate content, serious announcements, documentaries.",
+      "M3": "Polished, authoritative male voice; confident and trustworthy. Business presentations, leadership messages, high-trust narration.",
+      "M4": "Soft, neutral-toned male voice; gentle, youthful and friendly. Education, friendly explainers, onboarding guides.",
+      "M5": "Warm, soft-spoken male voice; calm, a natural storyteller. Audiobooks, bedtime stories, reflective narration."
+    },
+    "qwen3-tts": {
+      "vivian": "Bright, slightly edgy young female voice.",
+      "serena": "Warm, gentle young female voice.",
+      "uncle_fu": "Seasoned male voice with a low, mellow timbre.",
+      "dylan": "Youthful Beijing male voice with a clear, natural timbre.",
+      "eric": "Lively Chengdu male voice with a slightly husky brightness.",
+      "ryan": "Dynamic male voice with strong rhythmic drive.",
+      "aiden": "Sunny American male voice with a clear midrange.",
+      "ono_anna": "Playful Japanese female voice with a light, nimble timbre.",
+      "sohee": "Warm Korean female voice with rich emotion."
+    }
   }
 }

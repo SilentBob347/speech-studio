@@ -9,7 +9,7 @@ const WINDOW_TOOLS = readFileSync(join(SERVER, "mcp", "window.rs"), "utf8");
 const TOOLS = readFileSync(join(SERVER, "mcp.rs"), "utf8");
 
 /** Each tool of the window: its name and the command it asks the page for. */
-const windowTools = [...WINDOW_TOOLS.matchAll(/name: "((?:ui|editor)_\w+)",[\s\S]*?call: \|args\| window\("(\w+)"/g)].map((m) => ({ name: m[1], command: m[2] }));
+const windowTools = [...WINDOW_TOOLS.matchAll(/name: "((?:ui|editor|player)_\w+)",[\s\S]*?call: \|args\| window\("(\w+)"/g)].map((m) => ({ name: m[1], command: m[2] }));
 
 /** The commands the page registers with useBridgeCommand. */
 const pageCommands = new Set(listSources().flatMap((file) => [...readFileSync(file, "utf8").matchAll(/useBridgeCommand\("(\w+)"/g)].map((m) => m[1])));

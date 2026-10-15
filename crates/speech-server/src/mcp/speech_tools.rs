@@ -38,7 +38,7 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "project_create",
-            description: "A new Speech project from a text: paragraphs become blocks; lines like \"Anna: ...\" or \"[Anna] ...\" become a dialogue, each speaker with a voice of its own. split lines makes each line a block. voice is a voice name of voices_list (none: the engine's base voice); engine an id of engines_list (default higgs; drama3 needs a 24 GB card); lang a code or auto.",
+            description: "A new Speech project from a text: paragraphs become blocks; lines like \"Anna: ...\" or \"[Anna] ...\" become a dialogue, each speaker with a voice of its own. split lines makes each line a block. voice is a voice name of voices_list (none: the engine's base voice); engine an id of engines_list (default higgs; drama3 needs a 6 GB card and, under 24 GB, 32 GB of RAM); lang a code or auto.",
             schema: || object(json!({ "name": { "type": "string" }, "text": { "type": "string" }, "voice": { "type": "string" }, "lang": { "type": "string" }, "engine": { "type": "string", "enum": crate::engines::all().iter().map(|e| e.id).collect::<Vec<_>>() }, "split": { "type": "string", "enum": ["paragraphs", "lines"] } }), &["text"]),
             call: |args| post("/projects".into(), args.clone()),
         },
@@ -104,7 +104,7 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "engines_list",
-            description: "The voicing engines with what each understands: languages, sampling parameters with their range and default, seed modes, expression tags, voice cloning, and why one is not available here (Drama 3 needs a 24 GB card).",
+            description: "The voicing engines with what each understands: languages, sampling parameters with their range and default, seed modes, expression tags (`tags` by category in `tag_format`; `sentence_tags` go at the start of a sentence, `glued_tags` are followed with no space by the sound's onomatopoeia, a `scope` category wraps a span as <tag>...</tag>), whether the block's direction reaches it (`direction`, with the engine's own voices only when `direction_presets_only`), voice cloning, its own voices with a description, and why one is not available here (Drama 3 needs a 6 GB card and, under 24 GB, 32 GB of RAM).",
             schema: super::nothing,
             call: |_| get("/engines".into()),
         },
@@ -129,7 +129,7 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "dictionary_set",
-            description: "Save the global pronunciation dictionary whole (entries as dictionary_get gives them). A project's own entries are part of the project (project_update).",
+            description: "Save the global pronunciation dictionary whole (entries as dictionary_get gives them; each finds `find` and says `say`, kind word, regex or phonemes, with whole_word, case_sensitive, lang, voice, engine, enabled). A project's own entries are part of the project (project_update).",
             schema: || object(json!({ "entries": { "type": "array", "items": { "type": "object" } } }), &["entries"]),
             call: |args| send(Method::PUT, "/dictionary".into(), json!({ "entries": args.get("entries").cloned().unwrap_or(Value::Array(Vec::new())) })),
         },

@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-export type ComboOption = { value: string; label: string; search?: string; group?: string; disabled?: boolean };
+export type ComboOption = { value: string; label: string; search?: string; group?: string; disabled?: boolean; hint?: string };
 
 /** A list with a filter field (Dub Studio's Combobox): typing a piece of a name narrows it; arrows and Enter pick, Escape
  * closes. Options keep their order; a change of `group` between neighbours starts a labelled group. */
@@ -53,7 +53,7 @@ export default function Combobox({ value, options, onChange, label, placeholder,
     else if (item.offsetTop + item.offsetHeight > pane.scrollTop + pane.clientHeight) pane.scrollTop = item.offsetTop + item.offsetHeight - pane.clientHeight;
   }, [open, active, list, place]);
   const ql = q.trim().toLowerCase();
-  const shown = ql ? options.filter((o) => `${o.label} ${o.value} ${o.search ?? ""}`.toLowerCase().includes(ql)) : options;
+  const shown = ql ? options.filter((o) => `${o.label} ${o.value} ${o.search ?? ""} ${o.hint ?? ""}`.toLowerCase().includes(ql)) : options;
   const pickable = shown.map((o, i) => (o.disabled ? -1 : i)).filter((i) => i >= 0);
   const current = options.find((o) => o.value === value)?.label ?? value;
   function close() { setOpen(false); setQ(""); }
@@ -93,9 +93,9 @@ export default function Combobox({ value, options, onChange, label, placeholder,
               )}
               <div id={`${list}-${i}`} role="option" aria-selected={o.value === value} aria-disabled={o.disabled || undefined}
                 onMouseDown={(e) => e.preventDefault()} onMouseEnter={() => !o.disabled && setActive(i)}
-                onClick={() => !o.disabled && commit(o.value)} title={o.label}
-                className={`px-2.5 py-1.5 text-[12px] truncate ${o.disabled ? "text-[var(--color-muted)] cursor-default" : "text-[var(--color-text)] cursor-pointer"} ${i === active && !o.disabled ? "bg-[var(--color-overlay)]" : ""} ${o.value === value ? "!text-[var(--color-accent)]" : ""}`}>
-                {o.label}
+                onClick={() => !o.disabled && commit(o.value)} title={o.hint ? `${o.label}\n${o.hint}` : o.label}
+                className={`px-2.5 py-1.5 text-[12px] ${o.hint ? "" : "truncate"} ${o.disabled ? "text-[var(--color-muted)] cursor-default" : "text-[var(--color-text)] cursor-pointer"} ${i === active && !o.disabled ? "bg-[var(--color-overlay)]" : ""} ${o.value === value ? "!text-[var(--color-accent)]" : ""}`}>
+                {o.hint ? <><div className="truncate">{o.label}</div><div className="text-[11px] leading-snug text-[var(--color-muted)]">{o.hint}</div></> : o.label}
               </div>
             </div>
           ))}

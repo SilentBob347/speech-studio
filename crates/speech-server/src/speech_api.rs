@@ -1,9 +1,10 @@
 //! Маршруты проектов: создать (Speech из текста), список, проект со статусами блоков, запись целиком (ревизии Dub:
 //! 409 на чужую правку), удаление в корзину системы, синтез и экспорт задачами, звук дублей и файлов экспорта.
 
+use std::collections::HashMap;
 use std::path::Path;
 
-use axum::extract::{Path as AxPath, State};
+use axum::extract::{Path as AxPath, Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
@@ -371,8 +372,9 @@ pub async fn try_rule(State(st): State<AppState>, AxPath(pid): AxPath<String>, J
         return refuse(StatusCode::NOT_FOUND, "no_project", e);
     }
     let phrase = body.get("phrase").and_then(Value::as_str).unwrap_or_default().to_string();
-    let rule: crate::pron_dict::Entry = match body.get("rule").cloned().map(serde_json::from_value) {
-        Some(Ok(rule)) => rule,
+    let rule: crate::pron_dict::Entry = match body.get("rule").cloned().map(serde_json::from_value::<crate::pron_dict::Entry>) {
+        Some(Ok(rule)) if !rule.find.trim().is_empty() => rule,
+        Some(Ok(_)) => return refuse(StatusCode::BAD_REQUEST, "bad_rule", "the rule finds nothing: find is empty"),
         Some(Err(e)) => return refuse(StatusCode::BAD_REQUEST, "bad_rule", e.to_string()),
         None => return refuse(StatusCode::BAD_REQUEST, "bad_rule", "rule is required"),
     };
@@ -436,10 +438,13 @@ pub async fn engines(State(st): State<AppState>) -> Json<Value> {
     Json(json!({ "engines": crate::engines::for_window(&st.models_root) }))
 }
 
-/// GET /engine/tags — теги экспрессии движка по категориям (окно строит из них палитру вставки).
-pub async fn tags() -> Json<Value> {
-    let cats: Vec<Value> = crate::speech_text::HIGGS_TAGS.iter().map(|(c, values)| json!({ "category": c, "values": values })).collect();
-    Json(json!({ "engine": "higgs", "format": "<|{category}:{value}|>", "categories": cats }))
+/// GET /engine/tags?engine= — теги экспрессии движка по категориям (окно строит из них палитру вставки); без
+/// `engine` — Higgs. У движка без тегов категорий нет.
+pub async fn tags(Query(q): Query<HashMap<String, String>>) -> Json<Value> {
+    let id = q.get("engine").map(String::as_str).unwrap_or("higgs");
+    let engine = crate::engines::get(id).unwrap_or_else(crate::engines::higgs);
+    let cats: Vec<Value> = engine.tags.iter().map(|(c, values)| json!({ "category": c, "values": values })).collect();
+    Json(json!({ "engine": engine.id, "format": engine.tag_format, "direction": engine.direction, "direction_presets_only": engine.direction_presets_only, "sentence_tags": engine.sentence_tags, "glued_tags": engine.glued_tags, "categories": cats }))
 }
 
 #[derive(serde::Deserialize)]

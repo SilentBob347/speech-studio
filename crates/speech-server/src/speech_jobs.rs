@@ -369,8 +369,10 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
                             }
                             out.extend(std::iter::repeat_n(0.0, (SR * gap / 1000) as usize));
                         }
+                        // Drama 3 читает указание стилевой приставкой строки: `[тихо и устало] текст`
+                        let styled = Some(b.direction.trim()).filter(|d| drama && !d.is_empty()).map(|d| format!("[{d}] {phrase}"));
                         let req = tts_host::Request {
-                            text: phrase,
+                            text: styled.as_deref().unwrap_or(phrase),
                             lang,
                             ref_wav: reference.as_ref().map(|(w, _)| w.as_path()),
                             ref_text: reference.as_ref().and_then(|(_, t)| t.as_deref()),

@@ -32,6 +32,10 @@ pub struct Engine {
     pub seed_modes: &'static [&'static str],
     pub tag_format: &'static str,
     pub tags: Vec<(&'static str, &'static [&'static str])>,
+    /// Категории и значения тегов, что ставятся в начало предложения; остальные — по месту.
+    pub sentence_tags: &'static [&'static str],
+    /// Категории тегов, за которыми вплотную, без пробела, идёт звукоподражание: `<|sfx:laughter|>Ха-ха,`.
+    pub glued_tags: &'static [&'static str],
     /// `ref_text` — реф и его транскрипт; `timbre` — только тембр; `none` — только свои голоса (`presets`).
     pub clone: &'static str,
     pub continuation: bool,
@@ -40,6 +44,11 @@ pub struct Engine {
     /// Сколько знаков блока движок берёт за раз; длиннее — режется на фразы.
     pub max_chars: usize,
     pub reads: Reads,
+    /// Указание блока («как сказать») доходит до движка: у Drama 3 — стилевой приставкой строки, у Qwen3-TTS — указанием
+    /// голосам модели, у облаков — стилем. Higgs и Supertonic его не читают.
+    pub direction: bool,
+    /// Указание доходит только с голосами самого движка (`presets`): Qwen3-TTS CustomVoice берёт `instruct`, клон Base — нет.
+    pub direction_presets_only: bool,
     /// Голоса самого движка: у движка без клона голос блока — один из них.
     pub presets: Vec<Preset>,
     /// Без голоса из библиотеки не говорит: своих голосов нет, базового голоса тоже.
@@ -48,13 +57,15 @@ pub struct Engine {
     pub unavailable: Option<String>,
 }
 
-/// A voice the engine carries: its id, the name it is shown by, `female` or `male`, and its native language (empty — any).
+/// A voice the engine carries: its id, the name it is shown by, `female` or `male`, its native language (empty — any) and
+/// the maker's description of it.
 #[derive(Serialize, Clone, Debug)]
 pub struct Preset {
     pub id: &'static str,
     pub name: &'static str,
     pub gender: &'static str,
     pub native: &'static str,
+    pub description: &'static str,
 }
 
 /// Языки Higgs Audio v3 — список `language` карточки `bosonai/higgs-audio-v3-tts-4b`.
@@ -82,12 +93,16 @@ pub fn higgs() -> Engine {
         seed_modes: &["random", "fixed", "inc", "dec"],
         tag_format: "<|{category}:{value}|>",
         tags: crate::speech_text::HIGGS_TAGS.to_vec(),
+        sentence_tags: crate::speech_text::HIGGS_SENTENCE_TAGS,
+        glued_tags: &["sfx"],
         clone: "ref_text",
         continuation: true,
         streaming: true,
         deterministic_seed: true,
         max_chars: 400,
         reads: Reads { stress: false, yo: true, phonemes: false, accent: false },
+        direction: false,
+        direction_presets_only: false,
         presets: Vec::new(),
         needs_voice: false,
         unavailable: None,
@@ -104,12 +119,16 @@ pub fn openrouter() -> Engine {
         seed_modes: &["random"],
         tag_format: "",
         tags: Vec::new(),
+        sentence_tags: &[],
+        glued_tags: &[],
         clone: "none",
         continuation: false,
         streaming: false,
         deterministic_seed: false,
         max_chars: 1000,
         reads: Reads { stress: false, yo: true, phonemes: false, accent: false },
+        direction: true,
+        direction_presets_only: false,
         presets: Vec::new(),
         needs_voice: false,
         unavailable: None,
@@ -117,7 +136,8 @@ pub fn openrouter() -> Engine {
 }
 
 /// Fish Audio Drama 3: 83 языка по карточке `fishaudio/drama-3` (списка она не даёт — язык не ограничивается),
-/// сэмплинг по умолчанию карточки (temperature 1.0, top-k 30, top-p 0.9), точечные теги `[laughs]`, клон только по
+/// сэмплинг по умолчанию карточки (temperature 1.0, top-k 30, top-p 0.9), точечные теги `[laughs]` и теги на отрезок
+/// `<whisper>…</whisper>`, указание блока — стилевой приставкой строки (Table 10 техотчёта), клон только по
 /// рефу с текстом; видеокарты от 6 ГБ (см. `models::drama_unavailable`).
 pub fn drama() -> Engine {
     Engine {
@@ -132,13 +152,17 @@ pub fn drama() -> Engine {
         ],
         seed_modes: &["random", "fixed", "inc", "dec"],
         tag_format: "[{value}]",
-        tags: Vec::new(),
+        tags: crate::speech_text::DRAMA_TAGS.to_vec(),
+        sentence_tags: &[],
+        glued_tags: &[],
         clone: "ref_text",
         continuation: false,
         streaming: true,
         deterministic_seed: true,
         max_chars: 400,
         reads: Reads { stress: false, yo: true, phonemes: false, accent: false },
+        direction: true,
+        direction_presets_only: false,
         presets: Vec::new(),
         needs_voice: true,
         unavailable: None,
@@ -146,10 +170,10 @@ pub fn drama() -> Engine {
 }
 
 
-/// Supertonic 3: десять голосов движка (F1–F5, M1–M5), 31 язык, клона нет; шаги потока и скорость — параметры
-/// официального рантайма (8 и 1,05).
+/// Supertonic 3: десять голосов движка (F1–F5, M1–M5), 31 язык, клона нет; теги `<laugh>`, `<breath>`, `<sigh>` по
+/// карточке модели; шаги потока и скорость — параметры официального рантайма (8 и 1,05).
 pub fn supertonic() -> Engine {
-    let preset = |id: &'static str| Preset { id, name: id, gender: if id.starts_with('F') { "female" } else { "male" }, native: "" };
+    let preset = |(id, description): &(&'static str, &'static str)| Preset { id, name: id, gender: if id.starts_with('F') { "female" } else { "male" }, native: "", description };
     Engine {
         id: crate::supertonic::ENGINE,
         name: "Supertonic 3",
@@ -159,15 +183,19 @@ pub fn supertonic() -> Engine {
             ParamSpec { key: "speed", kind: "float", min: 0.5, max: 2.0, step: 0.05, default: crate::supertonic::DEFAULT_SPEED },
         ],
         seed_modes: &["random", "fixed", "inc", "dec"],
-        tag_format: "",
-        tags: Vec::new(),
+        tag_format: "<{value}>",
+        tags: crate::speech_text::SUPERTONIC_TAGS.to_vec(),
+        sentence_tags: &[],
+        glued_tags: &[],
         clone: "none",
         continuation: false,
         streaming: false,
         deterministic_seed: true,
         max_chars: crate::supertonic::MAX_CHARS,
         reads: Reads { stress: true, yo: true, phonemes: false, accent: false },
-        presets: crate::supertonic::VOICES.iter().map(|v| preset(v)).collect(),
+        direction: false,
+        direction_presets_only: false,
+        presets: crate::supertonic::VOICE_DESCRIPTIONS.iter().map(preset).collect(),
         needs_voice: false,
         unavailable: None,
     }
@@ -190,13 +218,17 @@ pub fn qwen() -> Engine {
         seed_modes: &["random", "fixed", "inc", "dec"],
         tag_format: "",
         tags: Vec::new(),
+        sentence_tags: &[],
+        glued_tags: &[],
         clone: "ref_text",
         continuation: false,
         streaming: true,
         deterministic_seed: true,
         max_chars: 400,
         reads: Reads { stress: false, yo: true, phonemes: false, accent: false },
-        presets: crate::qwen_tts::SPEAKERS.iter().map(|(id, name, gender, native)| Preset { id, name, gender, native }).collect(),
+        direction: true,
+        direction_presets_only: true,
+        presets: crate::qwen_tts::SPEAKERS.iter().map(|(id, name, gender, native, description)| Preset { id, name, gender, native, description }).collect(),
         needs_voice: false,
         unavailable: None,
     }
@@ -211,6 +243,7 @@ pub fn qwen_stress() -> Engine {
         languages: &["ru"],
         presets: Vec::new(),
         reads: Reads { stress: true, yo: true, phonemes: false, accent: false },
+        direction: false,
         needs_voice: true,
         ..qwen()
     }

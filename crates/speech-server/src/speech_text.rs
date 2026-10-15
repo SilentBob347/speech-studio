@@ -40,6 +40,12 @@ pub const HIGGS_TAGS: [(&str, &[&str]); 4] = [
     ("sfx", &["cough", "laughter", "crying", "screaming", "burping", "humming", "sigh", "sniff", "sneeze"]),
 ];
 
+/// Теги Higgs в начало предложения (окрашивают всё предложение); остальные — по месту (`PROMPTING.md` модели).
+pub const HIGGS_SENTENCE_TAGS: &[&str] = &["emotion", "style", "speed_very_slow", "speed_slow", "speed_fast", "speed_very_fast", "pitch_low", "pitch_high", "expressive_high", "expressive_low"];
+
+/// Теги Supertonic 3 по карточке `Supertone/supertonic-3`: `<laugh>`, `<breath>`, `<sigh>` по месту.
+pub const SUPERTONIC_TAGS: [(&str, &[&str]); 1] = [("event", &["laugh", "breath", "sigh"])];
+
 fn higgs_tag_known(cat: &str, value: &str) -> bool {
     HIGGS_TAGS.iter().any(|(c, values)| *c == cat && values.contains(&value))
 }
@@ -112,14 +118,23 @@ pub fn pieces(text: &str) -> Vec<Piece> {
 pub fn for_engine(say: &str, lang: &str, engine: &str) -> (String, Ignored) {
     match engine {
         crate::models::DRAMA_TTS => for_drama(say, lang),
-        crate::qwen_tts::ENGINE_STRESS | crate::supertonic::ENGINE => for_plain(say, lang, true),
-        crate::qwen_tts::ENGINE => for_plain(say, lang, false),
+        crate::supertonic::ENGINE => for_plain(say, lang, true, SUPERTONIC_TAGS[0].1),
+        crate::qwen_tts::ENGINE_STRESS => for_plain(say, lang, true, &[]),
+        crate::qwen_tts::ENGINE => for_plain(say, lang, false, &[]),
         _ => for_higgs(say, lang),
     }
 }
 
 /// Точечный тег Drama 3: событие в квадратных скобках по месту — `[laughs]`, `[sighs]`.
 static DRAMA_TAG: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\[([\p{L}][\p{L} '-]{0,38})\]").expect("drama tag"));
+/// Тег Drama 3 на отрезок: `<whisper>…</whisper>` задаёт подачу только обёрнутых слов.
+static DRAMA_SCOPE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"</?[a-z][a-z -]{0,30}>").expect("drama scope"));
+
+/// Палитра Drama 3 — примеры приложения C техотчёта (Table 10): события по месту и подача отрезка; теги — свободный текст.
+pub const DRAMA_TAGS: [(&str, &[&str]); 2] = [
+    ("event", &["laughs", "sighs", "gasps", "clears throat", "hesitates", "pause"]),
+    ("scope", &["whisper", "slow", "emphasis"]),
+];
 
 /// Фраза для Drama 3: ударения, фонемы и теги Higgs снимаются (что снято — в `Ignored`), точечные теги остаются.
 pub fn for_drama(say: &str, lang: &str) -> (String, Ignored) {
@@ -140,11 +155,15 @@ pub fn for_drama(say: &str, lang: &str) -> (String, Ignored) {
         ignored.stress = true;
         c[1].to_string()
     });
+    let mut tags: Vec<String> = Vec::new();
+    let t = DRAMA_SCOPE.replace_all(&t, |c: &regex::Captures| {
+        tags.push(c[0].to_string());
+        format!("\u{E000}{}\u{E001}", tags.len() - 1)
+    });
     let t = ANGLE.replace_all(&t, |c: &regex::Captures| {
         ignored.unknown_tags.push(c[0].to_string());
         String::new()
     });
-    let mut tags: Vec<String> = Vec::new();
     let t = DRAMA_TAG.replace_all(&t, |c: &regex::Captures| {
         tags.push(c[0].to_string());
         format!("\u{E000}{}\u{E001}", tags.len() - 1)
@@ -199,10 +218,10 @@ pub fn for_higgs(say: &str, lang: &str) -> (String, Ignored) {
 }
 
 
-/// Фраза для движка без своей разметки (Supertonic, Qwen3-TTS): теги, фонемы и выделение снимаются, что снято — в
-/// `Ignored`. С `acute` ударение «+» перед гласной становится знаком U+0301 после неё — так его читают Supertonic 3 и
-/// Qwen3-TTS с адаптером ударений; без него ударение снимается.
-pub fn for_plain(say: &str, lang: &str, acute: bool) -> (String, Ignored) {
+/// Фраза для движка без разметки Higgs и Drama (Supertonic, Qwen3-TTS): теги, фонемы и выделение снимаются, кроме
+/// своих тегов движка `own` вида `<laugh>`; что снято — в `Ignored`. С `acute` ударение «+» перед гласной становится
+/// знаком U+0301 после неё — так его читают Supertonic 3 и Qwen3-TTS с адаптером ударений; без него ударение снимается.
+pub fn for_plain(say: &str, lang: &str, acute: bool, own: &[&str]) -> (String, Ignored) {
     let mut ignored = Ignored::default();
     let t = ACCENT.replace_all(say, |c: &regex::Captures| {
         ignored.accent = true;
@@ -224,15 +243,25 @@ pub fn for_plain(say: &str, lang: &str, acute: bool) -> (String, Ignored) {
             c[1].to_string()
         }
     });
+    let mut tags: Vec<String> = Vec::new();
     let t = ANGLE.replace_all(&t, |c: &regex::Captures| {
-        ignored.unknown_tags.push(c[0].to_string());
+        let whole = &c[0];
+        if own.iter().any(|o| whole[1..whole.len() - 1].trim() == *o) {
+            tags.push(whole.to_string());
+            return format!("\u{E000}{}\u{E001}", tags.len() - 1);
+        }
+        ignored.unknown_tags.push(whole.to_string());
         String::new()
     });
     let t = DRAMA_TAG.replace_all(&t, |c: &regex::Captures| {
         ignored.unknown_tags.push(c[0].to_string());
         String::new()
     });
-    (crate::tts_text::tts_text(&t, &t, lang, &[]).text.replace('\u{E002}', "\u{301}"), ignored)
+    let mut text = crate::tts_text::tts_text(&t, &t, lang, &[]).text.replace('\u{E002}', "\u{301}");
+    for (i, tag) in tags.iter().enumerate() {
+        text = text.replace(&format!("\u{E000}{i}\u{E001}"), tag);
+    }
+    (text, ignored)
 }
 
 /// Есть ли в тексте ручные ударения `+`.
@@ -357,12 +386,26 @@ pub fn visible(text: &str) -> String {
 mod tests {
     #[test]
     fn drama_keeps_its_point_tags_and_drops_higgs_ones() {
-        let (text, ig) = for_drama("[laughs] Ну д+авай <|emotion:awe|> уже [sighs] пойдём.", "ru");
+        let (text, ig) = for_drama("[laughs] Ну д+авай <|emotion:awe|> уже [sighs] <whisper>тихо</whisper> пойдём.", "ru");
         assert!(text.contains("[laughs]") && text.contains("[sighs]"), "{text}");
+        assert!(text.contains("<whisper>тихо</whisper>"), "the scoped tag stays: {text}");
         assert!(!text.contains("<|") && !text.contains('+'), "{text}");
         assert!(ig.stress && ig.unknown_tags == vec!["<|emotion:awe|>".to_string()]);
     }
 
+
+    #[test]
+    fn supertonic_keeps_its_own_tags_and_drops_the_rest() {
+        let (s, ig) = for_engine("Ну <laugh> хватит <|emotion:happy|> [laughs] <whisper>уже</whisper>.", "ru", crate::supertonic::ENGINE);
+        assert!(s.contains("<laugh>") && !s.contains("<|") && !s.contains("[laughs]") && !s.contains("<whisper>"), "{s}");
+        assert_eq!(ig.unknown_tags.len(), 4, "{ig:?}");
+    }
+
+    #[test]
+    fn a_higgs_sound_stays_glued_to_its_onomatopoeia() {
+        let (s, _) = for_higgs("<|emotion:elation|><|sfx:laughter|>Ха-ха, привет!", "ru");
+        assert!(s.contains("<|sfx:laughter|>Ха-ха"), "{s}");
+    }
 
     #[test]
     fn engines_without_own_markup_get_plain_text() {

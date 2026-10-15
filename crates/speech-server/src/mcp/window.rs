@@ -150,6 +150,44 @@ fn focus_window(window: u64) -> bool {
     true
 }
 
+/// The open windows (the last gets the agent's commands), the commands waiting for an answer, and what the studio
+/// tells the windows for the seconds asked. The agent listens without becoming a window.
+pub(super) async fn watch(args: &Value) -> Value {
+    let seconds = args.get("seconds").and_then(Value::as_u64).unwrap_or(10).clamp(1, 55);
+    let mut receiver = bridge().commands.subscribe();
+    let until = tokio::time::Instant::now() + Duration::from_secs(seconds);
+    let mut told = Vec::new();
+    loop {
+        match tokio::time::timeout_at(until, receiver.recv()).await {
+            Err(_) | Ok(Err(RecvError::Closed)) => break,
+            Ok(Ok(text)) => told.push(serde_json::from_str(&text).unwrap_or(Value::String(text))),
+            Ok(Err(RecvError::Lagged(missed))) => told.push(json!({ "missed": missed })),
+        }
+    }
+    let waiting: Vec<Value> = pending().iter().map(|(id, (window, _))| json!({ "id": id, "window": window })).collect();
+    json!({ "windows": open_windows().clone(), "waiting": waiting, "told": told })
+}
+
+/// Makes an open window the one the agent's commands go to.
+pub(super) fn focus(args: &Value) -> Result<Value, String> {
+    let window = args.get("window").and_then(Value::as_u64).ok_or("'window' is required")?;
+    if !focus_window(window) {
+        return Err(format!("No window {window} is open; windows_watch lists the open ones."));
+    }
+    Ok(json!({ "windows": open_windows().clone() }))
+}
+
+/// Ends a command no window answered: the call waiting for it gets the reason as its error.
+pub(super) fn drop_command(args: &Value) -> Result<Value, String> {
+    let id = args.get("id").and_then(Value::as_str).ok_or("'id' is required")?;
+    let Some((_, sender)) = pending().remove(id) else {
+        return Err(format!("No command {id} is waiting for a window; windows_watch lists the waiting ones."));
+    };
+    let reason = args.get("reason").and_then(Value::as_str).filter(|reason| !reason.trim().is_empty()).unwrap_or("The agent gave this command up.");
+    let _ = sender.send(Err(reason.to_string()));
+    Ok(json!({ "dropped": id }))
+}
+
 /// An event for every open window.
 pub(crate) fn tell_windows(event: Value) {
     let _ = bridge().commands.send(event.to_string());
@@ -501,6 +539,37 @@ pub(super) fn tools() -> Vec<Tool> {
             schema: || id_only("id", "the block's or line's id from editor_state"),
             call: |args| window("editor_select", args, 15),
         },
+        // ---------------------------------------------------------------- the player, for the user to hear
+        Tool {
+            name: "player_state",
+            description: "What the studio's player plays now: in an open Speech project the block playing and the blocks queued after it, in an open Listening recording the moment and length; the position, length, volume and speed, and a library voice's sample when one plays. Nothing plays: playing false.",
+            schema: nothing,
+            call: |args| window("player_state", args, 15),
+        },
+        Tool {
+            name: "player_play",
+            description: "Play for the user to hear, in the window. In an open Speech project: a block's active take (id), or with on true everything from that block to the end, voicing first the blocks that are not voiced yet (as Listen from here does). In an open Listening recording: a line from its start to its end (id), or from a moment (from, seconds), or on from where it stopped (neither). voice plays a library voice's sample instead, on any screen.",
+            schema: || object(json!({ "id": { "type": "string", "description": "block or line id from editor_state" }, "on": { "type": "boolean" }, "from": { "type": "number", "minimum": 0 }, "voice": { "type": "string", "description": "voice name from voices_list" } }), &[]),
+            call: |args| window("player_play", args, 20),
+        },
+        Tool {
+            name: "player_pause",
+            description: "Stop what the studio's player plays (a Speech project's queue after the block is dropped too).",
+            schema: nothing,
+            call: |args| window("player_pause", args, 15),
+        },
+        Tool {
+            name: "player_seek",
+            description: "Move the player to seconds: in the take that plays (Speech) or in the recording (Listening).",
+            schema: || object(json!({ "seconds": { "type": "number", "minimum": 0 } }), &["seconds"]),
+            call: |args| window("player_seek", args, 15),
+        },
+        Tool {
+            name: "player_set",
+            description: "Set the player's volume (0 to 1) and, in a Listening recording, its speed as its list offers it (0.75, 1, 1.25, 1.5 or 2).",
+            schema: || object(json!({ "volume": { "type": "number", "minimum": 0, "maximum": 1 }, "rate": { "type": "number", "enum": [1, 0.75, 1.25, 1.5, 2] } }), &[]),
+            call: |args| window("player_set", args, 15),
+        },
         Tool {
             name: "ui_open_settings",
             description: "Open the settings window at a section: models (default), cloud (the keys of OpenRouter, Google, fal and Runware and the spending), quality, network (the proxy), interface, agent (this connection and who answers in the Assistant panel), api (the OpenAI-compatible API for other programs), privacy, about.",
@@ -643,8 +712,16 @@ mod tests {
         let window = hello["window"].as_u64().expect("the first message names the window");
         assert_eq!(open_windows().last(), Some(&window));
         tell_windows(json!({ "changed": "voices", "by": "agent" }));
-        let second = futures_util::StreamExt::next(&mut stream).await.unwrap().unwrap();
-        assert!(String::from_utf8_lossy(&second).contains("\"changed\":\"voices\""));
+        // the bus is the process's: other tests' notices may come first
+        let ours = tokio::time::timeout(Duration::from_secs(1), async {
+            loop {
+                let next = futures_util::StreamExt::next(&mut stream).await.unwrap().unwrap();
+                if String::from_utf8_lossy(&next).contains("\"changed\":\"voices\"") {
+                    break;
+                }
+            }
+        });
+        assert!(ours.await.is_ok(), "the notice reaches the window");
         drop(stream);
         assert!(!open_windows().contains(&window), "a closed stream is no longer a window");
     }
@@ -665,14 +742,14 @@ mod tests {
     #[test]
     fn every_window_tool_asks_the_window_and_no_other_tool_does() {
         const BUILT_IN: &[&str] = &["screenshot", "read_page", "click", "type", "select", "press_key", "scroll", "console"];
-        const APP: &[&str] = &["navigate", "open_settings", "open_help", "notify", "editor_open", "editor_state", "editor_select"];
+        const APP: &[&str] = &["navigate", "open_settings", "open_help", "notify", "editor_open", "editor_state", "editor_select", "player_state", "player_play", "player_pause", "player_seek", "player_set"];
         for tool in super::super::tools() {
-            let windowed = tool.name.starts_with("ui_") || tool.name.starts_with("editor_");
+            let windowed = tool.name.starts_with("ui_") || tool.name.starts_with("editor_") || tool.name.starts_with("player_");
             let schema = (tool.schema)();
             let args = json!({});
             match (tool.call)(&args) {
                 Ok(Call { payload: Payload::Window { command, seconds, .. }, .. }) => {
-                    assert!(windowed, "{} asks the window but is not named ui_ or editor_", tool.name);
+                    assert!(windowed, "{} asks the window but is not named ui_, editor_ or player_", tool.name);
                     assert!(seconds >= 15, "{} gives the window {seconds} s", tool.name);
                     assert!(BUILT_IN.contains(&command) || APP.contains(&command), "{} asks for {command}, which the page does not know", tool.name);
                     // editor_open takes the project to open; the rest work on what the window shows
