@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AudioLines, Camera, Crop, Loader2, Pause, Play, RotateCcw, ScanText, Sparkles, Star, Trash2, X } from "lucide-react";
-import { api, type RefCandidate, type VoiceAge, type VoiceCard, type VoiceConsent, type VoiceEntry, type VoiceGender } from "../../lib/api";
+import { AudioLines, Camera, Crop, Loader2, Pause, Play, RotateCcw, ScanText, Scissors, Sparkles, Star, Trash2, X } from "lucide-react";
+import { api, slot, type RefCandidate, type VoiceAge, type VoiceCard, type VoiceConsent, type VoiceEntry, type VoiceGender } from "../../lib/api";
 import { named } from "../../lib/a11y";
 import { useEscapeLayer } from "../../lib/escape";
 import { errorText, prettyVoice } from "../../lib/voices";
@@ -9,6 +9,7 @@ import { followJob } from "../../lib/followJob";
 import ConfirmDialog from "../ConfirmDialog";
 import VoiceAvatar from "./VoiceAvatar";
 import RefNeeds from "./RefNeeds";
+import RefTrim from "./RefTrim";
 import { DENOISE_LEVELS } from "../../lib/listen";
 
 const GENDERS: VoiceGender[] = ["", "female", "male"];
@@ -39,6 +40,9 @@ export default function VoiceEditor({ voice, onClose, onChanged, onRenamed, onDe
   const [photoRev, setPhotoRev] = useState(0);
   const photoInput = useRef<HTMLInputElement>(null);
   const [pieces, setPieces] = useState<RefCandidate[] | null>(null);
+  const [trimming, setTrimming] = useState(false);
+  const [refLimit, setRefLimit] = useState(12);
+  useEffect(() => { api.capabilities().then((c) => setRefLimit(Number(slot(c.selection, "higgs_ref_secs") || "12")), (e: unknown) => setError(errorText(e))); }, []);
   const [playingPiece, setPlayingPiece] = useState<number | null>(null);
   const piecePlayer = useRef<HTMLAudioElement | null>(null);
   useEffect(() => () => { piecePlayer.current?.pause(); }, []);
@@ -95,7 +99,13 @@ export default function VoiceEditor({ voice, onClose, onChanged, onRenamed, onDe
     setTranscript(r.voice.transcript ?? "");
     setPieces(null);
   });
-  const restore = () => run("restore", async () => { onChanged((await api.voiceRestore(voice.name)).voice); });
+  const trim = (start: number, end: number) => run("apply", async () => {
+    const r = await api.voiceRefApply(voice.name, start, end);
+    onChanged(r.voice);
+    setTranscript(r.voice.transcript ?? "");
+    setTrimming(false);
+  });
+  const restore = () => run("restore", async () => { const r = await api.voiceRestore(voice.name); onChanged(r.voice); setTranscript(r.voice.transcript ?? ""); setPieces(null); });
   const photo = (f: File) => run("photo", async () => { onChanged((await api.voicePhoto(voice.name, f)).voice); setPhotoRev((n) => n + 1); });
   const dirty = name.trim() !== voice.name || tags !== voice.card.tags.join(", ") || source !== voice.card.source || lang !== voice.card.lang || transcript.trim() !== (voice.transcript ?? "");
 
@@ -177,7 +187,12 @@ export default function VoiceEditor({ voice, onClose, onChanged, onRenamed, onDe
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-[var(--color-border)] text-[12px] text-[var(--color-accent-2)] hover:border-[var(--color-accent)] disabled:opacity-40">
               {busy === "pieces" ? <Loader2 size={12} className="animate-spin" /> : <Crop size={12} />}{t("voices.findPieces")}
             </button>
+            <button onClick={() => setTrimming((v) => !v)} aria-pressed={trimming}
+              className="ml-1.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-[var(--color-border)] text-[12px] text-[var(--color-accent-2)] hover:border-[var(--color-accent)]">
+              <Scissors size={12} />{t("voices.trimOpen")}
+            </button>
           </div>
+          {trimming && <div className="mb-2"><RefTrim url={api.voiceSampleUrl(voice.name, false, voice.size)} limit={refLimit} busy={busy === "apply"} onApply={trim} /></div>}
           {pieces && pieces.length === 0 && <p className="text-[12px] text-[var(--color-muted)]">{t("voices.noPieces")}</p>}
           {pieces && pieces.length > 0 && (
             <ul className="space-y-1.5">

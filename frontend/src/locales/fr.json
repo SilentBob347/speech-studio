@@ -860,7 +860,16 @@
     "refTextHelps": "le texte de la référence est facultatif : avec lui le clone est plus fidèle",
     "refTextHave": "le texte de la référence est là",
     "refNoClone": "{{engines}} ne clonent pas : ils ont leurs propres voix.",
-    "refUpTo": "référence jusqu'à {{s}} s"
+    "refUpTo": "référence jusqu'à {{s}} s",
+    "trimOpen": "Couper à la main",
+    "trimStart": "Début : {{s}} s",
+    "trimEnd": "Fin : {{s}} s",
+    "trimListen": "Écouter la sélection",
+    "trimStop": "Arrêter",
+    "trimLength": "Sélection {{s}} s",
+    "trimTooLong": "les moteurs n'en prennent que {{s}} s",
+    "trimTooShort": "moins de 3 s : le clone sera approximatif",
+    "trimApply": "Garder la sélection"
   },
   "speech": {
     "projectSettings": "Réglages du projet",

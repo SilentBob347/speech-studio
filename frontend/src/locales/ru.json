@@ -860,7 +860,16 @@
     "refTextHelps": "текст рефа по желанию: с ним клон точнее",
     "refTextHave": "текст рефа есть",
     "refNoClone": "{{engines}} не клонируют: у них свои голоса.",
-    "refUpTo": "реф до {{s}} с"
+    "refUpTo": "реф до {{s}} с",
+    "trimOpen": "Обрезать вручную",
+    "trimStart": "Начало: {{s}} с",
+    "trimEnd": "Конец: {{s}} с",
+    "trimListen": "Слушать выделенное",
+    "trimStop": "Остановить",
+    "trimLength": "Выделено {{s}} с",
+    "trimTooLong": "движки возьмут только {{s}} с",
+    "trimTooShort": "короче 3 с — клон выйдет неточным",
+    "trimApply": "Оставить выделенное"
   },
   "speech": {
     "projectSettings": "Настройки проекта",

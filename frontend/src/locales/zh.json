@@ -860,7 +860,16 @@
     "refTextHelps": "参考文本可选：有它克隆更像",
     "refTextHave": "已有参考文本",
     "refNoClone": "{{engines}} 不克隆：它们有自带声音。",
-    "refUpTo": "参考最长 {{s}} 秒"
+    "refUpTo": "参考最长 {{s}} 秒",
+    "trimOpen": "手动裁剪",
+    "trimStart": "开始：{{s}} 秒",
+    "trimEnd": "结束：{{s}} 秒",
+    "trimListen": "试听所选",
+    "trimStop": "停止",
+    "trimLength": "已选 {{s}} 秒",
+    "trimTooLong": "引擎只取 {{s}} 秒",
+    "trimTooShort": "不足 3 秒，克隆会不准",
+    "trimApply": "保留所选"
   },
   "speech": {
     "projectSettings": "项目设置",
