@@ -1336,7 +1336,9 @@
     "voiceFx_none": "no effect",
     "voiceFx_radio": "radio",
     "voiceFx_phone": "phone",
-    "voiceFx_loudspeaker": "loudspeaker"
+    "voiceFx_loudspeaker": "loudspeaker",
+    "corpus": "Test the engine on hard phrases",
+    "corpusHint": "Russian phrases: homographs, «ё», stress, numbers and dates. Voice them with the chosen engine; the quality report shows what it read wrong."
   },
   "tags": {
     "emotion": "Emotion",

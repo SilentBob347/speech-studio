@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AudioLines, Captions, Files, FolderDown, FolderOpen, Library, Loader2, Mic2, Plus, Sparkles, Trash2 } from "lucide-react";
+import { AudioLines, Captions, Files, FlaskConical, FolderDown, FolderOpen, Library, Loader2, Mic2, Plus, Sparkles, Trash2 } from "lucide-react";
 import BookImport from "./BookImport";
 import PodcastWriter from "./PodcastWriter";
 import { speechApi, type BookPreview, type ProjectCard } from "../../lib/speech";
@@ -132,6 +132,14 @@ export default function ProjectsHome({ onOpen }: { onOpen: (pid: string) => void
       onOpen(r.project_id);
     } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
   };
+  const createCorpus = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await speechApi.create({ text: "", corpus: "ru_hard", voice, engine });
+      onOpen(r.project_id);
+    } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
+  };
   const when = (s: number) => new Date(s * 1000).toLocaleString(i18n.language, { dateStyle: "medium", timeStyle: "short" });
 
   return (
@@ -197,6 +205,7 @@ export default function ProjectsHome({ onOpen }: { onOpen: (pid: string) => void
             <button onClick={() => bookFile.current?.click()} disabled={busy} className={start}><Library size={15} className="mt-0.5 shrink-0 text-[var(--color-accent)]" /><span><span className="block text-[13px] font-medium">{t("book.open")}</span><span className="block text-[11px] text-[var(--color-muted)]">{t("book.openHint")}</span></span></button>
             <button onClick={() => subsFile.current?.click()} disabled={busy} className={start}><Captions size={15} className="mt-0.5 shrink-0 text-[var(--color-accent)]" /><span><span className="block text-[13px] font-medium">{t("speech.fromSubs")}</span><span className="block text-[11px] text-[var(--color-muted)]">{t("speech.fromSubsHint")}</span></span></button>
             <button onClick={() => packFile.current?.click()} disabled={busy} className={start}><FolderOpen size={15} className="mt-0.5 shrink-0 text-[var(--color-accent)]" /><span><span className="block text-[13px] font-medium">{t("speech.openPack")}</span><span className="block text-[11px] text-[var(--color-muted)]">{t("speech.openPackHint")}</span></span></button>
+            <button onClick={() => void createCorpus()} disabled={busy} className={start}><FlaskConical size={15} className="mt-0.5 shrink-0 text-[var(--color-accent)]" /><span><span className="block text-[13px] font-medium">{t("speech.corpus")}</span><span className="block text-[11px] text-[var(--color-muted)]">{t("speech.corpusHint")}</span></span></button>
           </div>
           <input ref={batchFiles} type="file" accept=".txt,.md" multiple hidden onChange={(e) => { const l = e.target.files; if (l?.length) void runBatch(l); e.target.value = ""; }} />
           <input ref={txtFiles} type="file" accept=".txt" multiple hidden onChange={(e) => { const l = e.target.files; if (l?.length) void createFromFiles(l); e.target.value = ""; }} />

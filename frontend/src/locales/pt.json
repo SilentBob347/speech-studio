@@ -1336,7 +1336,9 @@
     "voiceFx_none": "sem efeito",
     "voiceFx_radio": "rádio",
     "voiceFx_phone": "telefone",
-    "voiceFx_loudspeaker": "alto-falante"
+    "voiceFx_loudspeaker": "alto-falante",
+    "corpus": "Testar o motor com frases difíceis",
+    "corpusHint": "Frases em russo: homógrafos, «ё», tonicidade, números e datas. Locute-as com o motor escolhido; o relatório de qualidade mostra o que ele leu errado."
   },
   "tags": {
     "emotion": "Emoção",

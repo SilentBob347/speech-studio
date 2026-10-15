@@ -40,6 +40,14 @@ pub struct Check {
     pub off: Vec<WordOp>,
 }
 
+/// Every defect a check can find in a take, each named by `qc-issue-<code>` in the catalogues.
+pub const ISSUES: [&str; 13] = ["tail", "stretched", "gap", "repeat", "noise", "garbled", "runaway", "cutoff", "silence", "hum", "click", "clipping", "whistle"];
+
+/// The defects in the interface's language, for a message.
+pub fn issue_names(issues: &[String]) -> String {
+    issues.iter().map(|i| crate::i18n::tr(&format!("qc-issue-{i}"), Vec::new())).collect::<Vec<_>>().join(", ")
+}
+
 impl Check {
     /// Прошёл всё, что проверялось.
     pub fn ok(&self) -> bool {
@@ -188,6 +196,20 @@ pub fn check(expected: &str, heard: &str, strictness: &str) -> Check {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn every_defect_has_a_name_in_every_catalogue() {
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("locales");
+        for lang in crate::i18n::LANGUAGES {
+            let ftl = std::fs::read_to_string(root.join(lang).join("server.ftl")).unwrap();
+            for code in ISSUES {
+                assert!(ftl.lines().any(|l| l.starts_with(&format!("qc-issue-{code} ="))), "{lang}: qc-issue-{code}");
+            }
+        }
+        for flag in ["runaway", "cutoff", "silence", "hum", "click", "clipping", "whistle"] {
+            assert!(crate::audio_flags::role(flag) != crate::audio_flags::Role::Defect || ISSUES.contains(&flag), "{flag}");
+        }
+    }
 
     #[test]
     fn a_tail_a_stretched_word_and_a_gap_are_named() {

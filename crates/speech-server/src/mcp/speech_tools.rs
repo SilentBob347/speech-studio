@@ -38,8 +38,8 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "project_create",
-            description: "A new Speech project from a text: paragraphs become blocks; lines like \"Anna: ...\" or \"[Anna] ...\" become a dialogue, each speaker with a voice of its own. split lines makes each line a block. voice is a voice name of voices_list (none: the engine's base voice); engine an id of engines_list (default higgs; drama3 needs a 6 GB card and, under 24 GB, 32 GB of RAM); lang a code or auto.",
-            schema: || object(json!({ "name": { "type": "string" }, "text": { "type": "string" }, "voice": { "type": "string" }, "lang": { "type": "string" }, "engine": { "type": "string", "enum": crate::engines::all().iter().map(|e| e.id).collect::<Vec<_>>() }, "split": { "type": "string", "enum": ["paragraphs", "lines"] } }), &["text"]),
+            description: "A new Speech project from a text: paragraphs become blocks; lines like \"Anna: ...\" or \"[Anna] ...\" become a dialogue, each speaker with a voice of its own. split lines makes each line a block. voice is a voice name of voices_list (none: the engine's base voice); engine an id of engines_list (default higgs; drama3 needs a 6 GB card and, under 24 GB, 32 GB of RAM); lang a code or auto. corpus ru_hard instead of text makes the engine check: hard Russian phrases (homographs, «ё», stress people get wrong, numbers, dates, abbreviations), a block each, with the check by recognition on - voice it with project_synth and read project_quality for the phrases the engine says wrong.",
+            schema: || object(json!({ "name": { "type": "string" }, "text": { "type": "string" }, "corpus": { "type": "string", "enum": ["ru_hard"] }, "voice": { "type": "string" }, "lang": { "type": "string" }, "engine": { "type": "string", "enum": crate::engines::all().iter().map(|e| e.id).collect::<Vec<_>>() }, "split": { "type": "string", "enum": ["paragraphs", "lines"] } }), &[]),
             call: |args| post("/projects".into(), args.clone()),
         },
         Tool {

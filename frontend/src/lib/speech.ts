@@ -184,7 +184,7 @@ export const speechApi = {
   podcast: (body: { topic: string; speakers: { name: string; manner: string }[]; minutes: number; lang: string; name?: string }) => postCoded<{ job_id: string }>("/projects/podcast", body),
   castChapter: (pid: string, chapter: string) => postCoded<{ job_id: string }>(`/projects/${pid}/cast`, { chapter }),
   enrich: (pid: string, ids: string[] | null, mode: "tags" | "punctuation" = "tags") => postCoded<{ job_id: string }>(`/projects/${pid}/enrich`, ids ? { ids, mode } : { mode }),
-  create: (body: { name?: string; text: string; voice?: string | null; lang?: string; split?: "paragraphs" | "lines"; files?: { name: string; text: string }[]; engine?: string; key?: string }) => postCoded<{ project_id: string; project: SpeechProject }>("/projects", body),
+  create: (body: { name?: string; text: string; corpus?: "ru_hard"; voice?: string | null; lang?: string; split?: "paragraphs" | "lines"; files?: { name: string; text: string }[]; engine?: string; key?: string }) => postCoded<{ project_id: string; project: SpeechProject }>("/projects", body),
   get: (pid: string) => getCoded<SpeechProject>(`/projects/${pid}`),
   put: (pid: string, project: SpeechProject) => {
     const { status: _status, ...body } = project;

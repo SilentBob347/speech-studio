@@ -90,6 +90,7 @@ mod voice_api;
 mod voice_fx;
 mod tracks;
 mod listen_watch;
+mod hard_corpus;
 mod listen_live;
 mod itn;
 mod music_studios;

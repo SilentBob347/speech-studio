@@ -1029,20 +1029,7 @@ fn synth_scope(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Valu
                 qc_failed = check_takes(p, pid, &again, false, progress)?;
             }
         }
-        for id in &qc_failed {
-            let mut fresh = sp::load(&p.workspace, pid)?;
-            let key = keys(p, &fresh).remove(id).unwrap_or_default();
-            if let Some(block) = fresh.block_mut(id) {
-                let qc = block.active.and_then(|n| block.takes.iter().find(|t| t.n == n)).and_then(|t| t.qc.clone()).unwrap_or_default();
-                let text = if qc.text_checked && !qc.passed {
-                    t!("speech-qc-failed", heard = qc.heard.clone())
-                } else {
-                    t!("speech-qc-unlike", similarity = format!("{:.2}", qc.similarity.unwrap_or(0.0)))
-                };
-                block.error = Some(sp::BlockError { key, text });
-                sp::save(&p.workspace, pid, &fresh)?;
-            }
-        }
+        mark_checked(p, pid, &qc_failed, &qc_failed)?;
     }
     if done == 0 && !failed.is_empty() {
         return Err(t!("speech-synth-all-failed", error = failed[0]["error"].as_str().unwrap_or("").to_string()));
@@ -1258,11 +1245,8 @@ pub fn quality(p: &SpeechPaths, project: &SpeechProject) -> Value {
                 continue;
             }
             total += 1;
-            if state != "ready" {
-                continue;
-            }
+            let Some(take) = voiced(b, state, &key) else { continue };
             ready += 1;
-            let Some(take) = b.active.and_then(|n| b.takes.iter().find(|t| t.n == n)) else { continue };
             match &take.qc {
                 Some(c) if c.text_checked && c.ok() => passed += 1,
                 // a defect the sound check found fails the take whether or not its words were checked
@@ -1293,15 +1277,54 @@ pub fn quality(p: &SpeechPaths, project: &SpeechProject) -> Value {
     })
 }
 
+/// The take a block sounds with: a ready block's, or that of one the check failed after its retries (the block then
+/// stands as failed with the check's reason, its take still there).
+fn voiced<'a>(b: &'a sp::Block, state: &str, key: &str) -> Option<&'a sp::Take> {
+    let take = b.active.and_then(|n| b.takes.iter().find(|t| t.n == n))?;
+    match state {
+        "ready" => Some(take),
+        "failed" if take.key == key && take.qc.is_some() => Some(take),
+        _ => None,
+    }
+}
+
+/// The blocks of `checked` whose take failed the check (`failed`) stand as failed with its reason; the others lose
+/// a failure an earlier check gave them.
+fn mark_checked(p: &SpeechPaths, pid: &str, checked: &[String], failed: &[String]) -> Result<(), String> {
+    for id in checked {
+        let mut fresh = sp::load(&p.workspace, pid)?;
+        let key = keys(p, &fresh).remove(id).unwrap_or_default();
+        let Some(block) = fresh.block_mut(id) else { continue };
+        if !failed.contains(id) {
+            if block.error.as_ref().is_some_and(|e| e.key == key) {
+                block.error = None;
+                sp::save(&p.workspace, pid, &fresh)?;
+            }
+            continue;
+        }
+        let qc = block.active.and_then(|n| block.takes.iter().find(|t| t.n == n)).and_then(|t| t.qc.clone()).unwrap_or_default();
+        let text = if qc.text_checked && !qc.passed {
+            t!("speech-qc-failed", heard = qc.heard.clone())
+        } else if qc.similar == Some(false) {
+            t!("speech-qc-unlike", similarity = format!("{:.2}", qc.similarity.unwrap_or(0.0)))
+        } else {
+            t!("speech-qc-defects", list = crate::qc::issue_names(&qc.issues))
+        };
+        block.error = Some(sp::BlockError { key, text });
+        sp::save(&p.workspace, pid, &fresh)?;
+    }
+    Ok(())
+}
+
 /// The ready blocks' takes checked by recognition after the fact: those of `ids`, or every one not checked yet.
 pub fn check_ready(p: &SpeechPaths, pid: &str, ids: Option<&[String]>, progress: &dyn Fn(Value)) -> Result<Value, String> {
     let project = sp::load(&p.workspace, pid)?;
     let keys = keys(p, &project);
     let made: BTreeMap<String, Vec<u32>> = project
         .blocks()
-        .filter(|b| sp::status(b, keys.get(&b.id).map(String::as_str).unwrap_or_default()) == "ready")
         .filter_map(|b| {
-            let take = b.active.and_then(|n| b.takes.iter().find(|t| t.n == n))?;
+            let key = keys.get(&b.id).map(String::as_str).unwrap_or_default();
+            let take = voiced(b, sp::status(b, key), key)?;
             let wanted = match ids {
                 Some(ids) => ids.contains(&b.id),
                 None => !take.qc.as_ref().is_some_and(|c| c.text_checked),
@@ -1310,6 +1333,7 @@ pub fn check_ready(p: &SpeechPaths, pid: &str, ids: Option<&[String]>, progress:
         })
         .collect();
     let failed = if made.is_empty() { Vec::new() } else { check_takes(p, pid, &made, true, progress)? };
+    mark_checked(p, pid, &made.keys().cloned().collect::<Vec<_>>(), &failed)?;
     Ok(json!({ "checked": made.len(), "failed": failed }))
 }
 

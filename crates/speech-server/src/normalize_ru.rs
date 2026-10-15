@@ -429,6 +429,7 @@ fn pass(text: &str, re: &Regex, rule_name: &'static str, rule: Rule, changes: &m
             continue;
         }
         let Some(to) = rule(&c, &out_with(&out, &text[last..m.start()]), after) else { continue };
+        let to = with_stop(m.as_str(), after, to);
         out.push_str(&text[last..m.start()]);
         changes.push(Change { from: m.as_str().to_string(), to: to.clone(), rule: rule_name });
         out.push_str(&to);
@@ -436,6 +437,13 @@ fn pass(text: &str, re: &Regex, rule_name: &'static str, rule: Rule, changes: &m
     }
     out.push_str(&text[last..]);
     out
+}
+
+/// An abbreviation's dot a rule read out («руб.», «г.») that also ended the sentence comes back as its full stop.
+fn with_stop(consumed: &str, after: &str, words: String) -> String {
+    let rest = after.trim_start_matches([' ', '\u{a0}', '\u{202f}']);
+    let ends = rest.is_empty() || rest.starts_with('\n') || after.len() > rest.len() && rest.starts_with(char::is_uppercase);
+    if consumed.ends_with('.') && ends && !words.ends_with('.') { format!("{words}.") } else { words }
 }
 
 fn out_with(done: &str, gap: &str) -> String {
@@ -456,6 +464,8 @@ fn cap_like(src_before: &str, words: String) -> String {
 }
 
 static DATE_NUM: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(\d{1,2})\.(\d{1,2})\.(\d{4}|\d{2})(\s*(?:года|г\.))?").expect("date"));
+/// Day and month without a year: the month in two digits, since a Russian decimal is written with a comma.
+static DATE_DM: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(\d{1,2})\.(0[1-9]|1[0-2])").expect("date dm"));
 static DATE_WORD: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:\s+(\d{3,4})(\s*(?:года|г\.))?)?").expect("date word")
 });
@@ -465,6 +475,9 @@ static YEAR: LazyLock<Regex> = LazyLock::new(|| {
 });
 static DECADE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(\d{3,4})-(х|е|ые|ых)").expect("decade"));
 static TIME: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"([01]?\d|2[0-3]):([0-5]\d)").expect("time"));
+/// A time written with a dot, as Russian also writes it («в 18.30»): only after a word that asks for a time.
+static TIME_DOT: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"([01]?\d|2[0-3])\.([0-5]\d)").expect("time dot"));
+const TIME_WORDS: [&str; 8] = ["в", "во", "до", "с", "со", "к", "после", "около"];
 static SCORE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(\d{1,3}):(\d{1,3})").expect("score"));
 static CENTURY: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\b([IVXLC]{1,7})\s+(векам|веками|веках|веков|веком|веке|веку|века|век|вв\.|в\.)").expect("century"));
 static ROMAN_NAME: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"([А-ЯЁ][а-яё]+)\s+([IVX]{1,5})\b").expect("roman name"));
@@ -474,7 +487,7 @@ static ORDINAL_SUFFIX: LazyLock<Regex> = LazyLock::new(|| {
 static CURRENCY_PREFIX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"([$€£¥₽₴₸₺₹])\s?(\d+(?:[.,]\d+)?)").expect("currency"));
 static FRACTION: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(\d+)/(\d+)").expect("fraction"));
 static NUMBER: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(-)?(\d{1,3}(?:[ \u{a0}\u{202f}]\d{3})+|\d+)(?:[.,](\d+))?(?:\s*[-–—]\s*(\d+)(?:[.,](\d+))?)?").expect("number")
+    Regex::new(r"([-−])?(\d{1,3}(?:[ \u{a0}\u{202f}]\d{3})+|\d+)(?:[.,](\d+))?(?:\s*[-–—]\s*(\d+)(?:[.,](\d+))?)?").expect("number")
 });
 static LATIN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[A-Za-z][A-Za-z'’\-]*").expect("latin"));
 
@@ -499,6 +512,19 @@ fn rule_date_num(c: &regex::Captures, before: &str, _after: &str) -> Option<Stri
     let case = prep_case(before).map(|c| if c == Case::Acc { Case::Nom } else { c }).unwrap_or(Case::Gen);
     let case = if prep_case(before).is_none() && before.trim_end().is_empty() { Case::Nom } else { case };
     Some(cap_like(before, day_month_year(day, month, Some(year), case)))
+}
+
+fn rule_date_dm(c: &regex::Captures, before: &str, after: &str) -> Option<String> {
+    let day: u32 = c[1].parse().ok()?;
+    let month: usize = c[2].parse().ok()?;
+    let version = before.ends_with(['.', ',']) || after.starts_with(['.', ',']) && after[1..].starts_with(|ch: char| ch.is_ascii_digit());
+    let at = last_word(before).is_some_and(|w| matches!(w.to_lowercase().as_str(), "в" | "во"));
+    if !(1..=31).contains(&day) || version || at || after.starts_with('%') || unit_after(after).is_some() {
+        return None;
+    }
+    let case = prep_case(before).map(|c| if c == Case::Acc { Case::Nom } else { c }).unwrap_or(Case::Gen);
+    let case = if prep_case(before).is_none() && before.trim_end().is_empty() { Case::Nom } else { case };
+    Some(cap_like(before, day_month_year(day, month, None, case)))
 }
 
 fn rule_date_word(c: &regex::Captures, before: &str, _after: &str) -> Option<String> {
@@ -603,6 +629,14 @@ fn rule_time(c: &regex::Captures, before: &str, after: &str) -> Option<String> {
     let m: u32 = c[2].parse().ok()?;
     let case = prep_case(before).unwrap_or(Case::Nom);
     Some(cap_like(before, hours_minutes(h, m, case)))
+}
+
+fn rule_time_dot(c: &regex::Captures, before: &str, after: &str) -> Option<String> {
+    let asks = last_word(before).is_some_and(|w| TIME_WORDS.contains(&w.to_lowercase().as_str()));
+    if !asks || after.starts_with(['.', ',']) && after[1..].starts_with(|ch: char| ch.is_ascii_digit()) || after.starts_with('%') || unit_after(after).is_some() {
+        return None;
+    }
+    rule_time(c, before, after)
 }
 
 fn rule_score(c: &regex::Captures, before: &str, _after: &str) -> Option<String> {
@@ -818,6 +852,7 @@ fn number_pass(text: &str, changes: &mut Vec<Change>) -> String {
         let end = m.end() + consumed_unit;
         let glued = text[end..].starts_with(|ch: char| ch.is_alphabetic());
         let words = if glued { format!("{words} ") } else { words };
+        let words = with_stop(&text[start..end], &text[end..], words);
         push_change(&mut out, &text[last..start], &text[start..end], cap_like(&before, words), "number", changes);
         prev = Some((out.len(), case));
         last = end;
@@ -966,10 +1001,12 @@ pub fn normalize_with(text: &str, off: &[String]) -> Normalized {
     t = pass(&t, &CODE, "code", rule_code, &mut changes);
     t = pass(&t, &YEAR_RANGE, "year", rule_year_range, &mut changes);
     t = pass(&t, &DATE_NUM, "date", rule_date_num, &mut changes);
+    t = pass(&t, &DATE_DM, "date", rule_date_dm, &mut changes);
     t = pass(&t, &DATE_WORD, "date", rule_date_word, &mut changes);
     t = pass(&t, &YEAR, "year", rule_year, &mut changes);
     t = pass(&t, &DECADE, "year", rule_decade, &mut changes);
     t = pass(&t, &TIME, "time", rule_time, &mut changes);
+    t = pass(&t, &TIME_DOT, "time", rule_time_dot, &mut changes);
     t = pass(&t, &SCORE, "score", rule_score, &mut changes);
     t = pass(&t, &CENTURY, "century", rule_century, &mut changes);
     t = pass(&t, &ROMAN_NAME, "roman", rule_roman_name, &mut changes);
@@ -1059,6 +1096,23 @@ mod tests {
         let n = normalize("В 5 км <|emotion:awe|> [pause 300ms] [rate:1.5] з+амок, iPhone 15X");
         assert_eq!(n.text, "В пять километров <|emotion:awe|> [pause 300ms] [rate:1.5] з+амок, iPhone пятнадцать X");
         assert!(n.unknown.contains(&"iPhone".to_string()));
+    }
+
+    #[test]
+    fn a_day_and_month_a_typographic_minus_and_an_abbreviation_ending_a_sentence() {
+        assert_eq!(normalize("Встреча 12.03 в 18:30.").text, "Встреча двенадцатого марта в восемнадцать тридцать.");
+        assert_eq!(normalize("12.03 — день рождения").text, "Двенадцатое марта — день рождения");
+        assert_eq!(normalize("Встреча 12 марта в 18.30.").text, "Встреча двенадцатого марта в восемнадцать тридцать.");
+        assert_eq!(normalize("Работаем с 9.00 до 21.00, приём до 01.04.").text, "Работаем с девяти часов до двадцати одного часа, приём до первого апреля.");
+        assert_eq!(normalize("Начало в 12.03").text, "Начало в двенадцать ноль три");
+        assert_eq!(normalize("Курс 18.30 рубля").text, "Курс восемнадцать целых тридцать сотых рубля");
+        for kept in ["версия 1.12.03", "12.05 кг", "рост 12.05%", "v2.10"] {
+            assert!(!normalize(kept).text.contains("мая") && !normalize(kept).text.contains("октября"), "{kept}: {}", normalize(kept).text);
+        }
+        assert_eq!(normalize("На улице −5 °C.").text, "На улице минус пять градусов Цельсия.");
+        assert_eq!(normalize("Купите за 150 руб.").text, "Купите за сто пятьдесят рублей.");
+        assert_eq!(normalize("Это было в 1945 г. Потом мир изменился.").text, "Это было в тысяча девятьсот сорок пятом году. Потом мир изменился.");
+        assert_eq!(normalize("Цена 150 руб. за штуку").text, "Цена сто пятьдесят рублей за штуку");
     }
 
     #[test]

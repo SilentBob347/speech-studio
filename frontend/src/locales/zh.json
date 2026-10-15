@@ -1336,7 +1336,9 @@
     "voiceFx_none": "无效果",
     "voiceFx_radio": "对讲机",
     "voiceFx_phone": "电话",
-    "voiceFx_loudspeaker": "扩音器"
+    "voiceFx_loudspeaker": "扩音器",
+    "corpus": "用难句测试引擎",
+    "corpusHint": "俄语句子：同形异义词、«ё»、重音、数字和日期。用所选引擎为其配音，质量报告会显示读错的地方。"
   },
   "tags": {
     "emotion": "情绪",

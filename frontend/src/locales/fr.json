@@ -1336,7 +1336,9 @@
     "voiceFx_none": "aucun effet",
     "voiceFx_radio": "talkie-walkie",
     "voiceFx_phone": "téléphone",
-    "voiceFx_loudspeaker": "haut-parleur"
+    "voiceFx_loudspeaker": "haut-parleur",
+    "corpus": "Tester le moteur sur des phrases difficiles",
+    "corpusHint": "Phrases russes : homographes, « ё », accents, nombres et dates. Doublez-les avec le moteur choisi ; le rapport de qualité montre ce qu’il a mal lu."
   },
   "tags": {
     "emotion": "Émotion",

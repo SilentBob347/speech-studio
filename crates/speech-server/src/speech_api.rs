@@ -104,6 +104,11 @@ pub async fn create(State(st): State<AppState>, Json(body): Json<Value>) -> Resp
     let engine = body.get("engine").and_then(Value::as_str).filter(|e| !e.is_empty()).map(str::to_string);
     let direction = body.get("direction").and_then(Value::as_str).map(str::trim).unwrap_or("").to_string();
     let seed = body.get("seed").and_then(Value::as_u64);
+    let corpus = body.get("corpus").and_then(Value::as_str).filter(|c| !c.is_empty()).map(str::to_string);
+    if let Some(c) = corpus.as_deref().filter(|c| *c != "ru_hard") {
+        return refuse(StatusCode::BAD_REQUEST, "bad_project", t!("speech-corpus-unknown", corpus = c.to_string()));
+    }
+    let named = body.get("name").and_then(Value::as_str).is_some_and(|n| !n.trim().is_empty());
     if !key.is_empty() {
         if let Some((pid, project)) = keyed_project(&p.workspace, &key) {
             return Json(json!({ "project_id": pid, "project": shown(&p, &project), "existing": true })).into_response();
@@ -116,7 +121,9 @@ pub async fn create(State(st): State<AppState>, Json(body): Json<Value>) -> Resp
         .unwrap_or_default();
     let res = joined(tokio::task::spawn_blocking(crate::mcp::carry(move || -> Result<(String, Value), String> {
         let narrator = t!("speech-narrator");
-        let mut project = if !files.is_empty() {
+        let mut project = if corpus.is_some() {
+            crate::hard_corpus::project(&if named { name } else { t!("speech-corpus-name") }, &narrator)
+        } else if !files.is_empty() {
             sp::from_files(&name, &files, &narrator)
         } else if split == "lines" {
             sp::from_lines(&name, &text, &narrator)
