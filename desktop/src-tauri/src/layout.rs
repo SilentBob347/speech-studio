@@ -16,12 +16,7 @@ pub const PORTABLE_MARKER: &str = "portable.flag";
 /// Ресурсы бандла (`bundle.resources` в tauri.bundle.conf.json): установщик кладёт их рядом с exe.
 /// Когда данные уезжают в запасной каталог, сервер ищет их там же, где и скачанные модели, поэтому
 /// поставляемые файлы копируются туда.
-const BUNDLED_RESOURCES: [&str; 4] = [
-    "frontend/dist",
-    "fonts",
-    "models/ocr",
-    "models/higgs-engine",
-];
+const BUNDLED_RESOURCES: [&str; 2] = ["frontend/dist", "models/higgs-engine"];
 
 pub struct Layout {
     /// Корень, который получает `speech_server::serve_blocking`: ресурсы, models/, workspace/ и остальные данные.
@@ -93,7 +88,7 @@ pub fn choose_data_directory(
 }
 
 /// Копирует файл, если его нет в приёмнике, размер другой или источник новее. Ошибка копирования —
-/// явная: без поставляемых моделей OCR и VC++-рантайма студия всё равно не заработает.
+/// явная: без поставляемого фронта и VC++-рантайма студия всё равно не заработает.
 fn copy_tree_if_changed(src: &Path, dst: &Path) -> Result<(), String> {
     fs::create_dir_all(dst).map_err(|e| format!("{}: {e}", dst.display()))?;
     let entries = fs::read_dir(src).map_err(|e| format!("{}: {e}", src.display()))?;
@@ -137,7 +132,7 @@ pub fn stage_bundled_resources(executable_dir: &Path, data_dir: &Path) -> Result
 }
 
 fn installed_layout(executable_dir: &Path) -> bool {
-    executable_dir.join("frontend").is_dir() && executable_dir.join("models").is_dir()
+    executable_dir.join("frontend").join("dist").is_dir()
 }
 
 /// Linux-пакет (deb и AppImage): exe в usr/bin, ресурсы бандла в usr/lib/<productName>, оба только для чтения.
@@ -321,22 +316,21 @@ mod tests {
         let base = scratch("stage");
         let exe = base.join("exe");
         let data = base.join("data");
-        fs::create_dir_all(exe.join("models/ocr")).unwrap();
-        fs::create_dir_all(exe.join("fonts")).unwrap();
-        fs::write(exe.join("models/ocr/det.onnx"), b"one").unwrap();
-        fs::write(exe.join("fonts/a.ttf"), b"font").unwrap();
+        fs::create_dir_all(exe.join("models/higgs-engine")).unwrap();
+        fs::create_dir_all(exe.join("frontend/dist")).unwrap();
+        fs::write(exe.join("models/higgs-engine/VCRUNTIME140.dll"), b"one").unwrap();
+        fs::write(exe.join("frontend/dist/index.html"), b"page").unwrap();
 
         stage_bundled_resources(&exe, &data).unwrap();
-        assert_eq!(fs::read(data.join("models/ocr/det.onnx")).unwrap(), b"one");
-        assert_eq!(fs::read(data.join("fonts/a.ttf")).unwrap(), b"font");
-        assert!(!data.join("models/higgs-engine").exists());
+        assert_eq!(fs::read(data.join("models/higgs-engine/VCRUNTIME140.dll")).unwrap(), b"one");
+        assert_eq!(fs::read(data.join("frontend/dist/index.html")).unwrap(), b"page");
 
         // downloaded file next to bundled ones survives
-        fs::write(data.join("models/ocr/extra.bin"), b"downloaded").unwrap();
-        fs::write(exe.join("models/ocr/det.onnx"), b"second").unwrap();
+        fs::write(data.join("models/higgs-engine/higgs.dll"), b"downloaded").unwrap();
+        fs::write(exe.join("models/higgs-engine/VCRUNTIME140.dll"), b"second").unwrap();
         stage_bundled_resources(&exe, &data).unwrap();
-        assert_eq!(fs::read(data.join("models/ocr/det.onnx")).unwrap(), b"second");
-        assert_eq!(fs::read(data.join("models/ocr/extra.bin")).unwrap(), b"downloaded");
+        assert_eq!(fs::read(data.join("models/higgs-engine/VCRUNTIME140.dll")).unwrap(), b"second");
+        assert_eq!(fs::read(data.join("models/higgs-engine/higgs.dll")).unwrap(), b"downloaded");
         let _ = fs::remove_dir_all(&base);
     }
 }

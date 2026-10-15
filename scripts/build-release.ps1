@@ -2,9 +2,8 @@
 param(
     # Free-text release notes for latest.json (shown by the updater).
     [string]$ReleaseNotes = "",
-    # Folder whose models\ holds the bundled VC++ runtime (models\higgs-engine) and the PP-OCR models
-    # (models\ocr). They are gitignored, so a fresh checkout has none: point this at a folder that
-    # does, for example the installed application.
+    # Folder whose models\ holds the bundled VC++ runtime (models\higgs-engine). It is gitignored, so a
+    # fresh checkout has none: point this at a folder that does, for example the installed application.
     [string]$ModelsSource = "",
     # Check the inputs (version, key, bundled files, tools) and print the plan; build nothing.
     [switch]$DryRun,
@@ -67,17 +66,14 @@ $targetRoot = if ($env:CARGO_TARGET_DIR) { $env:CARGO_TARGET_DIR } else { Join-P
 $bundleRoot = Join-Path $targetRoot 'release\bundle'
 
 $bundledRuntime = 'MSVCP140.dll', 'MSVCP140_1.dll', 'VCOMP140.DLL', 'VCRUNTIME140.dll', 'VCRUNTIME140_1.dll'
-$bundledOcr = 'det.onnx', 'cls.onnx', 'rec_cyrillic.onnx', 'rec_cyrillic.dict.txt', 'rec_ch.onnx', 'rec_ch.dict.txt'
 
 if ([string]::IsNullOrWhiteSpace($ModelsSource)) { $ModelsSource = $repoRoot }
 $modelsRoot = Join-Path $ModelsSource 'models'
 
 $missing = @()
 foreach ($file in $bundledRuntime) { if (-not (Test-Path (Join-Path $modelsRoot "higgs-engine\$file"))) { $missing += "models\higgs-engine\$file" } }
-foreach ($file in $bundledOcr) { if (-not (Test-Path (Join-Path $modelsRoot "ocr\$file"))) { $missing += "models\ocr\$file" } }
-if (-not (Test-Path (Join-Path $repoRoot 'fonts'))) { $missing += 'fonts' }
 if ($missing.Count -gt 0) {
-    Fail ("bundled files are missing under $ModelsSource (and the repository):`n  " + ($missing -join "`n  ") + "`nPass -ModelsSource <folder containing models\higgs-engine and models\ocr>, for example the installed application.")
+    Fail ("bundled files are missing under $ModelsSource (and the repository):`n  " + ($missing -join "`n  ") + "`nPass -ModelsSource <folder containing models\higgs-engine>, for example the installed application.")
 }
 
 # Key: environment first, then the key file beside the user's Tauri settings.
@@ -130,7 +126,7 @@ if ($DryRun) {
     return
 }
 
-foreach ($name in $binaryName, 'dub-studio-desktop') {
+foreach ($name in $binaryName, 'speech-studio-desktop') {
     $running = Get-Process -Name $name -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($targetRoot, [StringComparison]::OrdinalIgnoreCase) }
     if ($running) { Fail "$name.exe is running from $targetRoot and would keep the linker from replacing it; close it first." }
 }
@@ -151,20 +147,17 @@ try {
 
     if (Test-Path $stagingRoot) { Remove-Item -LiteralPath $stagingRoot -Recurse -Force }
     $stagedHiggs = Join-Path $stagingRoot 'models\higgs-engine'
-    $stagedOcr = Join-Path $stagingRoot 'models\ocr'
-    New-Item -ItemType Directory -Force -Path $stagedHiggs, $stagedOcr | Out-Null
-    # The server is compiled into the desktop executable: no dub-server.exe goes into the bundle.
+        New-Item -ItemType Directory -Force -Path $stagedHiggs | Out-Null
+    # The server is compiled into the desktop executable: no speech-server.exe goes into the bundle.
     Copy-Item -LiteralPath (Join-Path $frontendRoot 'dist') -Destination (Join-Path $stagingRoot 'frontend\dist') -Recurse
-    Copy-Item -LiteralPath (Join-Path $repoRoot 'fonts') -Destination (Join-Path $stagingRoot 'fonts') -Recurse
     foreach ($file in $bundledRuntime) { Copy-Required (Join-Path $modelsRoot "higgs-engine\$file") $stagedHiggs }
-    foreach ($file in $bundledOcr) { Copy-Required (Join-Path $modelsRoot "ocr\$file") $stagedOcr }
     Write-Host "[OK] bundle staged in $stagingRoot"
-    $env:DUB_RELEASE_STAGING = $stagingRoot
+    $env:SPEECH_RELEASE_STAGING = $stagingRoot
     try {
-        Invoke-Step 'bundle check against the manifest' { cargo test -p dub-server --lib setup::tests::the_release_staging_carries_every_bundled_file -- --ignored }
+        Invoke-Step 'bundle check against the manifest' { cargo test -p speech-server --lib setup::tests::the_release_staging_carries_every_bundled_file -- --ignored }
     }
     finally {
-        Remove-Item Env:DUB_RELEASE_STAGING
+        Remove-Item Env:SPEECH_RELEASE_STAGING
     }
 
     if ($StopAfterStaging) {
@@ -206,16 +199,16 @@ try {
     # Portable: the executable, the bundle beside it, and the marker that makes the copy portable.
     $builtExe = Join-Path $targetRoot "release\$binaryName.exe"
     if (-not (Test-Path $builtExe)) { Fail "the built executable is missing: $builtExe" }
-    $portableRoot = Join-Path $releaseDir "Dub-Studio-$Version-portable"
+    $portableRoot = Join-Path $releaseDir "Speech-Studio-$Version-portable"
     if (Test-Path $portableRoot) { Remove-Item -LiteralPath $portableRoot -Recurse -Force }
     New-Item -ItemType Directory -Force -Path $portableRoot | Out-Null
     Copy-Item $builtExe (Join-Path $portableRoot "$binaryName.exe") -Force
     Get-ChildItem -LiteralPath $stagingRoot | Copy-Item -Destination $portableRoot -Recurse -Force
     New-Item -ItemType File -Path (Join-Path $portableRoot 'portable.flag') -Force | Out-Null
-    $portableZip = Join-Path $releaseDir "Dub-Studio-$Version-portable-windows-x64.zip"
+    $portableZip = Join-Path $releaseDir "Speech-Studio-$Version-portable-windows-x64.zip"
     if (Test-Path $portableZip) { Remove-Item -Force $portableZip }
     # Windows PowerShell 5.1 (Compress-Archive and ZipFile.CreateFromDirectory) writes backslashes
-    # into entry names; other unzip tools then extract flat files named "fonts\x.ttf".
+    # into entry names; other unzip tools then extract flat files named "frontend\dist\index.html".
     Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
     $zip = [System.IO.Compression.ZipFile]::Open($portableZip, [System.IO.Compression.ZipArchiveMode]::Create)
     try {

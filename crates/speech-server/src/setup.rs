@@ -3572,7 +3572,7 @@ mod tests {
     #[test]
     #[ignore]
     fn the_release_staging_carries_every_bundled_file() {
-        let stage = PathBuf::from(std::env::var("DUB_RELEASE_STAGING").expect("DUB_RELEASE_STAGING = каталог staging или портатива"),
+        let stage = PathBuf::from(std::env::var("SPEECH_RELEASE_STAGING").expect("SPEECH_RELEASE_STAGING = каталог staging или портатива"),
         );
         let absent: Vec<String> = manifest()
             .iter()

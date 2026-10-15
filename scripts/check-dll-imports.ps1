@@ -6,7 +6,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 New-Item -ItemType Directory -Force -Path $StagingRoot | Out-Null
-$env:DUB_DLL_STAGING = (Resolve-Path $StagingRoot).Path
+$env:SPEECH_DLL_STAGING = (Resolve-Path $StagingRoot).Path
 Push-Location (Join-Path $PSScriptRoot '..')
 try {
     cargo test -p speech-server --lib dll_imports::tests::downloaded_runtime_can_be_loaded -- --ignored --nocapture

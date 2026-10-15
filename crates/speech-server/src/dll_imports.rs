@@ -92,13 +92,13 @@ pub fn is_provided_by_the_system(name: &str) -> bool {
         .contains(&name.as_str())
 }
 
-/// Каталоги, где процессы Dub ищут DLL: PATH приложения (lib.rs::augment_path_for_tools) — ffmpeg, llama и
+/// Каталоги, где процессы студии ищут DLL: PATH приложения (lib.rs::augment_path_for_tools) — ffmpeg, llama и
 /// каталог движка Higgs с CUDA-библиотеками. Каталог самого бинаря добавляется к ним при проверке.
 fn search_dirs(root: &Path) -> Vec<PathBuf> {
     vec![root.join("tools").join("ffmpeg"), root.join("tools").join("llama"), root.join("models").join("higgs-engine")]
 }
 
-/// Что грузят процессы Dub: (компонент, файл). ggml-cuda.dll llama.cpp и BSRoformer, подбиблиотеки cuDNN
+/// Что грузят процессы студии: (компонент, файл). ggml-cuda.dll llama.cpp и BSRoformer, подбиблиотеки cuDNN
 /// грузятся LoadLibrary'ем, поэтому проверяются отдельными точками входа.
 pub const ENTRY_POINTS: &[(&str, &str)] = &[
     ("llama", "tools/llama/llama-server.exe"),
@@ -282,12 +282,12 @@ mod tests {
         assert!(imports.iter().all(|n| n.ends_with(".dll") || n.ends_with(".drv")), "{imports:?}");
     }
 
-    /// Проверка настоящих архивов: штатная закачка закреплённых zip/whl в пустой корень DUB_DLL_STAGING и обход
+    /// Проверка настоящих архивов: штатная закачка закреплённых zip/whl в пустой корень SPEECH_DLL_STAGING и обход
     /// импортов. Тяжёлая (~3 ГБ), запускается скриптом scripts/check-dll-imports.ps1.
     #[test]
     #[ignore]
     fn downloaded_runtime_can_be_loaded() {
-        let root = PathBuf::from(std::env::var("DUB_DLL_STAGING").expect("DUB_DLL_STAGING = пустой корень для закачки"));
+        let root = PathBuf::from(std::env::var("SPEECH_DLL_STAGING").expect("SPEECH_DLL_STAGING = пустой корень для закачки"));
         let mut ids: Vec<String> = ENTRY_POINTS.iter().map(|(c, _)| c.to_string()).collect();
         ids.extend(CROSS_COMPONENT.iter().map(|(_, _, p, _)| p.to_string()));
         ids.sort();

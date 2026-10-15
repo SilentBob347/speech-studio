@@ -1,7 +1,7 @@
 #!/bin/bash
 # The Linux x86-64 .deb and AppImage, built on this machine in an Ubuntu 22.04 container (glibc 2.35, so they run there
 # and on anything newer; Docker under WSL on Windows) from the committed HEAD.
-#   scripts/build-linux-docker.sh <output folder> <folder with models/ocr> [cache folder]
+#   scripts/build-linux-docker.sh <output folder> [cache folder]
 # The cache keeps Rust, Node, ffmpeg and the cargo target between runs.
 set -euo pipefail
 
@@ -39,19 +39,18 @@ if [ "${1:-}" = "--inside" ]; then
   mkdir -p desktop/src-tauri
   ln -sfn /cache/target desktop/src-tauri/target
   echo "[..] build (log: build.log)"
-  bash scripts/build-release-linux.sh /bundled > /out/build.log 2>&1 || { echo "[ERROR] build failed"; tail -40 /out/build.log; exit 1; }
+  bash scripts/build-release-linux.sh > /out/build.log 2>&1 || { echo "[ERROR] build failed"; tail -40 /out/build.log; exit 1; }
   version="$(node -p "require('./desktop/src-tauri/tauri.conf.json').version")"
-  cp "$(find /cache/target/release/bundle/deb -name '*.deb' | head -n 1)" "/out/Dub-Studio-${version}-linux-amd64-experimental.deb"
-  cp "$(find /cache/target/release/bundle/appimage -name '*.AppImage' | head -n 1)" "/out/Dub-Studio-${version}-linux-x86_64-experimental.AppImage"
+  cp "$(find /cache/target/release/bundle/deb -name '*.deb' | head -n 1)" "/out/Speech-Studio-${version}-linux-amd64-experimental.deb"
+  cp "$(find /cache/target/release/bundle/appimage -name '*.AppImage' | head -n 1)" "/out/Speech-Studio-${version}-linux-x86_64-experimental.AppImage"
   ls -la /out/*.deb /out/*.AppImage
-  echo "[OK] Dub Studio ${version} for Linux"
+  echo "[OK] Speech Studio ${version} for Linux"
   exit 0
 fi
 
 out="${1:?output folder}"
-bundled="${2:?folder with models/ocr, an installed Dub Studio}"
-cache="${3:-$HOME/dub-linux2204-cache}"
+cache="${2:-$HOME/speech-linux2204-cache}"
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 mkdir -p "$out" "$cache"
 cp "$repo/scripts/build-linux-docker.sh" "$out/.build-linux-docker.sh"
-docker run --rm -v "$repo:/src:ro" -v "$bundled:/bundled:ro" -v "$(cd "$out" && pwd):/out" -v "$cache:/cache" ubuntu:22.04 bash /out/.build-linux-docker.sh --inside
+docker run --rm -v "$repo:/src:ro" -v "$(cd "$out" && pwd):/out" -v "$cache:/cache" ubuntu:22.04 bash /out/.build-linux-docker.sh --inside
