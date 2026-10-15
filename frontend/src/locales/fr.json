@@ -2029,5 +2029,14 @@
     "unread": "Reste tel qu'écrit : {{words}}",
     "dictionary": "Une règle du dictionnaire n'a pas fonctionné : {{rules}}",
     "prepare": "Le texte n'a pas pu être préparé : {{detail}}"
+  },
+  "quick": {
+    "title": "Doublage rapide",
+    "hint": "Une phrase directement en son : écouter et enregistrer, sans projet",
+    "placeholder": "Une phrase ou deux paragraphes",
+    "text": "Texte à doubler rapidement",
+    "speak": "Doubler",
+    "openProject": "Ouvrir comme projet",
+    "result": "Résultat du doublage rapide"
   }
 }

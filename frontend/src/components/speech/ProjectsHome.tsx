@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AudioLines, Captions, Files, FolderDown, FolderOpen, Library, Loader2, Mic2, Plus, Trash2 } from "lucide-react";
+import { AudioLines, Captions, Files, FolderDown, FolderOpen, Library, Loader2, Mic2, Plus, Sparkles, Trash2 } from "lucide-react";
 import BookImport from "./BookImport";
 import PodcastWriter from "./PodcastWriter";
 import { speechApi, type BookPreview, type ProjectCard } from "../../lib/speech";
@@ -15,6 +15,7 @@ import { api } from "../../lib/api";
 import { CLOUD_ENGINE_NAMES, askCloud } from "../../lib/cloudConsent";
 import BatchList, { type BatchItem } from "../BatchList";
 import RenderLibrary from "./RenderLibrary";
+import QuickSpeak from "./QuickSpeak";
 import type { ExportFormat } from "../../lib/speech";
 
 const FORMATS: ExportFormat[] = ["mp3", "wav", "flac", "ogg", "m4a"];
@@ -49,6 +50,7 @@ export default function ProjectsHome({ onOpen }: { onOpen: (pid: string) => void
   const bookFile = useRef<HTMLInputElement>(null);
   const [book, setBook] = useState<BookPreview | null>(null);
   const [podcast, setPodcast] = useState(false);
+  const [quick, setQuick] = useState(false);
   const openBook = async (f: File) => {
     setBusy(true);
     setError(null);
@@ -190,6 +192,7 @@ export default function ProjectsHome({ onOpen }: { onOpen: (pid: string) => void
           <div className="grid gap-2 sm:grid-cols-2">
             <button onClick={() => txtFiles.current?.click()} disabled={busy} className={start}><Files size={15} className="mt-0.5 shrink-0 text-[var(--color-accent)]" /><span><span className="block text-[13px] font-medium">{t("speech.fromFiles")}</span><span className="block text-[11px] text-[var(--color-muted)]">{t("speech.fromFilesHint")}</span></span></button>
             <button onClick={() => batchFiles.current?.click()} disabled={busy || batchRunning} className={start}><FolderDown size={15} className="mt-0.5 shrink-0 text-[var(--color-accent)]" /><span><span className="block text-[13px] font-medium">{t("batch.speechOpen")}</span><span className="block text-[11px] text-[var(--color-muted)]">{t("batch.speechHint")}</span></span></button>
+            <button onClick={() => setQuick(true)} disabled={busy} className={start}><Sparkles size={15} className="mt-0.5 shrink-0 text-[var(--color-accent)]" /><span><span className="block text-[13px] font-medium">{t("quick.title")}</span><span className="block text-[11px] text-[var(--color-muted)]">{t("quick.hint")}</span></span></button>
             <button onClick={() => setPodcast(true)} disabled={busy} className={start}><Mic2 size={15} className="mt-0.5 shrink-0 text-[var(--color-accent)]" /><span><span className="block text-[13px] font-medium">{t("podcast.open")}</span><span className="block text-[11px] text-[var(--color-muted)]">{t("podcast.openHint")}</span></span></button>
             <button onClick={() => bookFile.current?.click()} disabled={busy} className={start}><Library size={15} className="mt-0.5 shrink-0 text-[var(--color-accent)]" /><span><span className="block text-[13px] font-medium">{t("book.open")}</span><span className="block text-[11px] text-[var(--color-muted)]">{t("book.openHint")}</span></span></button>
             <button onClick={() => subsFile.current?.click()} disabled={busy} className={start}><Captions size={15} className="mt-0.5 shrink-0 text-[var(--color-accent)]" /><span><span className="block text-[13px] font-medium">{t("speech.fromSubs")}</span><span className="block text-[11px] text-[var(--color-muted)]">{t("speech.fromSubsHint")}</span></span></button>
@@ -235,6 +238,7 @@ export default function ProjectsHome({ onOpen }: { onOpen: (pid: string) => void
         <ConfirmDialog title={t("speech.deleteProject")} message={t("speech.deleteProjectMessage", { name: removing.name || t("speech.untitled") })} confirmLabel={t("speech.delete")} danger
           onCancel={() => setRemoving(null)} onConfirm={async () => { await speechApi.remove(removing.pid); setRemoving(null); load(); }} />
       )}
+      {quick && <QuickSpeak onClose={() => setQuick(false)} onOpen={(pid) => { setQuick(false); onOpen(pid); }} />}
       {podcast && <PodcastWriter onClose={() => setPodcast(false)} onCreated={(pid) => { setPodcast(false); onOpen(pid); }} />}
       {book && <BookImport preview={book} onClose={() => setBook(null)} onCreated={(pid) => { setBook(null); onOpen(pid); }} />}
     </main>

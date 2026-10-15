@@ -2029,5 +2029,14 @@
     "unread": "Queda tal como está escrito: {{words}}",
     "dictionary": "Una regla del diccionario no funcionó: {{rules}}",
     "prepare": "No se pudo preparar el texto: {{detail}}"
+  },
+  "quick": {
+    "title": "Locución rápida",
+    "hint": "Una frase directo a sonido: escuchar y guardar, sin proyecto",
+    "placeholder": "Una frase o un par de párrafos",
+    "text": "Texto para locución rápida",
+    "speak": "Locutar",
+    "openProject": "Abrir como proyecto",
+    "result": "Resultado de la locución rápida"
   }
 }

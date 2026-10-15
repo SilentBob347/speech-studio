@@ -2029,5 +2029,14 @@
     "unread": "Left as written: {{words}}",
     "dictionary": "A dictionary rule did not work: {{rules}}",
     "prepare": "The text could not be prepared: {{detail}}"
+  },
+  "quick": {
+    "title": "Quick voicing",
+    "hint": "A phrase straight to sound: listen and save, no project",
+    "placeholder": "A phrase or a couple of paragraphs",
+    "text": "Text to voice quickly",
+    "speak": "Voice it",
+    "openProject": "Open as a project",
+    "result": "Quick voicing result"
   }
 }

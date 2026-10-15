@@ -2029,5 +2029,14 @@
     "unread": "将按原样保留：{{words}}",
     "dictionary": "词典规则未生效：{{rules}}",
     "prepare": "文本无法准备：{{detail}}"
+  },
+  "quick": {
+    "title": "快速配音",
+    "hint": "一句话直接生成声音：试听并保存，无需项目",
+    "placeholder": "一句话或几段文字",
+    "text": "快速配音文本",
+    "speak": "配音",
+    "openProject": "作为项目打开",
+    "result": "快速配音结果"
   }
 }
