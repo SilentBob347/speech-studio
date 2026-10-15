@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, ChevronDown, Combine, Eye, EyeOff, GripVertical, Loader2, Pause, Pin, Play, Plus, RefreshCw, Scissors, SlidersHorizontal, SpellCheck, Trash2, X } from "lucide-react";
@@ -15,6 +15,7 @@ import TagPalette, { type TagPlace } from "./TagPalette";
 import { useEngines } from "../../lib/engines";
 import PrepareView from "./PrepareView";
 import { wordDiff, words } from "../../lib/wordDiff";
+import { cues, spans, withoutCue, type Cue } from "../../lib/prosody";
 
 const STATE_DOT: Record<BlockState | "rendering", string> = {
   pending: "bg-[var(--color-muted)]",
@@ -89,10 +90,47 @@ function AutoText({ value, onCommit, label, inputRef, stale, locked }: { value: 
     const timer = window.setTimeout(() => onCommit(draft), 700);
     return () => window.clearTimeout(timer);
   }, [draft, value, onCommit]);
-  return (
+  const marks = useMemo(() => cues(draft), [draft]);
+  const area = (
     <textarea ref={inputRef} value={draft} rows={1} aria-label={label} spellCheck readOnly={locked}
       onChange={(e) => setDraft(e.target.value)} onBlur={() => { if (draft !== value) onCommit(draft); }}
-      className={`w-full resize-none overflow-hidden bg-transparent text-[14px] leading-relaxed focus:outline-none placeholder:text-[var(--color-muted)] ${stale ? "underline decoration-dotted decoration-[var(--color-warn)] underline-offset-4" : ""}`} />
+      className={`relative block w-full resize-none overflow-hidden bg-transparent text-[14px] leading-relaxed focus:outline-none placeholder:text-[var(--color-muted)] ${stale ? "underline decoration-dotted decoration-[var(--color-warn)] underline-offset-4" : ""}`} />
+  );
+  if (!marks.length) return area;
+  return (
+    <div className="relative">
+      <div aria-hidden className="absolute inset-0 pointer-events-none whitespace-pre-wrap [overflow-wrap:break-word] text-[14px] leading-relaxed text-transparent">
+        {spans(draft, marks).map((s, k) => s.kinds.length
+          ? <span key={k} className="rounded-sm underline decoration-2 underline-offset-[5px]" style={{ textDecorationColor: `var(--color-cue-${s.kinds[s.kinds.length - 1]})`, background: `color-mix(in srgb, var(--color-cue-${s.kinds[s.kinds.length - 1]}) 20%, transparent)` }}>{s.text}</span>
+          : s.text)}
+        {"​"}
+      </div>
+      {area}
+    </div>
+  );
+}
+
+/** The block's prosody cues under its text, coloured as in the text: a click selects what a cue covers, × takes it off. */
+function CueList({ text, value, locked, onChange }: { text: React.RefObject<HTMLTextAreaElement | null>; value: string; locked: boolean; onChange: (v: string) => void }) {
+  const { t } = useTranslation();
+  const list = useMemo(() => cues(value), [value]);
+  if (!list.length) return null;
+  const excerpt = (c: Cue) => {
+    const s = value.slice(c.from, c.to).replace(/\[[^\]]*\]|<[^<>]*>|\*\*/g, "").replace(/\s+/g, " ").trim();
+    return s.length > 28 ? `${s.slice(0, 27)}…` : s;
+  };
+  return (
+    <ul aria-label={t("prosody.title")} className="mt-1 flex flex-wrap gap-1 text-[11px]">
+      {list.map((c, k) => (
+        <li key={`${c.kind}-${c.from}-${k}`} className="inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] pl-1.5 pr-0.5 py-0.5">
+          <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: `var(--color-cue-${c.kind})` }} />
+          <button onClick={() => { const el = text.current; if (el && el.value === value) { el.focus(); el.setSelectionRange(c.from, c.to); } }} className="text-left hover:text-[var(--color-accent)]">
+            {t(`prosody.${c.key}`, { value: c.value })}{c.kind !== "pause" && excerpt(c) ? ` «${excerpt(c)}»` : ""}
+          </button>
+          {!locked && <button onClick={() => onChange(withoutCue(value, c))} className="p-0.5 rounded text-[var(--color-muted)] hover:text-[var(--color-warn)]" {...named(t("prosody.remove"))}><X size={11} /></button>}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -157,6 +195,11 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
     const from = el?.selectionStart ?? value.length;
     const to = el?.selectionEnd ?? from;
     a.setText(`${value.slice(0, from)}${open}${value.slice(from, to)}${close}${value.slice(to)}`);
+  };
+  const rateTag = (tag: string) => {
+    const el = text.current;
+    if (el && el.selectionEnd > el.selectionStart && tag !== "[rate:1]") wrapTag(tag, "[rate:1]");
+    else insertTag(tag, "inline");
   };
   const caps = useEngines()?.find((e) => e.id === engine);
   const shown: BlockState | "rendering" = rendering ? "rendering" : state;
@@ -257,7 +300,7 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
       </details>
       <details className="rounded-md border border-[var(--color-border)] px-2 py-1.5">
         <summary className="cursor-pointer text-[11px] text-[var(--color-muted)]">{t("speech.tagsTitle")}</summary>
-        <div className="mt-2"><TagPalette engine={engine} onInsert={insertTag} onWrap={wrapTag} /></div>
+        <div className="mt-2"><TagPalette engine={engine} onInsert={insertTag} onWrap={wrapTag} onRate={rateTag} /></div>
       </details>
       </>}
       <div className="flex flex-wrap gap-1">
@@ -309,6 +352,7 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
         </div>
         <div className="col-span-3 order-last min-w-0 sm:order-none sm:flex-1">
           <AutoText value={block.text} onCommit={a.setText} label={t("speech.blockText", { n: index + 1 })} inputRef={text} stale={state === "stale"} locked={block.review === "approved"} />
+          <CueList text={text} value={block.text} locked={block.review === "approved"} onChange={a.setText} />
           {doubts.length > 0 && (
             <div className="mt-1 flex flex-wrap items-center gap-1 text-[11px]">
               <span className="text-[var(--color-muted)]">{t("speech.stressCheck")}</span>

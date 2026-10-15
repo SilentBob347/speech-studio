@@ -1307,7 +1307,7 @@
     "sniff": "Reniflement",
     "sneeze": "Éternuement",
     "rate": "Tempo",
-    "universal": "Pause et tempo marchent avec tout moteur : le tempo dure jusqu’à la balise de tempo suivante ou la fin du bloc.",
+    "universal": "Pause et tempo marchent avec tout moteur : le tempo dure jusqu’à la balise de tempo suivante ou la fin du bloc. Sélectionnez des mots, et le tempo ne s’applique qu’à eux.",
     "event": "Événement",
     "scope": "Sur un passage",
     "laughs": "Rire",
@@ -1325,6 +1325,22 @@
     "laugh": "Rire",
     "breath": "Respiration",
     "qwen": "Qwen3-TTS n’a pas de balises : écrivez rires et sons en onomatopées dans le texte (« ha ha », « hum »), le modèle les dit selon le contexte ; réglez le ton dans l’indication (avec les voix du modèle, pas avec un clone)."
+  },
+  "prosody": {
+    "title": "Prosodie dans le texte",
+    "remove": "Retirer le balisage",
+    "pauseMs": "Pause de {{value}} ms",
+    "pauseS": "Pause de {{value}} s",
+    "rate": "Débit {{value}}",
+    "stress": "Accentuation",
+    "speed_very_slow": "Très lent",
+    "speed_slow": "Lent",
+    "speed_fast": "Rapide",
+    "speed_very_fast": "Très rapide",
+    "pitch_low": "Voix plus grave",
+    "pitch_high": "Voix plus aiguë",
+    "expressive_high": "Plus expressif",
+    "expressive_low": "Plus neutre"
   },
   "dict": {
     "title": "Dictionnaire de prononciation",

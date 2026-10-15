@@ -1307,7 +1307,7 @@
     "sniff": "Sniff",
     "sneeze": "Sneeze",
     "rate": "Tempo",
-    "universal": "Pause and tempo work with any engine: tempo lasts to the next tempo tag or the end of the block.",
+    "universal": "Pause and tempo work with any engine: tempo lasts to the next tempo tag or the end of the block. Select words, and the tempo covers only them.",
     "event": "Event",
     "scope": "On a span",
     "laughs": "Laughs",
@@ -1325,6 +1325,22 @@
     "laugh": "Laugh",
     "breath": "Breath",
     "qwen": "Qwen3-TTS has no tags: write laughter and sounds as onomatopoeia in the text (\"ha-ha\", \"hmm\") and the model voices them by context; set the delivery in the direction (works with the model’s own voices, not with a clone)."
+  },
+  "prosody": {
+    "title": "Prosody in the text",
+    "remove": "Remove the markup",
+    "pauseMs": "Pause {{value}} ms",
+    "pauseS": "Pause {{value}} s",
+    "rate": "Tempo {{value}}",
+    "stress": "Stress",
+    "speed_very_slow": "Very slow",
+    "speed_slow": "Slow",
+    "speed_fast": "Fast",
+    "speed_very_fast": "Very fast",
+    "pitch_low": "Lower pitch",
+    "pitch_high": "Higher pitch",
+    "expressive_high": "More expressive",
+    "expressive_low": "Flatter"
   },
   "dict": {
     "title": "Pronunciation dictionary",

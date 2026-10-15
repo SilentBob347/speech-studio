@@ -1307,7 +1307,7 @@
     "sniff": "Fungada",
     "sneeze": "Espirro",
     "rate": "Ritmo",
-    "universal": "Pausa e ritmo funcionam com qualquer motor: o ritmo vale até a próxima tag de ritmo ou o fim do bloco.",
+    "universal": "Pausa e ritmo funcionam com qualquer motor: o ritmo vale até a próxima tag de ritmo ou o fim do bloco. Selecione palavras, e o ritmo vale só para elas.",
     "event": "Evento",
     "scope": "Num trecho",
     "laughs": "Risada",
@@ -1325,6 +1325,22 @@
     "laugh": "Risada",
     "breath": "Respiração",
     "qwen": "O Qwen3-TTS não tem tags: escreva risadas e sons como onomatopeia no texto («ha-ha», «hmm») e o modelo os diz pelo contexto; defina a entonação na indicação (funciona com as vozes do modelo, não com um clone)."
+  },
+  "prosody": {
+    "title": "Prosódia no texto",
+    "remove": "Remover a marcação",
+    "pauseMs": "Pausa de {{value}} ms",
+    "pauseS": "Pausa de {{value}} s",
+    "rate": "Ritmo {{value}}",
+    "stress": "Ênfase",
+    "speed_very_slow": "Muito lento",
+    "speed_slow": "Lento",
+    "speed_fast": "Rápido",
+    "speed_very_fast": "Muito rápido",
+    "pitch_low": "Tom mais grave",
+    "pitch_high": "Tom mais agudo",
+    "expressive_high": "Mais expressivo",
+    "expressive_low": "Mais neutro"
   },
   "dict": {
     "title": "Dicionário de pronúncia",

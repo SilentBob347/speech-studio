@@ -1307,7 +1307,7 @@
     "sniff": "Sorbido",
     "sneeze": "Estornudo",
     "rate": "Tempo",
-    "universal": "Pausa y tempo funcionan con cualquier motor: el tempo dura hasta la siguiente etiqueta de tempo o el final del bloque.",
+    "universal": "Pausa y tempo funcionan con cualquier motor: el tempo dura hasta la siguiente etiqueta de tempo o el final del bloque. Seleccione palabras y el tempo se aplica solo a ellas.",
     "event": "Evento",
     "scope": "En un tramo",
     "laughs": "Risa",
@@ -1325,6 +1325,22 @@
     "laugh": "Risa",
     "breath": "Respiración",
     "qwen": "Qwen3-TTS no tiene etiquetas: escribe la risa y los sonidos como onomatopeya en el texto («ja, ja», «mmm») y el modelo los dirá según el contexto; indica la entonación en la indicación (funciona con las voces del modelo, no con un clon)."
+  },
+  "prosody": {
+    "title": "Prosodia en el texto",
+    "remove": "Quitar el marcado",
+    "pauseMs": "Pausa de {{value}} ms",
+    "pauseS": "Pausa de {{value}} s",
+    "rate": "Ritmo {{value}}",
+    "stress": "Énfasis",
+    "speed_very_slow": "Muy lento",
+    "speed_slow": "Lento",
+    "speed_fast": "Rápido",
+    "speed_very_fast": "Muy rápido",
+    "pitch_low": "Tono más bajo",
+    "pitch_high": "Tono más alto",
+    "expressive_high": "Más expresivo",
+    "expressive_low": "Más plano"
   },
   "dict": {
     "title": "Diccionario de pronunciación",

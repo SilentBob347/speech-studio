@@ -1307,7 +1307,7 @@
     "sniff": "吸鼻子",
     "sneeze": "打喷嚏",
     "rate": "语速",
-    "universal": "停顿和语速适用于任何引擎：语速持续到下一个语速标签或文本块结束。",
+    "universal": "停顿和语速适用于任何引擎：语速持续到下一个语速标签或文本块结束。选中文字后，语速只作用于选中的部分。",
     "event": "事件",
     "scope": "作用于片段",
     "laughs": "笑",
@@ -1325,6 +1325,22 @@
     "laugh": "笑",
     "breath": "呼吸",
     "qwen": "Qwen3-TTS 没有标签：笑声和其他声音直接在文本里写拟声词（如“哈哈”“嗯”），模型会按上下文读出；语气写在“指示”里（只对模型自带的声音有效，克隆声音无效）。"
+  },
+  "prosody": {
+    "title": "文本中的韵律",
+    "remove": "移除标记",
+    "pauseMs": "停顿 {{value}} 毫秒",
+    "pauseS": "停顿 {{value}} 秒",
+    "rate": "语速 {{value}}",
+    "stress": "重读",
+    "speed_very_slow": "非常慢",
+    "speed_slow": "慢",
+    "speed_fast": "快",
+    "speed_very_fast": "非常快",
+    "pitch_low": "音调更低",
+    "pitch_high": "音调更高",
+    "expressive_high": "更有表现力",
+    "expressive_low": "更平稳"
   },
   "dict": {
     "title": "发音词典",

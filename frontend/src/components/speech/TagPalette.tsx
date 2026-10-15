@@ -12,8 +12,8 @@ const chip = "px-1.5 py-0.5 rounded border border-[var(--color-border)] text-[11
 const rowLabel = "w-20 shrink-0 text-[10px] uppercase tracking-wide text-[var(--color-muted)]";
 
 /** The block engine's expression tags by category: a click puts a tag at the text's cursor, a span tag wraps the
- * selection. Pauses and tempo work with every engine. */
-export default function TagPalette({ engine, onInsert, onWrap }: { engine: string; onInsert: (tag: string, place: TagPlace) => void; onWrap: (open: string, close: string) => void }) {
+ * selection. Pauses and tempo work with every engine; a tempo over selected words holds for them only. */
+export default function TagPalette({ engine, onInsert, onWrap, onRate }: { engine: string; onInsert: (tag: string, place: TagPlace) => void; onWrap: (open: string, close: string) => void; onRate: (tag: string) => void }) {
   const { t } = useTranslation();
   const caps = useEngines()?.find((e) => e.id === engine);
   const label = (k: string) => (k in en.tags ? t(`tags.${k as TagKey}`) : k);
@@ -37,7 +37,7 @@ export default function TagPalette({ engine, onInsert, onWrap }: { engine: strin
       </div>
       <div className="flex flex-wrap items-center gap-1">
         <span className={rowLabel}>{t("tags.rate")}</span>
-        {RATES.map((r) => <button key={r.tag} type="button" onClick={() => onInsert(r.tag, "inline")} title={r.tag} className={chip + " mono"}>{r.label}</button>)}
+        {RATES.map((r) => <button key={r.tag} type="button" onClick={() => onRate(r.tag)} title={r.tag} className={chip + " mono"}>{r.label}</button>)}
       </div>
       {engine === "drama3" && <p className="text-[10px] text-[var(--color-warn)]">{t("tags.dramaRussian")}</p>}
       <p className="text-[10px] text-[var(--color-muted)]">{engine === "drama3" ? t("tags.legendDrama") : caps?.glued_tags.length ? t("tags.legend") : t("tags.legendPlain")} {t("tags.universal")}</p>
