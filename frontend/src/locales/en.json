@@ -888,6 +888,7 @@
     "wordNotePlaceholder": "a note for yourself",
     "wordNoteAdd": "Add",
     "wordNoteRemove": "Remove the note",
+    "findProject": "Find by name",
     "markupHint": "Pauses: [pause 500ms] or sil<[300]>. Each engine has its own emotion and manner tags — their palette is in the block settings.",
     "recent": "Recent projects",
     "noProjects": "No projects yet.",
@@ -1796,5 +1797,19 @@
     "apply": "Apply ({{n}})",
     "run": "Put in tags (director)",
     "runSelected": "Put in tags for the selected ({{n}})"
+  },
+  "review": {
+    "title": "Review",
+    "none": "not reviewed",
+    "approved": "approved",
+    "fix": "to fix",
+    "approvedHint": "Its text is closed and \"voice all again\" keeps it",
+    "fixHint": "Marked to fix",
+    "show": "Show",
+    "filter_all": "all ({{n}})",
+    "filter_none": "not reviewed ({{n}})",
+    "filter_approved": "approved ({{n}})",
+    "filter_fix": "to fix ({{n}})",
+    "approveSelected": "Approve"
   }
 }

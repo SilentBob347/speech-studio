@@ -83,6 +83,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
     } catch (e) { setJobError(errorText(e)); } finally { setCasting(false); }
   };
   const [enriching, setEnriching] = useState(false);
+  const [shownReview, setShownReview] = useState<"all" | "none" | "approved" | "fix">("all");
   const [enriched, setEnriched] = useState<{ changes: EnrichChange[]; refused: number } | null>(null);
   /** The director's tags for the selected blocks, or every block: shown to keep or drop before anything changes. */
   const enrich = async (ids: string[] | null) => {
@@ -543,6 +544,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
       {selected.length > 0 && (
         <div role="toolbar" aria-label={t("speech.selection")} className="flex flex-wrap items-center gap-2 px-5 py-2 border-b border-[var(--color-border)] bg-[color-mix(in_oklab,var(--color-accent)_8%,var(--color-surface))]">
           <span className="text-[12px] font-medium tabnum">{t("speech.selectedCount", { n: selected.length })}</span>
+          <button onClick={() => edit((p) => { for (const b of blockList(p)) if (selected.includes(b.id)) b.review = "approved"; return p; })} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)]">{t("review.approveSelected")}</button>
           <button onClick={() => void runSynth({ ids: selected, force: true })} disabled={!!job} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[12px] font-medium disabled:opacity-40"><Sparkles size={12} />{t("speech.voiceSelected")}</button>
           <button onClick={() => void stressBlocks(selected)} className="px-2.5 py-1 rounded-md border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)]">{t("speech.stressBlock")}</button>
           <button onClick={() => edit((p) => { const all = blockList(p).filter((b) => selected.includes(b.id)); const hide = all.some((b) => !b.hidden); all.forEach((b) => { b.hidden = hide; }); return p; })} className="px-2.5 py-1 rounded-md border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)]">{t("speech.hideShow")}</button>
@@ -596,6 +598,15 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
               <button onClick={() => { setStressMissing(false); openSettings("models"); }} className="px-2 py-1 rounded-md border border-[var(--color-warn)]/60 hover:bg-[var(--color-warn)]/10">{t("speech.openModels")}</button>
             </div>
           )}
+          {blocks.some((b) => b.review) && (
+            <div className="max-w-4xl mx-auto mb-2 flex items-center gap-2 text-[12px]">
+              <label className="inline-flex items-center gap-1.5 text-[var(--color-muted)]">{t("review.show")}
+                <select value={shownReview} onChange={(e) => setShownReview(e.target.value as typeof shownReview)} className="bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md px-1.5 py-1 text-[12px] text-[var(--color-text)]">
+                  {(["all", "none", "approved", "fix"] as const).map((r) => <option key={r} value={r}>{t(`review.filter_${r}`, { n: r === "all" ? blocks.length : blocks.filter((b) => (r === "none" ? !b.review : b.review === r)).length })}</option>)}
+                </select>
+              </label>
+            </div>
+          )}
           <datalist id="speech-speakers">{speakers.map((s) => <option key={s} value={s} />)}</datalist>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}
             accessibility={{ announcements, screenReaderInstructions: { draggable: t("speech.dragInstructions") } }}>
@@ -604,7 +615,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
             <section className="max-w-4xl mx-auto">
               {project.chapters.length > 1 && <h2 className="mt-4 mb-2 text-[13px] font-semibold text-[var(--color-muted)]">{c.title || t("speech.chapter")}</h2>}
               <ol className="space-y-0.5">
-                {c.blocks.map((b) => {
+                {c.blocks.filter((b) => shownReview === "all" || (shownReview === "none" ? !b.review : b.review === shownReview)).map((b) => {
                   const index = blocks.indexOf(b);
                   const rendering = !!job && (job.ids === null ? ["pending", "stale", "failed"].includes(stateOf(b)) : job.ids.includes(b.id));
                   const note = notes[b.id];

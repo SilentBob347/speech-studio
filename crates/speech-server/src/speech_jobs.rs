@@ -907,7 +907,8 @@ fn synth_scope(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Valu
         let Some(b) = project.blocks().find(|b| &b.id == id).cloned() else { continue };
         let key = keys(p, &project).remove(id).unwrap_or_default();
         let state = sp::status(&b, &key);
-        if state == "skipped" || (!scope.force && state == "ready") {
+        let approved = b.review == "approved" && scope.ids.as_ref().is_none_or(|ids| !ids.contains(id));
+        if state == "skipped" || (!scope.force && state == "ready") || (approved && state == "ready") {
             skipped += 1;
             continue;
         }

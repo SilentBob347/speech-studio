@@ -888,6 +888,7 @@
     "wordNotePlaceholder": "给自己的备注",
     "wordNoteAdd": "添加",
     "wordNoteRemove": "删除备注",
+    "findProject": "按名称查找",
     "markupHint": "停顿：[pause 500ms] 或 sil<[300]>。每个引擎都有自己的情感和语气标签，标签面板在段落设置中。",
     "recent": "最近的项目",
     "noProjects": "还没有项目。",
@@ -1796,5 +1797,19 @@
     "apply": "应用（{{n}}）",
     "run": "添加标签（导演）",
     "runSelected": "为选中的段落添加标签（{{n}}）"
+  },
+  "review": {
+    "title": "审核",
+    "none": "未审核",
+    "approved": "已通过",
+    "fix": "待修改",
+    "approvedHint": "文本已锁定，“全部重新配音”不会改动",
+    "fixHint": "标记为待修改",
+    "show": "显示",
+    "filter_all": "全部（{{n}}）",
+    "filter_none": "未审核（{{n}}）",
+    "filter_approved": "已通过（{{n}}）",
+    "filter_fix": "待修改（{{n}}）",
+    "approveSelected": "通过"
   }
 }

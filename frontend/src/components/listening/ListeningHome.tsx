@@ -35,6 +35,7 @@ async function prepare(pid: string, project: ListenProject, start: Start): Promi
 export default function ListeningHome({ onOpen }: { onOpen: (pid: string) => void }) {
   const { t, i18n } = useTranslation();
   const [projects, setProjects] = useState<ListenCard[] | null>(null);
+  const [find, setFind] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [drag, setDrag] = useState(false);
@@ -156,11 +157,15 @@ export default function ListeningHome({ onOpen }: { onOpen: (pid: string) => voi
         </section>
         <section aria-labelledby="listen-list" className="space-y-3">
           <h2 id="listen-list" className="text-[13px] font-semibold">{t("listen.projects")}</h2>
+          {(projects?.length ?? 0) > 5 && (
+            <input value={find} onChange={(e) => setFind(e.target.value)} placeholder={t("speech.findProject")} aria-label={t("speech.findProject")}
+              className="w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-[12px] focus:border-[var(--color-accent)] focus:outline-none" />
+          )}
           {projects === null ? <Loader2 size={16} className="animate-spin text-[var(--color-muted)]" /> : projects.length === 0 ? (
             <p className="text-[13px] text-[var(--color-muted)]">{t("listen.noProjects")}</p>
           ) : (
             <ul className="space-y-1.5">
-              {projects.map((p) => (
+              {projects.filter((p) => !find.trim() || p.name.toLowerCase().includes(find.trim().toLowerCase())).map((p) => (
                 <li key={p.pid} className="group flex items-center gap-2 rounded-lg border border-[var(--color-border)] hover:border-[var(--color-accent)] transition-colors">
                   <button onClick={() => onOpen(p.pid)} className="flex-1 min-w-0 text-left px-3 py-2">
                     <span className="block text-[13px] font-medium truncate">{p.name}</span>

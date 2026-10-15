@@ -888,6 +888,7 @@
     "wordNotePlaceholder": "une note pour vous",
     "wordNoteAdd": "Ajouter",
     "wordNoteRemove": "Retirer la note",
+    "findProject": "Chercher par nom",
     "markupHint": "Pauses : [pause 500ms] ou sil<[300]>. Chaque moteur a ses propres balises d'émotion et de ton : leur palette est dans les réglages du bloc.",
     "recent": "Projets récents",
     "noProjects": "Aucun projet pour l’instant.",
@@ -1796,5 +1797,19 @@
     "apply": "Appliquer ({{n}})",
     "run": "Placer des balises (directeur)",
     "runSelected": "Placer des balises dans la sélection ({{n}})"
+  },
+  "review": {
+    "title": "Relecture",
+    "none": "non relu",
+    "approved": "validé",
+    "fix": "à corriger",
+    "approvedHint": "Son texte est verrouillé et « Tout doubler à nouveau » le garde",
+    "fixHint": "Marqué à corriger",
+    "show": "Afficher",
+    "filter_all": "tous ({{n}})",
+    "filter_none": "non relus ({{n}})",
+    "filter_approved": "validés ({{n}})",
+    "filter_fix": "à corriger ({{n}})",
+    "approveSelected": "Valider"
   }
 }

@@ -16,7 +16,10 @@ export type Block = {
   own_ref?: OwnRef | null;
   /** Notes on words of the block: the quoted words, the note and a marker colour; never read aloud. */
   word_notes?: WordNote[];
+  /** Review: approved (its text closed, "voice all again" keeps it) or to fix; empty — not reviewed. */
+  review?: Review;
 };
+export type Review = "" | "approved" | "fix";
 export type WordNote = { quote: string; note: string; marker: Marker | "" };
 export type OwnRef = { file: string; text: string; whole: boolean };
 export type Marker = "red" | "amber" | "green" | "blue" | "violet";

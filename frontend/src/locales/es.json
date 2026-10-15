@@ -888,6 +888,7 @@
     "wordNotePlaceholder": "una nota para ti",
     "wordNoteAdd": "Añadir",
     "wordNoteRemove": "Quitar la nota",
+    "findProject": "Buscar por nombre",
     "markupHint": "Pausas: [pause 500ms] o sil<[300]>. Cada motor tiene sus propias etiquetas de emoción y estilo: su paleta está en los ajustes del bloque.",
     "recent": "Proyectos recientes",
     "noProjects": "Aún no hay proyectos.",
@@ -1796,5 +1797,19 @@
     "apply": "Aplicar ({{n}})",
     "run": "Poner etiquetas (director)",
     "runSelected": "Poner etiquetas en los seleccionados ({{n}})"
+  },
+  "review": {
+    "title": "Revisión",
+    "none": "sin revisar",
+    "approved": "aprobado",
+    "fix": "corregir",
+    "approvedHint": "Su texto queda cerrado y «Locutar todo de nuevo» no lo toca",
+    "fixHint": "Marcado para corregir",
+    "show": "Mostrar",
+    "filter_all": "todos ({{n}})",
+    "filter_none": "sin revisar ({{n}})",
+    "filter_approved": "aprobados ({{n}})",
+    "filter_fix": "para corregir ({{n}})",
+    "approveSelected": "Aprobar"
   }
 }

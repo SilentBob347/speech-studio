@@ -44,7 +44,7 @@ export type BlockActions = {
   ownRef: (file: File, whole: boolean) => Promise<void>;
 };
 
-function AutoText({ value, onCommit, label, inputRef, stale }: { value: string; onCommit: (v: string) => void; label: string; inputRef: React.RefObject<HTMLTextAreaElement | null>; stale: boolean }) {
+function AutoText({ value, onCommit, label, inputRef, stale, locked }: { value: string; onCommit: (v: string) => void; label: string; inputRef: React.RefObject<HTMLTextAreaElement | null>; stale: boolean; locked: boolean }) {
   const [draft, setDraft] = useState(value);
   const [seen, setSeen] = useState(value);
   if (value !== seen) { setSeen(value); setDraft(value); }
@@ -64,7 +64,7 @@ function AutoText({ value, onCommit, label, inputRef, stale }: { value: string; 
     return () => window.clearTimeout(timer);
   }, [draft, value, onCommit]);
   return (
-    <textarea ref={inputRef} value={draft} rows={1} aria-label={label} spellCheck
+    <textarea ref={inputRef} value={draft} rows={1} aria-label={label} spellCheck readOnly={locked}
       onChange={(e) => setDraft(e.target.value)} onBlur={() => { if (draft !== value) onCommit(draft); }}
       className={`w-full resize-none overflow-hidden bg-transparent text-[14px] leading-relaxed focus:outline-none placeholder:text-[var(--color-muted)] ${stale ? "underline decoration-dotted decoration-[var(--color-warn)] underline-offset-4" : ""}`} />
   );
@@ -182,6 +182,13 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
         {caps && block.direction.trim() && !caps.direction && <span className="mt-0.5 block text-[var(--color-warn)]">{t("speech.directionIgnored", { engine: caps.name })}</span>}
         {caps && block.direction.trim() && caps.direction && caps.direction_presets_only && voice !== null && !caps.presets.some((p) => p.id === voice) && <span className="mt-0.5 block text-[var(--color-warn)]">{t("speech.directionPresetsOnly", { engine: caps.name })}</span>}
       </label>
+      <div role="radiogroup" aria-label={t("review.title")} className="flex flex-wrap items-center gap-1 text-[11px]">
+        <span className="text-[var(--color-muted)] mr-1">{t("review.title")}</span>
+        {(["", "approved", "fix"] as const).map((r) => (
+          <button key={r || "none"} role="radio" aria-checked={(block.review ?? "") === r} onClick={() => a.patch({ review: r })}
+            className={`px-2 py-0.5 rounded-md border ${(block.review ?? "") === r ? "border-[var(--color-accent)] text-[var(--color-text)]" : "border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-text)]"}`}>{t(r ? `review.${r}` : "review.none")}</button>
+        ))}
+      </div>
       <WordNoteField block={block} a={a} text={text} />
       <OwnRefField block={block} a={a} />
       <details open={howRead} onToggle={(e) => setHowRead(e.currentTarget.open)} className="rounded-md border border-[var(--color-border)] px-2 py-1.5">
@@ -223,6 +230,7 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
           <div className="flex items-center gap-1.5 text-[10px] text-[var(--color-muted)]">
             <span className={`w-2 h-2 rounded-full shrink-0 ${STATE_DOT[shown]}`} title={t(`speech.state_${shown}`)} />
             <span>{t(`speech.state_${shown}`)}</span>
+            {block.review && <span className={`px-1 rounded ${block.review === "approved" ? "text-[var(--color-accent)]" : "text-[var(--color-warn)]"}`} title={t(`review.${block.review}Hint`)}>{t(`review.${block.review}`)}</span>}
             {take && <span className="mono tabnum ml-auto">{take.duration.toFixed(1)}{t("settings.sec")}</span>}
           </div>
           {block.start != null && block.end != null && (
@@ -239,7 +247,7 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
           )}
         </div>
         <div className="col-span-3 order-last min-w-0 sm:order-none sm:flex-1">
-          <AutoText value={block.text} onCommit={a.setText} label={t("speech.blockText", { n: index + 1 })} inputRef={text} stale={state === "stale"} />
+          <AutoText value={block.text} onCommit={a.setText} label={t("speech.blockText", { n: index + 1 })} inputRef={text} stale={state === "stale"} locked={block.review === "approved"} />
           {doubts.length > 0 && (
             <div className="mt-1 flex flex-wrap items-center gap-1 text-[11px]">
               <span className="text-[var(--color-muted)]">{t("speech.stressCheck")}</span>

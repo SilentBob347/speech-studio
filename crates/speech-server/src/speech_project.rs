@@ -116,6 +116,9 @@ pub struct Block {
     pub note: String,
     /// Цвет маркера (`red`, `amber`, `green`, `blue`, `violet`) или пусто.
     pub marker: String,
+    /// Ревью блока: `approved` — утверждён (текст закрыт, «озвучить всё» его не трогает), `fix` — на исправление.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub review: String,
     /// Заметки к словам блока: цитата, заметка и цвет маркера (вслух не читаются).
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub word_notes: Vec<WordNote>,
@@ -309,6 +312,9 @@ impl SpeechProject {
                 }
                 if !b.marker.is_empty() && !MARKERS.contains(&b.marker.as_str()) {
                     return Err(format!("block {} marker {:?} is not one of {MARKERS:?}", b.id, b.marker));
+                }
+                if !matches!(b.review.as_str(), "" | "approved" | "fix") {
+                    return Err(format!("block {} review {:?} is not approved, fix or none", b.id, b.review));
                 }
                 if let Some(w) = b.word_notes.iter().find(|w| w.quote.trim().is_empty() || (!w.marker.is_empty() && !MARKERS.contains(&w.marker.as_str()))) {
                     return Err(format!("block {} word note {:?}: a quote and a marker of {MARKERS:?} or none", b.id, w.quote));
