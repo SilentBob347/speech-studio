@@ -1564,6 +1564,12 @@
     "repeat": "Narrar de novo com os mesmos parâmetros"
   },
   "listen": {
+    "rules": "Regras de legenda",
+    "rulesNone": "como reconhecido — sem regras",
+    "rulesOne": "{{name}}: {{chars}} caract. por linha, {{lines}} linhas, até {{cps}} caract./s",
+    "rulesHint": "As falas vão para telas pelas regras da emissora: tamanho da linha, linhas por tela, exibição máxima; a tela muda quando a voz chega à primeira palavra dela. A transcrição do projeto não muda.",
+    "rulesNoneHint": "Legendas exatamente como o modelo reconheceu: uma fala, uma legenda.",
+    "tooFast": "Telas mais rápidas de ler do que as regras permitem: {{count}} — vale encurtar o texto delas.",
     "newTitle": "Reconhecer uma gravação",
     "newHint": "Um arquivo, um link ou o microfone: a gravação vira texto com falantes e tempos das palavras para ler, editar, cortar, exportar ou narrar de novo no Speech.",
     "drop": "Solte aqui um arquivo de áudio ou vídeo",

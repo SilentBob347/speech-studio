@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Copy, Download, Loader2, X } from "lucide-react";
-import { listenApi, TRANSCRIPT_FORMATS, type TranscriptFormat } from "../../lib/listen";
+import { listenApi, TRANSCRIPT_FORMATS, type SubtitleRules, type TranscriptFormat } from "../../lib/listen";
 import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
 import { useEscapeLayer } from "../../lib/escape";
@@ -14,7 +14,11 @@ export default function ListenExport({ pid, onClose }: { pid: string; onClose: (
   const [format, setFormat] = useState<TranscriptFormat>("srt");
   const [speakers, setSpeakers] = useState(true);
   const [times, setTimes] = useState(true);
-  const [made, setMade] = useState<{ file: string; text: string } | null>(null);
+  const [made, setMade] = useState<{ file: string; text: string; too_fast: number | null } | null>(null);
+  const [rules, setRules] = useState("");
+  const [profiles, setProfiles] = useState<SubtitleRules[]>([]);
+  useEffect(() => { listenApi.subtitleRules().then((r) => setProfiles(r.rules), (e: unknown) => setError(errorText(e))); }, []);
+  const subtitles = format === "srt" || format === "vtt" || format === "ass";
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -22,7 +26,7 @@ export default function ListenExport({ pid, onClose }: { pid: string; onClose: (
   const make = async () => {
     setBusy(true);
     setError(null);
-    try { setMade(await listenApi.export(pid, format, speakers, times)); } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
+    try { setMade(await listenApi.export(pid, format, speakers, times, subtitles ? rules : "")); } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
   };
   const copy = async () => {
     if (!made) return;
@@ -44,6 +48,17 @@ export default function ListenExport({ pid, onClose }: { pid: string; onClose: (
           {format !== "json" && <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={speakers} onChange={(e) => changed(setSpeakers)(e.target.checked)} className="w-4 h-4 accent-[var(--color-accent)]" />{t("listen.withSpeakers")}</label>}
           {format === "txt" && <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={times} onChange={(e) => changed(setTimes)(e.target.checked)} className="w-4 h-4 accent-[var(--color-accent)]" />{t("listen.withTimes")}</label>}
         </div>
+        {subtitles && (
+          <label className="block space-y-0.5 text-[12px]">
+            <span>{t("listen.rules")}</span>
+            <select value={rules} onChange={(e) => changed(setRules)(e.target.value)} className="w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]">
+              <option value="">{t("listen.rulesNone")}</option>
+              {profiles.map((p) => <option key={p.name} value={p.name}>{t("listen.rulesOne", { name: p.name, chars: p.max_line_len, lines: p.max_lines, cps: p.max_cps })}</option>)}
+            </select>
+            <span className="block text-[11px] text-[var(--color-muted)]">{t(rules ? "listen.rulesHint" : "listen.rulesNoneHint")}</span>
+          </label>
+        )}
+        {made?.too_fast ? <p className="text-[11px] text-[var(--color-warn)]">{t("listen.tooFast", { count: made.too_fast })}</p> : null}
         {made && <pre className="flex-1 min-h-24 max-h-72 overflow-auto rounded-md bg-[var(--color-surface-2)] border border-[var(--color-border)] p-2 text-[11px] mono whitespace-pre-wrap">{made.text.slice(0, 6000)}</pre>}
         {error && <p role="alert" className="text-[12px] text-[var(--color-warn)] break-words">{error}</p>}
         <div className="flex flex-wrap items-center gap-2">

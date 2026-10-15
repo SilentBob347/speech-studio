@@ -10,6 +10,9 @@ pub const FORMATS: &[&str] = &["srt", "vtt", "ass", "txt", "json"];
 pub struct Opts {
     pub speakers: bool,
     pub times: bool,
+    /// Subtitle rules of a broadcaster (`dub_captions::PROFILES`): lines laid out on screens by their
+    /// line length and lines per screen, at the heard word times, and held to their shortest and longest showing.
+    pub rules: Option<&'static dub_captions::RulesProfile>,
 }
 
 /// A subtitle line: its time, who says it and what.
@@ -18,10 +21,103 @@ pub struct Row {
     pub end: f64,
     pub speaker: String,
     pub text: String,
+    /// The heard start and end of each word of `text`, when they are known.
+    pub words: Vec<(f64, f64)>,
 }
 
-fn rows(p: &ListenProject) -> Vec<Row> {
-    p.shown().map(|l| Row { start: l.start, end: l.end, speaker: p.speaker_name(&l.speaker), text: l.text.trim().to_string() }).collect()
+pub fn shown_rows(p: &ListenProject) -> Vec<Row> {
+    p.shown()
+        .map(|l| Row { start: l.start, end: l.end, speaker: p.speaker_name(&l.speaker), text: l.text.trim().to_string(), words: if l.approx { Vec::new() } else { l.words.iter().map(|w| (w.start, w.end)).collect() } })
+        .collect()
+}
+
+pub fn by_rules(rows: &[Row], p: &dub_captions::RulesProfile, lang: &str) -> (Vec<Row>, usize) {
+    use dub_captions::{balanced_wrap, normalize, violates_cps, NormalizeOpts, TimingSeg};
+    let room = (p.max_line_len * p.max_lines.max(1)) as f64;
+    let longest = p.max_display_ms as f64 / 1000.0;
+    let mut segs = Vec::new();
+    for r in rows {
+        let words: Vec<&str> = r.text.split_whitespace().collect();
+        if words.is_empty() {
+            continue;
+        }
+        let timed = (r.words.len() == words.len()).then_some(r.words.as_slice());
+        let weight: Vec<f64> = words.iter().map(|w| w.chars().count() as f64 + 1.0).collect();
+        let total: f64 = weight.iter().sum();
+        // where word k starts: heard, or by the words' length inside the line
+        let starts = |k: usize| -> f64 {
+            match timed {
+                Some(t) => t[k].0,
+                None => r.start + (r.end - r.start) * weight[..k].iter().sum::<f64>() / total,
+            }
+        };
+        let ends = |k: usize| -> f64 {
+            match timed {
+                Some(t) => t[k].1,
+                None => r.start + (r.end - r.start) * weight[..=k].iter().sum::<f64>() / total,
+            }
+        };
+        // as many screens as the words need, cut into near equal parts at word edges, so no word is left alone
+        let fits = |r: &std::ops::Range<usize>| p.calc.count(&words[r.clone()].join(" ")) <= room;
+        let need = (p.calc.count(&r.text) / room).ceil().max(1.0) as usize;
+        // near each equal share the cut goes after a sentence's end, else after a comma, else at the nearest word
+        let before: Vec<f64> = std::iter::once(0.0).chain(weight.iter().scan(0.0, |acc, w| { *acc += w; Some(*acc) })).collect();
+        let pause = |k: usize| match words[k - 1].chars().last() {
+            Some('.' | '!' | '?' | '…') => 0,
+            Some(',' | ';' | ':' | '—') => 1,
+            _ => 2,
+        };
+        let mut cuts = vec![0usize];
+        for j in 1..need {
+            let target = total * j as f64 / need as f64;
+            let reach = total / need as f64 * 0.35;
+            let from = cuts.last().copied().unwrap_or(0) + 1;
+            let near = (from..words.len()).filter(|&k| (before[k] - target).abs() <= reach);
+            let best = near.min_by(|&x, &y| (pause(x), (before[x] - target).abs()).partial_cmp(&(pause(y), (before[y] - target).abs())).unwrap_or(std::cmp::Ordering::Equal));
+            let nearest = (from..words.len()).min_by(|&x, &y| (before[x] - target).abs().total_cmp(&(before[y] - target).abs()));
+            if let Some(k) = best.or(nearest) {
+                cuts.push(k);
+            }
+        }
+        cuts.push(words.len());
+        let mut screens: Vec<std::ops::Range<usize>> = Vec::new();
+        for pair in cuts.windows(2) {
+            let mut first = pair[0];
+            for k in pair[0] + 1..pair[1] {
+                if !fits(&(first..k + 1)) {
+                    screens.push(first..k);
+                    first = k;
+                }
+            }
+            screens.push(first..pair[1]);
+        }
+        // a screen showing longer than the rules allow is halved at the word nearest its middle, both halves long enough
+        let shortest = p.min_display_ms as f64 / 1000.0;
+        let mut i = 0;
+        while i < screens.len() {
+            let s = screens[i].clone();
+            let (a, b) = (starts(s.start), ends(s.end - 1));
+            let mid = (a + b) / 2.0;
+            let cut = (s.start + 1..s.end).filter(|&k| starts(k) - a >= shortest && b - starts(k) >= shortest).min_by(|&x, &y| (starts(x) - mid).abs().total_cmp(&(starts(y) - mid).abs()));
+            match cut {
+                Some(k) if b - a > longest => {
+                    screens.splice(i..=i, [s.start..k, k..s.end]);
+                }
+                _ => i += 1,
+            }
+        }
+        let count = screens.len();
+        for (i, screen) in screens.into_iter().enumerate() {
+            let a = if i == 0 { r.start } else { starts(screen.start) };
+            let b = if i + 1 == count { r.end } else { starts(screen.end) };
+            let text = balanced_wrap(&words[screen].join(" "), p, lang).join("\n");
+            segs.push(TimingSeg::new(a, b.max(a), text).with_speaker(r.speaker.clone()));
+        }
+    }
+    let segs = normalize(&segs, p, &NormalizeOpts::default());
+    let fast = segs.iter().filter(|s| violates_cps(s, p)).count();
+    let out = segs.into_iter().map(|s| Row { start: s.start, end: s.end, speaker: s.speaker.unwrap_or_default(), text: s.text, words: Vec::new() }).collect();
+    (out, fast)
 }
 
 fn ms(seconds: f64) -> u64 {
@@ -56,7 +152,11 @@ pub fn render(p: &ListenProject, format: &str, o: &Opts) -> Result<String, Strin
     if format == "json" {
         return serde_json::to_string_pretty(&json_value(p)).map_err(|e| e.to_string());
     }
-    render_rows(&rows(p), format, o).ok_or_else(|| t!("listen-export-format", format = format.to_string()))
+    let rows = match o.rules.filter(|_| matches!(format, "srt" | "vtt" | "ass")) {
+        Some(rules) => by_rules(&shown_rows(p), rules, &p.settings.lang).0,
+        None => shown_rows(p),
+    };
+    render_rows(&rows, format, o).ok_or_else(|| t!("listen-export-format", format = format.to_string()))
 }
 
 /// Lines as srt, vtt, ass or txt; None for another format.
@@ -138,7 +238,7 @@ mod tests {
     #[test]
     fn every_format_names_speakers_and_skips_hidden_lines() {
         let p = project();
-        let o = Opts { speakers: true, times: true };
+        let o = Opts { speakers: true, times: true, rules: None };
         let srt = render(&p, "srt", &o).unwrap();
         assert!(srt.starts_with("1\n00:00:00,000 --> 00:00:01,500\nАнна: Привет <всем>\n"));
         assert!(srt.contains("01:01:01,250 --> 01:01:02,000") && !srt.contains("Скрыто"));
@@ -146,8 +246,29 @@ mod tests {
         assert!(vtt.contains("<v Анна>Привет &lt;всем&gt;") && vtt.contains("01:01:01.250"));
         assert!(render(&p, "ass", &o).unwrap().contains("Dialogue: 0,1:01:01.25,1:01:02.00,Default,Борис,0,0,0,,Пока"));
         assert_eq!(render(&p, "txt", &o).unwrap(), "[0:00] Анна: Привет <всем>\n[1:01:01] Борис: Пока\n");
-        assert_eq!(render(&p, "txt", &Opts { speakers: false, times: false }).unwrap(), "Привет <всем>\nПока\n");
+        assert_eq!(render(&p, "txt", &Opts { speakers: false, times: false, rules: None }).unwrap(), "Привет <всем>\nПока\n");
         let json: Value = serde_json::from_str(&render(&p, "json", &o).unwrap()).unwrap();
         assert_eq!(json["lines"].as_array().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn a_long_line_goes_on_screens_within_a_broadcasters_rules_and_without_rules_stays_as_heard() {
+        let text = "Это очень длинная реплика, которую диктор произносит на одном дыхании, и она никак не помещается в две строки субтитра по правилам вещателя";
+        let n = text.split_whitespace().count();
+        let words: Vec<(f64, f64)> = (0..n).map(|k| (k as f64 * 0.5, k as f64 * 0.5 + 0.4)).collect();
+        let row = Row { start: 0.0, end: n as f64 * 0.5, speaker: "A".into(), text: text.into(), words };
+        let netflix = dub_captions::RulesProfile::by_name("Netflix (English)").unwrap();
+        let (screens, _) = by_rules(std::slice::from_ref(&row), netflix, "ru");
+        assert!(screens.len() > 1, "{}", screens.len());
+        for s in &screens {
+            let lines: Vec<&str> = s.text.lines().collect();
+            assert!(lines.len() <= netflix.max_lines && lines.iter().all(|l| l.chars().count() <= netflix.max_line_len + 2), "{:?}", s.text);
+            assert!(s.end - s.start <= netflix.max_display_ms as f64 / 1000.0 + 1e-6);
+            assert!(s.end - s.start >= netflix.min_display_ms as f64 / 1000.0 - 1e-6, "a screen too short: {:?}", s.text);
+        }
+        let joined: String = screens.iter().map(|s| s.text.replace('\n', " ")).collect::<Vec<_>>().join(" ");
+        assert_eq!(joined, text);
+        let plain = render_rows(std::slice::from_ref(&row), "srt", &Opts { speakers: false, times: true, rules: None }).unwrap();
+        assert!(plain.contains(text));
     }
 }

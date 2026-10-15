@@ -1564,6 +1564,12 @@
     "repeat": "Locutar de nuevo con los mismos parámetros"
   },
   "listen": {
+    "rules": "Reglas de subtítulos",
+    "rulesNone": "como se reconoció — sin reglas",
+    "rulesOne": "{{name}}: {{chars}} caracteres por línea, {{lines}} líneas, hasta {{cps}} car./s",
+    "rulesHint": "Las réplicas se reparten en pantallas según las reglas de la emisora: largo de línea, líneas por pantalla, duración máxima; la pantalla cambia cuando la voz llega a su primera palabra. La transcripción del proyecto no cambia.",
+    "rulesNoneHint": "Subtítulos tal como los reconoció el modelo: una réplica, un subtítulo.",
+    "tooFast": "Pantallas más rápidas de leer de lo permitido: {{count}}; conviene acortar su texto.",
     "newTitle": "Reconocer una grabación",
     "newHint": "Un archivo, un enlace o el micrófono: la grabación se convierte en texto con hablantes y tiempos de palabras que puedes leer, editar, cortar, exportar o volver a locutar en Speech.",
     "drop": "Suelta aquí un archivo de audio o vídeo",

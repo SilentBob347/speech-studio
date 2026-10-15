@@ -205,9 +205,15 @@ pub(super) fn tools() -> Vec<Tool> {
             call: |args| post(listen_path(args, "/cut")?, json!({})),
         },
         Tool {
+            name: "listen_subtitle_rules",
+            description: "The broadcasters' subtitle rules listen_export can lay subtitles out by (Generic, Netflix, Amazon, BBC, Arte, DCMP): each with its characters per line, lines per screen, fastest reading (characters a second) and shortest and longest showing.",
+            schema: || object(json!({}), &[]),
+            call: |_| get("/listen/subtitle-rules".into()),
+        },
+        Tool {
             name: "listen_export",
-            description: "The transcript as a file in the project's exports and as text: srt, vtt (speakers as voice tags), ass, txt (speakers and times optional) or json with word timings.",
-            schema: || object(json!({ "pid": listen_pid(), "format": { "type": "string", "enum": ["srt", "vtt", "ass", "txt", "json"] }, "speakers": { "type": "boolean" }, "times": { "type": "boolean" } }), &["pid", "format"]),
+            description: "The transcript as a file in the project's exports and as text: srt, vtt (speakers as voice tags), ass, txt (speakers and times optional) or json with word timings. For srt, vtt and ass, rules names a broadcaster's subtitle rules (listen_subtitle_rules): the lines go onto screens by its line length, lines and longest showing, at the heard word times; without it the subtitles are the lines as recognised. too_fast counts the screens still faster to read than the rules allow.",
+            schema: || object(json!({ "pid": listen_pid(), "format": { "type": "string", "enum": ["srt", "vtt", "ass", "txt", "json"] }, "speakers": { "type": "boolean" }, "times": { "type": "boolean" }, "rules": { "type": "string", "enum": dub_captions::PROFILES.iter().map(|p| p.name).collect::<Vec<_>>() } }), &["pid", "format"]),
             call: |args| post(listen_path(args, "/export")?, body_without(args, &["pid"])),
         },
         Tool {

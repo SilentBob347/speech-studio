@@ -82,7 +82,9 @@ export const listenApi = {
   aligned: (pid: string, reference: string) => postCoded<{ lines: ListenLine[] }>(`/listen/${pid}/aligned`, { reference }),
   transcribe: (pid: string) => postCoded<{ job_id: string }>(`/listen/${pid}/transcribe`, {}),
   cut: (pid: string) => postCoded<{ job_id: string }>(`/listen/${pid}/cut`, {}),
-  export: (pid: string, format: TranscriptFormat, speakers: boolean, times: boolean) => postCoded<{ file: string; text: string }>(`/listen/${pid}/export`, { format, speakers, times }),
+  /** With `rules` (a broadcaster's, from subtitleRules) subtitles go onto screens by its rules; without, as recognised. */
+  export: (pid: string, format: TranscriptFormat, speakers: boolean, times: boolean, rules = "") => postCoded<{ file: string; text: string; too_fast: number | null }>(`/listen/${pid}/export`, { format, speakers, times, rules: rules || undefined }),
+  subtitleRules: () => getCoded<{ rules: SubtitleRules[] }>("/listen/subtitle-rules"),
   check: (pid: string, reference: string) => postCoded<ReferenceCheck>(`/listen/${pid}/check`, { reference }),
   toSpeech: (pid: string) => postCoded<{ pid: string }>(`/listen/${pid}/to-speech`, {}),
   speakersMatch: (pid: string) => postCoded<{ speakers: SpeakerMatch[]; threshold: number }>(`/listen/${pid}/speakers/match`, {}),
@@ -164,3 +166,6 @@ export function newSpeaker(speakers: Record<string, string>, name: (n: number) =
 // readable on both themes: each hue is mixed with the theme's text colour
 export const SPEAKER_COLORS = ["color-mix(in oklab, #4cc2ff 60%, var(--color-text))", "color-mix(in oklab, #ffc46b 60%, var(--color-text))", "color-mix(in oklab, #7ee0c3 60%, var(--color-text))", "color-mix(in oklab, #ff8fb1 60%, var(--color-text))", "color-mix(in oklab, #b8a4ff 60%, var(--color-text))", "color-mix(in oklab, #ff6b6b 60%, var(--color-text))", "color-mix(in oklab, #9be15d 60%, var(--color-text))", "color-mix(in oklab, #f0a6ff 60%, var(--color-text))"];
 export const speakerColor = (key: string) => SPEAKER_COLORS[(Number.parseInt(key, 10) || 0) % SPEAKER_COLORS.length];
+
+/** A broadcaster's subtitle rules: characters per line, lines per screen, fastest reading, shortest and longest showing. */
+export type SubtitleRules = { name: string; max_line_len: number; max_lines: number; max_cps: number; min_display_ms: number; max_display_ms: number };

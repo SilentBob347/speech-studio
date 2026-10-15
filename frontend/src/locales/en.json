@@ -1564,6 +1564,12 @@
     "repeat": "Voice again with the same parameters"
   },
   "listen": {
+    "rules": "Subtitle rules",
+    "rulesNone": "as recognised — no rules",
+    "rulesOne": "{{name}}: {{chars}} chars a line, {{lines}} lines, up to {{cps}} chars/s",
+    "rulesHint": "The lines go onto screens by a broadcaster's rules: line length, lines per screen, longest showing; a screen changes when the voice reaches its first word. The project's transcript stays as it is.",
+    "rulesNoneHint": "Subtitles exactly as the model recognised them: one line, one subtitle.",
+    "tooFast": "Screens faster to read than the rules allow: {{count}} — worth shortening their text.",
     "newTitle": "Recognise a recording",
     "newHint": "A file, a link or the microphone: the recording becomes text with speakers and word timings that you can read, edit, cut, export or voice again in Speech.",
     "drop": "Drop an audio or video file here",

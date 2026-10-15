@@ -1564,6 +1564,12 @@
     "repeat": "Redire avec les mêmes paramètres"
   },
   "listen": {
+    "rules": "Règles de sous-titres",
+    "rulesNone": "tel que reconnu — sans règles",
+    "rulesOne": "{{name}} : {{chars}} car. par ligne, {{lines}} lignes, jusqu’à {{cps}} car./s",
+    "rulesHint": "Les répliques sont réparties en écrans selon les règles du diffuseur : longueur de ligne, lignes par écran, durée maximale ; l’écran change quand la voix atteint son premier mot. La transcription du projet ne change pas.",
+    "rulesNoneHint": "Sous-titres exactement tels que le modèle les a reconnus : une réplique, un sous-titre.",
+    "tooFast": "Écrans plus rapides à lire que les règles ne le permettent : {{count}} — mieux vaut raccourcir leur texte.",
     "newTitle": "Reconnaître un enregistrement",
     "newHint": "Un fichier, un lien ou le micro : l’enregistrement devient un texte avec locuteurs et horaires des mots, à lire, modifier, monter, exporter ou redire dans Speech.",
     "drop": "Déposez ici un fichier audio ou vidéo",
