@@ -239,6 +239,10 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
           </fieldset>
         )}
         <label className="flex items-start gap-2 text-[13px] cursor-pointer">
+          <input type="checkbox" checked={s.tidy_pauses} onChange={(e) => set((p) => { p.settings.tidy_pauses = e.target.checked; })} className="mt-0.5 w-4 h-4 accent-[var(--color-accent)]" />
+          <span>{t("speech.tidyPauses")}<span className="block text-[11px] text-[var(--color-muted)]">{t("speech.tidyPausesHint")}</span></span>
+        </label>
+        <label className="flex items-start gap-2 text-[13px] cursor-pointer">
           <input type="checkbox" checked={s.room_tone || s.loudness === "acx"} disabled={s.loudness === "acx"} onChange={(e) => set((p) => { p.settings.room_tone = e.target.checked; })} className="mt-0.5 w-4 h-4 accent-[var(--color-accent)]" />
           <span>{t("speech.roomTone")}<span className="block text-[11px] text-[var(--color-muted)]">{t("speech.roomToneHint")}</span></span>
         </label>

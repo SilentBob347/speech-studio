@@ -86,14 +86,9 @@ fn fade_out(y: &mut [f32], n: usize) {
 /// Срезать тишину до первого и после последнего громкого кадра, оставив запас; фейд только на
 /// срезанном краю. Возвращает клип и число снятых сэмплов.
 pub fn trim_edges(x: &[f32], sr: u32) -> (Vec<f32>, usize) {
-    let Some(lv) = level(x, sr) else {
+    let Some((a, b)) = edge_bounds(x, sr) else {
         return (x.to_vec(), 0);
     };
-    let (Some(first), Some(last)) = (lv.loud.iter().position(|&l| l), lv.loud.iter().rposition(|&l| l)) else {
-        return (x.to_vec(), 0);
-    };
-    let a = first.saturating_sub(EDGE_MARGIN_FRAMES) * lv.hop;
-    let b = ((last + 1 + EDGE_MARGIN_FRAMES) * lv.hop).min(x.len());
     let mut y = x[a..b].to_vec();
     let fade = (sr as f64 * EDGE_FADE_SECS).round() as usize;
     if a > 0 {
@@ -105,23 +100,77 @@ pub fn trim_edges(x: &[f32], sr: u32) -> (Vec<f32>, usize) {
     (y, x.len() - (b - a))
 }
 
+/// Где кончается тишина в начале и начинается в конце клипа, с запасом.
+fn edge_bounds(x: &[f32], sr: u32) -> Option<(usize, usize)> {
+    let lv = level(x, sr)?;
+    let (first, last) = (lv.loud.iter().position(|&l| l)?, lv.loud.iter().rposition(|&l| l)?);
+    Some((first.saturating_sub(EDGE_MARGIN_FRAMES) * lv.hop, ((last + 1 + EDGE_MARGIN_FRAMES) * lv.hop).min(x.len())))
+}
+
 /// Сжать паузы между громкими кадрами длиннее LONG_PAUSE_FRAMES до SHORT_PAUSE_FRAMES: от паузы остаются
 /// её начало и конец, сшитые косинусным кроссфейдом. Возвращает клип и число снятых сэмплов.
 pub fn compress_pauses(x: &[f32], sr: u32) -> (Vec<f32>, usize) {
+    let (y, cuts) = squeeze_pauses(x, sr, LONG_PAUSE_FRAMES, SHORT_PAUSE_FRAMES);
+    (y, cuts.iter().map(|c| c.1).sum())
+}
+
+/// Пауза дубля длиннее 60 кадров (1,2 с) — сбой движка, а не замысел: она становится 30 кадрами (0,6 с).
+const ANOMALOUS_PAUSE_FRAMES: usize = 60;
+const CAPPED_PAUSE_FRAMES: usize = 30;
+
+/// Дубль, приготовленный к склейке, и где из него что снято: (место в исходном дубле, сколько сэмплов).
+pub struct Tidied {
+    pub samples: Vec<f32>,
+    cuts: Vec<(usize, usize)>,
+    sr: u32,
+}
+
+impl Tidied {
+    /// Момент исходного дубля (с) — в приготовленном: время слова, распознанного в исходном.
+    pub fn at(&self, secs: f64) -> f64 {
+        let raw = (secs.max(0.0) * self.sr as f64) as usize;
+        let removed: usize = self.cuts.iter().filter(|(p, _)| *p <= raw).map(|(p, r)| (*r).min(raw - p)).sum();
+        (raw - removed) as f64 / self.sr as f64
+    }
+}
+
+/// Дубль для склейки экспорта: без тишины по краям (паузы между блоками — ровно заданные) и без аномально длинных
+/// пауз внутри.
+pub fn tidy(x: &[f32], sr: u32) -> Tidied {
+    let lead = edge_bounds(x, sr).map_or(0, |(a, _)| a);
+    let (edged, _) = trim_edges(x, sr);
+    let (samples, pauses) = squeeze_pauses(&edged, sr, ANOMALOUS_PAUSE_FRAMES, CAPPED_PAUSE_FRAMES);
+    let mut cuts = vec![(0, lead)];
+    cuts.extend(pauses.into_iter().map(|(p, r)| (p + lead, r)));
+    Tidied { samples, cuts, sr }
+}
+
+/// Склеить `next` с концом `out` равномощным кроссфейдом в 30 мс: стык двух кусков одной фразы без паузы и щелчка.
+pub fn crossfade_join(out: &mut Vec<f32>, next: &[f32], sr: u32) {
+    let ov = ((sr as f64 * 0.030) as usize).min(out.len()).min(next.len());
+    let start = out.len() - ov;
+    for k in 0..ov {
+        let g = (k as f64 + 0.5) / ov as f64 * std::f64::consts::FRAC_PI_2;
+        out[start + k] = (out[start + k] as f64 * g.cos() + next[k] as f64 * g.sin()) as f32;
+    }
+    out.extend_from_slice(&next[ov..]);
+}
+
+fn squeeze_pauses(x: &[f32], sr: u32, long_frames: usize, short_frames: usize) -> (Vec<f32>, Vec<(usize, usize)>) {
     let Some(lv) = level(x, sr) else {
-        return (x.to_vec(), 0);
+        return (x.to_vec(), Vec::new());
     };
     let (Some(first), Some(last)) = (lv.loud.iter().position(|&l| l), lv.loud.iter().rposition(|&l| l)) else {
-        return (x.to_vec(), 0);
+        return (x.to_vec(), Vec::new());
     };
     let hop = lv.hop;
-    let keep = SHORT_PAUSE_FRAMES * hop;
+    let keep = short_frames * hop;
     let xf = PAUSE_XFADE_FRAMES * hop;
     let head = (keep + xf).div_ceil(2);
     let tail = keep + xf - head;
     let mut out = Vec::with_capacity(x.len());
     let mut pos = 0usize;
-    let mut cut = 0usize;
+    let mut cuts: Vec<(usize, usize)> = Vec::new();
     let mut i = first;
     while i <= last {
         if lv.loud[i] {
@@ -132,7 +181,7 @@ pub fn compress_pauses(x: &[f32], sr: u32) -> (Vec<f32>, usize) {
         while !lv.loud[j] {
             j += 1;
         }
-        if j - i > LONG_PAUSE_FRAMES {
+        if j - i > long_frames {
             let (p0, p1) = (i * hop, j * hop);
             out.extend_from_slice(&x[pos..p0 + head - xf]);
             for k in 0..xf {
@@ -141,16 +190,46 @@ pub fn compress_pauses(x: &[f32], sr: u32) -> (Vec<f32>, usize) {
                 out.push(v as f32);
             }
             pos = p1 - tail + xf;
-            cut += (p1 - p0) - keep;
+            cuts.push((p0 + head - xf, (p1 - p0) - keep));
         }
         i = j;
     }
     out.extend_from_slice(&x[pos..]);
-    (out, cut)
+    (out, cuts)
 }
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn tidy_keeps_a_short_pause_and_caps_an_anomalous_one() {
+        let sr = 24_000u32;
+        let tone = |secs: f64| (0..(secs * sr as f64) as usize).map(|i| 0.5 * (i as f32 * 0.05).sin()).collect::<Vec<f32>>();
+        let quiet = |secs: f64| vec![0.0f32; (secs * sr as f64) as usize];
+        let mut x = quiet(0.5);
+        x.extend(tone(0.5));
+        x.extend(quiet(0.3));
+        x.extend(tone(0.5));
+        x.extend(quiet(2.0));
+        x.extend(tone(0.5));
+        x.extend(quiet(0.5));
+        let y = tidy(&x, sr);
+        let secs = y.samples.len() as f64 / sr as f64;
+        assert!(secs > 1.5 + 0.3 + 0.55 && secs < 1.5 + 0.3 + 0.75, "{secs}");
+        let third = y.at(0.5 + 0.5 + 0.3 + 0.5 + 2.0 + 0.1);
+        assert!((third - (y.samples.len() as f64 / sr as f64 - 0.06 - 0.4)).abs() < 0.03, "{third}");
+        assert!(y.at(0.6) < 0.2);
+    }
+
+    #[test]
+    fn a_crossfade_joins_without_a_gap() {
+        let mut a = vec![1.0f32; 2400];
+        let b = vec![1.0f32; 2400];
+        crossfade_join(&mut a, &b, 24_000);
+        assert_eq!(a.len(), 2400 + 2400 - 720);
+        assert!(a.iter().all(|v| *v > 0.99 && *v < 1.42));
+    }
+
     use super::*;
 
     const SR: u32 = 24_000;

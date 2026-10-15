@@ -1035,6 +1035,8 @@
     "subsHint": "Subtítulos con los tiempos en que suena cada bloque en el archivo",
     "saveChapters": "Lista de capítulos",
     "chaptersHint": "HH:MM:SS<TAB>Título para plataformas sin capítulos",
+    "tidyPauses": "Pausas uniformes",
+    "tidyPausesHint": "La mezcla usa las tomas sin silencio en los bordes, así las pausas entre bloques son exactamente las fijadas, y un fallo del motor con más de 1,2 s de silencio dentro de una toma se acorta a 0,6 s. Los archivos de las tomas no cambian.",
     "roomTone": "Tono de sala en lugar de silencio digital",
     "breaths": "Respiraciones entre bloques",
     "breathsHint": "En una pausa de 0,4 a 1,8 s antes de un bloque se pone una respiración suave, como la de un lector en vivo",

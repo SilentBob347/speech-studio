@@ -227,6 +227,7 @@ fn synth_block_cloud(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Bl
         source: "cloud".into(),
         synth_secs: started.elapsed().as_secs_f64(),
         duration: fitted.samples.len() as f64 / SR as f64,
+        tidy: Some(crate::tts_trim::tidy(&fitted.samples, SR).samples.len() as f64 / SR as f64),
         text: b.text.clone(),
         direction: b.direction.clone(),
         voice: voice.clone(),
@@ -366,8 +367,12 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
                     if say.is_empty() {
                         continue;
                     }
-                    for (j, (phrase, gap)) in stx::phrases(&say, max_chars).iter().enumerate() {
-                        if *gap > 0 {
+                    let cut = stx::phrases(&say, max_chars);
+                    for (j, (phrase, gap)) in cut.iter().enumerate() {
+                        // a cut between words is no pause: the pieces meet with a crossfade instead of a gap
+                        let joined = *gap == stx::WORD_GAP_MS;
+                        let joins_next = cut.get(j + 1).is_some_and(|(_, g)| *g == stx::WORD_GAP_MS);
+                        if *gap > 0 && !joined {
                             if let Some(l) = live {
                                 l.pause(*gap, SR);
                             }
@@ -394,13 +399,19 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
                         secs += s.seconds;
                         retried.extend(s.defects.iter().map(|d| d.to_string()));
                         let mut samples = resample_to(s.samples, s.sr);
-                        fade_edges(&mut samples, SR);
+                        if joined || joins_next {
+                            samples = crate::tts_trim::trim_edges(&samples, SR).0;
+                        } else {
+                            fade_edges(&mut samples, SR);
+                        }
+                        let samples = if retimed { at_rate(&samples, rate)? } else { samples };
                         if retimed {
-                            let samples = at_rate(&samples, rate)?;
                             if let Some(l) = live {
                                 l.chunk(&samples, SR);
                             }
-                            out.extend(samples);
+                        }
+                        if joined {
+                            crate::tts_trim::crossfade_join(&mut out, &samples, SR);
                         } else {
                             out.extend(samples);
                         }
@@ -443,6 +454,7 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
         synth_secs: secs,
         retried,
         duration: out.len() as f64 / SR as f64,
+        tidy: Some(crate::tts_trim::tidy(&out, SR).samples.len() as f64 / SR as f64),
         text: b.text.clone(),
         direction: b.direction.clone(),
         top_k: params.top_k,
@@ -1010,7 +1022,7 @@ pub fn timeline(project: &SpeechProject) -> Vec<Value> {
     for b in project.blocks().filter(|b| !b.hidden && !b.text.trim().is_empty()) {
         let take = b.active.and_then(|n| b.takes.iter().find(|t| t.n == n));
         let lang = if project.settings.lang == "auto" { if crate::stress::is_russian(&b.text, "auto") { "ru" } else { "en" } } else { project.settings.lang.as_str() };
-        let secs = take.map(|t| t.duration).unwrap_or_else(|| dub_core::fit::estimate(&crate::speech_text::visible(&b.text), dub_core::fit::table_cps(lang)));
+        let secs = take.map(|t| if project.settings.tidy_pauses { t.tidy.unwrap_or(t.duration) } else { t.duration }).unwrap_or_else(|| dub_core::fit::estimate(&crate::speech_text::visible(&b.text), dub_core::fit::table_cps(lang)));
         let start = placer.place(b, take.map(|t| t.fit_lead).unwrap_or(0.0), (secs * RATE as f64) as usize) as f64 / RATE as f64;
         let end = start + secs;
         let overlap = furthest.filter(|(_, prev_end)| *prev_end > start + 1e-3).map(|(id, prev_end)| json!({ "with": id, "secs": round3(prev_end - start) }));
@@ -1110,6 +1122,9 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         let wav = work.path().join(format!("{i}.wav"));
         crate::media::extract_audio(&src, &wav, SR, 1)?;
         let (samples, _) = crate::wavio::read_mono_f32(&wav)?;
+        let tidied = project.settings.tidy_pauses.then(|| crate::tts_trim::tidy(&samples, SR));
+        let place = |secs: f64| tidied.as_ref().map_or(secs, |t| t.at(secs));
+        let samples = match &tidied { Some(t) => t.samples.clone(), None => samples };
         let at = placer.place(b, take.fit_lead, samples.len());
         if let Some((prev_at, prev)) = prev_audio.as_ref().filter(|(pa, pv)| b.cut_previous && at < pa + pv.len()) {
             cut_tail(&mut mix, *prev_at, prev, at);
@@ -1133,7 +1148,7 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
             }
         }
         cues.push((at as f64 / SR as f64, (at + samples.len()) as f64 / SR as f64, b.speaker.clone(), crate::speech_text::visible(&b.text)));
-        let words = take.qc.as_ref().map(|q| q.timed.iter().map(|(w, a, z)| (w.clone(), at as f64 / SR as f64 + a, at as f64 / SR as f64 + z)).collect()).unwrap_or_default();
+        let words = take.qc.as_ref().map(|q| q.timed.iter().map(|(w, a, z)| (w.clone(), at as f64 / SR as f64 + place(*a), at as f64 / SR as f64 + place(*z))).collect()).unwrap_or_default();
         timed.push((at as f64 / SR as f64, (at + samples.len()) as f64 / SR as f64, b.speaker.clone(), crate::speech_text::visible(&b.text), words));
         if mix.len() < at + samples.len() {
             mix.resize(at + samples.len(), 0.0);
@@ -1327,7 +1342,8 @@ fn export_clips(p: &SpeechPaths, pid: &str, project: &SpeechProject, blocks: &[&
         let take = b.active.and_then(|n| b.takes.iter().find(|t| t.n == n)).ok_or_else(|| t!("speech-export-not-ready", count = 1))?;
         let wav = work.join(format!("{i}.wav"));
         crate::media::extract_audio(&takes_dir(p, pid).join(&take.file), &wav, SR, 1)?;
-        let (mut samples, _) = crate::wavio::read_mono_f32(&wav)?;
+        let (samples, _) = crate::wavio::read_mono_f32(&wav)?;
+        let mut samples = if project.settings.tidy_pauses { crate::tts_trim::tidy(&samples, SR).samples } else { samples };
         if let Some((target, tp, _)) = loudness(&project.settings.loudness) {
             crate::loudness::level(&mut samples, SR, target, peak_for(&opts.format, tp), project.settings.loudness != "acx")?;
         }

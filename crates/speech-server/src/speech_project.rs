@@ -53,6 +53,9 @@ pub struct Take {
     /// Сколько миллисекунд от начала синтеза до первого звука, у движков, что отдают звук потоком.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub first_ms: Option<u64>,
+    /// Длина дубля в склейке с ровными паузами, с.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tidy: Option<f64>,
     /// Размер файла дубля при записи; 0 — не записан (дубли старых проектов), файл тогда не сверяется.
     #[serde(skip_serializing_if = "is_zero")]
     pub bytes: u64,
@@ -153,6 +156,8 @@ pub struct Settings {
     pub breaths: bool,
     /// Сквозная интонация: блок берёт рефом предыдущий дубль того же голоса с его текстом (продолжение речи Higgs).
     pub continuation: bool,
+    /// Склейка берёт дубли без тишины по краям и без аномальных пауз внутри (дубль на диске остаётся как есть).
+    pub tidy_pauses: bool,
     /// Движок `openrouter`: модель и голос (пусто — из «Облака»).
     pub cloud_model: String,
     pub cloud_voice: String,
@@ -162,7 +167,7 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { lang: "auto".into(), engine: "higgs".into(), params: Params::default(), voice: None, pause_same_ms: 300, pause_switch_ms: 600, loudness: "video".into(), qc: QcSettings::default(), auto_stress: true, normalize: true, timeline: false, max_stretch: 1.25, lead_into_silence: true, room_tone: false, breaths: false, continuation: false, cloud_model: String::new(), cloud_voice: String::new(), cloud_values: serde_json::Map::new() }
+        Settings { lang: "auto".into(), engine: "higgs".into(), params: Params::default(), voice: None, pause_same_ms: 300, pause_switch_ms: 600, loudness: "video".into(), qc: QcSettings::default(), auto_stress: true, normalize: true, timeline: false, max_stretch: 1.25, lead_into_silence: true, room_tone: false, breaths: false, continuation: false, tidy_pauses: true, cloud_model: String::new(), cloud_voice: String::new(), cloud_values: serde_json::Map::new() }
     }
 }
 

@@ -1035,6 +1035,8 @@
     "subsHint": "Sous-titres avec le moment où chaque bloc sonne dans le fichier",
     "saveChapters": "Liste des chapitres",
     "chaptersHint": "HH:MM:SS<TAB>Titre pour les plateformes sans chapitres",
+    "tidyPauses": "Pauses régulières",
+    "tidyPausesHint": "Le montage prend les prises sans silence aux bords, les pauses entre blocs sont donc exactement celles réglées, et un raté du moteur de plus de 1,2 s de silence dans une prise est ramené à 0,6 s. Les fichiers des prises ne changent pas.",
     "roomTone": "Ambiance de pièce au lieu du silence numérique",
     "breaths": "Respirations entre les blocs",
     "breathsHint": "Une respiration discrète est placée dans une pause de 0,4 à 1,8 s avant un bloc, comme chez un lecteur en direct",
