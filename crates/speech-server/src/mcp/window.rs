@@ -542,19 +542,19 @@ pub(super) fn tools() -> Vec<Tool> {
         // ---------------------------------------------------------------- the player, for the user to hear
         Tool {
             name: "player_state",
-            description: "What the studio's player plays now: in an open Speech project the block playing and the blocks queued after it, in an open Listening recording the moment and length; the position, length, volume and speed, and a library voice's sample when one plays. Nothing plays: playing false.",
+            description: "What the studio's player plays now: in an open Speech project the block playing, whether it is paused and the blocks queued after it, in an open Listening recording the moment and length; the position, length, volume and speed, and a library voice's sample when one plays. Nothing plays: playing false.",
             schema: nothing,
             call: |args| window("player_state", args, 15),
         },
         Tool {
             name: "player_play",
-            description: "Play for the user to hear, in the window. In an open Speech project: a block's active take (id), or with on true everything from that block to the end, voicing first the blocks that are not voiced yet (as Listen from here does). In an open Listening recording: a line from its start to its end (id), or from a moment (from, seconds), or on from where it stopped (neither). voice plays a library voice's sample instead, on any screen.",
+            description: "Play for the user to hear, in the window. In an open Speech project: a block's active take (id), or with on true everything from that block to the end, voicing first the blocks that are not voiced yet (as Listen from here does), or on from where it was paused (neither). In an open Listening recording: a line from its start to its end (id), or from a moment (from, seconds), or on from where it stopped (neither). voice plays a library voice's sample instead, on any screen.",
             schema: || object(json!({ "id": { "type": "string", "description": "block or line id from editor_state" }, "on": { "type": "boolean" }, "from": { "type": "number", "minimum": 0 }, "voice": { "type": "string", "description": "voice name from voices_list" } }), &[]),
             call: |args| window("player_play", args, 20),
         },
         Tool {
             name: "player_pause",
-            description: "Stop what the studio's player plays (a Speech project's queue after the block is dropped too).",
+            description: "Pause what the studio's player plays; player_play without id, from or voice goes on from there (a Speech project keeps its queue). A library voice's sample stops.",
             schema: nothing,
             call: |args| window("player_pause", args, 15),
         },
@@ -566,7 +566,7 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "player_set",
-            description: "Set the player's volume (0 to 1) and, in a Listening recording, its speed as its list offers it (0.75, 1, 1.25, 1.5 or 2).",
+            description: "Set the player's volume (0 to 1) and, in an open Speech project or Listening recording, its speed as its list offers it (0.75, 1, 1.25, 1.5 or 2).",
             schema: || object(json!({ "volume": { "type": "number", "minimum": 0, "maximum": 1 }, "rate": { "type": "number", "enum": [1, 0.75, 1.25, 1.5, 2] } }), &[]),
             call: |args| window("player_set", args, 15),
         },

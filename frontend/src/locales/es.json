@@ -526,7 +526,7 @@
       "editor_open": "abre un proyecto",
       "editor_select": "muestra un lugar del proyecto",
       "player_play": "reproduce el sonido",
-      "player_pause": "detiene el sonido",
+      "player_pause": "pausa el sonido",
       "player_seek": "mueve el reproductor",
       "player_set": "ajusta el reproductor"
     }
@@ -919,7 +919,6 @@
     "stop": "Detener",
     "voiceDirty": "Locutar lo cambiado ({{n}})",
     "voiceAll": "Locutar todo de nuevo",
-    "listenAll": "Escuchar desde el inicio",
     "export": "Exportar",
     "cast": "Reparto",
     "projectVoice": "Voz del proyecto",
@@ -1705,5 +1704,20 @@
       "ono_anna": "Voz femenina japonesa juguetona, ligera y ágil.",
       "sohee": "Voz femenina coreana cálida y muy emotiva."
     }
+  },
+  "transport": {
+    "label": "Reproductor",
+    "prev": "Bloque anterior",
+    "next": "Bloque siguiente",
+    "back5": "Atrás 5 s",
+    "forward5": "Adelante 5 s",
+    "pause": "Pausa",
+    "resume": "Continuar",
+    "stop": "Detener",
+    "fromStart": "Escuchar desde el inicio",
+    "fromSelected": "Escuchar desde el bloque seleccionado",
+    "position": "Posición en el bloque",
+    "rate": "Velocidad",
+    "idle": "Bloques con voz: {{voiced}} de {{total}} · {{length}}"
   }
 }

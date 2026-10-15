@@ -161,11 +161,14 @@ export default function BridgeHost() {
     return { playing: editor.player.state() };
   });
 
-  useBridgeCommand("player_pause", (args) => {
+  useBridgeCommand("player_pause", async (args) => {
     takeArgs("player_pause", args, []);
     stopVoiceSample();
-    openEditor()?.player.pause();
-    return { playing: false };
+    const editor = openEditor();
+    if (!editor) return { playing: false };
+    editor.player.pause();
+    await settle();
+    return editor.player.state();
   });
 
   useBridgeCommand("player_seek", async (args) => {
@@ -218,7 +221,7 @@ export default function BridgeHost() {
   const ring = shown.tone === "error" ? "border-[var(--color-warn)]" : "border-[var(--color-accent)]";
   return (
     <div key={shown.key} role="status" aria-live="polite"
-      className={`fixed bottom-9 right-4 z-[80] pointer-events-none max-w-[min(calc(100vw-2rem),560px)] inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border ${ring} bg-[var(--color-surface)] shadow-xl text-[12px] text-[var(--color-text)] anim-pop`}>
+      className={`fixed bottom-24 right-4 z-[80] pointer-events-none max-w-[min(calc(100vw-2rem),560px)] inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border ${ring} bg-[var(--color-surface)] shadow-xl text-[12px] text-[var(--color-text)] anim-pop`}>
       <Bot size={14} className="text-[var(--color-accent)] shrink-0" />
       <span className="font-semibold shrink-0">{t("bridge.agent")}</span>
       <span className="truncate">{shown.text}</span>

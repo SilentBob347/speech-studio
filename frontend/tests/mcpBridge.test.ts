@@ -96,6 +96,16 @@ describe("the page's side of the bridge", () => {
     expect(posted.at(-1)!.body).toEqual({ id: "w5", result: { text: "Clicked Delete project." } });
   });
 
+  it("reports the control it clicked by the name it had, with its row, though the click renames it", async () => {
+    const stream = FakeStream.last!;
+    document.body.innerHTML = `<ul><li data-mcp-row="block 3 Oleg ready: Hi"><button aria-label="Stop">s</button></li></ul>`;
+    const button = document.querySelector("button")!;
+    button.addEventListener("click", () => button.setAttribute("aria-label", "Play"));
+    posted.length = 0;
+    await stream.send({ id: "w6", window: 7, command: "click", args: { text: "stop" } });
+    expect(posted.at(-1)!.body).toEqual({ id: "w6", result: { text: "Clicked Stop in block 3 Oleg ready: Hi." } });
+  });
+
   it("passes a change on to the screens, but not the window's own list changes", async () => {
     const stream = FakeStream.last!;
     const projects: unknown[] = [];

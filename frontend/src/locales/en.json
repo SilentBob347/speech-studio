@@ -526,7 +526,7 @@
       "editor_open": "opens a project",
       "editor_select": "shows a place in the project",
       "player_play": "plays the sound",
-      "player_pause": "stops the sound",
+      "player_pause": "pauses the sound",
       "player_seek": "moves the player",
       "player_set": "sets the player"
     }
@@ -919,7 +919,6 @@
     "stop": "Stop",
     "voiceDirty": "Voice changed ({{n}})",
     "voiceAll": "Voice all again",
-    "listenAll": "Listen from the start",
     "export": "Export",
     "cast": "Cast",
     "projectVoice": "Voice of the project",
@@ -1705,5 +1704,20 @@
       "ono_anna": "Playful Japanese female voice with a light, nimble timbre.",
       "sohee": "Warm Korean female voice with rich emotion."
     }
+  },
+  "transport": {
+    "label": "Player",
+    "prev": "Previous block",
+    "next": "Next block",
+    "back5": "Back 5 s",
+    "forward5": "Forward 5 s",
+    "pause": "Pause",
+    "resume": "Continue",
+    "stop": "Stop",
+    "fromStart": "Listen from the start",
+    "fromSelected": "Listen from the selected block",
+    "position": "Position in the block",
+    "rate": "Speed",
+    "idle": "Voiced {{voiced}} of {{total}} blocks · {{length}}"
   }
 }

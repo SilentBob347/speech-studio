@@ -71,8 +71,8 @@ connected and the address to paste.
   block or a line. With several windows open: `windows_watch` (the windows and what the studio tells them),
   `window_focus` (which one the ui_* tools work in), `window_command_drop` (give up a command no window answered).
 - **The player**, for the user to hear in the window: `player_play` (a block's take, or with `on` everything from that
-  block on, voicing what is missing; a Listening line or a moment; `voice` a library voice's sample), `player_pause`,
-  `player_seek`, `player_set` (volume; speed in Listening), `player_state`.
+  block on, voicing what is missing; a Listening line or a moment; `voice` a library voice's sample; with none of
+  them it goes on after a pause), `player_pause`, `player_seek`, `player_set` (volume and speed), `player_state`.
 - **The journal**: every change you make to projects, recordings, voices, models, keys and settings is written into the
   window's activity log with the name of what it changed, and stays there after a restart. `journal_get` reads it,
   `journal_note` writes a line for the user, `journal_delete` removes one, `journal_clear` empties it.

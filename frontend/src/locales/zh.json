@@ -526,7 +526,7 @@
       "editor_open": "打开项目",
       "editor_select": "指出项目中的位置",
       "player_play": "播放声音",
-      "player_pause": "停止播放",
+      "player_pause": "暂停播放",
       "player_seek": "调整播放位置",
       "player_set": "设置播放器"
     }
@@ -919,7 +919,6 @@
     "stop": "停止",
     "voiceDirty": "为改动配音（{{n}}）",
     "voiceAll": "全部重新配音",
-    "listenAll": "从头试听",
     "export": "导出",
     "cast": "角色表",
     "projectVoice": "项目声音",
@@ -1705,5 +1704,20 @@
       "ono_anna": "俏皮的日语女声，轻盈灵动。",
       "sohee": "温暖的韩语女声，情感丰富。"
     }
+  },
+  "transport": {
+    "label": "播放器",
+    "prev": "上一个段落",
+    "next": "下一个段落",
+    "back5": "后退 5 秒",
+    "forward5": "前进 5 秒",
+    "pause": "暂停",
+    "resume": "继续",
+    "stop": "停止",
+    "fromStart": "从头试听",
+    "fromSelected": "从选中的段落试听",
+    "position": "段落内的位置",
+    "rate": "速度",
+    "idle": "已配音段落：{{voiced}} / {{total}} · {{length}}"
   }
 }

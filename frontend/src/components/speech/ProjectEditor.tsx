@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, BookOpen, ChartGantt, Download, Drama, History, ListOrdered, Loader2, Play, Redo2, Search, Settings2, Sparkles, SpellCheck, Square, Undo2, Users, X } from "lucide-react";
+import { ArrowLeft, BookOpen, ChartGantt, Download, Drama, History, ListOrdered, Loader2, Redo2, Search, Settings2, Sparkles, SpellCheck, Square, Undo2, Users, X } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { activeTake, engineOf, newId, spliceChars, SPEAKER_TINTS, speechApi, stressDoubts, voiceOf, type Block, type BlockState, type SpeechProject, type QueuedSynth, type StressWord } from "../../lib/speech";
 import { openSettings } from "../../lib/settingsNav";
@@ -11,6 +11,7 @@ import { followJob } from "../../lib/followJob";
 import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
 import EditorMore from "../EditorMore";
+import Transport, { RATES, type TransportBlock } from "./Transport";
 import { useStore } from "../../store";
 import { usePublishEditor } from "../../lib/editorBridge";
 import ErrorNote from "../ErrorNote";
@@ -80,6 +81,9 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   const [stressMissing, setStressMissing] = useState(false);
   const audio = useRef<HTMLAudioElement | null>(null);
   const volume = useRef(1);
+  const rate = useRef(1);
+  const [speed, setSpeed] = useState(1);
+  const [paused, setPaused] = useState(false);
   const pushActivity = useStore((s) => s.pushActivity);
 
   useEffect(() => {
@@ -107,6 +111,10 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   const speakers = useMemo(() => [...new Set(blocks.map((b) => b.speaker).filter(Boolean))], [blocks]);
   const tintOf = (s: string) => SPEAKER_TINTS[Math.max(0, speakers.indexOf(s)) % SPEAKER_TINTS.length];
   const stateOf = (b: Block): BlockState => project?.status?.[b.id]?.state ?? "pending";
+  const transportBlocks = useMemo<TransportBlock[]>(() => blocks.map((b) => {
+    const take = project?.status?.[b.id]?.state === "ready" ? activeTake(b) : null;
+    return { id: b.id, speaker: b.speaker, text: b.text, duration: take ? take.duration : null };
+  }), [blocks, project]);
   const counts = blocks.reduce<Record<string, number>>((acc, b) => { const s = stateOf(b); acc[s] = (acc[s] ?? 0) + 1; return acc; }, {});
   const dirty = (counts.pending ?? 0) + (counts.stale ?? 0) + (counts.failed ?? 0);
   // the blocks a character's voice reaches: theirs, without a voice of their own
@@ -138,10 +146,11 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
     player: {
       state: () => {
         const a = playing ? audio.current : null;
-        return { playing, queued: queue, position: a?.currentTime ?? null, duration: a && Number.isFinite(a.duration) ? a.duration : null, volume: volume.current };
+        return { playing, paused, queued: queue, position: a?.currentTime ?? null, duration: a && Number.isFinite(a.duration) ? a.duration : null, volume: volume.current, rate: rate.current };
       },
       play: ({ id, on, from }) => {
         if (from !== undefined) throw bridgeError("speech_from");
+        if (!id && playing && paused) return resumeAudio();
         if (!id) throw bridgeError("missing", { command: "player_play", field: "id" });
         const b = blocks.find((x) => x.id === id);
         if (!b) throw bridgeError("no_line", { id });
@@ -149,14 +158,15 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
         if (!activeTake(b)) throw bridgeError("no_take", { id });
         playBlock(b, []);
       },
-      pause: () => stopAudio(),
+      pause: () => pauseAudio(),
       seek: (seconds) => {
         const a = audio.current;
         if (!a || !playing) throw bridgeError("nothing_plays");
         a.currentTime = seconds;
       },
       set: ({ volume: level, rate }) => {
-        if (rate !== undefined) throw bridgeError("speech_rate");
+        if (rate !== undefined && !RATES.includes(rate)) throw bridgeError("bad_value", { command: "player_set", field: "rate", expected: RATES.join(", ") });
+        if (rate !== undefined) changeRate(rate);
         if (level === undefined) return;
         volume.current = level;
         if (audio.current) audio.current.volume = level;
@@ -164,15 +174,20 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
     },
   });
 
-  const stopAudio = useCallback(() => { audio.current?.pause(); setPlaying(null); setQueue([]); }, []);
+  const stopAudio = useCallback(() => { audio.current?.pause(); setPlaying(null); setPaused(false); setQueue([]); }, []);
+  const pauseAudio = () => { if (!playing) return; audio.current?.pause(); setPaused(true); };
+  const resumeAudio = () => { if (!playing || !audio.current) return; setPaused(false); audio.current.play().catch((e: unknown) => { setPlaying(null); setJobError(errorText(e)); }); };
+  const changeRate = (r: number) => { rate.current = r; setSpeed(r); if (audio.current) audio.current.playbackRate = r; };
   const playBlock = useCallback((b: Block, rest: string[]) => {
     const take = activeTake(b);
     if (!take) return;
     audio.current?.pause();
     const a = new Audio(`${speechApi.takeUrl(pid, take.file)}?n=${take.n}`);
     a.volume = volume.current;
+    a.playbackRate = rate.current;
     audio.current = a;
     setPlaying(b.id);
+    setPaused(false);
     setQueue(rest);
     a.onended = () => setPlaying(null);
     a.play().catch((e: unknown) => { setPlaying(null); setJobError(errorText(e)); });
@@ -224,6 +239,19 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
     if (!job) return;
     try { await api.cancelJob(job.id); } catch (e) { setJobError(errorText(e)); }
   };
+  const skip = (step: 1 | -1) => {
+    const order = blocks.map((b) => b.id);
+    const to = order[(playing ? order.indexOf(playing) : -1) + step];
+    if (to) listenFrom(to);
+  };
+  const showBlock = (id: string) => {
+    setSelected([id]);
+    setAnchor(id);
+    const row = document.getElementById(`block-${id}`);
+    row?.scrollIntoView({ block: "center", behavior: "smooth" });
+    flash(row);
+  };
+
   const listenFrom = (id: string) => {
     if (!project) return;
     const order = blockList(project).map((b) => b.id);
@@ -408,7 +436,6 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           ) : (
             <button onClick={() => void runSynth({})} disabled={!dirty} className={`${bar} flex-1 md:flex-none justify-center whitespace-nowrap bg-[var(--color-accent)] text-[var(--color-on-accent)] border-transparent`}><Sparkles size={13} />{t("speech.voiceDirty", { n: dirty })}</button>
           )}
-          <button onClick={() => listenFrom(blocks[0]?.id)} disabled={!blocks.length} className={`${bar} justify-center whitespace-nowrap`}><Play size={13} /><span className="max-sm:sr-only">{t("speech.listenAll")}</span></button>
           <button onClick={() => setExporting(true)} className={`${bar} max-md:hidden`}><Download size={13} />{t("speech.export")}</button>
         </div>
         <div className="hidden md:flex items-center gap-1.5 ml-auto">
@@ -511,6 +538,8 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           </DndContext>
         </div>
       </div>
+      <Transport blocks={transportBlocks} audio={audio} playing={playing} paused={paused} rate={speed} start={selected[0] ?? blocks[0]?.id ?? null} tint={tintOf}
+        onPlay={listenFrom} onPause={pauseAudio} onResume={resumeAudio} onStop={stopAudio} onSkip={skip} onRate={changeRate} onShow={showBlock} />
       {history && <HistoryDialog pid={pid} onClose={() => setHistory(false)} onRepeat={(block, seed) => { setHistory(false); void runSynth({ ids: [block], force: true, seed }); }} />}
       {dictionary && <DictionaryDialog pid={pid} project={project} onChange={edit} onClose={() => setDictionary(false)} />}
       {recast && (

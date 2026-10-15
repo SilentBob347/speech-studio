@@ -56,7 +56,6 @@ const MESSAGES = {
   not_loaded: () => "The recording's sound is not loaded yet; call the tool again.",
   speech_from: () => "from is a moment of a Listening recording; in a Speech project name the block by id.",
   listening_on: () => "on plays a Speech project from a block on; in a recording play a line (id) or from a moment (from).",
-  speech_rate: () => "A Speech project plays its takes as they were voiced; rate is for a Listening recording.",
 } as const;
 
 export type BridgeErrorCode = keyof typeof MESSAGES;
@@ -395,13 +394,17 @@ const builtIn: Record<string, Handler> = {
   async click(args) {
     takeArgs("ui_click", args, ["ref", "text"]);
     const element = find(args);
+    // named before the click: a play button of a row is renamed by its own click
+    const name = label(element) || element.tagName.toLowerCase();
+    const holder = element.closest("[data-mcp-context], [data-mcp-row]");
+    const row = holder?.getAttribute("data-mcp-context") ?? holder?.getAttribute("data-mcp-row");
     element.scrollIntoView({ block: "center" });
     flash(element);
     // an input opens its list on focus (the language pickers), as the user's click does
     if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) element.focus();
     element.click();
     await settle();
-    return { text: `Clicked ${label(element) || element.tagName.toLowerCase()}.` };
+    return { text: `Clicked ${name}${row ? ` in ${row}` : ""}.` };
   },
   async type(args) {
     takeArgs("ui_type", args, ["ref", "text", "value", "submit"]);
