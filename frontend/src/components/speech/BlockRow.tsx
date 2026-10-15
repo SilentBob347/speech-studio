@@ -379,7 +379,7 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
         <div className="min-w-0 pt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 sm:block sm:w-28 sm:shrink-0 sm:space-y-1">
           <input list="speech-speakers" value={block.speaker} onChange={(e) => a.patch({ speaker: e.target.value })} aria-label={t("speech.speaker")}
             className="w-32 sm:w-full bg-transparent text-[12px] font-semibold truncate focus:outline-none rounded px-1 -mx-1 focus:bg-[var(--color-surface-2)]" style={{ color: tint }} />
-          <div className="flex items-center gap-1.5 text-[10px] text-[var(--color-muted)]">
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] text-[var(--color-muted)]">
             <span className={`w-2 h-2 rounded-full shrink-0 ${STATE_DOT[shown]}`} title={t(`speech.state_${shown}`)} />
             <span>{t(`speech.state_${shown}`)}</span>
             {block.review && <span className={`px-1 rounded ${block.review === "approved" ? "text-[var(--color-accent)]" : "text-[var(--color-warn)]"}`} title={t(`review.${block.review}Hint`)}>{t(`review.${block.review}`)}</span>}
