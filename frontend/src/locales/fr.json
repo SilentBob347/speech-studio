@@ -1325,7 +1325,7 @@
     "cardNew": "pas encore reconnu",
     "remove": "Supprimer {{name}}",
     "back": "Retour aux enregistrements",
-    "status": "{{lines}} lignes · locuteurs : {{speakers}} · {{by}}",
+    "status": "{{lines}} lignes · {{words}} mots · locuteurs : {{speakers}} · {{by}}",
     "notYet": "Pas encore reconnu",
     "settings": "Reconnaissance",
     "transcribe": "Reconnaître",

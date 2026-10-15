@@ -1325,7 +1325,7 @@
     "cardNew": "ещё не распознана",
     "remove": "Удалить «{{name}}»",
     "back": "К записям",
-    "status": "строк: {{lines}} · спикеров: {{speakers}} · {{by}}",
+    "status": "строк: {{lines}} · слов: {{words}} · спикеров: {{speakers}} · {{by}}",
     "notYet": "Ещё не распознана",
     "settings": "Распознавание",
     "transcribe": "Распознать",

@@ -1325,7 +1325,7 @@
     "cardNew": "sin reconocer",
     "remove": "Eliminar {{name}}",
     "back": "Volver a las grabaciones",
-    "status": "{{lines}} líneas · hablantes: {{speakers}} · {{by}}",
+    "status": "{{lines}} líneas · {{words}} palabras · hablantes: {{speakers}} · {{by}}",
     "notYet": "Sin reconocer",
     "settings": "Reconocimiento",
     "transcribe": "Reconocer",

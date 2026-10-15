@@ -1325,7 +1325,7 @@
     "cardNew": "not recognised yet",
     "remove": "Delete {{name}}",
     "back": "Back to recordings",
-    "status": "{{lines}} lines · speakers: {{speakers}} · {{by}}",
+    "status": "{{lines}} lines · {{words}} words · speakers: {{speakers}} · {{by}}",
     "notYet": "Not recognised yet",
     "settings": "Recognition",
     "transcribe": "Recognise",

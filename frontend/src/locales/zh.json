@@ -1325,7 +1325,7 @@
     "cardNew": "尚未识别",
     "remove": "删除 {{name}}",
     "back": "返回录音列表",
-    "status": "{{lines}} 行 · 说话人：{{speakers}} · {{by}}",
+    "status": "{{lines}} 行 · {{words}} 词 · 说话人：{{speakers}} · {{by}}",
     "notYet": "尚未识别",
     "settings": "识别",
     "transcribe": "识别",

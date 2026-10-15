@@ -247,7 +247,7 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
           <input value={project.name} onChange={(e) => edit((p) => ({ ...p, name: e.target.value }))} aria-label={t("speech.name")}
             className="min-w-0 flex-1 bg-transparent text-[15px] font-semibold rounded px-1 border border-transparent hover:border-[var(--color-border)] focus:border-[var(--color-accent)] focus:outline-none" />
           <span className="hidden sm:inline text-[11px] text-[var(--color-muted)] tabnum whitespace-nowrap">
-            {project.made ? t("listen.status", { lines: shown, speakers: Object.keys(project.speakers).length, by: project.made.by }) : t("listen.notYet")}
+            {project.made ? t("listen.status", { lines: shown, words: lines.reduce((n, l) => n + (l.hidden ? 0 : l.words.filter((w) => !w.cut).length), 0), speakers: Object.keys(project.speakers).length, by: project.made.by }) : t("listen.notYet")}
             {saving ? ` · ${t("speech.saving")}` : ""}
           </span>
           <button onClick={undo} disabled={!canUndo} className="p-1.5 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30" {...named(t("speech.undo"))}><Undo2 size={15} /></button>

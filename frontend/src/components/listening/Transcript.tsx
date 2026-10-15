@@ -31,7 +31,7 @@ const Row = memo(function Row({ line, index, first, speakers, active, selected, 
     );
   }
   return (
-    <li data-mcp-row={`line ${index + 1} ${clock(line.start)} ${speakers[line.speaker] ?? line.speaker}${line.flag ? ` ${line.flag}` : ""}: ${line.text.slice(0, 60)}`} className="group grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[7.5rem_minmax(0,1fr)_auto] gap-x-3 gap-y-1 px-3 py-2 rounded-lg hover:bg-[var(--color-surface-2)]/60" data-line={index}>
+    <li data-mcp-row={`line ${index + 1} ${clock(line.start)} ${speakers[line.speaker] ?? line.speaker}${line.flag ? ` ${line.flag}` : ""}: ${line.text.slice(0, 60)}`} className="group grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[7.5rem_minmax(0,1fr)_auto] gap-x-3 gap-y-1 px-3 py-2 rounded-lg border-l-2 hover:bg-[var(--color-surface-2)]/60" style={{ borderLeftColor: color }} data-line={index}>
       <div className="min-w-0 flex flex-wrap items-center gap-x-2.5 gap-y-1 sm:block sm:space-y-1">
         <select value={line.speaker} onChange={(e) => onSpeaker(index, e.target.value)} aria-label={t("listen.speaker")}
           className="max-w-[60%] sm:max-w-none sm:w-full bg-transparent text-[12px] font-semibold truncate rounded border border-transparent hover:border-[var(--color-border)] focus:border-[var(--color-accent)] focus:outline-none" style={{ color }}>

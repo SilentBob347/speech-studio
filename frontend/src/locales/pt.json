@@ -1325,7 +1325,7 @@
     "cardNew": "ainda não reconhecida",
     "remove": "Excluir {{name}}",
     "back": "Voltar às gravações",
-    "status": "{{lines}} linhas · falantes: {{speakers}} · {{by}}",
+    "status": "{{lines}} linhas · {{words}} palavras · falantes: {{speakers}} · {{by}}",
     "notYet": "Ainda não reconhecida",
     "settings": "Reconhecimento",
     "transcribe": "Reconhecer",
