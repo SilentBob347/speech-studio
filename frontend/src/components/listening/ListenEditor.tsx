@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, AudioLines, ChevronDown, ChevronUp, Download, Eye, EyeOff, FileCheck2, Loader2, Pause, Play, Redo2, RotateCcw, RotateCw, Scissors, Search, Settings2, Undo2, UserPlus, Users, Wand2, X } from "lucide-react";
+import { ArrowLeft, AudioLines, ChevronDown, ChevronUp, Download, Eye, EyeOff, FileCheck2, Loader2, Pause, Play, Redo2, RotateCcw, RotateCw, Scissors, Search, Settings2, Undo2, UserPlus, UserSearch, Fingerprint, Users, Wand2, X } from "lucide-react";
 import { useListenProject } from "../../lib/useSpeechProject";
 import { askCloneTerms } from "../../lib/cloudConsent";
 import { comboOf, matches } from "../../lib/shortcuts";
 import {
-  activeToken, clock, cutSeconds, listenApi, mergeNext, newSpeaker, restoreAll, setLineText, speakerColor, splitLine, toggleCut, tokensOf, type ListenLine,
+  activeToken, clock, cutSeconds, listenApi, mergeNext, newSpeaker, restoreAll, setLineText, speakerColor, splitLine, toggleCut, tokensOf, type ListenLine, type SpeakerMatch,
 } from "../../lib/listen";
 import { findTranscriptWordMatches } from "../../lib/transcriptFuzzy";
 import { followJob } from "../../lib/followJob";
-import { errorText } from "../../lib/voices";
+import { errorText, prettyVoice } from "../../lib/voices";
 import { named } from "../../lib/a11y";
 import { useStore } from "../../store";
 import { usePublishEditor } from "../../lib/editorBridge";
@@ -191,6 +191,20 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
       useStore.getState().setMode("speech");
     } catch (e) { setFailure(errorText(e)); } finally { setBusy(null); }
   };
+  const [likeness, setLikeness] = useState<Record<string, SpeakerMatch> | null>(null);
+  const matchSpeakers = async () => {
+    setBusy("match");
+    setNotice(null);
+    setFailure(null);
+    try { setLikeness(Object.fromEntries((await listenApi.speakersMatch(pid)).speakers.map((m) => [m.speaker, m]))); } catch (e) { setFailure(errorText(e)); } finally { setBusy(null); }
+  };
+  const likeName = (m: SpeakerMatch) => (m.best?.kind === "voice" ? prettyVoice(m.best.name) : m.best?.name ?? "");
+  const remember = async (speaker: string) => {
+    setBusy("remember");
+    setNotice(null);
+    setFailure(null);
+    try { const r = await listenApi.speakerRemember(pid, speaker); setNotice(t("listen.remembered", { name: r.name, n: r.recordings })); } catch (e) { setFailure(errorText(e)); } finally { setBusy(null); }
+  };
   const makeVoices = async (speaker?: string) => {
     if (!(await askCloneTerms())) return;
     setBusy("voices");
@@ -298,8 +312,19 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
               <span className="text-[10px] tabnum text-[var(--color-muted)]">{speakerLines(k)}</span>
               <button onClick={() => setHiddenSpeakers((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; })} className="p-0.5 rounded text-[var(--color-muted)] hover:text-[var(--color-text)]" {...named(hiddenSpeakers.has(k) ? t("listen.showSpeaker") : t("listen.hideSpeaker"))}>{hiddenSpeakers.has(k) ? <EyeOff size={12} /> : <Eye size={12} />}</button>
               <button onClick={() => void makeVoices(k)} disabled={!!busy} className="p-0.5 rounded text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30" {...named(t("listen.voiceOf", { name }))}><UserPlus size={12} /></button>
+              <button onClick={() => void remember(k)} disabled={!!busy} className="p-0.5 rounded text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30" {...named(t("listen.rememberVoice", { name }))}><Fingerprint size={12} /></button>
+              {likeness?.[k]?.best?.same && likeName(likeness[k]) !== name && (
+                <button onClick={() => { const to = likeName(likeness[k]); edit((p) => ({ ...p, speakers: { ...p.speakers, [k]: to } })); }}
+                  className="ml-0.5 px-1.5 rounded-full bg-[var(--color-accent)]/15 text-[11px] text-[var(--color-accent)]" title={t(`listen.matchKind_${likeness[k].best!.kind}`)}>
+                  {t("listen.matchSuggest", { name: likeName(likeness[k]), score: likeness[k].best!.score.toFixed(2) })}
+                </button>
+              )}
+              {likeness && !likeness[k]?.best?.same && <span className="text-[10px] text-[var(--color-muted)]">{t("listen.matchNone")}</span>}
             </span>
           ))}
+          <button onClick={() => void matchSpeakers()} disabled={!!busy} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[var(--color-border)] text-[11px] text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30">
+            {busy === "match" ? <Loader2 size={11} className="animate-spin" /> : <UserSearch size={11} />}{t("listen.matchSpeakers")}
+          </button>
           {flagged > 0 && <span className="ml-auto text-[11px] text-[var(--color-muted)]" title={t("listen.flagHint")}>{t("listen.flaggedHidden", { n: flagged })}</span>}
         </div>
       )}

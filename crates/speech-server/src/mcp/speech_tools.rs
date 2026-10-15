@@ -211,6 +211,30 @@ pub(super) fn tools() -> Vec<Tool> {
             call: |args| post(listen_path(args, "/to-speech")?, json!({})),
         },
         Tool {
+            name: "listen_speakers_match",
+            description: "Who each speaker of a transcribed recording is like, by the voice print (WeSpeaker): the most alike named speaker (a profile kept with listen_speaker_remember) or library voice, its score and whether it is the same person by the studio's threshold. Rename the speaker with listen_update when it is.",
+            schema: || object(json!({ "pid": listen_pid() }), &["pid"]),
+            call: |args| post(listen_path(args, "/speakers/match")?, json!({})),
+        },
+        Tool {
+            name: "listen_speaker_remember",
+            description: "Keep a recording's speaker voice print under the name the speaker has there (speaker: its key), so later recordings recognise the person; a name kept before learns from this recording too.",
+            schema: || object(json!({ "pid": listen_pid(), "speaker": { "type": "string" } }), &["pid", "speaker"]),
+            call: |args| post(listen_path(args, "/speakers/remember")?, body_without(args, &["pid"])),
+        },
+        Tool {
+            name: "speaker_profiles_list",
+            description: "The named speakers the studio recognises by voice, with how many recordings each was learnt from.",
+            schema: super::nothing,
+            call: |_| get("/speaker-profiles".into()),
+        },
+        Tool {
+            name: "speaker_profile_delete",
+            description: "Forget a named speaker's voice print.",
+            schema: || object(json!({ "name": { "type": "string" } }), &["name"]),
+            call: |args| send(Method::DELETE, format!("/speaker-profiles/{}", segment(&text(args, "name")?)), Value::Null),
+        },
+        Tool {
             name: "listen_voices",
             description: "Voices of the recording's speakers (or of one speaker key): the best clean piece of each speaker's speech goes into the voice library with its text and word times.",
             schema: || object(json!({ "pid": listen_pid(), "speaker": { "type": "string" } }), &["pid"]),

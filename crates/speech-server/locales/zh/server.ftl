@@ -922,3 +922,4 @@ speech-own-ref-no-file = 没有收到参考文件
 speech-no-block = 项目中没有段落 { $id }
 director-no-tags = { $engine } 不支持表达标签，无需添加
 director-enriching = 导演正在添加标签：第 { $n } 部分，共 { $total } 部分
+speaker-too-little = 说话人“{ $name }”的语音太少，无法记住声音：至少需要 2 秒

@@ -152,7 +152,10 @@ connected and the address to paste.
   words `cut`, recognition settings, corrections), `listen_transcribe`, `listen_cut` (a new recording without the
   marked words), `listen_export`, `listen_check`, `listen_align` (the reference text laid over the recording, each word
   at the time it was heard; put the lines back with `listen_update`), `listen_to_speech` (the transcript as a Speech project),
-  `listen_voices` (each speaker's best clean speech into the voice library).
+  `listen_voices` (each speaker's best clean speech into the voice library). Who a speaker is, by voice:
+  `listen_speakers_match` (the most alike named speaker or library voice, with its score and whether it is the same
+  person), `listen_speaker_remember` (keep a speaker's voice print under its name so later recordings recognise the
+  person), `speaker_profiles_list`, `speaker_profile_delete`.
 
 ## OpenAI-compatible API
 

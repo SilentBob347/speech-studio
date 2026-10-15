@@ -1551,7 +1551,14 @@
     "flag_known_phrase": "типичная галлюцинация",
     "removeMessage": "«{{name}}» уйдёт в корзину вместе с записью, транскриптом и экспортами.",
     "engine_fal": "fal.ai (облако)",
-    "engineHint_fal": "Модель распознавания fal.ai (Whisper, ElevenLabs Scribe…): платно, нужен ключ; время слов приблизительное."
+    "engineHint_fal": "Модель распознавания fal.ai (Whisper, ElevenLabs Scribe…): платно, нужен ключ; время слов приблизительное.",
+    "matchSpeakers": "Узнать спикеров",
+    "matchSuggest": "это {{name}}? · {{score}}",
+    "matchNone": "не узнан",
+    "matchKind_profile": "Спикер, которого вы запомнили раньше",
+    "matchKind_voice": "Голос из библиотеки",
+    "rememberVoice": "Запомнить голос: {{name}}",
+    "remembered": "Запомнил голос «{{name}}» (записей: {{n}}): в следующих записях студия его узнает."
   },
   "podcast": {
     "open": "Сценарий подкаста",

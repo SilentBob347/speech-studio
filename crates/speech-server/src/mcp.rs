@@ -542,6 +542,8 @@ const JOURNAL: &[(&str, &str, &str)] = &[
     ("voice_design_keep", "create", "voice"),
     ("voice_restore", "restore", "voice"),
     ("voice_ref_apply", "update", "voice"),
+    ("listen_speaker_remember", "update", "listening"),
+    ("speaker_profile_delete", "delete", "listening"),
     ("voice_import", "import", "voice"),
     ("voice_photo_set", "update", "voice"),
     ("voices_export", "export", "voices"),

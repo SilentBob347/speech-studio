@@ -1551,7 +1551,14 @@
     "flag_known_phrase": "uma alucinação típica",
     "removeMessage": "«{{name}}» vai para a lixeira com a gravação, a transcrição e as exportações.",
     "engine_fal": "fal.ai (nuvem)",
-    "engineHint_fal": "Um modelo de reconhecimento da fal.ai (Whisper, ElevenLabs Scribe…): pago, precisa da chave; tempos de palavras aproximados."
+    "engineHint_fal": "Um modelo de reconhecimento da fal.ai (Whisper, ElevenLabs Scribe…): pago, precisa da chave; tempos de palavras aproximados.",
+    "matchSpeakers": "Reconhecer oradores",
+    "matchSuggest": "é {{name}}? · {{score}}",
+    "matchNone": "não reconhecido",
+    "matchKind_profile": "Um orador que você nomeou antes",
+    "matchKind_voice": "Uma voz da biblioteca",
+    "rememberVoice": "Memorizar a voz: {{name}}",
+    "remembered": "Voz de «{{name}}» memorizada (gravações: {{n}}): o estúdio a reconhecerá nas próximas."
   },
   "podcast": {
     "open": "Roteiro de podcast",

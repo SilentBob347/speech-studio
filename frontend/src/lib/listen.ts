@@ -65,6 +65,9 @@ export function clock(seconds: number): string {
   return h ? `${h}:${String(m).padStart(2, "0")}:${ss}` : `${m}:${ss}`;
 }
 
+/** Who a recording's speaker is like by voice: a named speaker (profile) or a library voice, and whether it is the same person. */
+export type SpeakerMatch = { speaker: string; name: string | null; best: { name: string; kind: "profile" | "voice"; score: number; same: boolean } | null };
+
 export const listenApi = {
   upload: (file: File) => {
     const form = new FormData();
@@ -82,6 +85,8 @@ export const listenApi = {
   export: (pid: string, format: TranscriptFormat, speakers: boolean, times: boolean) => postCoded<{ file: string; text: string }>(`/listen/${pid}/export`, { format, speakers, times }),
   check: (pid: string, reference: string) => postCoded<ReferenceCheck>(`/listen/${pid}/check`, { reference }),
   toSpeech: (pid: string) => postCoded<{ pid: string }>(`/listen/${pid}/to-speech`, {}),
+  speakersMatch: (pid: string) => postCoded<{ speakers: SpeakerMatch[]; threshold: number }>(`/listen/${pid}/speakers/match`, {}),
+  speakerRemember: (pid: string, speaker: string) => postCoded<{ name: string; recordings: number }>(`/listen/${pid}/speakers/remember`, { speaker }),
   voices: (pid: string, speaker?: string) => postCoded<{ made: { speaker: string; voice: string; seconds: number }[]; skipped: string[] }>(`/listen/${pid}/voices`, speaker ? { speaker } : {}),
 };
 

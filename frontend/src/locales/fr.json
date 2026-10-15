@@ -1551,7 +1551,14 @@
     "flag_known_phrase": "une hallucination typique",
     "removeMessage": "« {{name}} » part à la corbeille avec son enregistrement, sa transcription et ses exports.",
     "engine_fal": "fal.ai (cloud)",
-    "engineHint_fal": "Un modèle de reconnaissance fal.ai (Whisper, ElevenLabs Scribe…) : payant, demande la clé ; horaires des mots approximatifs."
+    "engineHint_fal": "Un modèle de reconnaissance fal.ai (Whisper, ElevenLabs Scribe…) : payant, demande la clé ; horaires des mots approximatifs.",
+    "matchSpeakers": "Reconnaître les locuteurs",
+    "matchSuggest": "est-ce {{name}} ? · {{score}}",
+    "matchNone": "non reconnu",
+    "matchKind_profile": "Un locuteur nommé auparavant",
+    "matchKind_voice": "Une voix de la bibliothèque",
+    "rememberVoice": "Retenir la voix : {{name}}",
+    "remembered": "Voix de « {{name}} » retenue (enregistrements : {{n}}) : le studio la reconnaîtra dans les suivants."
   },
   "podcast": {
     "open": "Script de podcast",

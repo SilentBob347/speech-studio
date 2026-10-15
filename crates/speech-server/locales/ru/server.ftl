@@ -1146,3 +1146,4 @@ speech-own-ref-no-file = не пришёл файл рефа
 speech-no-block = в проекте нет блока { $id }
 director-no-tags = у движка { $engine } нет тегов экспрессии — расставлять нечего
 director-enriching = Режиссёр расставляет теги: часть { $n } из { $total }
+speaker-too-little = у спикера «{ $name }» слишком мало речи, чтобы запомнить голос: нужно хотя бы 2 секунды

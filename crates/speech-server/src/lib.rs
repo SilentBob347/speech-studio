@@ -54,6 +54,7 @@ mod qwen_tts;
 mod tagging;
 mod tts_text;
 mod tts_trim;
+mod speaker_profiles;
 mod speech_api;
 mod speech_jobs;
 mod speech_project;
@@ -510,6 +511,10 @@ pub fn build_router(state: AppState) -> Router {
         .route("/listen/{pid}/aligned", post(listen_api::aligned))
         .route("/listen/{pid}/to-speech", post(listen_api::to_speech))
         .route("/listen/{pid}/voices", post(listen_api::voices))
+        .route("/listen/{pid}/speakers/match", post(listen_api::speakers_match))
+        .route("/listen/{pid}/speakers/remember", post(listen_api::speaker_remember))
+        .route("/speaker-profiles", get(listen_api::speaker_profiles))
+        .route("/speaker-profiles/{name}", axum::routing::delete(listen_api::speaker_forget))
         .route("/projects/from_url", post(url_import::create_from_url))
         .route("/projects/podcast", post(director_api::podcast))
         .route("/projects/{pid}/cast", post(director_api::cast))

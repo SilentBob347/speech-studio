@@ -1551,7 +1551,14 @@
     "flag_known_phrase": "典型幻觉",
     "removeMessage": "“{{name}}”将连同录音、转录和导出一起移到回收站。",
     "engine_fal": "fal.ai（云端）",
-    "engineHint_fal": "fal.ai 的识别模型（Whisper、ElevenLabs Scribe…）：付费，需要密钥；词时间为近似值。"
+    "engineHint_fal": "fal.ai 的识别模型（Whisper、ElevenLabs Scribe…）：付费，需要密钥；词时间为近似值。",
+    "matchSpeakers": "识别说话人",
+    "matchSuggest": "是 {{name}} 吗？· {{score}}",
+    "matchNone": "未识别",
+    "matchKind_profile": "之前命名过的说话人",
+    "matchKind_voice": "声音库中的声音",
+    "rememberVoice": "记住声音：{{name}}",
+    "remembered": "已记住“{{name}}”的声音（录音数：{{n}}）：之后的录音中工作室会认出它。"
   },
   "podcast": {
     "open": "播客脚本",

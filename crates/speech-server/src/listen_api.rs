@@ -284,6 +284,42 @@ pub async fn voices(State(st): State<AppState>, AxPath(pid): AxPath<String>, bod
     saved(res, StatusCode::BAD_REQUEST)
 }
 
+fn profile_paths(st: &AppState) -> crate::speaker_profiles::Paths {
+    crate::speaker_profiles::Paths { repo_root: st.repo_root.clone(), workspace: st.workspace.clone(), voices_dir: st.voices_dir.clone(), models_root: st.models_root.clone() }
+}
+
+/// POST /listen/{pid}/speakers/match — who each speaker of the recording is like among the named speakers and the
+/// library voices, by the voice print.
+pub async fn speakers_match(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Response {
+    let p = profile_paths(&st);
+    let res = joined(tokio::task::spawn_blocking(crate::mcp::carry(move || crate::speaker_profiles::matches(&p, &pid))).await);
+    saved(res, StatusCode::BAD_REQUEST)
+}
+
+/// POST /listen/{pid}/speakers/remember {speaker} — keep this speaker's voice print under the name it has here.
+pub async fn speaker_remember(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<Value>) -> Response {
+    let speaker = body.get("speaker").and_then(Value::as_str).unwrap_or_default().to_string();
+    let p = profile_paths(&st);
+    let res = joined(tokio::task::spawn_blocking(crate::mcp::carry(move || crate::speaker_profiles::remember(&p, &pid, &speaker))).await);
+    saved(res, StatusCode::BAD_REQUEST)
+}
+
+/// GET /speaker-profiles — the named speakers the studio knows by voice.
+pub async fn speaker_profiles(State(st): State<AppState>) -> Response {
+    match crate::speaker_profiles::listing(&st.repo_root) {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => refuse(StatusCode::INTERNAL_SERVER_ERROR, "read_failed", e),
+    }
+}
+
+/// DELETE /speaker-profiles/{name} — forget a named speaker's voice print.
+pub async fn speaker_forget(State(st): State<AppState>, AxPath(name): AxPath<String>) -> Response {
+    match crate::speaker_profiles::forget(&st.repo_root, &name) {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => refuse(StatusCode::NOT_FOUND, "no_profile", e),
+    }
+}
+
 fn voices_from_speakers(ws: &Path, voices_dir: &Path, models_root: &Path, pid: &str, only: Option<&str>) -> Result<Value, String> {
     let project = lp::load(ws, pid)?;
     let dir = lp::dir(ws, pid);
