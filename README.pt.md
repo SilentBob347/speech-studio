@@ -1,0 +1,299 @@
+<div align="center">
+
+<img src="frontend/public/favicon.svg" width="72" alt="Logo do Speech Studio"/>
+
+# Speech Studio
+
+**Estúdio de voz com IA gratuito e offline para Windows — dá voz a qualquer texto com vozes clonadas e embutidas e transforma gravações em texto com quem fala. O russo feito direito: números no caso certo, acentos, «ё» e homógrafos. 100% local, zero Python: um `.exe` nativo (Rust + C++/CUDA); cada modelo e cada motor baixam com um botão.**
+
+[![License](https://img.shields.io/github/license/timoncool/speech-studio?style=flat-square)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/timoncool/speech-studio?style=flat-square)](https://github.com/timoncool/speech-studio/stargazers)
+[![Latest release](https://img.shields.io/github/v/release/timoncool/speech-studio?include_prereleases&style=flat-square)](https://github.com/timoncool/speech-studio/releases)
+[![Downloads](https://img.shields.io/github/downloads/timoncool/speech-studio/total?style=flat-square)](https://github.com/timoncool/speech-studio/releases)
+[![Last commit](https://img.shields.io/github/last-commit/timoncool/speech-studio?style=flat-square)](https://github.com/timoncool/speech-studio/commits)
+
+[English](README.md) · [Русский](README.ru.md) · [中文](README.zh.md) · [Español](README.es.md) · **Português** · [Français](README.fr.md)
+
+![Speech Studio — um diálogo com uma voz para cada personagem](docs/shots/speech-ru.png)
+
+</div>
+
+## O que é
+
+O **Speech Studio** tem dois modos. **Speech** dá voz a um texto: uma frase, um diálogo com uma voz por personagem, um podcast que o diretor escreve para você ou um livro inteiro a partir de EPUB, FB2, PDF ou DOCX. **Listening** transforma uma gravação, um vídeo ou um link em texto com quem disse o quê e quando, edita pelas palavras, confere uma locução com o texto que ela deveria dizer e cria vozes da biblioteca a partir de quem fala.
+
+Tudo roda **na sua máquina**: sem nuvem e sem assinatura; seus textos, gravações e impressões de voz não saem do computador. Se quiser uma voz que sua placa não roda, há também as vozes na nuvem do **OpenRouter**, **Google Gemini**, **fal.ai** e **Runware**, cada uma com sua chave e uma confirmação antes da primeira chamada; vêm desligadas.
+
+É um **aplicativo totalmente nativo**: sem Python embutido, sem torch, sem wheels de CUDA. O estúdio inteiro é **Rust + motores nativos C++/CUDA (GGUF/ONNX)** em um só processo. Modelos, motores, as bibliotecas CUDA e VC++ e o ffmpeg **o próprio aplicativo baixa** na primeira execução, e um modelo que outro estúdio do autor já tem é aproveitado em vez de baixado de novo. **O aplicativo é feito e testado para placas NVIDIA**; para o resto, veja *O que roda onde*.
+
+## Para agentes de IA
+
+Enquanto o Speech Studio está aberto, ele serve MCP em `http://127.0.0.1:8797/mcp`: um agente como Claude Code, Claude Desktop, Cursor ou Codex faz tudo o que a janela faz, pelo mesmo código: dá voz a um texto em um arquivo com uma só chamada, cria e edita projetos bloco a bloco, distribui vozes entre personagens, cria uma voz a partir de uma descrição, transcreve e confere gravações e exporta audiolivros com capítulos e legendas. Em Configurações, **Agente (MCP)** mostra se há um agente conectado e o que colar no cliente.
+
+1. Instale o estúdio a partir da [versão mais recente](https://github.com/timoncool/speech-studio/releases/latest) e abra-o.
+2. Conecte-se ao servidor MCP:
+   ```bash
+   claude mcp add --transport http speech-studio http://127.0.0.1:8797/mcp
+   ```
+   Outros clientes: `{ "mcpServers": { "speech-studio": { "type": "streamable-http", "url": "http://127.0.0.1:8797/mcp" } } }`
+3. Leia a habilidade que o servidor oferece (recurso `studio://skill`), o mesmo texto de [docs/mcp-skill.md](docs/mcp-skill.md), e comece pela ferramenta `studio_status`.
+
+Na mesma porta o estúdio fala a API de áudio da OpenAI — `POST /v1/audio/speech`, `POST /v1/audio/transcriptions`, `GET /v1/models` —, então ferramentas feitas para a OpenAI locutam e transcrevem por ele, com o nome de uma voz da biblioteca como `voice`. [llms.txt](llms.txt) diz o mesmo para ferramentas que o procuram. Só programas deste computador podem se conectar.
+
+## Dois modos
+
+| Modo | O que faz |
+|------|--------------|
+| 🔊 **Speech** | Texto, diálogo, podcast ou livro → blocos locutados com tomadas, revisados de ouvido e exportados em WAV, FLAC, MP3, OGG, M4A ou M4B com capítulos, legendas e texto sincronizado |
+| 👂 **Listening** | Áudio, vídeo ou link → uma transcrição com falantes e tempos por palavra, um player karaokê, edição pelo texto, exportação para SRT, VTT, ASS, TXT ou JSON e conferência com um texto de referência |
+
+## Recursos
+
+**Vozes e motores**
+
+- **Cinco motores locais** — [Higgs Audio v3](https://huggingface.co/bosonai) (clonagem, emoções e sons), **Fish Audio Drama 3** (a voz aberta mais forte, para placas de 24 GB), **Supertonic 3** (rápido, dez vozes embutidas), **Qwen3-TTS 1.7B** (nove vozes embutidas, clonagem, uma instrução por bloco) e **Qwen3-TTS com acento russo**, a LoRA de siriusfreak aplicada na hora.
+- **Motor por personagem e por bloco** sobre o do projeto; um motor que não fala com a voz escolhida diz qual voz própria vai usar.
+- **Biblioteca de vozes** — um pacote de vozes com um clique, 743 vozes russas do catálogo na nuvem, gravação pelo microfone, importação de arquivos e ZIP, foto, gênero, idade, idioma, tags e consentimento; a transcrição da referência é reconhecida uma vez e guardada.
+- **Limpeza da referência** — Mel-Band Roformer separa a voz da música e o **DPDFNet** remove o ruído com controle de intensidade, para a fala continuar viva; o original é guardado.
+- **O melhor trecho da referência** — janelas nas pausas entre palavras reconhecidas, cada uma com duração, relação sinal/ruído, clipping e a pausa mais longa.
+- **Voz por descrição** — o Qwen3-TTS VoiceDesign cria uma voz a partir de «uma senhora idosa de voz suave e um pouco rouca…»: ouça vários candidatos e guarde um na biblioteca.
+
+**Texto que soa certo**
+
+- **Normalizador do russo** — números no caso e gênero certos, datas, horas, dinheiro, unidades, números romanos, marcas latinas e siglas.
+- **Acentos, «ё» e homógrafos** pelo RUAccent — o modelo grande de homógrafos (big_poetry em int8, as mesmas escolhas do fp32) decide pela frase; os duvidosos ficam destacados para você e seus `+` são mantidos.
+- **Dicionário de pronúncia** — substituição, regex e fonemas, no escopo do projeto, idioma, voz ou motor, importação de Balabolka `.rex`/`.dic`/`.bxd` e teste de ouvido direto do dicionário.
+- **Marcação compatível com o SpeechKit** — acento `+`, pausas `sil<[300]>` e `[pause 500ms]`, ritmo `[rate:1.2]`, `**ênfase**`; o que um motor ignora é marcado, nunca descartado em silêncio.
+
+**Projetos**
+
+- **O texto como linha do tempo** — blocos com falantes, tomadas (até cinco), controle de desatualizados, desfazer e refazer, arrastar para reordenar, buscar e substituir com regex, notas e marcadores.
+- **Controle de qualidade** — cada tomada é reconhecida de volta e comparada palavra a palavra, além de checar clipping, silêncio, corte, estalo no fim, frase repetida, cauda longa, música ou ruído no lugar da fala e semelhança com a voz de referência; várias tomadas com a melhor escolhida.
+- **Diálogos e podcasts** — linhas `Ana:` e `[Ana]` viram personagens, o diretor escreve um podcast sobre um tema para N falantes, pausas negativas criam interrupções e a **linha do tempo** mostra cada sobreposição com cortar, juntar ou manter.
+- **Audiolivros** — EPUB, FB2, PDF, DOCX, HTML, Markdown e TXT com prévia dos capítulos, elenco pelo diretor, M4B com capítulos e capa, partes para livros longos e checagem de volume ACX.
+- **Legendas como projeto** — falas de SRT, VTT e ASS locutadas no seu tempo: o ritmo sobe antes, uma tomada que não cabe é refeita e depois vêm a aceleração e o empréstimo do silêncio anterior.
+- **Checagem antes de exportar** — blocos sem áudio, desatualizados, com falha, com o arquivo alterado ou mais longos que a fala são listados antes da exportação; só a duração pode ser liberada.
+- **Volume** — predefinições de vídeo (−14 LUFS), podcast (−16 LUFS) e ACX com limitador true-peak, room tone e respirações entre blocos.
+- **Arquivo de projeto** — `.speechproj` com texto, vozes e áudio leva um projeto para outro computador.
+
+**Listening**
+
+- **Parakeet-TDT ou Whisper**, até oito falantes com Nemotron 3 Diarization, uma gravação longa cortada nas pausas pelo **Silero VAD v6**, ruído removido pelo DPDFNet e música pelo Roformer.
+- **Uma dica para o Whisper** — tema e grafias, mais as correções que você adicionar.
+- **Lote** — solte vários arquivos de uma vez; cada um vira uma gravação na fila de reconhecimento.
+- **Um texto conhecido sobre a gravação** — o texto de referência recebe o tempo de cada palavra ouvida, frase por frase.
+- **Vozes a partir dos falantes** — uma voz da biblioteca com as palavras mais limpas de cada falante.
+
+**Em todo lugar**
+
+- **API compatível com a OpenAI**, **MCP** com controle da janela para agentes e um painel de assistente com um modelo do OpenRouter e as mesmas ferramentas.
+- **Diagnóstico** — placa de vídeo, driver, CUDA, bibliotecas, logs e um pacote para relatar erros sem chaves.
+- **O aplicativo inteiro em seis idiomas**, tema claro e escuro, atualização automática e totalmente portátil.
+
+## Capturas de tela
+
+A tela inicial — um texto, um livro, legendas ou um roteiro de podcast viram projeto:
+
+![Tela inicial do Speech Studio](docs/shots/home-en.png)
+
+Listening — transcrição com falantes e tempos por palavra, player karaokê, edição pelo texto e exportação:
+
+![Listening no Speech Studio](docs/shots/listening-en.png)
+
+## Requisitos
+
+- **SO:** Windows 10 / 11 (x64); Linux x86-64 como build experimental
+- **GPU:** NVIDIA com 8 GB de VRAM ou mais e um driver recente; o Drama 3 precisa de 24 GB. Sem NVIDIA só rodam os caminhos de CPU e nuvem de *O que roda onde*, e essa configuração não é testada
+- **WebView2** — já vem no Windows 11; no Windows 10 o instalador baixa
+- **Disco:** cerca de 9 GB para os modelos, motores e bibliotecas padrão, mais o que você adicionar (o Drama 3 tem 23 GB)
+
+Numa máquina NVIDIA, a única coisa instalada à mão é um **[driver NVIDIA](https://www.nvidia.com/Download/index.aspx)** recente.
+
+## Início rápido
+
+1. **Baixe** a versão portátil em [Releases](https://github.com/timoncool/speech-studio/releases) e descompacte onde quiser (ou instale com `-setup.exe` / `.msi`).
+2. **Execute** `Speech Studio.exe`.
+3. No painel **Primeira execução** clique em **Baixar os marcados** — o aplicativo baixa uma vez os modelos, motores e bibliotecas.
+4. **Cole um texto** e clique em **Criar**, ou mude para **Listening** e solte uma gravação.
+
+> Tudo é baixado e fica **dentro da pasta do aplicativo**: modelos, caches, vozes e projetos não vão para nenhum outro lugar.
+
+O que mudou e quando está em [CHANGELOG.md](CHANGELOG.md), e o botão de brilhos no topo do aplicativo mostra isso. Regras para colaboradores e agentes de código: [AGENTS.md](AGENTS.md).
+
+## Tudo o que o aplicativo baixa
+
+O painel da primeira execução baixa tudo isso com um botão. Atrás de um proxy, ou onde o Hugging Face está bloqueado, configure o proxy em Configurações → **Rede**. Você também pode baixar os arquivos diretos, colocá-los onde diz a última coluna (a partir da pasta do aplicativo) e clicar em **Importar da pasta**; os componentes em arquivo compactado o aplicativo baixa sozinho. Cada arquivo é conferido com seu SHA-256 fixado antes do uso. Tamanhos e hashes vêm do manifesto do aplicativo, `crates/speech-server/src/setup.rs`, e esta tabela é conferida com ele.
+
+<!-- downloads:start -->
+| Componente | Necessidade | Arquivos (links diretos) | Tamanho | Onde colocar |
+|---|---|---|---|---|
+| Higgs Audio v3 Q8_0 | obrigatório | [q8_0.gguf](https://huggingface.co/drbaph/Higgs-Audio-v3-Studio/resolve/c6e9db5a2062c15accc1b9bfa54d927bbdb124dc/models/higgs-q8_0/q8_0.gguf) → `models\higgs-q8_0\q8_0.gguf`<br>[config.json](https://huggingface.co/drbaph/Higgs-Audio-v3-Studio/resolve/c6e9db5a2062c15accc1b9bfa54d927bbdb124dc/models/higgs-q8_0/config.json) → `models\higgs-q8_0\config.json`<br>[chat_template.jinja](https://huggingface.co/drbaph/Higgs-Audio-v3-Studio/resolve/c6e9db5a2062c15accc1b9bfa54d927bbdb124dc/models/higgs-q8_0/chat_template.jinja) → `models\higgs-q8_0\chat_template.jinja`<br>[tokenizer.json](https://huggingface.co/drbaph/Higgs-Audio-v3-Studio/resolve/c6e9db5a2062c15accc1b9bfa54d927bbdb124dc/models/higgs-q8_0/tokenizer.json) → `models\higgs-q8_0\tokenizer.json`<br>[tokenizer_config.json](https://huggingface.co/drbaph/Higgs-Audio-v3-Studio/resolve/c6e9db5a2062c15accc1b9bfa54d927bbdb124dc/models/higgs-q8_0/tokenizer_config.json) → `models\higgs-q8_0\tokenizer_config.json`<br>[higgs_audio_v2_tokenizer_config.json](https://huggingface.co/drbaph/Higgs-Audio-v3-Studio/resolve/c6e9db5a2062c15accc1b9bfa54d927bbdb124dc/models/higgs-q8_0/higgs_audio_v2_tokenizer_config.json) → `models\higgs-q8_0\higgs_audio_v2_tokenizer_config.json` | 5.5 GB | como está, no caminho após a seta |
+| audiocpp_engine.dll (Higgs engine) | obrigatório | [audiocpp_engine.dll](https://github.com/timoncool/Higgs-Ultimate/releases/download/engine-0.2.3-turing/audiocpp_engine.dll) → `models\higgs-engine\audiocpp_engine.dll` | 129 MB | como está, no caminho após a seta |
+| Gemma-4 12B QAT q4_0 + vision | opcional | [gemma-4-12b-it-qat-q4_0.gguf](https://huggingface.co/google/gemma-4-12b-it-qat-q4_0-gguf/resolve/2b318d6ebebf093f50ca4376e858325f10703358/gemma-4-12b-it-qat-q4_0.gguf) → `models\mt\gemma-4-12b-it-qat-q4_0.gguf`<br>[mmproj-gemma-4-12b-it-qat-q4_0.gguf](https://huggingface.co/google/gemma-4-12b-it-qat-q4_0-gguf/resolve/2b318d6ebebf093f50ca4376e858325f10703358/mmproj-gemma-4-12b-it-qat-q4_0.gguf) → `models\mt\mmproj-gemma-4-12b-it-qat-q4_0.gguf` | 7.2 GB | como está, no caminho após a seta |
+| Gemma-4 12B Q5_K_M + vision | opcional | [gemma-4-12b-it-Q5_K_M.gguf](https://huggingface.co/unsloth/gemma-4-12b-it-GGUF/resolve/d997c805aafe035a8024f961c6e1afd6b30d79a5/gemma-4-12b-it-Q5_K_M.gguf) → `models\mt-q5_0\gemma-4-12b-it-Q5_K_M.gguf`<br>[mmproj-F16.gguf](https://huggingface.co/unsloth/gemma-4-12b-it-GGUF/resolve/d997c805aafe035a8024f961c6e1afd6b30d79a5/mmproj-F16.gguf) → `models\mt-q5_0\mmproj-F16.gguf` | 8.6 GB | como está, no caminho após a seta |
+| Gemma-4 12B Q6_K + vision | opcional | [gemma-4-12b-it-Q6_K.gguf](https://huggingface.co/unsloth/gemma-4-12b-it-GGUF/resolve/d997c805aafe035a8024f961c6e1afd6b30d79a5/gemma-4-12b-it-Q6_K.gguf) → `models\mt-q6_k\gemma-4-12b-it-Q6_K.gguf`<br>[mmproj-F16.gguf](https://huggingface.co/unsloth/gemma-4-12b-it-GGUF/resolve/d997c805aafe035a8024f961c6e1afd6b30d79a5/mmproj-F16.gguf) → `models\mt-q6_k\mmproj-F16.gguf` | 10.0 GB | como está, no caminho após a seta |
+| Gemma-4 12B Q8_0 + vision | opcional | [gemma-4-12b-it-Q8_0.gguf](https://huggingface.co/unsloth/gemma-4-12b-it-GGUF/resolve/d997c805aafe035a8024f961c6e1afd6b30d79a5/gemma-4-12b-it-Q8_0.gguf) → `models\mt-q8_0\gemma-4-12b-it-Q8_0.gguf`<br>[mmproj-F16.gguf](https://huggingface.co/unsloth/gemma-4-12b-it-GGUF/resolve/d997c805aafe035a8024f961c6e1afd6b30d79a5/mmproj-F16.gguf) → `models\mt-q8_0\mmproj-F16.gguf` | 12.8 GB | como está, no caminho após a seta |
+| Parakeet-TDT 0.6B v3 int8 | obrigatório | [encoder-model.int8.onnx](https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce/encoder-model.int8.onnx) → `models\tdt\encoder-model.int8.onnx`<br>[decoder_joint-model.int8.onnx](https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce/decoder_joint-model.int8.onnx) → `models\tdt\decoder_joint-model.int8.onnx`<br>[nemo128.onnx](https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce/nemo128.onnx) → `models\tdt\nemo128.onnx`<br>[vocab.txt](https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce/vocab.txt) → `models\tdt\vocab.txt`<br>[config.json](https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce/config.json) → `models\tdt\config.json` | 671 MB | como está, no caminho após a seta |
+| Higgs Audio v3 Q6_K | opcional | [q6_k.gguf](https://huggingface.co/drbaph/Higgs-Audio-v3-Studio/resolve/c6e9db5a2062c15accc1b9bfa54d927bbdb124dc/models/higgs-q6_k/q6_k.gguf) → `models\higgs-q6_k\q6_k.gguf`<br>[config.json](https://huggingface.co/drbaph/Higgs-Audio-v3-Studio/resolve/c6e9db5a2062c15accc1b9bfa54d927bbdb124dc/models/higgs-q6_k/config.json) → `models\higgs-q6_k\config.json`<br>[chat_template.jinja](https://huggingface.co/drbaph/Higgs-Audio-v3-Studio/resolve/c6e9db5a2062c15accc1b9bfa54d927bbdb124dc/models/higgs-q6_k/chat_template.jinja) → `models\higgs-q6_k\chat_template.jinja`<br>[tokenizer.json](https://huggingface.co/drbaph/Higgs-Audio-v3-Studio/resolve/c6e9db5a2062c15accc1b9bfa54d927bbdb124dc/models/higgs-q6_k/tokenizer.json) → `models\higgs-q6_k\tokenizer.json`<br>[tokenizer_config.json](https://huggingface.co/drbaph/Higgs-Audio-v3-Studio/resolve/c6e9db5a2062c15accc1b9bfa54d927bbdb124dc/models/higgs-q6_k/tokenizer_config.json) → `models\higgs-q6_k\tokenizer_config.json`<br>[higgs_audio_v2_tokenizer_config.json](https://huggingface.co/drbaph/Higgs-Audio-v3-Studio/resolve/c6e9db5a2062c15accc1b9bfa54d927bbdb124dc/models/higgs-q6_k/higgs_audio_v2_tokenizer_config.json) → `models\higgs-q6_k\higgs_audio_v2_tokenizer_config.json` | 5.0 GB | como está, no caminho após a seta |
+| Higgs Audio v3 Q4_K_M | opcional | [q4_k_m.gguf](https://huggingface.co/drbaph/Higgs-Audio-v3-Studio/resolve/c6e9db5a2062c15accc1b9bfa54d927bbdb124dc/models/higgs-q4_k_m/q4_k_m.gguf) → `models\higgs-q4_k_m\q4_k_m.gguf`<br>[config.json](https://huggingface.co/drbaph/Higgs-Audio-v3-Studio/resolve/c6e9db5a2062c15accc1b9bfa54d927bbdb124dc/models/higgs-q4_k_m/config.json) → `models\higgs-q4_k_m\config.json`<br>[chat_template.jinja](https://huggingface.co/drbaph/Higgs-Audio-v3-Studio/resolve/c6e9db5a2062c15accc1b9bfa54d927bbdb124dc/models/higgs-q4_k_m/chat_template.jinja) → `models\higgs-q4_k_m\chat_template.jinja`<br>[tokenizer.json](https://huggingface.co/drbaph/Higgs-Audio-v3-Studio/resolve/c6e9db5a2062c15accc1b9bfa54d927bbdb124dc/models/higgs-q4_k_m/tokenizer.json) → `models\higgs-q4_k_m\tokenizer.json`<br>[tokenizer_config.json](https://huggingface.co/drbaph/Higgs-Audio-v3-Studio/resolve/c6e9db5a2062c15accc1b9bfa54d927bbdb124dc/models/higgs-q4_k_m/tokenizer_config.json) → `models\higgs-q4_k_m\tokenizer_config.json`<br>[higgs_audio_v2_tokenizer_config.json](https://huggingface.co/drbaph/Higgs-Audio-v3-Studio/resolve/c6e9db5a2062c15accc1b9bfa54d927bbdb124dc/models/higgs-q4_k_m/higgs_audio_v2_tokenizer_config.json) → `models\higgs-q4_k_m\higgs_audio_v2_tokenizer_config.json` | 4.1 GB | como está, no caminho após a seta |
+| Fish Audio Drama 3 Q4 + drama_engine (24 GB+ GPU) | opcional | [.gitattributes](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/.gitattributes) → `models\drama3\.gitattributes`<br>[LICENSE](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/LICENSE) → `models\drama3\LICENSE`<br>[NOTICE](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/NOTICE) → `models\drama3\NOTICE`<br>[README.md](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/README.md) → `models\drama3\README.md`<br>[codec.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/codec.safetensors) → `models\drama3\codec.safetensors`<br>[drama.json](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/drama.json) → `models\drama3\drama.json`<br>[globals.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/globals.safetensors) → `models\drama3\globals.safetensors`<br>[layer00.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer00.safetensors) → `models\drama3\layer00.safetensors`<br>[layer01.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer01.safetensors) → `models\drama3\layer01.safetensors`<br>[layer02.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer02.safetensors) → `models\drama3\layer02.safetensors`<br>[layer03.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer03.safetensors) → `models\drama3\layer03.safetensors`<br>[layer04.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer04.safetensors) → `models\drama3\layer04.safetensors`<br>[layer05.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer05.safetensors) → `models\drama3\layer05.safetensors`<br>[layer06.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer06.safetensors) → `models\drama3\layer06.safetensors`<br>[layer07.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer07.safetensors) → `models\drama3\layer07.safetensors`<br>[layer08.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer08.safetensors) → `models\drama3\layer08.safetensors`<br>[layer09.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer09.safetensors) → `models\drama3\layer09.safetensors`<br>[layer10.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer10.safetensors) → `models\drama3\layer10.safetensors`<br>[layer11.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer11.safetensors) → `models\drama3\layer11.safetensors`<br>[layer12.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer12.safetensors) → `models\drama3\layer12.safetensors`<br>[layer13.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer13.safetensors) → `models\drama3\layer13.safetensors`<br>[layer14.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer14.safetensors) → `models\drama3\layer14.safetensors`<br>[layer15.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer15.safetensors) → `models\drama3\layer15.safetensors`<br>[layer16.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer16.safetensors) → `models\drama3\layer16.safetensors`<br>[layer17.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer17.safetensors) → `models\drama3\layer17.safetensors`<br>[layer18.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer18.safetensors) → `models\drama3\layer18.safetensors`<br>[layer19.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer19.safetensors) → `models\drama3\layer19.safetensors`<br>[layer20.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer20.safetensors) → `models\drama3\layer20.safetensors`<br>[layer21.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer21.safetensors) → `models\drama3\layer21.safetensors`<br>[layer22.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer22.safetensors) → `models\drama3\layer22.safetensors`<br>[layer23.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer23.safetensors) → `models\drama3\layer23.safetensors`<br>[layer24.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer24.safetensors) → `models\drama3\layer24.safetensors`<br>[layer25.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer25.safetensors) → `models\drama3\layer25.safetensors`<br>[layer26.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer26.safetensors) → `models\drama3\layer26.safetensors`<br>[layer27.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer27.safetensors) → `models\drama3\layer27.safetensors`<br>[layer28.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer28.safetensors) → `models\drama3\layer28.safetensors`<br>[layer29.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer29.safetensors) → `models\drama3\layer29.safetensors`<br>[layer30.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer30.safetensors) → `models\drama3\layer30.safetensors`<br>[layer31.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer31.safetensors) → `models\drama3\layer31.safetensors`<br>[layer32.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer32.safetensors) → `models\drama3\layer32.safetensors`<br>[layer33.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer33.safetensors) → `models\drama3\layer33.safetensors`<br>[layer34.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer34.safetensors) → `models\drama3\layer34.safetensors`<br>[layer35.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer35.safetensors) → `models\drama3\layer35.safetensors`<br>[layer36.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer36.safetensors) → `models\drama3\layer36.safetensors`<br>[layer37.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer37.safetensors) → `models\drama3\layer37.safetensors`<br>[layer38.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer38.safetensors) → `models\drama3\layer38.safetensors`<br>[layer39.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/layer39.safetensors) → `models\drama3\layer39.safetensors`<br>[tokenizer.json](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/tokenizer.json) → `models\drama3\tokenizer.json`<br>[tower.safetensors](https://huggingface.co/apiplant/drama-q4/resolve/1fce9bd21d46a0311294aebfad19f994df90902f/tower.safetensors) → `models\drama3\tower.safetensors`<br>[drama_engine.dll](https://github.com/timoncool/drama-rs/releases/download/engine-0.1.2/drama_engine.dll) → `models\drama-engine\drama_engine.dll` | 23.0 GB | como está, no caminho após a seta |
+| Supertonic 3 int8 | opcional | [LICENSE](https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/LICENSE) → `models\supertonic3\LICENSE`<br>[duration_predictor.onnx](https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/onnx/duration_predictor.onnx) → `models\supertonic3\onnx\duration_predictor.onnx`<br>[text_encoder.onnx](https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/onnx/text_encoder.onnx) → `models\supertonic3\onnx\text_encoder.onnx`<br>[vector_estimator.onnx](https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/onnx/vector_estimator.onnx) → `models\supertonic3\onnx\vector_estimator.onnx`<br>[vocoder.onnx](https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/onnx/vocoder.onnx) → `models\supertonic3\onnx\vocoder.onnx`<br>[tts.json](https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/onnx/tts.json) → `models\supertonic3\onnx\tts.json`<br>[unicode_indexer.json](https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/onnx/unicode_indexer.json) → `models\supertonic3\onnx\unicode_indexer.json`<br>[F1.json](https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/voice_styles/F1.json) → `models\supertonic3\voice_styles\F1.json`<br>[F2.json](https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/voice_styles/F2.json) → `models\supertonic3\voice_styles\F2.json`<br>[F3.json](https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/voice_styles/F3.json) → `models\supertonic3\voice_styles\F3.json`<br>[F4.json](https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/voice_styles/F4.json) → `models\supertonic3\voice_styles\F4.json`<br>[F5.json](https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/voice_styles/F5.json) → `models\supertonic3\voice_styles\F5.json`<br>[M1.json](https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/voice_styles/M1.json) → `models\supertonic3\voice_styles\M1.json`<br>[M2.json](https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/voice_styles/M2.json) → `models\supertonic3\voice_styles\M2.json`<br>[M3.json](https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/voice_styles/M3.json) → `models\supertonic3\voice_styles\M3.json`<br>[M4.json](https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/voice_styles/M4.json) → `models\supertonic3\voice_styles\M4.json`<br>[M5.json](https://huggingface.co/askurios8/supertonic-3-int8/resolve/95618f5d61cef4923c3b802a332fd603723718f7/voice_styles/M5.json) → `models\supertonic3\voice_styles\M5.json` | 108 MB | como está, no caminho após a seta |
+| Qwen3-TTS engine (qwen.dll) and codec | opcional | [qwen-tokenizer-12hz-Q8_0.gguf](https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF/resolve/b7ee2e8c7459c3bea99da23e3d178125a7d1713c/qwen-tokenizer-12hz-Q8_0.gguf) → `models\qwen3-tts\qwen-tokenizer-12hz-Q8_0.gguf`<br>[qwen.dll](https://github.com/timoncool/qwentts.cpp/releases/download/engine-0.1.0/qwen.dll) → `models\qwen3-tts\qwen.dll`<br>[ggml.dll](https://github.com/timoncool/qwentts.cpp/releases/download/engine-0.1.0/ggml.dll) → `models\qwen3-tts\ggml.dll`<br>[ggml-base.dll](https://github.com/timoncool/qwentts.cpp/releases/download/engine-0.1.0/ggml-base.dll) → `models\qwen3-tts\ggml-base.dll`<br>[ggml-cpu.dll](https://github.com/timoncool/qwentts.cpp/releases/download/engine-0.1.0/ggml-cpu.dll) → `models\qwen3-tts\ggml-cpu.dll`<br>[ggml-cuda.dll](https://github.com/timoncool/qwentts.cpp/releases/download/engine-0.1.0/ggml-cuda.dll) → `models\qwen3-tts\ggml-cuda.dll` | 434 MB | como está, no caminho após a seta |
+| Qwen3-TTS 1.7B Q4_K_M (CustomVoice + Base) | opcional | [qwen-talker-1.7b-customvoice-Q4_K_M.gguf](https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF/resolve/b7ee2e8c7459c3bea99da23e3d178125a7d1713c/qwen-talker-1.7b-customvoice-Q4_K_M.gguf) → `models\qwen3-tts\qwen-talker-1.7b-customvoice-Q4_K_M.gguf`<br>[qwen-talker-1.7b-base-Q4_K_M.gguf](https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF/resolve/b7ee2e8c7459c3bea99da23e3d178125a7d1713c/qwen-talker-1.7b-base-Q4_K_M.gguf) → `models\qwen3-tts\qwen-talker-1.7b-base-Q4_K_M.gguf` | 2.4 GB | como está, no caminho após a seta |
+| Qwen3-TTS 1.7B Q8_0 (CustomVoice + Base) | opcional | [qwen-talker-1.7b-customvoice-Q8_0.gguf](https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF/resolve/b7ee2e8c7459c3bea99da23e3d178125a7d1713c/qwen-talker-1.7b-customvoice-Q8_0.gguf) → `models\qwen3-tts\qwen-talker-1.7b-customvoice-Q8_0.gguf`<br>[qwen-talker-1.7b-base-Q8_0.gguf](https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF/resolve/b7ee2e8c7459c3bea99da23e3d178125a7d1713c/qwen-talker-1.7b-base-Q8_0.gguf) → `models\qwen3-tts\qwen-talker-1.7b-base-Q8_0.gguf` | 4.1 GB | como está, no caminho após a seta |
+| Qwen3-TTS VoiceDesign Q4_K_M | opcional | [qwen-talker-1.7b-voicedesign-Q4_K_M.gguf](https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF/resolve/b7ee2e8c7459c3bea99da23e3d178125a7d1713c/qwen-talker-1.7b-voicedesign-Q4_K_M.gguf) → `models\qwen3-tts\qwen-talker-1.7b-voicedesign-Q4_K_M.gguf` | 1.2 GB | como está, no caminho após a seta |
+| Qwen3-TTS VoiceDesign Q8_0 | opcional | [qwen-talker-1.7b-voicedesign-Q8_0.gguf](https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF/resolve/b7ee2e8c7459c3bea99da23e3d178125a7d1713c/qwen-talker-1.7b-voicedesign-Q8_0.gguf) → `models\qwen3-tts\qwen-talker-1.7b-voicedesign-Q8_0.gguf` | 2.0 GB | como está, no caminho após a seta |
+| Qwen3-TTS Russian stress LoRA | opcional | [adapter.safetensors](https://huggingface.co/siriusfreak/qwen3-tts-12hz-1.7b-ru-stress-cf/resolve/c16b3af3db3095120efc1ebb73f6522442bcb3b1/lora/adapter.safetensors) → `models\qwen3-tts\qwen-talker-1.7b-base-ru-stress-lora.safetensors` | 35 MB | como está, no caminho após a seta |
+| Parakeet Ultra 0.6B int8 (Moondream) | opcional | [encoder-model.int8.onnx](https://huggingface.co/Masterx/parakeet-tdt-0.6b-ultra-onnx/resolve/99b09f030a5a6efeaa13cf2cf54592100ce2c3f1/encoder-model.int8.onnx) → `models\tdt-ultra-int8\encoder-model.int8.onnx`<br>[decoder_joint-model.int8.onnx](https://huggingface.co/Masterx/parakeet-tdt-0.6b-ultra-onnx/resolve/99b09f030a5a6efeaa13cf2cf54592100ce2c3f1/decoder_joint-model.int8.onnx) → `models\tdt-ultra-int8\decoder_joint-model.int8.onnx`<br>[nemo128.onnx](https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce/nemo128.onnx) → `models\tdt-ultra-int8\nemo128.onnx`<br>[vocab.txt](https://huggingface.co/Masterx/parakeet-tdt-0.6b-ultra-onnx/resolve/99b09f030a5a6efeaa13cf2cf54592100ce2c3f1/vocab.txt) → `models\tdt-ultra-int8\vocab.txt`<br>[config.json](https://huggingface.co/Masterx/parakeet-tdt-0.6b-ultra-onnx/resolve/99b09f030a5a6efeaa13cf2cf54592100ce2c3f1/config.json) → `models\tdt-ultra-int8\config.json` | 671 MB | como está, no caminho após a seta |
+| Whisper-Faster (faster-whisper standalone) | opcional | [Whisper-Faster_r192.3_windows.zip](https://github.com/Purfview/whisper-standalone-win/releases/download/faster-whisper/Whisper-Faster_r192.3_windows.zip) | 88 MB | descompactar os arquivos, sem subpastas, em `tools\whisper\` |
+| Whisper CUDA (cuBLAS 11, cuDNN 8) | opcional | [libcublas-windows-x86_64-11.11.3.6-archive.zip](https://developer.download.nvidia.com/compute/cuda/redist/libcublas/windows-x86_64/libcublas-windows-x86_64-11.11.3.6-archive.zip)<br>[cudnn-windows-x86_64-8.9.7.29_cuda11-archive.zip](https://developer.download.nvidia.com/compute/cudnn/redist/cudnn/windows-x86_64/cudnn-windows-x86_64-8.9.7.29_cuda11-archive.zip) | 1.1 GB | pegar todos os .dll do arquivo e colocar em `tools\whisper\` |
+| Whisper tiny | opcional | [model.bin](https://huggingface.co/Systran/faster-whisper-tiny/resolve/d90ca5fe260221311c53c58e660288d3deb8d356/model.bin) → `models\whisper\faster-whisper-tiny\model.bin`<br>[config.json](https://huggingface.co/Systran/faster-whisper-tiny/resolve/d90ca5fe260221311c53c58e660288d3deb8d356/config.json) → `models\whisper\faster-whisper-tiny\config.json`<br>[tokenizer.json](https://huggingface.co/Systran/faster-whisper-tiny/resolve/d90ca5fe260221311c53c58e660288d3deb8d356/tokenizer.json) → `models\whisper\faster-whisper-tiny\tokenizer.json`<br>[vocabulary.txt](https://huggingface.co/Systran/faster-whisper-tiny/resolve/d90ca5fe260221311c53c58e660288d3deb8d356/vocabulary.txt) → `models\whisper\faster-whisper-tiny\vocabulary.txt` | 78 MB | como está, no caminho após a seta |
+| Whisper base | opcional | [model.bin](https://huggingface.co/Systran/faster-whisper-base/resolve/ebe41f70d5b6dfa9166e2c581c45c9c0cfc57b66/model.bin) → `models\whisper\faster-whisper-base\model.bin`<br>[config.json](https://huggingface.co/Systran/faster-whisper-base/resolve/ebe41f70d5b6dfa9166e2c581c45c9c0cfc57b66/config.json) → `models\whisper\faster-whisper-base\config.json`<br>[tokenizer.json](https://huggingface.co/Systran/faster-whisper-base/resolve/ebe41f70d5b6dfa9166e2c581c45c9c0cfc57b66/tokenizer.json) → `models\whisper\faster-whisper-base\tokenizer.json`<br>[vocabulary.txt](https://huggingface.co/Systran/faster-whisper-base/resolve/ebe41f70d5b6dfa9166e2c581c45c9c0cfc57b66/vocabulary.txt) → `models\whisper\faster-whisper-base\vocabulary.txt` | 148 MB | como está, no caminho após a seta |
+| Whisper small | opcional | [model.bin](https://huggingface.co/Systran/faster-whisper-small/resolve/536b0662742c02347bc0e980a01041f333bce120/model.bin) → `models\whisper\faster-whisper-small\model.bin`<br>[config.json](https://huggingface.co/Systran/faster-whisper-small/resolve/536b0662742c02347bc0e980a01041f333bce120/config.json) → `models\whisper\faster-whisper-small\config.json`<br>[tokenizer.json](https://huggingface.co/Systran/faster-whisper-small/resolve/536b0662742c02347bc0e980a01041f333bce120/tokenizer.json) → `models\whisper\faster-whisper-small\tokenizer.json`<br>[vocabulary.txt](https://huggingface.co/Systran/faster-whisper-small/resolve/536b0662742c02347bc0e980a01041f333bce120/vocabulary.txt) → `models\whisper\faster-whisper-small\vocabulary.txt` | 486 MB | como está, no caminho após a seta |
+| Whisper medium | opcional | [model.bin](https://huggingface.co/Systran/faster-whisper-medium/resolve/08e178d48790749d25932bbc082711ddcfdfbc4f/model.bin) → `models\whisper\faster-whisper-medium\model.bin`<br>[config.json](https://huggingface.co/Systran/faster-whisper-medium/resolve/08e178d48790749d25932bbc082711ddcfdfbc4f/config.json) → `models\whisper\faster-whisper-medium\config.json`<br>[tokenizer.json](https://huggingface.co/Systran/faster-whisper-medium/resolve/08e178d48790749d25932bbc082711ddcfdfbc4f/tokenizer.json) → `models\whisper\faster-whisper-medium\tokenizer.json`<br>[vocabulary.txt](https://huggingface.co/Systran/faster-whisper-medium/resolve/08e178d48790749d25932bbc082711ddcfdfbc4f/vocabulary.txt) → `models\whisper\faster-whisper-medium\vocabulary.txt` | 1.5 GB | como está, no caminho após a seta |
+| Whisper large-v3 | opcional | [model.bin](https://huggingface.co/Systran/faster-whisper-large-v3/resolve/edaa852ec7e145841d8ffdb056a99866b5f0a478/model.bin) → `models\whisper\faster-whisper-large-v3\model.bin`<br>[config.json](https://huggingface.co/Systran/faster-whisper-large-v3/resolve/edaa852ec7e145841d8ffdb056a99866b5f0a478/config.json) → `models\whisper\faster-whisper-large-v3\config.json`<br>[preprocessor_config.json](https://huggingface.co/Systran/faster-whisper-large-v3/resolve/edaa852ec7e145841d8ffdb056a99866b5f0a478/preprocessor_config.json) → `models\whisper\faster-whisper-large-v3\preprocessor_config.json`<br>[tokenizer.json](https://huggingface.co/Systran/faster-whisper-large-v3/resolve/edaa852ec7e145841d8ffdb056a99866b5f0a478/tokenizer.json) → `models\whisper\faster-whisper-large-v3\tokenizer.json`<br>[vocabulary.json](https://huggingface.co/Systran/faster-whisper-large-v3/resolve/edaa852ec7e145841d8ffdb056a99866b5f0a478/vocabulary.json) → `models\whisper\faster-whisper-large-v3\vocabulary.json` | 3.1 GB | como está, no caminho após a seta |
+| Whisper large-v3-turbo | opcional | [model.bin](https://huggingface.co/deepdml/faster-whisper-large-v3-turbo-ct2/resolve/4df90f75321148c3a29a9e2351b7ddf8f5b115a8/model.bin) → `models\whisper\faster-whisper-large-v3-turbo\model.bin`<br>[config.json](https://huggingface.co/deepdml/faster-whisper-large-v3-turbo-ct2/resolve/4df90f75321148c3a29a9e2351b7ddf8f5b115a8/config.json) → `models\whisper\faster-whisper-large-v3-turbo\config.json`<br>[preprocessor_config.json](https://huggingface.co/deepdml/faster-whisper-large-v3-turbo-ct2/resolve/4df90f75321148c3a29a9e2351b7ddf8f5b115a8/preprocessor_config.json) → `models\whisper\faster-whisper-large-v3-turbo\preprocessor_config.json`<br>[tokenizer.json](https://huggingface.co/deepdml/faster-whisper-large-v3-turbo-ct2/resolve/4df90f75321148c3a29a9e2351b7ddf8f5b115a8/tokenizer.json) → `models\whisper\faster-whisper-large-v3-turbo\tokenizer.json`<br>[vocabulary.json](https://huggingface.co/deepdml/faster-whisper-large-v3-turbo-ct2/resolve/4df90f75321148c3a29a9e2351b7ddf8f5b115a8/vocabulary.json) → `models\whisper\faster-whisper-large-v3-turbo\vocabulary.json` | 1.6 GB | como está, no caminho após a seta |
+| Nemotron 3 Diarization | recomendado | [nemotron3_diar_v3.onnx](https://huggingface.co/altunenes/parakeet-rs/resolve/4d2a8bc71f5c896ec40faa59732e6716295edaf2/nemotron-3-diarization/nemotron3_diar_v3.onnx) → `models\nemotron-diar\nemotron3_diar_v3.onnx`<br>[LICENSE](https://huggingface.co/altunenes/parakeet-rs/resolve/4d2a8bc71f5c896ec40faa59732e6716295edaf2/nemotron-3-diarization/LICENSE) → `models\nemotron-diar\LICENSE` | 401 MB | como está, no caminho após a seta |
+| Mel-Band Roformer voc_fv6 Q8_0 | recomendado | [voc_fv6-Q8_0.gguf](https://huggingface.co/chenmozhijin/BSRoformer-GGUF/resolve/df802a6773d25ba6ef785ff619daa3e510503168/GaboxR67/MelBandRoformers/melbandroformers/vocals/voc_fv6-Q8_0.gguf) → `models\bsroformer\voc_fv6-Q8_0.gguf` | 252 MB | como está, no caminho após a seta |
+| Mel-Band Roformer voc_fv6 Q5_0 | opcional | [voc_fv6-Q5_0.gguf](https://huggingface.co/chenmozhijin/BSRoformer-GGUF/resolve/df802a6773d25ba6ef785ff619daa3e510503168/GaboxR67/MelBandRoformers/melbandroformers/vocals/voc_fv6-Q5_0.gguf) → `models\bsroformer\voc_fv6-Q5_0.gguf` | 167 MB | como está, no caminho após a seta |
+| Mel-Band Roformer voc_fv6 Q4_0 | opcional | [voc_fv6-Q4_0.gguf](https://huggingface.co/chenmozhijin/BSRoformer-GGUF/resolve/df802a6773d25ba6ef785ff619daa3e510503168/GaboxR67/MelBandRoformers/melbandroformers/vocals/voc_fv6-Q4_0.gguf) → `models\bsroformer\voc_fv6-Q4_0.gguf` | 139 MB | como está, no caminho após a seta |
+| WeSpeaker ResNet34-LM (voice similarity) | recomendado | [voxceleb_resnet34_LM.onnx](https://huggingface.co/Wespeaker/wespeaker-voxceleb-resnet34-LM/resolve/f0c48c298fd835726c27956a5d617bad7115627e/voxceleb_resnet34_LM.onnx) → `models\faces\wespeaker\voxceleb_resnet34_LM.onnx` | 27 MB | como está, no caminho após a seta |
+| RUAccent (stress, «ё», homographs) | recomendado | [model.onnx](https://huggingface.co/ruaccent/accentuator/resolve/b78ae5ea1e62beaf138bed1865cd8c3b0b5ca855/nn/nn_accent/model.onnx) → `models\ruaccent\nn\nn_accent\model.onnx`<br>[config.json](https://huggingface.co/ruaccent/accentuator/resolve/b78ae5ea1e62beaf138bed1865cd8c3b0b5ca855/nn/nn_accent/config.json) → `models\ruaccent\nn\nn_accent\config.json`<br>[vocab.txt](https://huggingface.co/ruaccent/accentuator/resolve/b78ae5ea1e62beaf138bed1865cd8c3b0b5ca855/nn/nn_accent/vocab.txt) → `models\ruaccent\nn\nn_accent\vocab.txt`<br>[model.onnx](https://huggingface.co/ruaccent/accentuator/resolve/b78ae5ea1e62beaf138bed1865cd8c3b0b5ca855/nn/nn_omograph/tiny2/model.onnx) → `models\ruaccent\nn\nn_omograph\tiny2\model.onnx`<br>[tokenizer.json](https://huggingface.co/ruaccent/accentuator/resolve/b78ae5ea1e62beaf138bed1865cd8c3b0b5ca855/nn/nn_omograph/tiny2/tokenizer.json) → `models\ruaccent\nn\nn_omograph\tiny2\tokenizer.json`<br>[accents.json.gz](https://huggingface.co/ruaccent/accentuator/resolve/b78ae5ea1e62beaf138bed1865cd8c3b0b5ca855/dictionary/accents.json.gz) → `models\ruaccent\dictionary\accents.json.gz`<br>[omographs.json.gz](https://huggingface.co/ruaccent/accentuator/resolve/b78ae5ea1e62beaf138bed1865cd8c3b0b5ca855/dictionary/omographs.json.gz) → `models\ruaccent\dictionary\omographs.json.gz`<br>[yo_words.json.gz](https://huggingface.co/ruaccent/accentuator/resolve/b78ae5ea1e62beaf138bed1865cd8c3b0b5ca855/dictionary/yo_words.json.gz) → `models\ruaccent\dictionary\yo_words.json.gz`<br>[yo_homographs.json.gz](https://huggingface.co/ruaccent/accentuator/resolve/b78ae5ea1e62beaf138bed1865cd8c3b0b5ca855/dictionary/yo_homographs.json.gz) → `models\ruaccent\dictionary\yo_homographs.json.gz` | 34 MB | como está, no caminho após a seta |
+| RUAccent big_poetry homographs int8 | opcional | [model.onnx](https://huggingface.co/nerualdreming/ruaccent-omograph-int8/resolve/d5c4eb6864d55cfc24ae45530eb4ef96843efb2b/big_poetry/model.onnx) → `models\ruaccent\nn\nn_omograph\big_poetry\model.onnx`<br>[tokenizer.json](https://huggingface.co/nerualdreming/ruaccent-omograph-int8/resolve/d5c4eb6864d55cfc24ae45530eb4ef96843efb2b/big_poetry/tokenizer.json) → `models\ruaccent\nn\nn_omograph\big_poetry\tokenizer.json` | 185 MB | como está, no caminho após a seta |
+| Silero VAD v6 | recomendado | [silero_vad.onnx](https://huggingface.co/istupakov/silero-vad-onnx/resolve/b3e3ee3cce4c11ceb63b1a0b229d916069c1ddf6/silero_vad.onnx) → `models\silero-vad\silero_vad.onnx` | 2 MB | como está, no caminho após a seta |
+| DPDFNet 48 kHz (noise suppression) | recomendado | [dpdfnet2_48khz_hr.onnx](https://huggingface.co/Ceva-IP/DPDFNet/resolve/dd6818d00f50c836fed43a6243ebe49116de5964/onnx/dpdfnet2_48khz_hr.onnx) → `models\dpdfnet\dpdfnet2_48khz_hr.onnx` | 10 MB | como está, no caminho após a seta |
+| BSRoformer.cpp (CUDA) | recomendado | [BSRoformer-windows-cuda-13.1.0.zip](https://github.com/chenmozhijin/BSRoformer.cpp/releases/download/v0.1.0/BSRoformer-windows-cuda-13.1.0.zip) | 165 MB | descompactar os arquivos, sem subpastas, em `tools\bsroformer\` |
+| BSRoformer.cpp (CPU) | opcional | [BSRoformer-windows-x64-msvc.zip](https://github.com/chenmozhijin/BSRoformer.cpp/releases/download/v0.1.0/BSRoformer-windows-x64-msvc.zip) | 671 KB | descompactar os arquivos, sem subpastas, em `tools\bsroformer-cpu\` |
+| llama.cpp server (CUDA) | opcional | [llama-b11146-bin-win-cuda-13.4-x64.zip](https://github.com/ggml-org/llama.cpp/releases/download/b11146/llama-b11146-bin-win-cuda-13.4-x64.zip) | 150 MB | descompactar os arquivos, sem subpastas, em `tools\llama\` |
+| ONNX Runtime | obrigatório | [onnxruntime-win-x64-1.28.2.zip](https://github.com/microsoft/onnxruntime/releases/download/v1.28.2/onnxruntime-win-x64-1.28.2.zip) | 79 MB | descompactar com a árvore de pastas em `models\runtime\` |
+| ONNX Runtime GPU (CUDA) | recomendado | [onnxruntime-win-x64-gpu_cuda13-1.28.2.zip](https://github.com/microsoft/onnxruntime/releases/download/v1.28.2/onnxruntime-win-x64-gpu_cuda13-1.28.2.zip) | 366 MB | descompactar com a árvore de pastas em `models\runtime\` |
+| FFmpeg (static build) | obrigatório | [ffmpeg-N-126342-gf88b741dbf-win64-gpl.zip](https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-08-31-13-27/ffmpeg-N-126342-gf88b741dbf-win64-gpl.zip) | 171 MB | pegar ffmpeg.exe e ffprobe.exe do arquivo e colocar em `tools\ffmpeg\` |
+| yt-dlp + deno | opcional | [yt-dlp.exe](https://github.com/yt-dlp/yt-dlp/releases/download/2026.08.19/yt-dlp.exe) → `tools\yt-dlp\yt-dlp.exe`<br>[deno-x86_64-pc-windows-msvc.zip](https://github.com/denoland/deno/releases/download/v2.9.7/deno-x86_64-pc-windows-msvc.zip) | 60 MB | como está, no caminho após a seta<br>descompactar os arquivos, sem subpastas, em `tools\yt-dlp\` |
+| CUDA runtime (cudart, cuBLAS, cuFFT) | obrigatório | [nvidia_cuda_runtime-13.4.92-py3-none-win_amd64.whl](https://files.pythonhosted.org/packages/86/00/d5436004268f049214193659ebc36550b5ef3925c3d13b4cc980e13be6f5/nvidia_cuda_runtime-13.4.92-py3-none-win_amd64.whl)<br>[nvidia_cublas-13.8.0.4-py3-none-win_amd64.whl](https://files.pythonhosted.org/packages/a3/df/f1246959833e2c437db8be3e5b477f66b87f8817821ed40de6c7561c9a36/nvidia_cublas-13.8.0.4-py3-none-win_amd64.whl)<br>[libcufft-windows-x86_64-12.4.0.43-archive.zip](https://developer.download.nvidia.com/compute/cuda/redist/libcufft/windows-x86_64/libcufft-windows-x86_64-12.4.0.43-archive.zip) | 586 MB | pegar todos os .dll do arquivo e colocar em `models\higgs-engine\` |
+| cuDNN 9 | recomendado | [nvidia_cudnn_cu13-9.27.0.42-py3-none-win_amd64.whl](https://files.pythonhosted.org/packages/87/6a/e55ff0ac26a5c6e2b21f41c9d04ad096b4ed6da593fba7e25845c61b0532/nvidia_cudnn_cu13-9.27.0.42-py3-none-win_amd64.whl) | 436 MB | pegar todos os .dll do arquivo e colocar em `models\higgs-engine\` |
+<!-- downloads:end -->
+
+## O que roda onde
+
+| Etapa | Motor | GPU NVIDIA | CPU | Nuvem |
+|---|---|---|---|---|
+| Voz e clonagem | Higgs Audio v3, Drama 3, Qwen3-TTS | sim (CUDA) | não | OpenRouter, Gemini, fal.ai, Runware |
+| Voz | Supertonic 3 | sim (ONNX Runtime CUDA) | sim | — |
+| Reconhecimento de fala | Parakeet-TDT ou Whisper | sim | sim | OpenRouter, fal.ai |
+| Falantes | Nemotron 3 Diarization | sim | sim | não |
+| Pausas e ruído | Silero VAD v6, DPDFNet | não | sim | não |
+| Voz separada da música | Mel-Band Roformer (BSRoformer.cpp) | sim | sim (build separado) | não |
+| Acentos e homógrafos | RUAccent | não | sim | não |
+| Diretor (podcast, personagens) | Gemma-4 12B (llama.cpp) | sim | não | OpenRouter |
+
+## Solução de problemas
+
+**O instalador para no WebView2.** Instale o WebView2 com o instalador [Evergreen Standalone x64](https://go.microsoft.com/fwlink/p/?LinkId=2124701) da Microsoft e rode de novo o instalador do Speech Studio.
+
+**Os downloads travam ou falham.** Arquivos grandes continuam de onde pararam: clique de novo. Se o Hugging Face ou o GitHub estiverem bloqueados, configure um proxy em Configurações → **Rede**, ou coloque os arquivos da tabela no lugar e clique em **Importar da pasta**.
+
+**Um motor de voz fala de placa ou driver antigos.** Os motores locais são compilados para CUDA 13 e placas a partir da Turing (GTX 16, RTX 20 e mais novas). Atualize o driver NVIDIA; em placas antigas use as vozes na nuvem.
+
+**O reconhecimento não encontra fala.** A gravação está abaixo do limiar de fala: reduza-o em **Reconhecimento → Corte nas pausas**.
+
+**Configurações → Diagnóstico** junta um pacote para relatar erros sem chaves: anexe-o a uma [issue](https://github.com/timoncool/speech-studio/issues).
+
+## Como funciona
+
+**Stack:** um shell nativo **Tauri 2 (Rust)** roda o `speech-server` (axum) no mesmo processo em `127.0.0.1:8797` e abre uma janela com a SPA — React 19 + Vite + Tailwind. Os motores vivem no processo pelas suas ABIs em C: Higgs (`audiocpp_engine.dll`), Drama 3 (`drama_engine.dll`, [timoncool/drama-rs](https://github.com/timoncool/drama-rs)), Qwen3-TTS (`qwen.dll`, [timoncool/qwentts.cpp](https://github.com/timoncool/qwentts.cpp)); Supertonic, Parakeet, Nemotron, Silero VAD, DPDFNet e RUAccent sobre o ONNX Runtime; Whisper e BSRoformer.cpp como auxiliares; ffmpeg para o áudio. **Nenhum processo Python em execução.**
+
+### Compilar a partir do código
+
+```bash
+git clone https://github.com/timoncool/speech-studio.git
+cd speech-studio
+
+cd frontend && npm install && npm run build && cd ..   # 1) SPA
+cargo build --release -p speech-server                  # 2) servidor nativo (axum)
+cd desktop && npm install && npx tauri build            # 3) shell desktop (Tauri)
+```
+
+Precisa de Node 20+, Rust (toolchain MSVC) e WebView2. Os motores não precisam ser recompilados — o aplicativo baixa binários prontos.
+
+### Linux (experimental)
+
+O .deb e o AppImage para Linux x86-64 são **experimentais**: o mesmo código com os builds Linux dos mesmos motores, não testados pelo autor num desktop Linux real. Correções são muito bem-vindas como pull requests. O driver NVIDIA (580 ou mais novo), `libgomp1` e `libssl3` vêm do sistema; modelos e motores vão para `~/.local/share/speech-studio`.
+
+## Estatísticas anônimas e novidades
+
+O aplicativo pede novidades ao servidor do autor ao iniciar e depois a cada hora; o pedido não leva nenhum identificador. A tela da primeira execução tem uma caixa **Enviar estatísticas de uso anônimas**, marcada por padrão; o mesmo interruptor fica em Configurações, ao lado de **O que é enviado**. Enquanto marcada, o aplicativo envia o relatório do dia: um id de instalação aleatório criado neste computador, a versão, o SO, o idioma da janela, a placa de vídeo como fabricante, uma faixa de memória de vídeo e se o CUDA funciona, quantas tarefas terminaram, falharam ou foram canceladas, os modelos de cada etapa e por que uma tarefa falhou, em uma linha sem caminhos, nomes nem texto entre aspas. Nunca: textos, gravações, vozes, nomes de arquivo ou nada pessoal. `DO_NOT_TRACK=1` ou `STUDIO_TELEMETRY=0` desligam as estatísticas por completo.
+
+## Mais aplicativos de IA portáteis
+
+| Projeto | O que é |
+|--------|----------|
+| [Dub Studio](https://github.com/timoncool/dub-studio) | Dublagem de vídeo com IA: vozes clonadas, legendas traduzidas e texto na tela |
+| [Higgs Ultimate](https://github.com/timoncool/Higgs-Ultimate) | Síntese de fala e clonagem de voz nativas (Higgs Audio v3) |
+| [ACE-Step Studio](https://github.com/timoncool/ACE-Step-Studio) | Estúdio de música com IA — músicas, vocais, covers e clipes |
+| [YuE2 Studio](https://github.com/timoncool/YuE2-Studio) | Gerador de músicas com partitura editável |
+| [MiniMax Music3 Studio](https://github.com/timoncool/MiniMax-Music3-Studio) | Estúdio de música nativo local/nuvem com MiniMax Music 3 |
+| [VideoSOS](https://github.com/timoncool/videosos) | Estúdio de vídeo com IA |
+
+## Contribuições e forks
+
+Colaboradores são muito bem-vindos: versões para **GPU AMD / Intel, macOS ou Linux**, correções do build Linux e mais idiomas da interface (`frontend/src/locales/`, `crates/speech-server/locales/`) — faça um fork e envie um pull request.
+
+## Autores
+
+- **Nerual Dreming** — [Telegram](https://t.me/nerual_dreming) | [neuro-cartel.com](https://neuro-cartel.com) | fundador do [ArtGeneration.me](https://artgeneration.me)
+- **Neuro-Soft** — [Telegram](https://t.me/neuroport) | aplicativos de IA portáteis
+
+## Créditos
+
+- **[Boson AI](https://huggingface.co/bosonai)** — Higgs Audio v3, e **[drbaph / Higgs-Audio-v3-Studio](https://huggingface.co/drbaph/Higgs-Audio-v3-Studio)** — suas quantizações GGUF e o motor nativo.
+- **[Fish Audio](https://fish.audio)** — Drama 3; **[apiplant/drama-q4](https://huggingface.co/apiplant/drama-q4)** — seus pesos Q4; **[drama-rs](https://github.com/timoncool/drama-rs)** — o motor Rust/CUDA.
+- **[Equipe Qwen](https://huggingface.co/Qwen)** — Qwen3-TTS; **[ServeurpersoCom / qwentts.cpp](https://github.com/ServeurpersoCom/qwentts.cpp)** e **[Serveurperso/Qwen3-TTS-GGUF](https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF)** — o motor C++ e as quantizações GGUF; **[siriusfreak](https://huggingface.co/siriusfreak/qwen3-tts-12hz-1.7b-ru-stress-cf)** — a LoRA de acento russo.
+- **[Supertone](https://huggingface.co/Supertone)** — Supertonic 3; **[askurios8/supertonic-3-int8](https://huggingface.co/askurios8/supertonic-3-int8)** — sua exportação int8.
+- **[RUAccent](https://huggingface.co/ruaccent)** — acentos, «ё» e homógrafos.
+- **[NVIDIA](https://huggingface.co/nvidia)** — Parakeet-TDT e Nemotron 3 Diarization; exportações ONNX de [istupakov](https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx) e [altunenes/parakeet-rs](https://github.com/altunenes/parakeet-rs).
+- **[Silero](https://github.com/snakers4/silero-vad)** — Silero VAD v6 ([istupakov/silero-vad-onnx](https://huggingface.co/istupakov/silero-vad-onnx)); **[Ceva-IP / DPDFNet](https://huggingface.co/Ceva-IP/DPDFNet)** — supressão de ruído.
+- **[Systran / faster-whisper](https://github.com/SYSTRAN/faster-whisper)** e **[Purfview](https://github.com/Purfview/whisper-standalone-win)** — o Whisper e seu build independente.
+- **[chenmozhijin / BSRoformer.cpp](https://github.com/chenmozhijin/BSRoformer.cpp)** e **[GaboxR67](https://huggingface.co/GaboxR67)** — separação de voz.
+- **[WeSpeaker](https://huggingface.co/Wespeaker/wespeaker-voxceleb-resnet34-LM)** — semelhança de voz; **[Google Gemma](https://huggingface.co/google)** e **[llama.cpp](https://github.com/ggml-org/llama.cpp)** — o diretor.
+- **[ONNX Runtime](https://github.com/microsoft/onnxruntime)**, **[FFmpeg](https://ffmpeg.org)**, **[Tauri](https://tauri.app)**, **[ort](https://github.com/pykeio/ort)** e as bibliotecas NVIDIA CUDA.
+
+## Apoie o autor
+
+Eu faço software livre e pesquiso IA — quase tudo o que crio é gratuito. As doações me deixam criar e pesquisar mais.
+
+**[Todas as formas de apoiar](DONATE.md)** | **[dalink.to/nerual_dreming](https://dalink.to/nerual_dreming)** | **[boosty.to/neuro_art](https://boosty.to/neuro_art)**
+
+- **BTC:** `1E7dHL22RpyhJGVpcvKdbyZgksSYkYeEBC`
+- **ETH (ERC20):** `0xb5db65adf478983186d4897ba92fe2c25c594a0c`
+- **USDT (TRC20):** `TQST9Lp2TjK6FiVkn4fwfGUee7NmkxEE7C`
+
+## Histórico de estrelas
+
+<a href="https://github.com/timoncool/speech-studio/stargazers">
+ <img alt="Gráfico de estrelas" src="https://api.star-history.com/svg?repos=timoncool/speech-studio&type=Date" />
+</a>
+
+## Licença
+
+O código do aplicativo é [MIT](LICENSE). **Os modelos não**: cada um mantém sua licença. Leia-as antes de publicar ou vender o que você locutar.
+
+| Componente | Licença | O que significa |
+|---|---|---|
+| Higgs Audio v3 (Boson AI) | [Boson Higgs TTS 3 Research and Non-Commercial License](https://huggingface.co/bosonai/higgs-tts-3-4b/blob/main/LICENSE) | Pesquisa e uso pessoal; criadores podem monetizar seu próprio conteúdo com o Creator Use Grant se citarem o Higgs Audio da Boson AI; um produto ou serviço para outros precisa de licença da Boson |
+| Fish Audio Drama 3 | [Fish Audio Research License](https://huggingface.co/fishaudio/drama-3/blob/main/LICENSE.md) | Pesquisa e uso não comercial; uso comercial precisa de licença da Fish Audio |
+| Qwen3-TTS (Qwen) | Apache-2.0 |  |
+| LoRA de acento russo do Qwen3-TTS (siriusfreak) | Apache-2.0 |  |
+| Supertonic 3 (Supertone) | BigScience OpenRAIL-M | Leia as restrições de uso |
+| RUAccent e seu modelo de homógrafos em int8 | MIT |  |
+| Parakeet-TDT, Nemotron 3 Diarization (NVIDIA) | CC-BY-4.0, OpenMDW-1.1 | Cite a NVIDIA |
+| Silero VAD | MIT |  |
+| DPDFNet (Ceva) | Apache-2.0 |  |
+| Modelos Whisper e faster-whisper | MIT |  |
+| Mel-Band Roformer voc_fv6, GGUF | As páginas dos modelos não indicam licença | Pergunte aos autores antes do uso comercial |
+| WeSpeaker ResNet34-LM | CC-BY-4.0 | Cite o WeSpeaker |
+| Gemma-4 12B (Google) | Termos do Gemma | Leia-os |
+| llama.cpp, ONNX Runtime, BSRoformer.cpp, qwentts.cpp | MIT |  |
+| FFmpeg (build BtbN) | Build GPL | Programa à parte, não ligado ao aplicativo |
+| NVIDIA CUDA runtime, cuBLAS, cuFFT, cuDNN | Termos próprios da NVIDIA | Baixados da NVIDIA e do PyPI |
+
+<sub>texto para fala · clonagem de voz · TTS em russo · acentos · criador de audiolivros · podcast · reconhecimento de fala · transcrição · diarização · offline · local · código aberto · Windows</sub>

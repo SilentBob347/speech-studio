@@ -1,1 +1,23 @@
-[]
+[
+  {
+    "id": "speech-studio-0-1-0",
+    "date": "2026-10-15",
+    "release": "https://github.com/timoncool/speech-studio/releases/tag/v0.1.0",
+    "title": {
+      "en": "Speech Studio 0.1.0",
+      "ru": "Speech Studio 0.1.0",
+      "zh": "Speech Studio 0.1.0",
+      "es": "Speech Studio 0.1.0",
+      "fr": "Speech Studio 0.1.0",
+      "pt": "Speech Studio 0.1.0"
+    },
+    "body": {
+      "ru": "Первый релиз Speech Studio — озвучка и распознавание речи на своём компьютере.\n\n- **Speech**: пять локальных движков (Higgs Audio v3, Drama 3, Supertonic 3, Qwen3-TTS и Qwen3-TTS с русскими ударениями), диалоги, подкасты, книги и субтитры, проверка каждого дубля распознаванием, экспорт с главами и субтитрами.\n- **Русский как надо**: числа в падежах, ударения, «ё» и омографы, словарь произношения.\n- **Listening**: текст со спикерами и временем слов, монтаж по тексту, сверка озвучки, текст поверх записи.\n- **Голоса**: библиотека, очистка рефа, голос по описанию.",
+      "en": "The first release of Speech Studio — voicing and speech recognition on your own computer.\n\n- **Speech**: five local engines (Higgs Audio v3, Drama 3, Supertonic 3, Qwen3-TTS and Qwen3-TTS with Russian stress), dialogs, podcasts, books and subtitles, every take checked by recognition, export with chapters and subtitles.\n- **Russian done right**: numbers in their cases, stress, «ё» and homographs, a pronunciation dictionary.\n- **Listening**: text with speakers and word times, cut by text, a voicing check, a known text laid over a recording.\n- **Voices**: a library, reference cleaning, a voice from a description.",
+      "zh": "Speech Studio 首个版本——在你自己的电脑上配音和识别语音。\n\n- **Speech**：五个本地引擎（Higgs Audio v3、Drama 3、Supertonic 3、Qwen3-TTS 和带俄语重音的 Qwen3-TTS），对话、播客、书籍和字幕，每个版本都用识别核对，导出带章节和字幕。\n- **俄语处理到位**：数字按格变化、重音、«ё» 和同形异音词、发音词典。\n- **Listening**：带说话人和逐词时间的文字稿、按文字剪辑、配音核对、把已知文本铺到录音上。\n- **声音**：声音库、参考音频清理、按描述生成声音。",
+      "es": "La primera versión de Speech Studio: locución y reconocimiento de voz en tu propio equipo.\n\n- **Speech**: cinco motores locales (Higgs Audio v3, Drama 3, Supertonic 3, Qwen3-TTS y Qwen3-TTS con acento ruso), diálogos, pódcasts, libros y subtítulos, cada toma comprobada por reconocimiento, exportación con capítulos y subtítulos.\n- **El ruso, bien hecho**: números en su caso, acentos, «ё» y homógrafos, un diccionario de pronunciación.\n- **Listening**: texto con hablantes y tiempos por palabra, edición por texto, comprobación de locuciones, un texto conocido sobre la grabación.\n- **Voces**: biblioteca, limpieza de referencias, voz por descripción.",
+      "fr": "La première version de Speech Studio — doublage vocal et reconnaissance de la parole sur votre propre ordinateur.\n\n- **Speech** : cinq moteurs locaux (Higgs Audio v3, Drama 3, Supertonic 3, Qwen3-TTS et Qwen3-TTS avec l’accent tonique russe), dialogues, podcasts, livres et sous-titres, chaque prise vérifiée par reconnaissance, export avec chapitres et sous-titres.\n- **Le russe comme il faut** : nombres au bon cas, accents, « ё » et homographes, dictionnaire de prononciation.\n- **Listening** : texte avec locuteurs et temps par mot, montage par le texte, vérification d’un doublage, texte connu posé sur un enregistrement.\n- **Voix** : bibliothèque, nettoyage des références, voix sur description.",
+      "pt": "A primeira versão do Speech Studio — locução e reconhecimento de fala no seu próprio computador.\n\n- **Speech**: cinco motores locais (Higgs Audio v3, Drama 3, Supertonic 3, Qwen3-TTS e Qwen3-TTS com acento russo), diálogos, podcasts, livros e legendas, cada tomada conferida por reconhecimento, exportação com capítulos e legendas.\n- **O russo feito direito**: números no caso certo, acentos, «ё» e homógrafos, dicionário de pronúncia.\n- **Listening**: texto com falantes e tempos por palavra, edição pelo texto, conferência de locução, um texto conhecido sobre a gravação.\n- **Vozes**: biblioteca, limpeza de referências, voz por descrição."
+    }
+  }
+]
