@@ -28,6 +28,8 @@ pub struct Entry {
     pub note: String,
     /// `manual` или имя импортированного файла.
     pub source: String,
+    /// Проверено ли правило на слух: пусто — нет, `approved` — звучит верно, `fix` — исправить.
+    pub review: String,
 }
 
 impl Default for Entry {
@@ -45,6 +47,7 @@ impl Default for Entry {
             engine: String::new(),
             note: String::new(),
             source: "manual".into(),
+            review: String::new(),
         }
     }
 }
@@ -308,6 +311,9 @@ pub fn validate(entries: &[Entry]) -> Result<(), String> {
         }
         if e.find.trim().is_empty() {
             return Err(t!("dict-empty-find"));
+        }
+        if !["", "approved", "fix"].contains(&e.review.as_str()) {
+            return Err(format!("review {} is not one of approved, fix or empty", e.review));
         }
         compile(e).map_err(|err| t!("dict-bad-pattern", detail = err))?;
     }

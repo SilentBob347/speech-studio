@@ -1318,7 +1318,7 @@
     "unknownHint": "Mots du projet inconnus du dictionnaire d’accents et de celui-ci, et ce qui reste illisible",
     "unknownNone": "Tous les mots sont connus",
     "search": "Rechercher",
-    "projectHint": "Les règles du projet passent avant les communes ; la règle du haut l’emporte et celles du bas ne touchent plus ce qu’elle a remplacé Les règles passent avant le modèle d'accentuation : c'est ainsi qu'on fixe ses homographes, la phrase entière avec + avant la voyelle accentuée.",
+    "projectHint": "Les règles du projet passent avant les communes ; la règle du haut l’emporte et celles du bas ne touchent plus ce qu’elle a remplacé. Les règles passent avant le modèle d'accentuation : c'est ainsi qu'on fixe ses homographes, la phrase entière avec + avant la voyelle accentuée.",
     "globalHint": "Règles pour tous les projets ; celle du haut l’emporte",
     "empty": "Aucune règle pour l’instant",
     "nothingFound": "Rien trouvé",
@@ -1353,7 +1353,15 @@
     "tryProjectVoice": "la voix du projet",
     "tryRun": "Comparer",
     "tryBefore": "Tel qu’écrit",
-    "tryAfter": "Avec la règle"
+    "tryAfter": "Avec la règle",
+    "reviewShow": "Afficher les règles",
+    "reviewShow_all": "toutes ({{n}})",
+    "reviewShow_none": "non vérifiées ({{n}})",
+    "reviewShow_approved": "vérifiées à l'oreille ({{n}})",
+    "reviewShow_fix": "à corriger ({{n}})",
+    "review_none": "Pas vérifiée à l'oreille : appuyez une fois écoutée",
+    "review_approved": "Vérifiée à l'oreille : sonne juste",
+    "review_fix": "À corriger : ne sonne pas juste"
   },
   "prep": {
     "layer_dictionary": "dictionnaire",

@@ -64,6 +64,8 @@ export type DictKind = "word" | "regex" | "phonemes";
 export type DictEntry = {
   id: string; enabled: boolean; kind: DictKind; find: string; say: string; case_sensitive: boolean; whole_word: boolean;
   lang: string; voice: string; engine: string; note: string; source: string;
+  /** Checked by ear: approved, fix, or empty when not checked. */
+  review?: "" | "approved" | "fix";
 };
 export type PrepLayer = "dictionary" | "normalizer" | "stress" | "engine";
 export type PrepStep = { layer: PrepLayer; rule: string; from: string; to: string };

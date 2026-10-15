@@ -1318,7 +1318,7 @@
     "unknownHint": "Palabras del proyecto que no conocen ni el diccionario de acentos ni este, y lo que quedó sin leer",
     "unknownNone": "Todas las palabras son conocidas",
     "search": "Buscar",
-    "projectHint": "Las reglas del proyecto actúan antes que las comunes; gana la de arriba y las de abajo no tocan lo que ya reemplazó Las reglas se aplican antes del modelo de acentos: así se fijan tus propios homógrafos, con la frase entera y + antes de la vocal tónica.",
+    "projectHint": "Las reglas del proyecto actúan antes que las comunes; gana la de arriba y las de abajo no tocan lo que ya reemplazó. Las reglas se aplican antes del modelo de acentos: así se fijan tus propios homógrafos, con la frase entera y + antes de la vocal tónica.",
     "globalHint": "Reglas para todos los proyectos; gana la de arriba",
     "empty": "Aún no hay reglas",
     "nothingFound": "Nada encontrado",
@@ -1353,7 +1353,15 @@
     "tryProjectVoice": "la voz del proyecto",
     "tryRun": "Comparar",
     "tryBefore": "Tal como está escrito",
-    "tryAfter": "Con la regla"
+    "tryAfter": "Con la regla",
+    "reviewShow": "Mostrar reglas",
+    "reviewShow_all": "todas ({{n}})",
+    "reviewShow_none": "sin revisar ({{n}})",
+    "reviewShow_approved": "revisadas de oído ({{n}})",
+    "reviewShow_fix": "por corregir ({{n}})",
+    "review_none": "Sin revisar de oído: pulsa cuando la escuches",
+    "review_approved": "Revisada de oído: suena bien",
+    "review_fix": "Por corregir: no suena bien"
   },
   "prep": {
     "layer_dictionary": "diccionario",

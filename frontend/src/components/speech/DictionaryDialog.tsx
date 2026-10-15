@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowDown, ArrowUp, BookOpen, ChevronDown, Ear, FileUp, Loader2, Plus, SearchCheck, Trash2, X } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, BookOpen, CheckCircle2, ChevronDown, Circle, Ear, FileUp, Loader2, Plus, SearchCheck, Trash2, X } from "lucide-react";
 import { newEntry, speechApi, type DictEntry, type DictKind, type SpeechProject, type UnknownWord } from "../../lib/speech";
 import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
@@ -87,6 +87,7 @@ export default function DictionaryDialog({ pid, project, onChange, onClose }: {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState("");
+  const [reviewShown, setReviewShown] = useState<"all" | "none" | "approved" | "fix">("all");
   const [open, setOpen] = useState<string | null>(null);
   const [unknown, setUnknown] = useState<UnknownWord[] | null>(null);
   const [looking, setLooking] = useState(false);
@@ -134,8 +135,9 @@ export default function DictionaryDialog({ pid, project, onChange, onClose }: {
   };
   const shown = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    return q ? entries.filter((e) => e.find.toLowerCase().includes(q) || e.say.toLowerCase().includes(q)) : entries;
-  }, [entries, filter]);
+    const byText = q ? entries.filter((e) => e.find.toLowerCase().includes(q) || e.say.toLowerCase().includes(q)) : entries;
+    return reviewShown === "all" ? byText : byText.filter((e) => (e.review || "none") === reviewShown);
+  }, [entries, filter, reviewShown]);
 
   const importFile = async (f: File) => {
     setError(null);
@@ -176,7 +178,10 @@ export default function DictionaryDialog({ pid, project, onChange, onClose }: {
           <button onClick={() => void findUnknown()} disabled={looking} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)] disabled:opacity-40" title={t("dict.unknownHint")}>
             {looking ? <Loader2 size={13} className="animate-spin" /> : <SearchCheck size={13} />}{t("dict.unknown")}
           </button>
-          <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={t("dict.search")} aria-label={t("dict.search")} className={`${field} ml-auto w-48`} />
+          <select value={reviewShown} onChange={(e) => setReviewShown(e.target.value as typeof reviewShown)} aria-label={t("dict.reviewShow")} className={`${field} ml-auto w-40`}>
+            {(["all", "none", "approved", "fix"] as const).map((r) => <option key={r} value={r}>{t(`dict.reviewShow_${r}`, { n: r === "all" ? entries.length : entries.filter((e) => (e.review || "none") === r).length })}</option>)}
+          </select>
+          <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={t("dict.search")} aria-label={t("dict.search")} className={`${field} w-48`} />
         </div>
         {error && <p role="alert" className="mx-5 mb-2 px-3 py-2 rounded-lg border border-[var(--color-warn)]/40 text-[12px] text-[var(--color-warn)] break-words">{error}</p>}
         <div className="flex-1 min-h-0 flex">
@@ -198,6 +203,9 @@ export default function DictionaryDialog({ pid, project, onChange, onClose }: {
                       <span className="text-[var(--color-muted)]">→</span>
                       <input value={e.say} onChange={(ev) => patch(e.id, { say: ev.target.value })} placeholder={t(e.kind === "phonemes" ? "dict.sayPhonemes" : "dict.say")} aria-label={t("dict.say")} className={`${field} flex-1 min-w-0 mono`} />
                       <span title={t("dict.count")} className={`w-9 text-right tabnum text-[11px] ${n ? "text-[var(--color-accent)]" : "text-[var(--color-muted)]"}`}>{n}</span>
+                      <button onClick={() => patch(e.id, { review: e.review === "approved" ? "fix" : e.review === "fix" ? "" : "approved" })}
+                        className={`p-1 rounded ${e.review === "approved" ? "text-[var(--color-accent)]" : e.review === "fix" ? "text-[var(--color-warn)]" : "text-[var(--color-muted)] hover:text-[var(--color-text)]"}`}
+                        {...named(t(`dict.review_${e.review || "none"}`))}>{e.review === "approved" ? <CheckCircle2 size={13} /> : e.review === "fix" ? <AlertTriangle size={13} /> : <Circle size={13} />}</button>
                       <button onClick={() => move(e.id, -1)} disabled={i === 0 || !!filter} className="p-1 rounded text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30" {...named(t("dict.up"))}><ArrowUp size={12} /></button>
                       <button onClick={() => move(e.id, 1)} disabled={i === shown.length - 1 || !!filter} className="p-1 rounded text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30" {...named(t("dict.down"))}><ArrowDown size={12} /></button>
                       <button onClick={() => setOpen(expanded ? null : e.id)} aria-expanded={expanded} className="p-1 rounded text-[var(--color-muted)] hover:text-[var(--color-text)]" {...named(t("dict.more"))}><ChevronDown size={13} className={expanded ? "rotate-180" : ""} /></button>

@@ -147,7 +147,7 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "dictionary_set",
-            description: "Save the global pronunciation dictionary whole (entries as dictionary_get gives them; each finds `find` and says `say`, kind word, regex or phonemes, with whole_word, case_sensitive, lang, voice, engine, enabled). A project's own entries are part of the project (project_update).",
+            description: "Save the global pronunciation dictionary whole (entries as dictionary_get gives them; each finds `find` and says `say`, kind word, regex or phonemes, with whole_word, case_sensitive, lang, voice, engine, enabled and review: approved when checked by ear, fix, or empty). A project's own entries are part of the project (project_update).",
             schema: || object(json!({ "entries": { "type": "array", "items": { "type": "object" } } }), &["entries"]),
             call: |args| send(Method::PUT, "/dictionary".into(), json!({ "entries": args.get("entries").cloned().unwrap_or(Value::Array(Vec::new())) })),
         },

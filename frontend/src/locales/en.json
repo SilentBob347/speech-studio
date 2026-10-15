@@ -1318,7 +1318,7 @@
     "unknownHint": "Words of the project that neither the stress dictionary nor this dictionary knows, and what was left unread",
     "unknownNone": "Every word is known",
     "search": "Search",
-    "projectHint": "Rules of this project work before the common ones; the upper rule wins and lower ones do not touch what it replaced Rules apply before the stress model, which is how you set your own homographs: a whole phrase with + before the stressed vowel.",
+    "projectHint": "Rules of this project work before the common ones; the upper rule wins and lower ones do not touch what it replaced. Rules apply before the stress model, which is how you set your own homographs: a whole phrase with + before the stressed vowel.",
     "globalHint": "Rules for every project; the upper rule wins",
     "empty": "No rules yet",
     "nothingFound": "Nothing found",
@@ -1353,7 +1353,15 @@
     "tryProjectVoice": "the project voice",
     "tryRun": "Compare",
     "tryBefore": "As written",
-    "tryAfter": "With the rule"
+    "tryAfter": "With the rule",
+    "reviewShow": "Show rules",
+    "reviewShow_all": "all ({{n}})",
+    "reviewShow_none": "not checked ({{n}})",
+    "reviewShow_approved": "checked by ear ({{n}})",
+    "reviewShow_fix": "to fix ({{n}})",
+    "review_none": "Not checked by ear: press once you have listened",
+    "review_approved": "Checked by ear: sounds right",
+    "review_fix": "To fix: does not sound right"
   },
   "prep": {
     "layer_dictionary": "dictionary",
