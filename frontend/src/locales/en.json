@@ -1318,7 +1318,7 @@
     "unknownHint": "Words of the project that neither the stress dictionary nor this dictionary knows, and what was left unread",
     "unknownNone": "Every word is known",
     "search": "Search",
-    "projectHint": "Rules of this project work before the common ones; the upper rule wins and lower ones do not touch what it replaced",
+    "projectHint": "Rules of this project work before the common ones; the upper rule wins and lower ones do not touch what it replaced Rules apply before the stress model, which is how you set your own homographs: a whole phrase with + before the stressed vowel.",
     "globalHint": "Rules for every project; the upper rule wins",
     "empty": "No rules yet",
     "nothingFound": "Nothing found",

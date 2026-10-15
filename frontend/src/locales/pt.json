@@ -1318,7 +1318,7 @@
     "unknownHint": "Palavras do projeto que nem o dicionário de acentos nem este conhecem, e o que ficou sem leitura",
     "unknownNone": "Todas as palavras são conhecidas",
     "search": "Buscar",
-    "projectHint": "As regras do projeto agem antes das comuns; a de cima vence e as de baixo não mexem no que ela substituiu",
+    "projectHint": "As regras do projeto agem antes das comuns; a de cima vence e as de baixo não mexem no que ela substituiu As regras valem antes do modelo de acentos: assim se definem os seus homógrafos, a frase inteira com + antes da vogal tônica.",
     "globalHint": "Regras para todos os projetos; a de cima vence",
     "empty": "Ainda não há regras",
     "nothingFound": "Nada encontrado",

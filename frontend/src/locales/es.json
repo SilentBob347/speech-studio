@@ -1318,7 +1318,7 @@
     "unknownHint": "Palabras del proyecto que no conocen ni el diccionario de acentos ni este, y lo que quedó sin leer",
     "unknownNone": "Todas las palabras son conocidas",
     "search": "Buscar",
-    "projectHint": "Las reglas del proyecto actúan antes que las comunes; gana la de arriba y las de abajo no tocan lo que ya reemplazó",
+    "projectHint": "Las reglas del proyecto actúan antes que las comunes; gana la de arriba y las de abajo no tocan lo que ya reemplazó Las reglas se aplican antes del modelo de acentos: así se fijan tus propios homógrafos, con la frase entera y + antes de la vocal tónica.",
     "globalHint": "Reglas para todos los proyectos; gana la de arriba",
     "empty": "Aún no hay reglas",
     "nothingFound": "Nada encontrado",

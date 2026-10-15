@@ -1318,7 +1318,7 @@
     "unknownHint": "Mots du projet inconnus du dictionnaire d’accents et de celui-ci, et ce qui reste illisible",
     "unknownNone": "Tous les mots sont connus",
     "search": "Rechercher",
-    "projectHint": "Les règles du projet passent avant les communes ; la règle du haut l’emporte et celles du bas ne touchent plus ce qu’elle a remplacé",
+    "projectHint": "Les règles du projet passent avant les communes ; la règle du haut l’emporte et celles du bas ne touchent plus ce qu’elle a remplacé Les règles passent avant le modèle d'accentuation : c'est ainsi qu'on fixe ses homographes, la phrase entière avec + avant la voyelle accentuée.",
     "globalHint": "Règles pour tous les projets ; celle du haut l’emporte",
     "empty": "Aucune règle pour l’instant",
     "nothingFound": "Rien trouvé",
