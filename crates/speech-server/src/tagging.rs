@@ -88,6 +88,47 @@ pub fn write_tags(path: &Path, tags: &TrackTags) -> anyhow::Result<()> {
     Ok(())
 }
 
+
+/// Chapter marks of a book, written after `write_tags` (which replaces the whole tag): ID3v2 CHAP frames with a
+/// table of contents on an MP3, `CHAPTERnnn` / `CHAPTERnnnNAME` comments on a FLAC. Fewer than two chapters write none.
+pub fn write_chapters(path: &Path, chapters: &[(f64, f64, String)]) -> anyhow::Result<()> {
+    use lofty::file::AudioFile;
+    use lofty::id3::v2::{ChapterFrame, ChapterTableOfContentsFrame, CtocFlags, Frame, FrameId, FrameList, TextInformationFrame};
+    use lofty::TextEncoding;
+    use std::borrow::Cow;
+    if chapters.len() < 2 {
+        return Ok(());
+    }
+    let ms = |s: f64| (s.max(0.0) * 1000.0).round() as u32;
+    match FileType::from_path(path) {
+        Some(FileType::Mpeg) => {
+            let mut file = lofty::mpeg::MpegFile::read_from(&mut std::fs::File::open(path)?, ParseOptions::new())?;
+            let tag = file.id3v2_mut().ok_or_else(|| anyhow::anyhow!("{} has no ID3v2 tag to hold its chapters", path.display()))?;
+            let ids: Vec<Cow<'static, str>> = (0..chapters.len()).map(|i| Cow::Owned(format!("ch{i}"))).collect();
+            for (id, (start, end, title)) in ids.iter().zip(chapters) {
+                let mut children = FrameList::new();
+                children.insert(Frame::Text(TextInformationFrame::new(FrameId::Valid(Cow::Borrowed("TIT2")), TextEncoding::UTF8, title.clone())));
+                tag.insert(Frame::Chapter(ChapterFrame::new(id.clone(), ms(*start)..ms(*end), u32::MAX..u32::MAX, children)));
+            }
+            let toc = ChapterTableOfContentsFrame::new("toc", CtocFlags { top_level: true, ordered: true }, ids, FrameList::new());
+            tag.insert(Frame::TableOfContents(toc));
+            file.save_to_path(path, WriteOptions::default())?;
+        }
+        Some(FileType::Flac) => {
+            let mut file = lofty::flac::FlacFile::read_from(&mut std::fs::File::open(path)?, ParseOptions::new())?;
+            let comments = file.vorbis_comments_mut().ok_or_else(|| anyhow::anyhow!("{} has no comment block to hold its chapters", path.display()))?;
+            for (i, (start, _, title)) in chapters.iter().enumerate() {
+                let t = ms(*start);
+                comments.push(format!("CHAPTER{:03}", i + 1), format!("{:02}:{:02}:{:02}.{:03}", t / 3_600_000, t / 60_000 % 60, t / 1000 % 60, t % 1000));
+                comments.push(format!("CHAPTER{:03}NAME", i + 1), title.clone());
+            }
+            file.save_to_path(path, WriteOptions::default())?;
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -122,6 +163,40 @@ mod tests {
             let tag = file.primary_tag().unwrap();
             assert_eq!(tag.title().as_deref(), Some("Глава 1"));
             assert_eq!(tag.get_string(lyrics_key(tag.tag_type())), Some("[00:00.00]Привет"), "{extension}");
+            let _ = std::fs::remove_file(&path);
+        }
+    }
+
+
+    #[test]
+    fn chapters_of_a_book_read_back_from_mp3_and_flac() {
+        let chapters = vec![(0.0, 0.05, "Глава 1".to_string()), (0.05, 0.1, "Глава 2".to_string())];
+        for extension in ["mp3", "flac"] {
+            let path = sample(extension);
+            write_tags(&path, &TrackTags { title: "Книга".into(), ..TrackTags::default() }).unwrap();
+            write_chapters(&path, &chapters).unwrap();
+            let file = Probe::open(&path).unwrap().read().unwrap();
+            assert_eq!(file.primary_tag().unwrap().title().as_deref(), Some("Книга"), "{extension}: the tag survives");
+            if extension == "mp3" {
+                use lofty::file::AudioFile;
+                let mpeg = lofty::mpeg::MpegFile::read_from(&mut std::fs::File::open(&path).unwrap(), ParseOptions::new()).unwrap();
+                let titles: Vec<String> = mpeg
+                    .id3v2()
+                    .unwrap()
+                    .iter()
+                    .filter_map(|f| match f {
+                        lofty::id3::v2::Frame::Chapter(c) => c.title().map(str::to_string),
+                        _ => None,
+                    })
+                    .collect();
+                assert_eq!(titles, ["Глава 1", "Глава 2"]);
+            } else {
+                use lofty::file::AudioFile;
+                let flac = lofty::flac::FlacFile::read_from(&mut std::fs::File::open(&path).unwrap(), ParseOptions::new()).unwrap();
+                let comments = flac.vorbis_comments().unwrap();
+                assert_eq!(comments.get("CHAPTER002"), Some("00:00:00.050"));
+                assert_eq!(comments.get("CHAPTER002NAME"), Some("Глава 2"));
+            }
             let _ = std::fs::remove_file(&path);
         }
     }

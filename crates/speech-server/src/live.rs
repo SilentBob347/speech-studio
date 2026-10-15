@@ -66,6 +66,10 @@ impl Phrase {
         if let Ok(mut first) = self.first_ms.lock() {
             first.get_or_insert_with(|| self.started.elapsed().as_millis() as u64);
         }
+        self.play(samples, sr);
+    }
+
+    fn play(&self, samples: &[f32], sr: u32) {
         if channel().receiver_count() == 0 {
             return;
         }
@@ -73,10 +77,10 @@ impl Phrase {
         self.send("chunk", json!({ "sr": sr, "data": base64::engine::general_purpose::STANDARD.encode(bytes) }));
     }
 
-    /// Silence the block's text asks for between its pieces.
+    /// Silence the block's text asks for between its pieces; it is not the block's first sound.
     pub fn pause(&self, ms: u32, sr: u32) {
-        if channel().receiver_count() > 0 && ms > 0 {
-            self.chunk(&vec![0.0; (sr as u64 * ms as u64 / 1000) as usize], sr);
+        if ms > 0 {
+            self.play(&vec![0.0; (sr as u64 * ms as u64 / 1000) as usize], sr);
         }
     }
 
@@ -121,12 +125,13 @@ mod tests {
     async fn a_listener_gets_the_pieces_in_order_and_the_first_sound() {
         let mut rx = channel().subscribe();
         let phrase = Phrase::begin("p1", "b1");
-        assert_eq!(phrase.first_ms(), None);
+        phrase.pause(10, 24_000);
+        assert_eq!(phrase.first_ms(), None, "a pause is no first sound");
         phrase.chunk(&[0.5, -0.5], 24_000);
         phrase.restart();
         phrase.end(true);
-        let kinds: Vec<String> = (0..4).map(|_| rx.try_recv().unwrap()["kind"].as_str().unwrap().to_string()).collect();
-        assert_eq!(kinds, ["start", "chunk", "restart", "end"]);
+        let kinds: Vec<String> = (0..5).map(|_| rx.try_recv().unwrap()["kind"].as_str().unwrap().to_string()).collect();
+        assert_eq!(kinds, ["start", "chunk", "chunk", "restart", "end"]);
         assert!(phrase.first_ms().is_some());
         let mut again = channel().subscribe();
         phrase.chunk(&[0.25], 24_000);
