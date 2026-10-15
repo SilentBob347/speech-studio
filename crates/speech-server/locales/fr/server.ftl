@@ -1112,3 +1112,6 @@ setup-comp-qwen3-tts-ru-stress-purpose = Un adaptateur LoRA pour Qwen3-TTS Base 
 setup-comp-qwen3-tts-engine-name = Moteur Qwen3-TTS
 setup-comp-qwen3-tts-engine-purpose = Le programme et le codec audio communs à toutes les quantifications de Qwen3-TTS
 project-missing = le projet { $pid } n'existe plus : il a été supprimé ou pas encore créé
+media-bad-rate = { $rate } Hz ne convient pas à { $format }
+media-bad-bits = { $bits } bits ne convient pas à { $format } (WAV : 16, 24, 32 ; FLAC : 16, 24)
+media-bad-kbps = { $kbps } kbit/s ne convient pas à { $format } (MP3, OGG, M4A : de 64 à 320)

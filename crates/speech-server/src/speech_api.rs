@@ -335,7 +335,8 @@ pub async fn export_check(State(st): State<AppState>, AxPath(pid): AxPath<String
     }
 }
 
-/// POST /projects/{pid}/export {format, chapter?, per_block?, part_minutes?, allow_duration?} — файл экспорта задачей.
+/// POST /projects/{pid}/export {format, chapter?, per_block?, part_minutes?, allow_duration?, sample_rate?, bits?, kbps?} —
+/// файл экспорта задачей.
 pub async fn export(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<Value>) -> Response {
     if let Err(e) = sp::load(&st.workspace, &pid) {
         return refuse(StatusCode::NOT_FOUND, "no_project", e);
@@ -346,9 +347,17 @@ pub async fn export(State(st): State<AppState>, AxPath(pid): AxPath<String>, Jso
         per_block: body.get("per_block").and_then(Value::as_bool).unwrap_or(false),
         part_minutes: body.get("part_minutes").and_then(Value::as_u64).map(|m| m.min(24 * 60) as u32),
         allow_duration: body.get("allow_duration").and_then(Value::as_bool).unwrap_or(false),
+        quality: crate::media::Quality {
+            rate: body.get("sample_rate").and_then(Value::as_u64).map(|r| r as u32),
+            bits: body.get("bits").and_then(Value::as_u64).map(|b| b as u16),
+            kbps: body.get("kbps").and_then(Value::as_u64).map(|k| k as u32),
+        },
     };
     if !crate::media::EXPORT_FORMATS.contains(&opts.format.as_str()) {
         return refuse(StatusCode::BAD_REQUEST, "bad_format", t!("media-bad-format", format = opts.format.clone()));
+    }
+    if let Err(e) = opts.quality.check(&opts.format) {
+        return refuse(StatusCode::BAD_REQUEST, "bad_quality", e);
     }
     let p = paths(&st);
     let pid2 = pid.clone();

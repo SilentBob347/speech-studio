@@ -1138,3 +1138,6 @@ setup-comp-qwen3-tts-ru-stress-purpose = Адаптер LoRA к Qwen3-TTS Base (
 setup-comp-qwen3-tts-engine-name = Движок Qwen3-TTS
 setup-comp-qwen3-tts-engine-purpose = Программа и кодек звука, общие для всех квантов Qwen3-TTS
 project-missing = проекта { $pid } больше нет: его удалили или он ещё не создан
+media-bad-rate = частота { $rate } Гц не подходит для { $format }
+media-bad-bits = разрядность { $bits } бит не подходит для { $format } (WAV: 16, 24, 32; FLAC: 16, 24)
+media-bad-kbps = битрейт { $kbps } кбит/с не подходит для { $format } (MP3, OGG, M4A: от 64 до 320)

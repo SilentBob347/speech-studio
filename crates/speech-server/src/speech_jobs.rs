@@ -1065,6 +1065,7 @@ pub struct ExportOpts {
     pub part_minutes: Option<u32>,
     /// Экспортировать, хотя дубли не влезли в реплику по длительности.
     pub allow_duration: bool,
+    pub quality: crate::media::Quality,
 }
 
 /// Склеить проект в файл `exports/<имя>.<формат>`.
@@ -1234,19 +1235,22 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         progress(json!({ "type": "progress", "stage": "speech_export", "msg": t!("speech-export-encoding", n = (k + 1) as i64, total = bounds.len() as i64), "pct": 94 + (k * 5 / bounds.len()) as i64 }));
         match opts.format.as_str() {
             // FLAC and MP3 as the music studios write them: libFLAC 24-bit and LAME from audio-post, tags by lofty
-            "flac" | "mp3" => {
+            "flac" | "mp3" if !(opts.format == "flac" && opts.quality.bits == Some(16)) => {
                 let part = mix[from..to].to_vec();
                 let stereo = audio_post::Stereo::new(part.clone(), part, SR);
                 let bytes = if opts.format == "mp3" {
-                    let rate = if acx { 44_100 } else { 48_000 };
-                    audio_post::encode::mp3(&stereo.resampled(rate).map_err(|e| e.to_string())?, MP3_KBPS)
+                    let (rate, kbps) = if acx { (44_100, MP3_KBPS) } else { (opts.quality.rate.unwrap_or(48_000), opts.quality.kbps.unwrap_or(MP3_KBPS)) };
+                    audio_post::encode::mp3(&stereo.resampled(rate).map_err(|e| e.to_string())?, kbps)
                 } else {
-                    audio_post::encode::flac(&stereo)
+                    match opts.quality.rate {
+                        Some(rate) => audio_post::encode::flac(&stereo.resampled(rate).map_err(|e| e.to_string())?),
+                        None => audio_post::encode::flac(&stereo),
+                    }
                 }
                 .map_err(|e| e.to_string())?;
                 std::fs::write(&target, bytes).map_err(|e| format!("{}: {e}", target.display()))?;
             }
-            _ => crate::media::encode_audio_meta(&joined, &target, &opts.format, acx, &meta)?,
+            _ => crate::media::encode_audio_meta(&joined, &target, &opts.format, acx, &meta, &opts.quality)?,
         }
         if crate::tagging::taggable(&target) {
             let cover = meta.cover.as_ref().and_then(|c| std::fs::read(c).ok().map(|bytes| (if c.extension().is_some_and(|e| e.eq_ignore_ascii_case("png")) { "image/png" } else { "image/jpeg" }.to_string(), bytes)));
@@ -1331,7 +1335,7 @@ fn export_clips(p: &SpeechPaths, pid: &str, project: &SpeechProject, blocks: &[&
         let label = if b.note.trim().is_empty() { crate::speech_text::visible(&b.text).chars().take(40).collect::<String>() } else { b.note.trim_end_matches(".txt").to_string() };
         let name = format!("{:03} {}.{}", i + 1, file_stem(&label, None), opts.format);
         let meta = crate::media::AudioMeta { title: crate::speech_text::visible(&b.text), artist: project.voice_of(b).unwrap_or_default(), album: project.name.clone(), ..Default::default() };
-        crate::media::encode_audio_meta(&wav, &folder.join(&name), &opts.format, project.settings.loudness == "acx", &meta)?;
+        crate::media::encode_audio_meta(&wav, &folder.join(&name), &opts.format, project.settings.loudness == "acx", &meta, &opts.quality)?;
         files.push(format!("{base}/{name}"));
     }
     Ok(json!({ "files": files, "folder": folder.to_string_lossy() }))

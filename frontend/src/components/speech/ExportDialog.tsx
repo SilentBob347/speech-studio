@@ -38,6 +38,10 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
   const [clipsSaved, setClipsSaved] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [withAudio, setWithAudio] = useState(true);
+  const [rate, setRate] = useState(0);
+  const [bits, setBits] = useState(0);
+  const [kbps, setKbps] = useState(0);
+  const pickClass = "bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md px-1.5 py-1 text-[12px]";
   const [pack, setPack] = useState<{ file: string; bytes: number } | null>(null);
   const [packing, setPacking] = useState(false);
   const runPack = async () => {
@@ -52,7 +56,7 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
     setBusy(true);
     setError(null);
     try {
-      const { job_id } = await speechApi.export(pid, format, undefined, perBlock, perBlock ? 0 : partMinutes, allowDuration);
+      const { job_id } = await speechApi.export(pid, format, undefined, perBlock, perBlock ? 0 : partMinutes, allowDuration, { sample_rate: rate || undefined, bits: bits || undefined, kbps: kbps || undefined });
       const r = (await followJob(job_id, "export")) as { file: string; files?: string[]; subtitles?: string; subtitle_files?: string[]; timings?: string; chapters?: string | null; parts?: Part[] | null; acx?: AcxReport | null };
       if (r.files) { setClips(r.files); return; }
       setAcx(r.acx ?? null);
@@ -94,10 +98,36 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
           <>
             <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={t("speech.format")}>
               {EXPORT_FORMATS.map((f) => (
-                <button key={f} role="radio" aria-checked={format === f} onClick={() => { setFormat(f); setFile(null); setSubs([]); setChapterList(null); setAcx(null); setClips(null); }}
+                <button key={f} role="radio" aria-checked={format === f} onClick={() => { setFormat(f); setRate(0); setBits(0); setKbps(0); setFile(null); setSubs([]); setChapterList(null); setAcx(null); setClips(null); }}
                   className={`px-3 py-1.5 rounded-lg border text-[12px] font-semibold uppercase ${format === f ? "border-[var(--color-accent)] text-[var(--color-accent)]" : "border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-text)]"}`}>{f}</button>
               ))}
             </div>
+            <fieldset className="flex flex-wrap items-center gap-2 text-[12px]">
+              <legend className="sr-only">{t("speech.quality")}</legend>
+              <span className="text-[var(--color-muted)]">{t("speech.quality")}</span>
+              <label className="inline-flex items-center gap-1.5">{t("speech.rate")}
+                <select value={rate} onChange={(e) => setRate(Number(e.target.value))} className={pickClass}>
+                  <option value={0}>{t("speech.qualityAuto")}</option>
+                  {(format === "mp3" ? [32000, 44100, 48000] : [16000, 22050, 24000, 32000, 44100, 48000]).map((r) => <option key={r} value={r}>{t("speech.rateKhz", { v: (r / 1000).toLocaleString() })}</option>)}
+                </select>
+              </label>
+              {(format === "wav" || format === "flac") && (
+                <label className="inline-flex items-center gap-1.5">{t("speech.bits")}
+                  <select value={bits} onChange={(e) => setBits(Number(e.target.value))} className={pickClass}>
+                    <option value={0}>{t("speech.qualityAuto")}</option>
+                    {(format === "wav" ? [16, 24, 32] : [16, 24]).map((b) => <option key={b} value={b}>{b === 32 ? t("speech.bitsFloat") : b}</option>)}
+                  </select>
+                </label>
+              )}
+              {format !== "wav" && format !== "flac" && (
+                <label className="inline-flex items-center gap-1.5">{t("speech.kbps")}
+                  <select value={kbps} onChange={(e) => setKbps(Number(e.target.value))} className={pickClass}>
+                    <option value={0}>{t("speech.qualityAuto")}</option>
+                    {[96, 128, 160, 192, 256, 320].map((k) => <option key={k} value={k}>{k}</option>)}
+                  </select>
+                </label>
+              )}
+            </fieldset>
             <label className="flex items-center gap-2 text-[12px] cursor-pointer">
               <input type="checkbox" checked={perBlock} onChange={(e) => { setPerBlock(e.target.checked); setFile(null); setClips(null); }} className="w-4 h-4 accent-[var(--color-accent)]" />{t("speech.perBlock")}
             </label>

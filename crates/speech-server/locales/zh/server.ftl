@@ -914,3 +914,6 @@ setup-comp-qwen3-tts-ru-stress-purpose = Qwen3-TTS Base 的 LoRA 适配器（sir
 setup-comp-qwen3-tts-engine-name = Qwen3-TTS 引擎
 setup-comp-qwen3-tts-engine-purpose = 所有 Qwen3-TTS 量化版本共用的程序和音频编解码器
 project-missing = 项目 { $pid } 已不存在：已被删除或尚未创建
+media-bad-rate = { $format } 不支持 { $rate } Hz
+media-bad-bits = { $format } 不支持 { $bits } 位（WAV：16、24、32；FLAC：16、24）
+media-bad-kbps = { $format } 不支持 { $kbps } kbps（MP3、OGG、M4A：64 到 320）

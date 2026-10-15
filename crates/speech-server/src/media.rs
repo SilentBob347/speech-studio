@@ -1123,7 +1123,40 @@ fn ffmetadata(meta: &AudioMeta) -> String {
 }
 
 pub fn encode_audio(src: &Path, dst: &Path, format: &str, acx: bool) -> Result<(), String> {
-    encode_audio_meta(src, dst, format, acx, &AudioMeta::default())
+    encode_audio_meta(src, dst, format, acx, &AudioMeta::default(), &Quality::default())
+}
+
+/// The export's sample rate, bit depth (WAV, FLAC) and bitrate (MP3, OGG, M4A); none set — the format's own.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Quality {
+    pub rate: Option<u32>,
+    pub bits: Option<u16>,
+    pub kbps: Option<u32>,
+}
+
+pub const EXPORT_RATES: [u32; 6] = [16_000, 22_050, 24_000, 32_000, 44_100, 48_000];
+
+impl Quality {
+    /// Refuses what the format cannot carry instead of quietly writing something else.
+    pub fn check(&self, format: &str) -> Result<(), String> {
+        if let Some(r) = self.rate {
+            if !EXPORT_RATES.contains(&r) || (format == "mp3" && !matches!(r, 32_000 | 44_100 | 48_000)) {
+                return Err(t!("media-bad-rate", rate = r as i64, format = format.to_string()));
+            }
+        }
+        if let Some(b) = self.bits {
+            let ok = match format { "wav" => matches!(b, 16 | 24 | 32), "flac" => matches!(b, 16 | 24), _ => false };
+            if !ok {
+                return Err(t!("media-bad-bits", bits = b as i64, format = format.to_string()));
+            }
+        }
+        if let Some(k) = self.kbps {
+            if !matches!(format, "mp3" | "ogg" | "m4a" | "m4b") || !(64..=320).contains(&k) {
+                return Err(t!("media-bad-kbps", kbps = k as i64, format = format.to_string()));
+            }
+        }
+        Ok(())
+    }
 }
 
 /// Звук `src` из кусков `keep` (секунды) встык — FLAC. Граф фильтров идёт файлом: кусков бывают сотни, а командная
@@ -1152,16 +1185,20 @@ pub fn keep_audio_ranges(src: &Path, dst: &Path, keep: &[(f64, f64)]) -> Result<
 }
 
 /// Закодировать звук в формат экспорта с тегами; у M4B и M4A — ещё главы и обложка.
-pub fn encode_audio_meta(src: &Path, dst: &Path, format: &str, acx: bool, meta: &AudioMeta) -> Result<(), String> {
-    let codec: &[&str] = match format {
-        "wav" => &["-c:a", "pcm_s16le"],
-        "flac" => &["-c:a", "flac"],
-        "mp3" if acx => &["-c:a", "libmp3lame", "-b:a", "192k", "-ar", "44100"],
-        "mp3" => &["-c:a", "libmp3lame", "-q:a", "2"],
-        "ogg" => &["-c:a", "libvorbis", "-q:a", "6"],
-        "m4a" | "m4b" => &["-c:a", "aac", "-b:a", "128k", "-movflags", "+faststart"],
+pub fn encode_audio_meta(src: &Path, dst: &Path, format: &str, acx: bool, meta: &AudioMeta, q: &Quality) -> Result<(), String> {
+    let kbps = q.kbps.map(|k| format!("{k}k"));
+    let mut codec: Vec<String> = match format {
+        "wav" => vec!["-c:a".into(), match q.bits { Some(24) => "pcm_s24le", Some(32) => "pcm_f32le", _ => "pcm_s16le" }.into()],
+        "flac" => vec!["-c:a".into(), "flac".into(), "-sample_fmt".into(), if q.bits == Some(16) { "s16" } else { "s32" }.into()],
+        "mp3" if acx => vec!["-c:a".into(), "libmp3lame".into(), "-b:a".into(), "192k".into(), "-ar".into(), "44100".into()],
+        "mp3" => match &kbps { Some(k) => vec!["-c:a".into(), "libmp3lame".into(), "-b:a".into(), k.clone()], None => vec!["-c:a".into(), "libmp3lame".into(), "-q:a".into(), "2".into()] },
+        "ogg" => match &kbps { Some(k) => vec!["-c:a".into(), "libvorbis".into(), "-b:a".into(), k.clone()], None => vec!["-c:a".into(), "libvorbis".into(), "-q:a".into(), "6".into()] },
+        "m4a" | "m4b" => vec!["-c:a".into(), "aac".into(), "-b:a".into(), kbps.clone().unwrap_or_else(|| "128k".into()), "-movflags".into(), "+faststart".into()],
         other => return Err(t!("media-bad-format", format = other.to_string())),
     };
+    if let Some(r) = q.rate.filter(|_| !(acx && format == "mp3")) {
+        codec.extend(["-ar".to_string(), r.to_string()]);
+    }
     let work = tempfile::Builder::new().prefix("meta-").tempdir().map_err(|e| e.to_string())?;
     let meta_file = work.path().join("meta.txt");
     std::fs::write(&meta_file, ffmetadata(meta)).map_err(|e| e.to_string())?;
@@ -1177,9 +1214,26 @@ pub fn encode_audio_meta(src: &Path, dst: &Path, format: &str, acx: bool, meta: 
             args.extend([OsStr::new("-map"), OsStr::new("2:v"), OsStr::new("-c:v"), OsStr::new(if mp4 { "copy" } else { "mjpeg" }), OsStr::new("-disposition:v:0"), OsStr::new("attached_pic")]);
         }
         args.extend([OsStr::new("-af"), OsStr::new("aformat=channel_layouts=mono")]);
-        args.extend(codec.iter().map(OsStr::new));
+        args.extend(codec.iter().map(|c| OsStr::new(c.as_str())));
         args.extend([OsStr::new("-f"), OsStr::new(match format { "m4a" | "m4b" => "ipod", "ogg" => "ogg", f => f })]);
         args.push(tmp.as_os_str());
         run_ff(&args)
     })
+}
+
+#[cfg(test)]
+mod quality_tests {
+    use super::Quality;
+
+    #[test]
+    fn export_quality_refuses_what_the_format_cannot_carry() {
+        let q = |rate, bits, kbps| Quality { rate, bits, kbps };
+        assert!(q(Some(44_100), Some(24), None).check("wav").is_ok());
+        assert!(q(Some(48_000), None, Some(320)).check("mp3").is_ok());
+        assert!(q(Some(22_050), None, None).check("mp3").is_err());
+        assert!(q(None, Some(32), None).check("flac").is_err());
+        assert!(q(None, Some(24), None).check("mp3").is_err());
+        assert!(q(None, None, Some(192)).check("wav").is_err());
+        assert!(q(Some(11_025), None, None).check("ogg").is_err());
+    }
 }

@@ -1118,3 +1118,6 @@ setup-comp-qwen3-tts-ru-stress-purpose = A LoRA adapter for Qwen3-TTS Base (siri
 setup-comp-qwen3-tts-engine-name = Qwen3-TTS engine
 setup-comp-qwen3-tts-engine-purpose = The program and the audio codec every Qwen3-TTS quantisation shares
 project-missing = project { $pid } is gone: it was deleted or not created yet
+media-bad-rate = { $rate } Hz does not suit { $format }
+media-bad-bits = { $bits }-bit does not suit { $format } (WAV: 16, 24, 32; FLAC: 16, 24)
+media-bad-kbps = { $kbps } kbps does not suit { $format } (MP3, OGG, M4A: 64 to 320)

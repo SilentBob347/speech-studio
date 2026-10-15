@@ -66,6 +66,8 @@ export type SpeechProject = {
 };
 export type ProjectCard = { pid: string; kind: string; name: string; mtime: number; created?: number; blocks?: number; ready?: number };
 export type ExportFormat = "wav" | "flac" | "mp3" | "ogg" | "m4a" | "m4b";
+/** The export's sample rate, bit depth (WAV, FLAC) and bitrate (MP3, OGG, M4A); unset — the format's own. */
+export type ExportQuality = { sample_rate?: number; bits?: number; kbps?: number };
 export const EXPORT_FORMATS: ExportFormat[] = ["wav", "flac", "mp3", "ogg", "m4a", "m4b"];
 export type StressWord = {
   start: number; end: number; word: string; source: "manual" | "dictionary" | "model" | "omograph" | "yo";
@@ -107,7 +109,7 @@ export const speechApi = {
   history: (pid?: string) => getCoded<{ takes: HistoryTake[] }>(pid ? `/history?pid=${pid}` : "/history"),
   exportCheck: (pid: string) => getCoded<{ problems: ExportProblem[] }>(`/projects/${pid}/export-check`),
   timeline: (pid: string) => getCoded<{ blocks: TimelineBlock[] }>(`/projects/${pid}/timeline`),
-  export: (pid: string, format: ExportFormat, chapter?: string, perBlock = false, partMinutes = 0, allowDuration = false) => postCoded<{ job_id: string }>(`/projects/${pid}/export`, { format, chapter, per_block: perBlock, part_minutes: partMinutes || undefined, allow_duration: allowDuration || undefined }),
+  export: (pid: string, format: ExportFormat, chapter?: string, perBlock = false, partMinutes = 0, allowDuration = false, quality: ExportQuality = {}) => postCoded<{ job_id: string }>(`/projects/${pid}/export`, { format, chapter, per_block: perBlock, part_minutes: partMinutes || undefined, allow_duration: allowDuration || undefined, ...quality }),
   exportsToFolder: (pid: string, files: string[], folder?: string) => postCoded<{ folder: string | null; copied?: number }>(`/projects/${pid}/exports-to-folder`, folder ? { files, folder } : { files }),
   fromSubtitles: (file: File, name?: string) => {
     const form = new FormData();
