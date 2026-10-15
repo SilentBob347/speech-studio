@@ -1259,7 +1259,9 @@
     "splitSpeech": "Separar el estilo directo",
     "splitSpeechSelected": "Separar el estilo directo en los seleccionados ({{n}})",
     "splitSpeechDone": "Estilo directo separado en {{n}} bloques. Las réplicas quedan con el hablante «Diálogos»: dele una voz o deje que el director nombre a los personajes.",
-    "splitSpeechNone": "No se encontró estilo directo: réplicas tras un guion al inicio del párrafo o entre comillas tras dos puntos."
+    "splitSpeechNone": "No se encontró estilo directo: réplicas tras un guion al inicio del párrafo o entre comillas tras dos puntos.",
+    "oneVoice": "Una sola voz para todo el proyecto",
+    "oneVoiceHint": "Todos los bloques usan la voz, el motor y los parámetros del proyecto. El reparto, las voces propias de los bloques y las voces por idioma se conservan: desmarque para recuperarlos."
   },
   "tags": {
     "emotion": "Emoción",

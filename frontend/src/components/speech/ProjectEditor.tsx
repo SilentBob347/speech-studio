@@ -82,7 +82,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   // the character's variants (angry, whispering) a block can speak with, from the voice it gets from its speaker
   const variantsFor = (b: Block): { base: string; inherited: string | null; list: { name: string; variant: string }[] } | null => {
     if (!project) return null;
-    const inherited = project.cast[b.speaker] || project.settings.voice || null;
+    const inherited = (project.settings.one_voice ? null : project.cast[b.speaker]) || project.settings.voice || null;
     const own = voiceOf(project, b);
     if (!own) return null;
     const base = library?.voices.find((v) => v.name === own)?.card.variant_of || own;
@@ -678,8 +678,12 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
             <VoicePicker engine={project.settings.engine} value={project.settings.voice} onChange={(v) => edit((p) => { p.settings.voice = v; return p; })} label={t("speech.projectVoice")}
               className="mt-1 w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-2 py-1.5 text-[12px]" />
           </label>
+          <label className="flex items-start gap-2 text-[12px] cursor-pointer">
+            <input type="checkbox" checked={!!project.settings.one_voice} onChange={(e) => edit((p) => { p.settings.one_voice = e.target.checked; return p; })} className="mt-0.5 w-3.5 h-3.5 accent-[var(--color-accent)]" />
+            <span>{t("speech.oneVoice")}<span className="block text-[11px] text-[var(--color-muted)]">{t("speech.oneVoiceHint")}</span></span>
+          </label>
           {speakers.map((s) => (
-            <label key={s} className="block text-[11px]">
+            <label key={s} className={`block text-[11px] ${project.settings.one_voice ? "opacity-50" : ""}`}>
               <span className="flex items-baseline gap-1.5"><span className="font-semibold" style={{ color: tintOf(s) }}>{s}</span><span className="text-[10px] tabnum text-[var(--color-muted)]">{t("speech.castBlocks", { n: blocks.filter((b) => b.speaker === s && !b.hidden).length })}</span></span>
               <VoicePicker engine={project.cast_engines?.[s] || project.settings.engine} value={project.cast[s] ?? null} onChange={(v) => castVoice(s, v)} inherit={t("speech.voiceAsProject")} label={t("speech.voiceFor", { speaker: s })}
                 className="mt-1 w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-2 py-1.5 text-[12px]" />
@@ -730,7 +734,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
                   const index = blocks.indexOf(b);
                   const rendering = !!job && (job.ids === null ? ["pending", "stale", "failed"].includes(stateOf(b)) : job.ids.includes(b.id));
                   const note = notes[b.id];
-                  return <BlockRow key={b.id} pid={pid} engine={engineOf(project, b)} projectEngine={project.settings.engine} speakerEngine={project.cast_engines?.[b.speaker] || null} voice={voiceOf(project, b)} block={b} index={index} state={stateOf(b)} fit={project.status?.[b.id]?.fit} rendering={rendering} playing={playing === b.id} playingTake={playing === b.id ? playingTake : null} simple={simple} variants={variantsFor(b)} inheritedParams={project.cast_params?.[b.speaker] ?? project.settings.params} tint={tintOf(b.speaker)}
+                  return <BlockRow key={b.id} pid={pid} engine={engineOf(project, b)} projectEngine={project.settings.engine} speakerEngine={project.cast_engines?.[b.speaker] || null} voice={voiceOf(project, b)} block={b} index={index} state={stateOf(b)} fit={project.status?.[b.id]?.fit} rendering={rendering} playing={playing === b.id} playingTake={playing === b.id ? playingTake : null} simple={simple} variants={variantsFor(b)} inheritedParams={(project.settings.one_voice ? undefined : project.cast_params?.[b.speaker]) ?? project.settings.params} tint={tintOf(b.speaker)}
                     stressing={!!stressing?.includes(b.id)} doubts={note && note.text === b.text ? note.words : []}
                     selected={selected.includes(b.id)} selecting={selected.length > 0} open={panel === b.id} side={wide ? side : null} a={actions(b)} />;
                 })}

@@ -1259,7 +1259,9 @@
     "splitSpeech": "Séparer le discours direct",
     "splitSpeechSelected": "Séparer le discours direct des blocs choisis ({{n}})",
     "splitSpeechDone": "Discours direct séparé dans {{n}} blocs. Les répliques sont au locuteur « Répliques » : donnez-lui une voix ou laissez le directeur nommer les personnages.",
-    "splitSpeechNone": "Aucun discours direct trouvé : répliques après un tiret en début de paragraphe ou entre guillemets après deux-points."
+    "splitSpeechNone": "Aucun discours direct trouvé : répliques après un tiret en début de paragraphe ou entre guillemets après deux-points.",
+    "oneVoice": "Une seule voix pour tout le projet",
+    "oneVoiceHint": "Chaque bloc parle avec la voix, le moteur et les réglages du projet. La distribution, les voix propres des blocs et les voix par langue sont gardées : décochez pour les retrouver."
   },
   "tags": {
     "emotion": "Émotion",

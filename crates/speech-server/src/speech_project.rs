@@ -201,11 +201,15 @@ pub struct Settings {
     /// passages read by an English voice. A block's own voice comes first.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub lang_voices: BTreeMap<String, String>,
+    /// One voice for the whole project: every block speaks with the project's engine, voice and sampling, while the
+    /// cast, the blocks' own voices and the voices by language are kept for going back to all voices.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub one_voice: bool,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { lang: "auto".into(), engine: "higgs".into(), params: Params::default(), voice: None, pause_same_ms: 300, pause_switch_ms: 600, loudness: "video".into(), qc: QcSettings::default(), auto_stress: true, normalize: true, normalize_off: Vec::new(), timeline: false, max_stretch: 1.25, lead_into_silence: true, room_tone: false, breaths: false, continuation: false, tidy_pauses: true, cloud_model: String::new(), cloud_voice: String::new(), cloud_values: serde_json::Map::new(), lang_voices: BTreeMap::new() }
+        Settings { lang: "auto".into(), engine: "higgs".into(), params: Params::default(), voice: None, pause_same_ms: 300, pause_switch_ms: 600, loudness: "video".into(), qc: QcSettings::default(), auto_stress: true, normalize: true, normalize_off: Vec::new(), timeline: false, max_stretch: 1.25, lead_into_silence: true, room_tone: false, breaths: false, continuation: false, tidy_pauses: true, cloud_model: String::new(), cloud_voice: String::new(), cloud_values: serde_json::Map::new(), lang_voices: BTreeMap::new(), one_voice: false }
     }
 }
 
@@ -286,13 +290,20 @@ impl SpeechProject {
         self.chapters.iter_mut().flat_map(|c| c.blocks.iter_mut()).find(|b| b.id == id)
     }
 
-    /// Голос блока: свой, иначе спикера по составу, иначе голос проекта; `None` — базовый голос движка.
-    /// Движок, что озвучивает блок: свой блока, персонажа, проекта.
+    /// Движок, что озвучивает блок: свой блока, персонажа, проекта; в режиме одного голоса — проекта.
     pub fn engine_of<'a>(&'a self, b: &'a Block) -> &'a str {
+        if self.settings.one_voice {
+            return &self.settings.engine;
+        }
         b.engine.as_deref().filter(|e| !e.is_empty()).or_else(|| self.cast_engines.get(&b.speaker).map(String::as_str).filter(|e| !e.is_empty())).unwrap_or(&self.settings.engine)
     }
 
+    /// Голос блока: свой, иначе по языку блока, иначе спикера по составу, иначе голос проекта; `None` — базовый голос
+    /// движка. В режиме одного голоса — голос проекта.
     pub fn voice_of(&self, b: &Block) -> Option<String> {
+        if self.settings.one_voice {
+            return self.settings.voice.clone().filter(|v| !v.is_empty());
+        }
         let own_lang = (!b.lang.is_empty() && b.lang != self.settings.lang).then(|| self.settings.lang_voices.get(&b.lang)).flatten();
         b.voice
             .clone()
@@ -302,8 +313,12 @@ impl SpeechProject {
             .or_else(|| self.settings.voice.clone().filter(|v| !v.is_empty()))
     }
 
-    /// The sampling the block is voiced with: its own, else its speaker's, else the project's.
+    /// The sampling the block is voiced with: its own, else its speaker's, else the project's; with one voice the
+    /// project's.
     pub fn params_of<'a>(&'a self, b: &'a Block) -> &'a crate::tts_host::Params {
+        if self.settings.one_voice {
+            return &self.settings.params;
+        }
         b.params.as_ref().or_else(|| self.cast_params.get(&b.speaker)).unwrap_or(&self.settings.params)
     }
 
@@ -691,6 +706,20 @@ pub fn with_status(project: &SpeechProject, keys: &BTreeMap<String, String>) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn one_voice_speaks_every_block_with_the_project_s_and_keeps_the_cast() {
+        let mut p = SpeechProject::default();
+        p.settings.voice = Some("Рассказчик".into());
+        p.cast.insert("Олег".into(), "Ливанов".into());
+        p.cast_engines.insert("Олег".into(), "drama3".into());
+        p.cast_params.insert("Олег".into(), crate::tts_host::Params { temperature: 0.6, ..Default::default() });
+        let b = Block { id: "b".into(), speaker: "Олег".into(), voice: Some("Свой".into()), text: "Раз.".into(), ..Default::default() };
+        assert_eq!((p.voice_of(&b).as_deref(), p.engine_of(&b), p.params_of(&b).temperature), (Some("Свой"), "drama3", 0.6));
+        p.settings.one_voice = true;
+        assert_eq!((p.voice_of(&b).as_deref(), p.engine_of(&b), p.params_of(&b).temperature), (Some("Рассказчик"), "higgs", 1.0));
+        assert_eq!(p.cast.get("Олег").map(String::as_str), Some("Ливанов"));
+    }
 
     #[test]
     fn sampling_comes_from_the_block_then_the_speaker_then_the_project_and_keys_the_take() {

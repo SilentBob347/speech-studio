@@ -1259,7 +1259,9 @@
     "splitSpeech": "Separate direct speech",
     "splitSpeechSelected": "Separate direct speech in selected ({{n}})",
     "splitSpeechDone": "Direct speech separated in {{n}} blocks. The lines are under the speaker “Lines”: give it a voice or let the director name the characters.",
-    "splitSpeechNone": "No direct speech found: lines after a dash at a paragraph's start or in quotes after a colon."
+    "splitSpeechNone": "No direct speech found: lines after a dash at a paragraph's start or in quotes after a colon.",
+    "oneVoice": "One voice for the whole project",
+    "oneVoiceHint": "Every block speaks with the project's voice, engine and sampling. The cast, the blocks' own voices and the voices by language are kept: untick to bring them back."
   },
   "tags": {
     "emotion": "Emotion",

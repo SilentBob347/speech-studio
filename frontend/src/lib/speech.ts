@@ -64,6 +64,7 @@ export type SpeechSettings = {
   timeline: boolean; max_stretch: number; lead_into_silence: boolean; room_tone: boolean; breaths: boolean; continuation: boolean; tidy_pauses: boolean; cloud_model: string; cloud_voice: string; cloud_values: Record<string, unknown>;
   /** The voice of each language a block is in when it is not the project's. */
   lang_voices?: Record<string, string>;
+  one_voice?: boolean;
 };
 export type AcxReport = { passed: boolean; checks: { name: "rms" | "peak" | "noise_floor" | "head" | "tail" | "inner_silence" | "length"; value: number; passed: boolean }[] };
 export type DictKind = "word" | "regex" | "phonemes";
@@ -114,8 +115,7 @@ export type HistoryTake = {
 };
 export type QueuedSynth = { n: number; added: number; scope: { ids: string[] | null; from: string | null; force: boolean; seed: number | null } };
 /** The engine that voices a block: its own, its speaker's, the project's. */
-export const engineOf = (p: SpeechProject, b: Block) => b.engine || p.cast_engines?.[b.speaker] || p.settings.engine;
-/** The voice a block speaks with: its own, its speaker's, the project's. */
+export const engineOf = (p: SpeechProject, b: Block) => (p.settings.one_voice ? p.settings.engine : b.engine || p.cast_engines?.[b.speaker] || p.settings.engine);
 /** A built audio file of a Speech project, with the recipe of how it was made when one is beside it. */
 export type Render = { pid: string; project: string; file: string; bytes: number; mtime: number; recipe: string | null };
 /** What a recipe says about one block of a render. */
@@ -124,7 +124,8 @@ export type RecipeBlock = { block: string; speaker: string; text: string; take: 
 /** Something that would go wrong voicing a block (`error`) or not be read as written (`warn`). */
 export type LintIssue = { block: string; level: "error" | "warn"; kind: string; detail: unknown };
 
-export const voiceOf = (p: SpeechProject, b: Block) =>
+/** The voice a block speaks with: its own, its language's, its speaker's, the project's; with one voice the project's. */
+export const voiceOf = (p: SpeechProject, b: Block) => p.settings.one_voice ? p.settings.voice || null :
   b.voice || (b.lang && b.lang !== p.settings.lang ? p.settings.lang_voices?.[b.lang] : null) || p.cast[b.speaker] || p.settings.voice || null;
 export type TimelineBlock = { block: string; speaker: string; start: number; end: number; voiced: boolean; overlap: { with: string; secs: number } | null; cut_previous: boolean };
 export type ExportProblem = { block: string; state: BlockState | "missing" | "modified" | "duration" };
