@@ -118,29 +118,80 @@ const NAMES = {
   ytdlp: "yt-dlp + deno",
   "cuda-runtime": "CUDA runtime (cudart, cuBLAS, cuFFT)",
   cudnn: "cuDNN 9",
+  drama3: "Fish Audio Drama 3 Q4 + drama_engine (24 GB+ GPU)",
+  supertonic3: "Supertonic 3 int8",
+  "qwen3-tts-engine": "Qwen3-TTS engine (qwen.dll) and codec",
+  "qwen3-tts": "Qwen3-TTS 1.7B Q4_K_M (CustomVoice + Base)",
+  "qwen3-tts-q8_0": "Qwen3-TTS 1.7B Q8_0 (CustomVoice + Base)",
+  "qwen3-tts-ru-stress": "Qwen3-TTS Russian stress LoRA",
+  "qwen3-tts-design": "Qwen3-TTS VoiceDesign Q4_K_M",
+  "qwen3-tts-design-q8_0": "Qwen3-TTS VoiceDesign Q8_0",
+  ruaccent: "RUAccent (stress, «ё», homographs)",
+  "ruaccent-omograph-big": "RUAccent big_poetry homographs int8",
+  "parakeet-ultra-int8": "Parakeet Ultra 0.6B int8 (Moondream)",
+  wespeaker: "WeSpeaker ResNet34-LM (voice similarity)",
+  "silero-vad": "Silero VAD v6",
+  dpdfnet: "DPDFNet 48 kHz (noise suppression)",
 };
+
+function windowsModule(src) {
+  return src.slice(src.indexOf("#[cfg(windows)]\nmod platform"), src.indexOf("#[cfg(not(windows))]\nmod platform"));
+}
+
+const SPEC = /FileSpec \{ url: (?:"([^"]+)"|(\w+)), dest_rel: "([^"]+)", size: ([\d_]+),(?: sha256: "[0-9a-f]{64}",)? extract: Extract::(\w+) \}/;
+
+// The files of one component: inline FileSpec literals, FileSpec constants of setup.rs (the Windows platform module
+// first), constant arrays and the files of a Windows `Parts`.
+function filesOf(src, expr, consts) {
+  const windows = windowsModule(src);
+  const named = (name) => {
+    for (const scope of [windows, src]) {
+      const one = scope.match(new RegExp(`const ${name}: FileSpec = (FileSpec \\{[^\\n]*\\});`))?.[1];
+      if (one) return [one];
+      const at = scope.indexOf(`const ${name}: &[FileSpec] = &[`);
+      if (at >= 0) return elements(scope.slice(at + `const ${name}: &[FileSpec] = &[`.length, scope.indexOf("\n];", at)));
+      const parts = scope.indexOf(`const ${name}: Parts = Parts {`);
+      if (parts >= 0) return elements(scope.slice(parts, scope.indexOf("\n    };", parts)).match(/files: &\[([\s\S]*?)\],\n/)?.[1] ?? "");
+    }
+    throw new Error(`FileSpec ${name} not found in setup.rs`);
+  };
+  const elements = (list) => {
+    const out = [];
+    for (const m of list.replace(/^\s*\/\/[^\n]*/gm, "").matchAll(/FileSpec \{[^\n]*?\}|(?:platform::)?([A-Z][A-Z0-9_]+)/g)) {
+      out.push(...(m[0].startsWith("FileSpec") ? [m[0]] : named(m[1])));
+    }
+    return out;
+  };
+  const parts = expr.match(/^platform::(\w+)\.files$/)?.[1];
+  const listed = parts ?? expr.match(/^(?:platform::)?([A-Z][A-Z0-9_]+)$/)?.[1];
+  const specs = listed ? named(listed) : elements(expr.replace(/^&\[/, "").replace(/\]$/, ""));
+  return specs.map((spec) => {
+    const f = spec.match(SPEC);
+    if (!f) throw new Error("cannot parse " + spec.slice(0, 120));
+    const url = f[1] ?? consts[f[2]];
+    if (!url) throw new Error(`unknown URL constant ${f[2]}`);
+    const extract = { None: "none", Flat: "zipflat", Pick: "zippick", Tree: "ziptree", Libs: "wheeldlls" }[f[5]];
+    if (!extract) throw new Error(`unknown Extract::${f[5]}`);
+    return { url, destRel: f[3], size: Number(f[4].replace(/_/g, "")), extract };
+  });
+}
 
 function readManifest() {
   const src = readFileSync(join(root, "crates/speech-server/src/setup.rs"), "utf8").replace(/\r\n/g, "\n");
   const consts = {};
   for (const m of src.matchAll(/const (\w+): &str =\s*"([^"]+)";/g)) consts[m[1]] = m[2];
+  for (const m of windowsModule(src).matchAll(/const (\w+): &str =\s*"([^"]+)";/g)) consts[m[1]] = m[2];
   const at = src.indexOf("pub fn manifest()");
   if (at < 0) throw new Error("manifest() not found in setup.rs");
   const body = src.slice(at, src.indexOf("\n}\n", at));
-  const parts = body.split(/\n {8}Component \{/).slice(1);
-  const num = (s) => Number(s.replace(/_/g, ""));
-  return parts.map((p) => {
+  return body.split(/\n {8}Component \{/).slice(1).map((p) => {
     const id = p.match(/id: "([^"]+)"/)?.[1];
     const requirement = p.match(/requirement: Requirement::(\w+)/)?.[1]?.toLowerCase();
     const delivery = p.match(/delivery: Delivery::(\w+)/)?.[1];
-    const size = num(p.match(/delivery: Delivery::\w+,\s*(?:\/\/[^\n]*\n\s*)*size: ([\d_]+)/)?.[1] ?? "0");
     if (!id || !requirement || !delivery) throw new Error("cannot parse a manifest component: " + p.slice(0, 120));
-    const files = [...p.matchAll(/FileSpec \{ url: (?:"([^"]+)"|(\w+)), dest_rel: "([^"]+)", size: ([\d_]+),(?: sha256: "[0-9a-f]{64}",)? extract: Extract::(\w+) \}/g)].map((f) => {
-      const url = f[1] ?? consts[f[2]];
-      if (!url) throw new Error(`unknown URL constant ${f[2]} in component ${id}`);
-      return { url, destRel: f[3], size: num(f[4]), extract: f[5].toLowerCase() };
-    });
-    return { id, requirement, delivery, size, files };
+    const expr = p.match(/\n\s*files: ([\s\S]*?),\n\s*markers:/)?.[1]?.trim() ?? "&[]";
+    const files = filesOf(src, expr, consts);
+    return { id, requirement, delivery, size: files.reduce((s, f) => s + f.size, 0), files };
   });
 }
 

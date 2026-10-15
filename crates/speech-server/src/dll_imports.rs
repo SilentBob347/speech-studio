@@ -82,7 +82,7 @@ pub fn is_provided_by_the_system(name: &str) -> bool {
         || [
             "kernel32.dll", "kernelbase.dll", "ntdll.dll", "user32.dll", "gdi32.dll", "advapi32.dll", "shell32.dll",
             "shlwapi.dll", "ole32.dll", "oleaut32.dll", "combase.dll", "ws2_32.dll", "crypt32.dll", "bcrypt.dll",
-            "ncrypt.dll", "secur32.dll", "rpcrt4.dll", "setupapi.dll", "cfgmgr32.dll", "version.dll", "dbghelp.dll",
+            "ncrypt.dll", "bcryptprimitives.dll", "secur32.dll", "rpcrt4.dll", "setupapi.dll", "cfgmgr32.dll", "version.dll", "dbghelp.dll",
             "powrprof.dll", "psapi.dll", "userenv.dll", "winmm.dll", "msvcrt.dll", "comdlg32.dll", "comctl32.dll",
             "imm32.dll", "iphlpapi.dll", "winhttp.dll", "wininet.dll", "dxgi.dll", "d3d11.dll", "d3d12.dll",
             "dxcore.dll", "mfplat.dll", "mf.dll", "mfreadwrite.dll", "avrt.dll", "ksuser.dll", "vfw32.dll",
@@ -104,6 +104,9 @@ pub const ENTRY_POINTS: &[(&str, &str)] = &[
     ("llama", "tools/llama/llama-server.exe"),
     ("llama", "tools/llama/ggml-cuda.dll"),
     ("higgs-engine", "models/higgs-engine/audiocpp_engine.dll"),
+    ("drama3", "models/drama-engine/drama_engine.dll"),
+    ("qwen3-tts-engine", "models/qwen3-tts/qwen.dll"),
+    ("qwen3-tts-engine", "models/qwen3-tts/ggml-cuda.dll"),
     ("onnxruntime", "models/runtime/onnxruntime-win-x64-1.28.2/lib/onnxruntime.dll"),
     ("onnxruntime-gpu", "models/runtime/onnxruntime-win-x64-gpu_cuda13-1.28.2/lib/onnxruntime_providers_cuda.dll"),
     ("cudnn", "models/higgs-engine/cudnn64_9.dll"),

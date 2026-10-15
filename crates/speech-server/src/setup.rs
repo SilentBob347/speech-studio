@@ -222,6 +222,21 @@ mod platform {
     // импортирует cublas64_13.dll (ставит cuda-runtime), cudart слинкован статически.
     pub const DRAMA_ENGINE: FileSpec = FileSpec { url: "https://github.com/timoncool/drama-rs/releases/download/engine-0.1.2/drama_engine.dll", dest_rel: "models/drama-engine/drama_engine.dll", size: 31_584_256, sha256: "6104b067d22204581ae33bfdd7a295bd40f902d69f7817e98da747a1014d7246", extract: Extract::None };
 
+    // Движок Qwen3-TTS (форк timoncool/qwentts.cpp, ветка studio, ABI 7), CUDA 13, sm 75/80/86/89/90/100/120 без PTX;
+    // библиотеки ggml лежат рядом с qwen.dll, cudart и cuBLAS ставит cuda-runtime.
+    pub const QWEN_ENGINE: Parts = Parts {
+        size: 434_153_248,
+        files: &[
+            super::QWEN_CODEC,
+            FileSpec { url: "https://github.com/timoncool/qwentts.cpp/releases/download/engine-0.1.0/qwen.dll", dest_rel: "models/qwen3-tts/qwen.dll", size: 425_984, sha256: "273bf728327071096d762d07ce798f6e26d933a9fba0d997ab8d3f02aee8224a", extract: Extract::None },
+            FileSpec { url: "https://github.com/timoncool/qwentts.cpp/releases/download/engine-0.1.0/ggml.dll", dest_rel: "models/qwen3-tts/ggml.dll", size: 62_976, sha256: "7606ca3960bb9797cdc1e28666eba96092619ad49db6df210f54ce0841fe238c", extract: Extract::None },
+            FileSpec { url: "https://github.com/timoncool/qwentts.cpp/releases/download/engine-0.1.0/ggml-base.dll", dest_rel: "models/qwen3-tts/ggml-base.dll", size: 693_760, sha256: "9c81caefcca1646f67958d8f3c8d84fc59c5009dc922faae6bd7170a50547c41", extract: Extract::None },
+            FileSpec { url: "https://github.com/timoncool/qwentts.cpp/releases/download/engine-0.1.0/ggml-cpu.dll", dest_rel: "models/qwen3-tts/ggml-cpu.dll", size: 1_010_176, sha256: "ecff58f5d620c827d02361562512e4611a01ad7b1251bde13ff3dea97e52c80c", extract: Extract::None },
+            FileSpec { url: "https://github.com/timoncool/qwentts.cpp/releases/download/engine-0.1.0/ggml-cuda.dll", dest_rel: "models/qwen3-tts/ggml-cuda.dll", size: 140_809_728, sha256: "30fe1b38ca87499506313841fda1bf064b09422c3d9bc1506b94ec0063d9d1ce", extract: Extract::None },
+        ],
+        markers: &[Marker { rel: super::QWEN_CODEC.dest_rel, expect: super::QWEN_CODEC.size }, Marker { rel: "models/qwen3-tts/qwen.dll", expect: 425_984 }, Marker { rel: "models/qwen3-tts/ggml-cuda.dll", expect: 140_809_728 }],
+    };
+
     pub const WHISPER_ENGINE: Parts = Parts {
         size: 87_654_143,
         files: &[
@@ -350,6 +365,9 @@ mod platform {
     pub const DRAMA_ENGINE: FileSpec = FileSpec { url: "https://github.com/timoncool/drama-rs/releases/download/engine-0.1.2/libdrama_engine.so", dest_rel: "models/drama-engine/libdrama_engine.so", size: 32_141_376, sha256: "9112c17c09d9b89213c945f41537d2d7d840dba29a5530cee88e41cbe1e8df66", extract: Extract::None };
 
     // Purfview faster-whisper r189.1 для Linux (последняя Linux-сборка не-XXL, CTranslate2 под CUDA 11).
+    // Сборки Qwen3-TTS для Linux пока нет: компонент ставит только кодек, движок остаётся недоступным с причиной.
+    pub const QWEN_ENGINE: Parts = Parts { size: super::QWEN_CODEC.size, files: &[super::QWEN_CODEC], markers: &[Marker { rel: super::QWEN_CODEC.dest_rel, expect: super::QWEN_CODEC.size }] };
+
     pub const WHISPER_ENGINE: Parts = Parts {
         size: 106_093_648,
         files: &[
@@ -760,9 +778,9 @@ pub fn manifest() -> Vec<Component> {
             purpose: t!("setup-comp-qwen3-tts-engine-purpose"),
             requirement: Requirement::Optional,
             delivery: Delivery::Download,
-            size: QWEN_CODEC.size,
-            files: &[QWEN_CODEC],
-            markers: &[Marker { rel: QWEN_CODEC.dest_rel, expect: QWEN_CODEC.size }],
+            size: platform::QWEN_ENGINE.size,
+            files: platform::QWEN_ENGINE.files,
+            markers: platform::QWEN_ENGINE.markers,
             external_url: None,
         },
         Component {
