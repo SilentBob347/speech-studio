@@ -1253,7 +1253,9 @@
     "qualityMode_bestHint": "Three takes a block, a strict text check and the voice checked against its reference: the best one stays",
     "emotionSelected": "Emotion for the selected…",
     "emotionNone": "no emotion",
-    "emotionApplied": "Emotion set in {{n}} blocks; engine without emotions: {{skipped}}"
+    "emotionApplied": "Emotion set in {{n}} blocks; engine without emotions: {{skipped}}",
+    "ownParamsSpeaker": "The speaker's own sampling",
+    "ownParamsBlock": "The block's own sampling"
   },
   "tags": {
     "emotion": "Emotion",

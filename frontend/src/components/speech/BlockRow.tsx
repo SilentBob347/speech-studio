@@ -2,12 +2,13 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, ChevronDown, Combine, Eye, EyeOff, GripVertical, Loader2, Pause, Pin, Play, Plus, RefreshCw, Scissors, SlidersHorizontal, SpellCheck, Trash2, X } from "lucide-react";
-import { activeTake, cueTime, MARKERS, withCase, type Block, type BlockState, type Marker, type StressWord } from "../../lib/speech";
+import { activeTake, cueTime, MARKERS, withCase, type Block, type BlockState, type Marker, type SpeechParams, type StressWord } from "../../lib/speech";
 import { askCloneTerms } from "../../lib/cloudConsent";
 import { named } from "../../lib/a11y";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import VoicePicker from "./VoicePicker";
+import OwnParams from "./OwnParams";
 import { LANG_CHOICES } from "./langs";
 import EngineSelect from "./EngineSelect";
 import TagPalette, { type TagPlace } from "./TagPalette";
@@ -102,7 +103,7 @@ function sentenceStart(value: string, cursor: number): number {
   return start;
 }
 
-export default function BlockRow({ pid, engine, projectEngine, speakerEngine, voice, block, index, state, fit, rendering, playing, playingTake, simple, variants, tint, stressing, doubts, selected, selecting, open, side, a }: {
+export default function BlockRow({ pid, engine, projectEngine, speakerEngine, voice, block, index, state, fit, rendering, playing, playingTake, simple, variants, inheritedParams, tint, stressing, doubts, selected, selecting, open, side, a }: {
   pid: string;
   /** The engine that voices this block (its own, its speaker's or the project's). */
   engine: string;
@@ -128,6 +129,8 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
   playingTake: number | null;
   /** The beginner's mode: the panel keeps what voicing a block needs and leaves out notes, review, tags and own refs. */
   simple: boolean;
+  /** The sampling the block gets from its speaker or the project when it has none of its own. */
+  inheritedParams: SpeechParams;
   /** The character's variants this block can speak with: its base voice, the voice it gets from its speaker, and each variant. */
   variants: { base: string; inherited: string | null; list: { name: string; variant: string }[] } | null;
   tint: string;
@@ -210,6 +213,11 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
                   className={`px-2 py-0.5 rounded-md border ${on ? "border-[var(--color-accent)] text-[var(--color-text)]" : "border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-text)]"}`}>{v.variant}</button>
               );
             })}
+          </div>
+        )}
+        {!simple && (
+          <div className="col-span-full">
+            <OwnParams engine={engine} value={block.params} inherited={inheritedParams} label={t("speech.ownParamsBlock")} onChange={(v) => a.patch({ params: v })} />
           </div>
         )}
         {block.takes.length > 1 && take && <TakeCompare block={block} active={take.n} playingTake={playingTake} onAB={a.ab} />}

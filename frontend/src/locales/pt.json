@@ -1253,7 +1253,9 @@
     "qualityMode_bestHint": "Três tomadas por bloco, verificação estrita do texto e da voz com a referência: fica a melhor",
     "emotionSelected": "Emoção para os selecionados…",
     "emotionNone": "sem emoção",
-    "emotionApplied": "Emoção em {{n}} blocos; motor sem emoções: {{skipped}}"
+    "emotionApplied": "Emoção em {{n}} blocos; motor sem emoções: {{skipped}}",
+    "ownParamsSpeaker": "Parâmetros próprios do personagem",
+    "ownParamsBlock": "Parâmetros próprios do bloco"
   },
   "tags": {
     "emotion": "Emoção",

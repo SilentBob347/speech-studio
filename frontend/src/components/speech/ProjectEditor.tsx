@@ -13,6 +13,7 @@ import { named } from "../../lib/a11y";
 import EditorMore from "../EditorMore";
 import StepBar from "./StepBar";
 import LintDialog from "./LintDialog";
+import OwnParams from "./OwnParams";
 import { useSimpleMode } from "../../lib/simpleMode";
 import { useVoices } from "../../lib/voices";
 import { comboOf, matches, typingIn, useShortcuts } from "../../lib/shortcuts";
@@ -653,6 +654,10 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
                 onChange={(e, v) => edit((p) => { const all = { ...(p.cast_engines ?? {}) }; if (e) all[s] = e; else delete all[s]; p.cast_engines = all; if (v) p.cast[s] = v; else if (v === null) delete p.cast[s]; return p; })}
                 inherit={t("speech.engineAsProject")} label={t("speech.engineFor", { speaker: s })}
                 className="mt-1 w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-2 py-1 text-[11px] text-[var(--color-muted)]" />
+              <div className="mt-1">
+                <OwnParams engine={project.cast_engines?.[s] || project.settings.engine} value={project.cast_params?.[s]} inherited={project.settings.params} label={t("speech.ownParamsSpeaker")}
+                  onChange={(v) => edit((p) => { const all = { ...(p.cast_params ?? {}) }; if (v) all[s] = v; else delete all[s]; p.cast_params = all; return p; })} />
+              </div>
             </label>
           ))}
         </aside>
@@ -686,7 +691,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
                   const index = blocks.indexOf(b);
                   const rendering = !!job && (job.ids === null ? ["pending", "stale", "failed"].includes(stateOf(b)) : job.ids.includes(b.id));
                   const note = notes[b.id];
-                  return <BlockRow key={b.id} pid={pid} engine={engineOf(project, b)} projectEngine={project.settings.engine} speakerEngine={project.cast_engines?.[b.speaker] || null} voice={voiceOf(project, b)} block={b} index={index} state={stateOf(b)} fit={project.status?.[b.id]?.fit} rendering={rendering} playing={playing === b.id} playingTake={playing === b.id ? playingTake : null} simple={simple} variants={variantsFor(b)} tint={tintOf(b.speaker)}
+                  return <BlockRow key={b.id} pid={pid} engine={engineOf(project, b)} projectEngine={project.settings.engine} speakerEngine={project.cast_engines?.[b.speaker] || null} voice={voiceOf(project, b)} block={b} index={index} state={stateOf(b)} fit={project.status?.[b.id]?.fit} rendering={rendering} playing={playing === b.id} playingTake={playing === b.id ? playingTake : null} simple={simple} variants={variantsFor(b)} inheritedParams={project.cast_params?.[b.speaker] ?? project.settings.params} tint={tintOf(b.speaker)}
                     stressing={!!stressing?.includes(b.id)} doubts={note && note.text === b.text ? note.words : []}
                     selected={selected.includes(b.id)} selecting={selected.length > 0} open={panel === b.id} side={wide ? side : null} a={actions(b)} />;
                 })}

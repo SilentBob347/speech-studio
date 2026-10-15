@@ -125,6 +125,9 @@ pub struct Block {
     /// Язык блока, когда он не язык проекта (вставка на другом языке); пусто — язык проекта.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub lang: String,
+    /// Свои параметры синтеза блока; нет — персонажа или проекта.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub params: Option<crate::tts_host::Params>,
     /// Время реплики субтитров, с: в проекте по таймкодам блок звучит в нём.
     pub start: Option<f64>,
     pub end: Option<f64>,
@@ -218,6 +221,9 @@ pub struct SpeechProject {
     /// Движок персонажа, когда он не тот, что у проекта (только локальные движки: у облака одна настройка на проект).
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub cast_engines: BTreeMap<String, String>,
+    /// Параметры синтеза персонажа, когда они не те, что у проекта; блок может задать свои поверх.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub cast_params: BTreeMap<String, crate::tts_host::Params>,
     pub chapters: Vec<Chapter>,
     /// Словарь произношения проекта: срабатывает раньше глобального.
     pub dictionary: Vec<crate::pron_dict::Entry>,
@@ -238,7 +244,7 @@ pub struct BookMeta {
 
 impl Default for SpeechProject {
     fn default() -> Self {
-        SpeechProject { kind: KIND.into(), version: 1, name: String::new(), created: 0, settings: Settings::default(), cast: BTreeMap::new(), cast_engines: BTreeMap::new(), chapters: Vec::new(), dictionary: Vec::new(), book: None, key: String::new() }
+        SpeechProject { kind: KIND.into(), version: 1, name: String::new(), created: 0, settings: Settings::default(), cast: BTreeMap::new(), cast_engines: BTreeMap::new(), cast_params: BTreeMap::new(), chapters: Vec::new(), dictionary: Vec::new(), book: None, key: String::new() }
     }
 }
 
@@ -296,6 +302,11 @@ impl SpeechProject {
             .or_else(|| self.settings.voice.clone().filter(|v| !v.is_empty()))
     }
 
+    /// The sampling the block is voiced with: its own, else its speaker's, else the project's.
+    pub fn params_of<'a>(&'a self, b: &'a Block) -> &'a crate::tts_host::Params {
+        b.params.as_ref().or_else(|| self.cast_params.get(&b.speaker)).unwrap_or(&self.settings.params)
+    }
+
     /// The block's language: its own when it has one, else the project's (`auto` included).
     pub fn lang_of<'a>(&'a self, b: &'a Block) -> &'a str {
         if b.lang.is_empty() { &self.settings.lang } else { &b.lang }
@@ -307,6 +318,9 @@ impl SpeechProject {
             return Err(format!("this is a {} project, not a speech one", self.kind));
         }
         self.settings.params.checked()?;
+        for (speaker, params) in &self.cast_params {
+            params.checked().map_err(|e| format!("speaker {speaker}: {e}"))?;
+        }
         if let Some(g) = self.settings.normalize_off.iter().find(|g| !crate::normalize_ru::GROUPS.contains(&g.as_str())) {
             return Err(format!("normalize_off: {g} is not one of {}", crate::normalize_ru::GROUPS.join(", ")));
         }
@@ -338,6 +352,9 @@ impl SpeechProject {
                 }
                 if !(b.lang.is_empty() || (2..=3).contains(&b.lang.len()) && b.lang.chars().all(|c| c.is_ascii_lowercase())) {
                     return Err(format!("block {} lang {:?} is not a language code such as en", b.id, b.lang));
+                }
+                if let Some(params) = &b.params {
+                    params.checked().map_err(|e| format!("block {}: {e}", b.id))?;
                 }
                 if !matches!(b.review.as_str(), "" | "approved" | "fix") {
                     return Err(format!("block {} review {:?} is not approved, fix or none", b.id, b.review));
@@ -564,7 +581,7 @@ pub fn voice_tag(voices: &Path, name: Option<&str>) -> String {
 
 /// Ключ синтеза блока: всё, от чего зависит звук. `engine` — движок и его модель с квантом.
 pub fn synth_key(project: &SpeechProject, b: &Block, voice_tag: &str, engine: &str, ref_limit: f64, prep: &str) -> String {
-    let p = &project.settings.params;
+    let p = project.params_of(b);
     let seed = if p.seed_mode == "fixed" { p.seed.to_string() } else { "random".into() };
     let mut h = blake3::Hasher::new();
     for part in [
@@ -574,7 +591,7 @@ pub fn synth_key(project: &SpeechProject, b: &Block, voice_tag: &str, engine: &s
         voice_tag,
         engine,
         &format!("{:.3}|{}|{:.3}|{seed}|{ref_limit:.1}", p.temperature, p.top_k, p.top_p),
-        project.settings.lang.as_str(),
+        project.lang_of(b),
     ] {
         h.update(part.as_bytes());
         h.update(b"\x1f");
@@ -661,6 +678,21 @@ pub fn with_status(project: &SpeechProject, keys: &BTreeMap<String, String>) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn sampling_comes_from_the_block_then_the_speaker_then_the_project_and_keys_the_take() {
+        let mut p = SpeechProject::default();
+        let mut b = Block { id: "b".into(), speaker: "Олег".into(), text: "Раз.".into(), ..Default::default() };
+        let key = |p: &SpeechProject, b: &Block| synth_key(p, b, "v", "higgs", 12.0, "");
+        let plain = key(&p, &b);
+        assert_eq!(p.params_of(&b).temperature, 1.0);
+        p.cast_params.insert("Олег".into(), crate::tts_host::Params { temperature: 0.6, ..Default::default() });
+        assert_eq!(p.params_of(&b).temperature, 0.6);
+        let by_speaker = key(&p, &b);
+        b.params = Some(crate::tts_host::Params { temperature: 1.3, ..Default::default() });
+        assert_eq!(p.params_of(&b).temperature, 1.3);
+        assert!(plain != by_speaker && by_speaker != key(&p, &b));
+    }
 
     #[test]
     fn a_block_in_another_language_speaks_with_that_language_s_voice() {

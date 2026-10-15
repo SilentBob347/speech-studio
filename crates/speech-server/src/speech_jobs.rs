@@ -338,7 +338,7 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
     let mut ignored = stx::Ignored::default();
     let (mut secs, mut retried) = (0.0, Vec::<String>::new());
     let fresh = seed_for(&b.id, n);
-    let mut params = take_params(&project.settings.params, n);
+    let mut params = take_params(project.params_of(b), n);
     if let Some(seed) = REPEAT_SEED.with(|s| s.get()) {
         params.seed_mode = "fixed".into();
         params.seed = seed % tts_host::SEED_RANGE;
@@ -604,7 +604,7 @@ pub fn try_rule(p: &SpeechPaths, pid: &str, phrase: &str, rule: crate::pron_dict
     for (name, entries) in [("before", Vec::new()), ("after", vec![rule])] {
         let stress = project.settings.auto_stress && crate::stress::is_russian(&b.text, project.lang_of(&b));
         let read = crate::prep::prepare(&b.text, &prep_opts(p, &project, project.lang_of(&b), project.engine_of(&b), Some(voice_of.as_str()).filter(|v| !v.is_empty()), &entries, stress)).map_err(|e| t!("stress-failed", detail = e))?.text;
-        let made_of = format!("{read}|{voice_of}|{}|{}|{}", project.engine_of(&b), higgs_config(p).quant, serde_json::to_string(&project.settings.params).unwrap_or_default());
+        let made_of = format!("{read}|{voice_of}|{}|{}|{}", project.engine_of(&b), higgs_config(p).quant, serde_json::to_string(project.params_of(&b)).unwrap_or_default());
         let file = format!("{}.flac", &blake3::hash(made_of.as_bytes()).to_hex()[..20]);
         let path = dir.join(&file);
         if !path.is_file() {

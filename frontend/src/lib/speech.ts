@@ -20,6 +20,8 @@ export type Block = {
   review?: Review;
   /** The block's language when it is not the project's; empty — the project's. */
   lang?: string;
+  /** The block's own sampling, over its speaker's and the project's. */
+  params?: SpeechParams | null;
 };
 export type Review = "" | "approved" | "fix";
 export type WordNote = { quote: string; note: string; marker: Marker | "" };
@@ -82,7 +84,9 @@ export type UnknownWord = { word: string; count: number; why: "unread" | "no_str
 export type BlockState = "pending" | "ready" | "stale" | "failed" | "skipped";
 export type SpeechProject = {
   kind: "speech"; version: number; name: string; created: number; settings: SpeechSettings;
-  cast: Record<string, string>; cast_engines?: Record<string, string>; chapters: Chapter[]; dictionary: DictEntry[];
+  cast: Record<string, string>; cast_engines?: Record<string, string>;
+  /** A speaker's own sampling, over the project's. */
+  cast_params?: Record<string, SpeechParams>; chapters: Chapter[]; dictionary: DictEntry[];
   status?: Record<string, { state: BlockState; key: string; fit?: "fits" | "tight" | "impossible" }>;
 };
 export type ProjectCard = { pid: string; kind: string; name: string; mtime: number; created?: number; blocks?: number; ready?: number };

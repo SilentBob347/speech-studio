@@ -2,11 +2,12 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Dices, X } from "lucide-react";
 import { CLOUD_ENGINES, useEngines } from "../../lib/engines";
-import { type Loudness, type ParamSpec, type SeedMode, type SpeechProject } from "../../lib/speech";
+import { type Loudness, type SeedMode, type SpeechProject } from "../../lib/speech";
 import { named } from "../../lib/a11y";
 import { useEscapeLayer } from "../../lib/escape";
 import { LANG_CHOICES } from "./langs";
 import VoicePicker from "./VoicePicker";
+import { PARAM_LABEL } from "./OwnParams";
 import OpenRouterModelSelect from "../OpenRouterModelSelect";
 import CloudModelPicker from "../cloud/CloudModelPicker";
 import CloudForm from "../cloud/CloudForm";
@@ -17,14 +18,6 @@ import { openSettings } from "../../lib/settingsNav";
 const RU_MARK = "RU";
 
 const LOUDNESS: Loudness[] = ["video", "podcast", "acx", "off"];
-const PARAM_LABEL: Record<ParamSpec["key"], { label: string; hint: string }> = {
-  temperature: { label: "speech.temperature", hint: "speech.temperatureHint" },
-  top_k: { label: "top-k", hint: "speech.topKHint" },
-  top_p: { label: "top-p", hint: "speech.topPHint" },
-  max_tokens: { label: "speech.maxTokens", hint: "speech.maxTokensHint" },
-  steps: { label: "speech.steps", hint: "speech.stepsHint" },
-  speed: { label: "speech.speed", hint: "speech.speedHint" },
-};
 const field = "mt-1 w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md px-2 py-1.5 text-[13px] mono";
 const label = "block text-[12px] text-[var(--color-muted)]";
 

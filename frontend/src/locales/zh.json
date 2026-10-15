@@ -1253,7 +1253,9 @@
     "qualityMode_bestHint": "每块三个版本，严格核对文本并比对参考声音，保留最佳版本",
     "emotionSelected": "为所选块设置情绪…",
     "emotionNone": "无情绪",
-    "emotionApplied": "已为 {{n}} 个块设置情绪；引擎不支持情绪：{{skipped}}"
+    "emotionApplied": "已为 {{n}} 个块设置情绪；引擎不支持情绪：{{skipped}}",
+    "ownParamsSpeaker": "角色自己的参数",
+    "ownParamsBlock": "块自己的参数"
   },
   "tags": {
     "emotion": "情绪",
