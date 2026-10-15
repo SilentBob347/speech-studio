@@ -50,6 +50,8 @@
     "getFailed": "Impossible de télécharger la voix {{name}} : {{error}}"
   },
   "nav": {
+    "more": "Plus",
+    "editorMore": "Actions du projet",
     "new": "Nouveau",
     "newHint": "Commencer avec une nouvelle vidéo",
     "newTitle": "Recommencer le mode actuel sur une page vierge (Ctrl+N)"
@@ -844,6 +846,7 @@
     "issue_short": "Court"
   },
   "speech": {
+    "projectSettings": "Réglages du projet",
     "baseVoice": "Voix de base du moteur",
     "pickVoice": "Choisissez une voix",
     "noVoiceFound": "Aucune voix de ce nom",

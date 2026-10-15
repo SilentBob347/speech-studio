@@ -50,6 +50,8 @@
     "getFailed": "Não foi possível baixar a voz {{name}}: {{error}}"
   },
   "nav": {
+    "more": "Mais",
+    "editorMore": "Ações do projeto",
     "new": "Novo",
     "newHint": "Começar com um novo vídeo",
     "newTitle": "Começar o modo atual numa página em branco (Ctrl+N)"
@@ -844,6 +846,7 @@
     "issue_short": "Curto"
   },
   "speech": {
+    "projectSettings": "Configurações do projeto",
     "baseVoice": "Voz base do motor",
     "pickVoice": "Escolha uma voz",
     "noVoiceFound": "Nenhuma voz assim",

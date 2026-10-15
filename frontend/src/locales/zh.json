@@ -50,6 +50,8 @@
     "getFailed": "无法下载声音 {{name}}：{{error}}"
   },
   "nav": {
+    "more": "更多",
+    "editorMore": "项目操作",
     "new": "新建",
     "newHint": "用新视频开始",
     "newTitle": "以空白页面重新开始当前模式（Ctrl+N）"
@@ -844,6 +846,7 @@
     "issue_short": "太短"
   },
   "speech": {
+    "projectSettings": "项目设置",
     "baseVoice": "引擎基础声音",
     "pickVoice": "请选择声音",
     "noVoiceFound": "没有这样的声音",

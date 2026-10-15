@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AudioLines, Bot, ChevronDown, Ear, HelpCircle, Loader2, Plus, ScrollText, Settings, Users, type LucideIcon } from "lucide-react";
+import { AudioLines, Bot, ChevronDown, Ear, HelpCircle, Loader2, MoreHorizontal, Plus, ScrollText, Settings, Users, type LucideIcon } from "lucide-react";
 import { LANGS, setLang, type Lang } from "../../lib/i18n";
 import { OPEN_HELP_EVENT, OPEN_SETTINGS_EVENT, SETTINGS_SECTIONS } from "../../lib/settingsNav";
 import { JOURNAL_CHANGED, bridgeError, takeArgs, textArg, useBridgeCommand, useChanged } from "../../lib/mcpBridge";
@@ -75,6 +75,18 @@ function StatusBar() {
   const progress = useStore((s) => s.progress);
   const firstRun = useStore((s) => s.stage === "setup");
   const [open, setOpen] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const tick = window.setInterval(() => setNow(Date.now()), 2000);
+    return () => window.clearInterval(tick);
+  }, []);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [open]);
+  const [seen, setSeen] = useState(0);
   const last = activities[activities.length - 1];
   const busy = progress.pct != null || (!!progress.stage && !["", "done", "error"].includes(progress.stage));
   const stageText = progress.stage in en.jobs.kind ? t(`jobs.kind.${progress.stage as JobKind}`) : t("status.working");
@@ -84,18 +96,20 @@ function StatusBar() {
     return ` · ${t("status.eta", { time: left >= 3600 ? `${Math.floor(left / 3600)}:${String(Math.floor((left % 3600) / 60)).padStart(2, "0")}:${String(left % 60).padStart(2, "0")}` : `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}` })}`;
   })();
   const busyText = `${progress.msg || stageText}${progress.pct != null ? ` · ${progress.pct}%` : ""}${eta}`;
-  const text = busy ? busyText : (last ? words(last) : t(firstRun ? "status.setupNeeded" : "status.idle"));
-  const errored = !busy && last?.kind === "error";
+  // a finished step stays in the bar for a moment; an error stays until the log is opened
+  const errored = !busy && last?.kind === "error" && last.t > seen;
+  const recent = !!last && (errored || now - last.t < 10_000);
+  const text = busy ? busyText : (recent && last ? words(last) : t(firstRun ? "status.setupNeeded" : "status.idle"));
   const fmt = (ms: number) => new Date(ms).toLocaleTimeString();
   return (
     <div className="relative flex-1 min-w-0 flex justify-center px-3">
       <span className="sr-only" role="status" aria-live="polite">{text}</span>
-      <button onClick={() => setOpen((o) => !o)} title={t("status.log")} aria-expanded={open}
+      <button onClick={() => { setOpen((o) => !o); setSeen(Date.now()); }} title={t("status.log")} aria-expanded={open}
         className="inline-flex items-center gap-2 max-w-full px-3 py-1 rounded-md text-[12px] text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)] transition-colors">
         {busy
           ? <Loader2 size={13} className="animate-spin text-[var(--color-accent)] shrink-0" />
           : <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${errored ? "bg-[var(--color-warn)]" : "bg-[var(--color-accent)]"}`} />}
-        <span className="truncate">{text}</span>
+        <span className="truncate hidden sm:inline">{text}</span>
         {activities.length > 0 && <ChevronDown size={13} className={`shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />}
       </button>
       {open && (
@@ -124,6 +138,43 @@ function StatusBar() {
 }
 
 const settingsRequest = (target: string) => (cur: { request: number } | null) => ({ target, request: (cur?.request ?? 0) + 1 });
+
+/** The header's actions on a narrow screen, in one menu: the bar keeps the logo, the mode and the status. */
+function MoreMenu({ onVoices, onAssistant, onNew, onHelp, onSettings }: { onVoices: () => void; onAssistant: () => void; onNew: () => void; onHelp: () => void; onSettings: () => void }) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [open]);
+  const item = (Icon: LucideIcon, label: string, act: () => void) => (
+    <button role="menuitem" onClick={() => { setOpen(false); act(); }}
+      className="flex w-full items-center gap-3 px-3 py-3 rounded-md text-[14px] text-[var(--color-text)] hover:bg-[var(--color-surface-2)]">
+      <Icon size={16} className="text-[var(--color-muted)]" />{label}
+    </button>
+  );
+  return (
+    <div className="relative md:hidden shrink-0">
+      <button onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open} aria-label={t("nav.more")} title={t("nav.more")}
+        className="grid place-items-center w-11 h-11 rounded-lg text-[var(--color-text)] hover:bg-[var(--color-surface-2)]"><MoreHorizontal size={20} /></button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div role="menu" aria-label={t("nav.more")} className="absolute right-0 top-full mt-1 z-50 w-64 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl p-1.5">
+            {item(Users, t("voices.open"), onVoices)}
+            {item(Bot, t("chat.title"), onAssistant)}
+            {item(Plus, t("nav.new"), onNew)}
+            {item(HelpCircle, t("help.title"), onHelp)}
+            {item(Settings, t("prefs.title"), onSettings)}
+            <div className="px-3 py-2"><LanguageSwitcher /></div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 export default function TopBar() {
   const { t } = useTranslation();
@@ -157,12 +208,13 @@ export default function TopBar() {
     <header className="flex items-center gap-2 px-3 md:gap-3 md:px-5 h-14 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
       <span className="flex items-center gap-2 font-bold tracking-tight shrink-0">
         <img src="/favicon.svg" alt="" width={20} height={20} className="rounded-[5px] shadow-[0_0_10px_color-mix(in_oklab,var(--color-accent)_30%,transparent)]" />
-        {t("app.name")}
+        <span className="hidden sm:inline">{t("app.name")}</span>
         <span className="hidden lg:inline font-normal text-[11px] text-[var(--color-muted)] tracking-normal" title={t("app.name") + " v" + __APP_VERSION__}>v{__APP_VERSION__}</span>
       </span>
       {ready && <ModeSwitcher />}
       <StatusBar />
-      <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
+      {ready && <MoreMenu onVoices={() => setVoices(true)} onAssistant={() => setAssistant((open) => !open)} onNew={startFresh} onHelp={() => setHelp(true)} onSettings={() => openSettingsAt("models")} />}
+      <div className="hidden md:flex items-center gap-1.5 md:gap-2 shrink-0">
         <div id="dock-slot" className="flex items-center gap-2 shrink-0" />
         {ready && (
           <button onClick={() => setVoices(true)} title={t("voices.title")} aria-label={t("voices.title")}

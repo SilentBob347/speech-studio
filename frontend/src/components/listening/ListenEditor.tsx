@@ -15,6 +15,7 @@ import ErrorNote from "../ErrorNote";
 import { CLOUD_ENGINE_NAMES, askCloud } from "../../lib/cloudConsent";
 import { bridgeError, flash } from "../../lib/mcpBridge";
 import Transcript, { type Selection } from "./Transcript";
+import EditorMore from "../EditorMore";
 import ListenSettings from "./ListenSettings";
 import ListenExport from "./ListenExport";
 import ReferenceCheck from "./ReferenceCheck";
@@ -230,13 +231,13 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
   const speakerLines = (k: string) => lines.filter((l) => l.speaker === k && !l.hidden).length;
 
   return (
-    <main className="flex-1 min-h-0 flex flex-col">
-      <header className="px-5 pt-3 pb-2 border-b border-[var(--color-border)] space-y-2">
+    <main className="flex-1 min-h-0 flex flex-col" data-mcp-page={`Listening: ${project.name}`}>
+      <header className="px-3 md:px-5 pt-3 pb-2 border-b border-[var(--color-border)] space-y-2">
         <div className="flex items-center gap-2">
           <button onClick={onBack} className="p-1.5 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)]" {...named(t("listen.back"))}><ArrowLeft size={16} /></button>
           <input value={project.name} onChange={(e) => edit((p) => ({ ...p, name: e.target.value }))} aria-label={t("speech.name")}
             className="min-w-0 flex-1 bg-transparent text-[15px] font-semibold rounded px-1 border border-transparent hover:border-[var(--color-border)] focus:border-[var(--color-accent)] focus:outline-none" />
-          <span className="text-[11px] text-[var(--color-muted)] tabnum whitespace-nowrap">
+          <span className="hidden sm:inline text-[11px] text-[var(--color-muted)] tabnum whitespace-nowrap">
             {project.made ? t("listen.status", { lines: shown, speakers: Object.keys(project.speakers).length, by: project.made.by }) : t("listen.notYet")}
             {saving ? ` · ${t("speech.saving")}` : ""}
           </span>
@@ -244,15 +245,22 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
           <button onClick={redo} disabled={!canRedo} className="p-1.5 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30" {...named(t("speech.redo"))}><Redo2 size={15} /></button>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          <button onClick={() => setDialog("settings")} className={bar}><Settings2 size={13} />{t("listen.settings")}</button>
+          <button onClick={() => setDialog("settings")} className={`${bar} max-md:hidden`}><Settings2 size={13} />{t("listen.settings")}</button>
           <button onClick={() => void run("transcribe")} disabled={!!busy} className={`${bar} ${project.made ? "" : "bg-[var(--color-accent)] text-[var(--color-on-accent)] border-transparent font-semibold"}`}>
             {busy === "transcribe" ? <Loader2 size={13} className="animate-spin" /> : <Wand2 size={13} />}{project.made ? t("listen.retranscribe") : t("listen.transcribe")}
           </button>
           <button onClick={() => { setSearching((v) => !v); setTimeout(() => searchBox.current?.focus(), 0); }} disabled={!shown} className={bar}><Search size={13} />{t("listen.find")}</button>
-          <button onClick={() => setDialog("export")} disabled={!shown} className={bar}><Download size={13} />{t("listen.export")}</button>
-          <button onClick={() => setDialog("check")} disabled={!shown} className={bar}><FileCheck2 size={13} />{t("listen.check")}</button>
-          <button onClick={() => void toSpeech()} disabled={!shown || !!busy} className={bar}><AudioLines size={13} />{t("listen.toSpeech")}</button>
-          <button onClick={() => void makeVoices()} disabled={!shown || !!busy} className={bar}>{busy === "voices" ? <Loader2 size={13} className="animate-spin" /> : <UserPlus size={13} />}{t("listen.voicesAll")}</button>
+          <button onClick={() => setDialog("export")} disabled={!shown} className={`${bar} max-md:hidden`}><Download size={13} />{t("listen.export")}</button>
+          <button onClick={() => setDialog("check")} disabled={!shown} className={`${bar} max-md:hidden`}><FileCheck2 size={13} />{t("listen.check")}</button>
+          <button onClick={() => void toSpeech()} disabled={!shown || !!busy} className={`${bar} max-md:hidden`}><AudioLines size={13} />{t("listen.toSpeech")}</button>
+          <button onClick={() => void makeVoices()} disabled={!shown || !!busy} className={`${bar} max-md:hidden`}>{busy === "voices" ? <Loader2 size={13} className="animate-spin" /> : <UserPlus size={13} />}{t("listen.voicesAll")}</button>
+          <EditorMore className="ml-auto md:hidden" items={[
+            { icon: Settings2, label: t("listen.settings"), act: () => setDialog("settings") },
+            { icon: Download, label: t("listen.export"), act: () => setDialog("export"), disabled: !shown },
+            { icon: FileCheck2, label: t("listen.check"), act: () => setDialog("check"), disabled: !shown },
+            { icon: AudioLines, label: t("listen.toSpeech"), act: () => void toSpeech(), disabled: !shown || !!busy },
+            { icon: UserPlus, label: t("listen.voicesAll"), act: () => void makeVoices(), disabled: !shown || !!busy },
+          ]} />
         </div>
         {searching && (
           <div role="search" className="flex flex-wrap items-center gap-2">
@@ -266,7 +274,7 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
         )}
       </header>
 
-      <div className="px-5 py-2 border-b border-[var(--color-border)] flex items-center gap-3">
+      <div className="px-3 md:px-5 py-2 border-b border-[var(--color-border)] flex items-center gap-3">
         <button onClick={toggle} className="grid place-items-center w-8 h-8 rounded-full bg-[var(--color-accent)] text-[var(--color-on-accent)]" {...named(playing ? t("listen.pause") : t("listen.play"))}>{playing ? <Pause size={14} /> : <Play size={14} />}</button>
         <span className="mono text-[12px] tabnum text-[var(--color-muted)] w-24">{clock(time)} / {clock(duration || project.duration)}</span>
         <input type="range" min={0} max={duration || project.duration || 1} step={0.05} value={time} onChange={(e) => seek(Number(e.target.value))} aria-label={t("listen.position")} className="flex-1 accent-[var(--color-accent)]" />

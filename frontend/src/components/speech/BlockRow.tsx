@@ -42,7 +42,13 @@ function AutoText({ value, onCommit, label, inputRef, stale }: { value: string; 
   if (value !== seen) { setSeen(value); setDraft(value); }
   useLayoutEffect(() => {
     const el = inputRef.current;
-    if (el) { el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; }
+    if (!el) return;
+    const fit = () => { el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; };
+    fit();
+    let width = el.clientWidth;
+    const watch = new ResizeObserver(() => { if (el.clientWidth !== width) { width = el.clientWidth; fit(); } });
+    watch.observe(el);
+    return () => watch.disconnect();
   }, [draft, inputRef]);
   useEffect(() => {
     if (draft === value) return;
@@ -111,18 +117,18 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
   const shown: BlockState | "rendering" = rendering ? "rendering" : state;
   const icon = "p-1.5 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)] disabled:opacity-30";
   return (
-    <li id={`block-${block.id}`} ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition }}
+    <li id={`block-${block.id}`} ref={setNodeRef} data-mcp-row={`block ${index + 1} ${block.speaker || "-"} ${shown}${take ? ` ${take.duration.toFixed(1)}s` : ""}${block.hidden ? " hidden" : ""}: ${block.text.slice(0, 60)}`} style={{ transform: CSS.Transform.toString(transform), transition }}
       className={`group rounded-xl border transition-colors ${playing ? "border-[var(--color-accent)]" : selected ? "border-[var(--color-accent)]/60 bg-[color-mix(in_oklab,var(--color-accent)_6%,transparent)]" : "border-transparent hover:border-[var(--color-border)]"} ${block.hidden ? "opacity-50" : ""} ${isDragging ? "relative z-10 bg-[var(--color-surface)] shadow-lg" : ""}`}>
-      <div className="flex gap-3 px-2 py-2">
+      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-x-3 gap-y-1 px-2 py-2 sm:flex sm:gap-3">
         <div className="flex flex-col items-center gap-1 pt-1 -mr-1">
           <button type="button" ref={setActivatorNodeRef} {...attributes} {...listeners} aria-label={t("speech.drag")} title={t("speech.drag")}
             className="cursor-grab touch-none rounded text-[var(--color-muted)] opacity-0 group-hover:opacity-100 focus-visible:opacity-100"><GripVertical size={13} /></button>
           <input type="checkbox" checked={selected} onChange={() => undefined} onClick={(e) => a.select(e.shiftKey)} {...named(t("speech.selectBlock"))}
             className={`w-3.5 h-3.5 accent-[var(--color-accent)] ${selecting || selected ? "" : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100"}`} />
         </div>
-        <div className="w-28 shrink-0 pt-0.5 space-y-1">
+        <div className="min-w-0 pt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 sm:block sm:w-28 sm:shrink-0 sm:space-y-1">
           <input list="speech-speakers" value={block.speaker} onChange={(e) => a.patch({ speaker: e.target.value })} aria-label={t("speech.speaker")}
-            className="w-full bg-transparent text-[12px] font-semibold truncate focus:outline-none rounded px-1 -mx-1 focus:bg-[var(--color-surface-2)]" style={{ color: tint }} />
+            className="w-32 sm:w-full bg-transparent text-[12px] font-semibold truncate focus:outline-none rounded px-1 -mx-1 focus:bg-[var(--color-surface-2)]" style={{ color: tint }} />
           <div className="flex items-center gap-1.5 text-[10px] text-[var(--color-muted)]">
             <span className={`w-2 h-2 rounded-full shrink-0 ${STATE_DOT[shown]}`} title={t(`speech.state_${shown}`)} />
             <span>{t(`speech.state_${shown}`)}</span>
@@ -141,7 +147,7 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
             </div>
           )}
         </div>
-        <div className="flex-1 min-w-0">
+        <div className="col-span-3 order-last min-w-0 sm:order-none sm:flex-1">
           <AutoText value={block.text} onCommit={a.setText} label={t("speech.blockText", { n: index + 1 })} inputRef={text} stale={state === "stale"} />
           {doubts.length > 0 && (
             <div className="mt-1 flex flex-wrap items-center gap-1 text-[11px]">
@@ -198,7 +204,7 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
         </div>
       </div>
       {open && (
-        <div className="mx-2 mb-2 ml-[8.25rem] rounded-lg bg-[var(--color-surface-2)]/60 border border-[var(--color-border)] p-2.5 space-y-2">
+        <div className="mx-2 mb-2 sm:ml-[8.25rem] rounded-lg bg-[var(--color-surface-2)]/60 border border-[var(--color-border)] p-2.5 space-y-2">
           <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             <label className="text-[11px] text-[var(--color-muted)]">{t("speech.blockVoice")}
               <VoicePicker engine={engine} value={block.voice} onChange={(v) => a.patch({ voice: v })} inherit={t("speech.voiceAsCast")} label={t("speech.blockVoice")}

@@ -123,6 +123,15 @@ describe("what the agent reads of the page", () => {
     expect(row).toMatch(/: e\d+ open, e\d+ Play, e\d+ textarea="Привет"$/);
   });
 
+  it("reads a row that is not a control itself as one line without an open entry, under the page's own title", () => {
+    document.body.innerHTML = `
+      <main data-mcp-page="Speech: Cafe"><h2>Cast</h2>
+        <ul><li data-mcp-row="block 1 Anna ready 3.4s: Hi"><button title="Play">p</button><textarea>Hi</textarea></li></ul></main>`;
+    const lines = readPage().split("\n");
+    expect(lines[0]).toBe("Page: Speech: Cafe");
+    expect(lines).toContainEqual(expect.stringMatching(/^block 1 Anna ready 3\.4s: Hi: e\d+ Play, e\d+ textarea="Hi"$/));
+  });
+
   it("never reads out a key or a password the user typed, even one its show button reveals", () => {
     document.body.innerHTML = `
       <input type="password" aria-label="OpenRouter key">

@@ -245,11 +245,11 @@ function valueOf(element: Element): string | null {
 
 /**
  * Every visible control, one line each, with the ref the other commands take. The controls of a row of a
- * list (a line of the transcript, a blur box, a title, a project) read as one line named by the row.
+ * list (a block of a Speech project, a line of a Listening transcript) read as one line named by the row.
  */
 export function readPage(): string {
   const lines: string[] = [];
-  const title = document.querySelector("h1, h2")?.textContent?.trim();
+  const title = document.querySelector("[data-mcp-page]")?.getAttribute("data-mcp-page")?.trim() || document.querySelector("h1, h2")?.textContent?.trim();
   if (title) lines.push(`Page: ${title}`);
   const dialog = openDialog();
   if (dialog) lines.push("A dialog is open; its controls are listed first, then the page behind it.");
@@ -262,7 +262,8 @@ export function readPage(): string {
       seen.add(element);
       const tag = element.tagName.toLowerCase();
       const kind = element.getAttribute("role") || (tag === "input" ? `input ${(element as HTMLInputElement).type}` : tag === "summary" ? "section" : tag);
-      const context = element.closest("[data-mcp-context]")?.getAttribute("data-mcp-context");
+      const holder = element.closest("[data-mcp-context], [data-mcp-row]");
+      const context = holder?.getAttribute("data-mcp-context") ?? holder?.getAttribute("data-mcp-row");
       const pressed = element.getAttribute("aria-checked") ?? element.getAttribute("aria-pressed") ?? element.getAttribute("aria-selected");
       const folding = tag === "summary" ? element.closest("details") : null;
       const state = folding ? (folding.open ? " open" : " closed") : pressed ? (pressed === "true" ? " on" : " off") : "";

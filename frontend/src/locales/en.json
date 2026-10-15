@@ -50,6 +50,8 @@
     "getFailed": "Couldn't download the voice {{name}}: {{error}}"
   },
   "nav": {
+    "more": "More",
+    "editorMore": "Project actions",
     "new": "New",
     "newHint": "Start with a new video",
     "newTitle": "Start the current mode from a clean page (Ctrl+N)"
@@ -844,6 +846,7 @@
     "issue_short": "Short"
   },
   "speech": {
+    "projectSettings": "Project settings",
     "baseVoice": "Engine's base voice",
     "pickVoice": "Choose a voice",
     "noVoiceFound": "No such voice",

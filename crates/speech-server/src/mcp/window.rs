@@ -481,7 +481,7 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "ui_read_page",
-            description: "Every visible control of the window, one per line: its ref (e12), kind, label, value and on/off. A row of a list reads as one line with its controls - `segment s12 0:14.2→0:17.0 SPK 1: ...: e40 open, e41 Play this line, e45 Translation=\"...\"` - and an open dialog (a confirmation, the settings) is listed first. A key or password field reads only as filled or empty. Refs are what ui_click, ui_type and ui_select take; read the page again after it changes.",
+            description: "Every visible control of the window, one per line: its ref (e12), kind, label, value and on/off. A row of a list reads as one line with its controls - a Speech block `block 3 Anna ready 3.4s: ...: e40 Speaker=\"Anna\", e41 Block 3 text=\"...\", e42 Play` and a Listening line `line 2 0:04 Speaker 1: ...: e50 Speaker=\"Speaker 1\", e51 Play this line` - and an open dialog (a confirmation, the settings) is listed first. A key or password field reads only as filled or empty. Refs are what ui_click, ui_type and ui_select take; read the page again after it changes.",
             schema: nothing,
             call: |args| window("read_page", args, 15),
         },
@@ -493,7 +493,7 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "ui_type",
-            description: "Type into a field of the window (replaces its text) by ref or by its label in text; submit presses Enter after. A line's translation field saves when it loses focus, which this does.",
+            description: "Type into a field of the window (replaces its text) by ref or by its label in text; submit presses Enter after. A block's text saves a moment after typing stops and when it loses focus, which this does.",
             schema: || object(json!({ "ref": { "type": "string" }, "text": { "type": "string", "description": "the field's label, when there is no ref" }, "value": { "type": "string" }, "submit": { "type": "boolean" } }), &["value"]),
             call: |args| window("type", args, 15),
         },
@@ -505,7 +505,7 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "ui_press_key",
-            description: "Press a key in the window, modifiers joined by +: Space or K plays and pauses the dub, ArrowLeft/ArrowRight seek 5 s (Shift+ 1 s, Ctrl+ 10 s), Home and End, ArrowUp/ArrowDown the volume, F the preview full screen, ? the shortcuts, Ctrl+K the command palette, Ctrl+Z and Ctrl+Shift+Z undo and redo, Escape closes a dialog, Enter, Tab.",
+            description: "Press a key in the window, modifiers joined by +: Space plays and pauses the open Listening recording, Ctrl+F opens the search of the open project, Ctrl+Z and Ctrl+Shift+Z (or Ctrl+Y) undo and redo, Ctrl+1 and Ctrl+2 open Speech and Listening, Ctrl+N starts a new project, Ctrl+, the settings, F1 the help, F10 full screen, ? the list of shortcuts; in a Listening transcript ArrowLeft/ArrowRight move the word selection and Delete cuts it; Escape closes a dialog or a menu, Enter, Tab.",
             schema: || id_only("key", "the key"),
             call: |args| window("press_key", args, 15),
         },

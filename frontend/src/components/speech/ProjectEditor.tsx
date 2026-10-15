@@ -10,6 +10,7 @@ import { useEngines } from "../../lib/engines";
 import { followJob } from "../../lib/followJob";
 import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
+import EditorMore from "../EditorMore";
 import { useStore } from "../../store";
 import { usePublishEditor } from "../../lib/editorBridge";
 import ErrorNote from "../ErrorNote";
@@ -377,25 +378,15 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   }
   const bar = "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] font-medium hover:border-[var(--color-accent)] disabled:opacity-40 transition-colors";
   return (
-    <main className="flex-1 min-h-0 flex flex-col">
-      <div className="flex flex-wrap items-center gap-2 px-5 py-2.5 border-b border-[var(--color-border)] bg-[var(--color-surface)]/60">
-        <button onClick={onBack} className="p-1.5 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)]" {...named(t("speech.allProjects"))}><ArrowLeft size={16} /></button>
+    <main className="flex-1 min-h-0 flex flex-col" data-mcp-page={`Speech: ${project.name}`}>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-2 px-3 md:px-5 py-2.5 border-b border-[var(--color-border)] bg-[var(--color-surface)]/60">
+        <button onClick={onBack} className="grid place-items-center w-9 h-9 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)]" {...named(t("speech.allProjects"))}><ArrowLeft size={16} /></button>
         <input value={project.name} onChange={(e) => edit((p) => ({ ...p, name: e.target.value }))} aria-label={t("speech.name")}
-          className="min-w-0 flex-1 max-w-sm bg-transparent text-[15px] font-semibold focus:outline-none rounded px-1 focus:bg-[var(--color-surface-2)]" />
-        <span className="text-[11px] text-[var(--color-muted)] tabnum">{t("speech.readyOf", { ready: counts.ready ?? 0, total: blocks.length - (counts.skipped ?? 0) })}{saving ? ` · ${t("speech.saving")}` : ""}</span>
-        <div className="ml-auto flex flex-wrap items-center gap-1.5">
-          <button onClick={undo} disabled={!canUndo} className="p-1.5 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30" {...named(t("speech.undo"))}><Undo2 size={15} /></button>
-          <button onClick={redo} disabled={!canRedo} className="p-1.5 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30" {...named(t("speech.redo"))}><Redo2 size={15} /></button>
-          <button onClick={() => setSettings(true)} className={bar}><Settings2 size={13} />{t("speech.settings")}</button>
-          <button onClick={() => setSearching((v) => !v)} aria-pressed={searching} className={bar} title={t("search.title")}><Search size={13} />{t("search.open")}</button>
-          <button onClick={() => setHistory(true)} className={bar} title={t("history.title")}><History size={13} />{t("history.open")}</button>
-          <button onClick={() => setTimelineOpen((v) => !v)} aria-pressed={timelineOpen} className={bar} title={t("timeline.hint")}><ChartGantt size={13} />{t("timeline.open")}</button>
-          <button onClick={() => setCastOpen((v) => !v)} aria-expanded={castOpen} className={`${bar} lg:hidden`}><Users size={13} />{t("speech.cast")}</button>
-          <button onClick={() => void castCharacters()} disabled={casting} className={bar} title={t("speech.castCharactersHint")}>{casting ? <Loader2 size={13} className="animate-spin" /> : <Drama size={13} />}{t("speech.castCharacters")}</button>
-          <button onClick={() => setDictionary(true)} className={bar} title={t("speech.dictionaryHint")}><BookOpen size={13} />{t("speech.dictionary")}</button>
-          <button onClick={() => void stressBlocks(null)} disabled={!!stressing || !blocks.length} className={bar} title={t("speech.stressAllHint")}>
-            {stressing && stressing.length > 1 ? <Loader2 size={13} className="animate-spin" /> : <SpellCheck size={13} />}{t("speech.stressAll")}
-          </button>
+          className="min-w-0 flex-1 md:flex-none md:w-56 xl:w-72 bg-transparent text-[15px] font-semibold focus:outline-none rounded px-1 focus:bg-[var(--color-surface-2)]" />
+        <span className="hidden sm:inline text-[11px] text-[var(--color-muted)] tabnum">{t("speech.readyOf", { ready: counts.ready ?? 0, total: blocks.length - (counts.skipped ?? 0) })}{saving ? ` · ${t("speech.saving")}` : ""}</span>
+        <button onClick={undo} disabled={!canUndo} className="hidden sm:grid place-items-center w-8 h-8 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30" {...named(t("speech.undo"))}><Undo2 size={15} /></button>
+        <button onClick={redo} disabled={!canRedo} className="hidden sm:grid place-items-center w-8 h-8 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30" {...named(t("speech.redo"))}><Redo2 size={15} /></button>
+        <div className="flex items-center gap-1.5 w-full md:w-auto max-md:order-last">
           {job && synthQueue.length > 0 && (
             <div className="relative">
               <button onClick={() => setQueueOpen((v) => !v)} aria-expanded={queueOpen} className={bar}><ListOrdered size={13} />{t("speech.queue", { n: synthQueue.length })}</button>
@@ -413,16 +404,32 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
             </div>
           )}
           {job ? (
-            <button onClick={stopSynth} className={`${bar} border-[var(--color-warn)] text-[var(--color-warn)]`}><Square size={13} />{t("speech.stop")}</button>
+            <button onClick={stopSynth} className={`${bar} flex-1 md:flex-none justify-center border-[var(--color-warn)] text-[var(--color-warn)]`}><Square size={13} />{t("speech.stop")}</button>
           ) : (
-            <>
-              <button onClick={() => void runSynth({})} disabled={!dirty} className={`${bar} bg-[var(--color-accent)] text-[var(--color-on-accent)] border-transparent`}><Sparkles size={13} />{t("speech.voiceDirty", { n: dirty })}</button>
-              <button onClick={() => void runSynth({ force: true })} className={bar}>{t("speech.voiceAll")}</button>
-            </>
+            <button onClick={() => void runSynth({})} disabled={!dirty} className={`${bar} flex-1 md:flex-none justify-center whitespace-nowrap bg-[var(--color-accent)] text-[var(--color-on-accent)] border-transparent`}><Sparkles size={13} />{t("speech.voiceDirty", { n: dirty })}</button>
           )}
-          <button onClick={() => listenFrom(blocks[0]?.id)} disabled={!blocks.length} className={bar}><Play size={13} />{t("speech.listenAll")}</button>
-          <button onClick={() => setExporting(true)} className={bar}><Download size={13} />{t("speech.export")}</button>
+          <button onClick={() => listenFrom(blocks[0]?.id)} disabled={!blocks.length} className={`${bar} justify-center whitespace-nowrap`}><Play size={13} /><span className="max-sm:sr-only">{t("speech.listenAll")}</span></button>
+          <button onClick={() => setExporting(true)} className={`${bar} max-md:hidden`}><Download size={13} />{t("speech.export")}</button>
         </div>
+        <div className="hidden md:flex items-center gap-1.5 ml-auto">
+          <button onClick={() => setSettings(true)} className={bar} {...named(t("speech.projectSettings"))}><Settings2 size={13} /><span className="hidden min-[1700px]:inline">{t("speech.projectSettings")}</span></button>
+          <button onClick={() => setSearching((v) => !v)} aria-pressed={searching} className={bar} {...named(t("search.title"))}><Search size={13} /><span className="hidden min-[1700px]:inline">{t("search.open")}</span></button>
+          <button onClick={() => setTimelineOpen((v) => !v)} aria-pressed={timelineOpen} className={bar} {...named(t("timeline.hint"))}><ChartGantt size={13} /><span className="hidden min-[1700px]:inline">{t("timeline.open")}</span></button>
+          <button onClick={() => setDictionary(true)} className={bar} {...named(t("speech.dictionaryHint"))}><BookOpen size={13} /><span className="hidden min-[1700px]:inline">{t("speech.dictionary")}</span></button>
+          <button onClick={() => void castCharacters()} disabled={casting} className={bar} {...named(t("speech.castCharactersHint"))}>{casting ? <Loader2 size={13} className="animate-spin" /> : <Drama size={13} />}<span className="hidden min-[1700px]:inline">{t("speech.castCharacters")}</span></button>
+        </div>
+        <EditorMore className="ml-auto md:ml-0" items={[
+          { icon: Settings2, label: t("speech.projectSettings"), act: () => setSettings(true), narrowOnly: true },
+          { icon: Search, label: t("search.open"), act: () => setSearching((v) => !v), narrowOnly: true },
+          { icon: ChartGantt, label: t("timeline.open"), act: () => setTimelineOpen((v) => !v), narrowOnly: true },
+          { icon: BookOpen, label: t("speech.dictionary"), act: () => setDictionary(true), narrowOnly: true },
+          { icon: Drama, label: t("speech.castCharacters"), act: () => void castCharacters(), disabled: casting, narrowOnly: true },
+          { icon: Users, label: t("speech.cast"), act: () => setCastOpen((v) => !v), belowLarge: true },
+          { icon: History, label: t("history.open"), act: () => setHistory(true) },
+          { icon: SpellCheck, label: t("speech.stressAll"), act: () => void stressBlocks(null), disabled: !!stressing || !blocks.length },
+          { icon: Sparkles, label: t("speech.voiceAll"), act: () => void runSynth({ force: true }), disabled: !!job },
+          { icon: Download, label: t("speech.export"), act: () => setExporting(true), narrowOnly: true },
+        ]} />
       </div>
 
       {selected.length > 0 && (

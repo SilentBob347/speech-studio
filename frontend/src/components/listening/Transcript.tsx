@@ -22,7 +22,7 @@ const Row = memo(function Row({ line, index, first, speakers, active, selected, 
   const color = speakerColor(line.speaker);
   if (line.hidden) {
     return (
-      <li className="flex items-center gap-3 px-3 py-1.5 rounded-lg border border-dashed border-[var(--color-border)] text-[12px] text-[var(--color-muted)]">
+      <li data-mcp-row={`line ${index + 1} hidden: ${line.text.slice(0, 60)}`} className="flex items-center gap-3 px-3 py-1.5 rounded-lg border border-dashed border-[var(--color-border)] text-[12px] text-[var(--color-muted)]">
         <span className="tabnum w-14 shrink-0">{clock(line.start)}</span>
         <span className="flex-1 min-w-0 truncate line-through" title={line.text}>{line.text}</span>
         <span className="shrink-0">{line.flag ? t(`listen.flag_${line.flag}`) : t("listen.hiddenByYou")}</span>
@@ -31,10 +31,10 @@ const Row = memo(function Row({ line, index, first, speakers, active, selected, 
     );
   }
   return (
-    <li className="group grid grid-cols-[7.5rem_minmax(0,1fr)_auto] gap-3 px-3 py-2 rounded-lg hover:bg-[var(--color-surface-2)]/60" data-line={index}>
-      <div className="space-y-1">
+    <li data-mcp-row={`line ${index + 1} ${clock(line.start)} ${speakers[line.speaker] ?? line.speaker}${line.flag ? ` ${line.flag}` : ""}: ${line.text.slice(0, 60)}`} className="group grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[7.5rem_minmax(0,1fr)_auto] gap-x-3 gap-y-1 px-3 py-2 rounded-lg hover:bg-[var(--color-surface-2)]/60" data-line={index}>
+      <div className="min-w-0 flex flex-wrap items-center gap-x-2.5 gap-y-1 sm:block sm:space-y-1">
         <select value={line.speaker} onChange={(e) => onSpeaker(index, e.target.value)} aria-label={t("listen.speaker")}
-          className="w-full bg-transparent text-[12px] font-semibold truncate rounded border border-transparent hover:border-[var(--color-border)] focus:border-[var(--color-accent)] focus:outline-none" style={{ color }}>
+          className="max-w-[60%] sm:max-w-none sm:w-full bg-transparent text-[12px] font-semibold truncate rounded border border-transparent hover:border-[var(--color-border)] focus:border-[var(--color-accent)] focus:outline-none" style={{ color }}>
           {Object.entries(speakers).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           <option value="+">{newSpeakerLabel}</option>
         </select>
@@ -49,9 +49,9 @@ const Row = memo(function Row({ line, index, first, speakers, active, selected, 
             if (e.key === "Escape") { e.stopPropagation(); setEditing(false); setDraft(line.text); }
           }}
           onBlur={() => { setEditing(false); if (draft.trim() && draft.trim() !== line.text) onText(index, draft.trim()); }}
-          className="w-full bg-[var(--color-surface-2)] border border-[var(--color-accent)] rounded-md px-2 py-1 text-[14px] leading-relaxed focus:outline-none resize-y" />
+          className="col-span-2 order-last sm:col-span-1 sm:order-none w-full bg-[var(--color-surface-2)] border border-[var(--color-accent)] rounded-md px-2 py-1 text-[14px] leading-relaxed focus:outline-none resize-y" />
       ) : (
-        <p className="text-[14px] leading-relaxed select-none" onDoubleClick={() => { setDraft(line.text); setEditing(true); }}>
+        <p className="col-span-2 order-last sm:col-span-1 sm:order-none text-[14px] leading-relaxed select-none" onDoubleClick={() => { setDraft(line.text); setEditing(true); }}>
           {line.words.map((w, wi) => {
             const i = first + wi;
             const sel = selected && i >= selected[0] && i <= selected[1];
@@ -64,7 +64,7 @@ const Row = memo(function Row({ line, index, first, speakers, active, selected, 
           })}
         </p>
       )}
-      <div className="flex items-start gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100">
+      <div className="flex items-start gap-0.5 pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 focus-within:opacity-100">
         <button onClick={() => onPlayLine(line)} className="p-1 rounded text-[var(--color-muted)] hover:text-[var(--color-text)]" {...named(t("listen.playLine"))}><Play size={13} /></button>
         <button onClick={() => { setDraft(line.text); setEditing(true); }} className="p-1 rounded text-[var(--color-muted)] hover:text-[var(--color-text)]" {...named(t("listen.editLine"))}><Pencil size={13} /></button>
         {canMerge && <button onClick={() => onMerge(index)} className="p-1 rounded text-[var(--color-muted)] hover:text-[var(--color-text)]" {...named(t("listen.mergeNext"))}><Merge size={13} /></button>}
