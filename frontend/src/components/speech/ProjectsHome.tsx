@@ -97,14 +97,14 @@ export default function ProjectsHome({ onOpen }: { onOpen: (pid: string) => void
           {error && <p role="alert" className="text-[12px] text-[var(--color-warn)] break-words">{error}</p>}
         </section>
         <section aria-labelledby="recent-title" className="space-y-2">
-          <div className="flex items-center gap-2">
-            <h2 id="recent-title" className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)]">{t("speech.recent")}</h2>
-            <button onClick={() => setPodcast(true)} disabled={busy} className="ml-auto inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--color-border)] text-[11px] hover:border-[var(--color-accent)] disabled:opacity-40" title={t("podcast.openHint")}><Mic2 size={12} />{t("podcast.open")}</button>
-            <button onClick={() => bookFile.current?.click()} disabled={busy} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--color-border)] text-[11px] hover:border-[var(--color-accent)] disabled:opacity-40" title={t("book.openHint")}><Library size={12} />{t("book.open")}</button>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <h2 id="recent-title" className="basis-full text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)]">{t("speech.recent")}</h2>
+            <button onClick={() => setPodcast(true)} disabled={busy} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--color-border)] text-[11px] whitespace-nowrap hover:border-[var(--color-accent)] disabled:opacity-40" title={t("podcast.openHint")}><Mic2 size={12} />{t("podcast.open")}</button>
+            <button onClick={() => bookFile.current?.click()} disabled={busy} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--color-border)] text-[11px] whitespace-nowrap hover:border-[var(--color-accent)] disabled:opacity-40" title={t("book.openHint")}><Library size={12} />{t("book.open")}</button>
             <input ref={bookFile} type="file" accept=".epub,.fb2,.pdf,.docx,.html,.htm,.md,.txt" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void openBook(f); }} />
-            <button onClick={() => subsFile.current?.click()} disabled={busy} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--color-border)] text-[11px] hover:border-[var(--color-accent)] disabled:opacity-40" title={t("speech.fromSubsHint")}><Captions size={12} />{t("speech.fromSubs")}</button>
+            <button onClick={() => subsFile.current?.click()} disabled={busy} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--color-border)] text-[11px] whitespace-nowrap hover:border-[var(--color-accent)] disabled:opacity-40" title={t("speech.fromSubsHint")}><Captions size={12} />{t("speech.fromSubs")}</button>
             <input ref={subsFile} type="file" accept=".srt,.vtt,.ass,.ssa" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void openSubs(f); }} />
-            <button onClick={() => packFile.current?.click()} disabled={busy} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--color-border)] text-[11px] hover:border-[var(--color-accent)] disabled:opacity-40" title={t("speech.openPackHint")}><FolderOpen size={12} />{t("speech.openPack")}</button>
+            <button onClick={() => packFile.current?.click()} disabled={busy} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--color-border)] text-[11px] whitespace-nowrap hover:border-[var(--color-accent)] disabled:opacity-40" title={t("speech.openPackHint")}><FolderOpen size={12} />{t("speech.openPack")}</button>
             <input ref={packFile} type="file" accept=".speechproj" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void openPack(f); }} />
           </div>
           {projects === null && <Loader2 size={16} className="animate-spin text-[var(--color-muted)]" />}

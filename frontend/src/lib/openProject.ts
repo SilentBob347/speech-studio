@@ -1,8 +1,15 @@
 import { useEffect, useState } from "react";
 import { useStore } from "../store";
 
+/** `?pid=` of the page address opens that project in the mode `?mode=` names (a link to a project, as in Dub). */
+function linked(key: string): string | null {
+  const q = new URLSearchParams(location.search);
+  const mode = q.get("mode") === "listening" ? "listening" : "speech";
+  return KEYS[mode] === key ? q.get("pid") : null;
+}
+
 function remembered(key: string): string | null {
-  try { return localStorage.getItem(key); } catch { return null; }
+  try { return linked(key) ?? localStorage.getItem(key); } catch { return linked(key); }
 }
 function remember(key: string, pid: string | null) {
   try { if (pid) localStorage.setItem(key, pid); else localStorage.removeItem(key); } catch { /* the open project is only remembered where storage works */ }

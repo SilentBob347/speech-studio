@@ -11,7 +11,7 @@ const MODE_KEY = "speech-studio:mode";
 
 function savedMode(): Mode {
   try {
-    const m = localStorage.getItem(MODE_KEY);
+    const m = new URLSearchParams(location.search).get("mode") ?? localStorage.getItem(MODE_KEY);
     return m === "listening" ? "listening" : "speech";
   } catch {
     return "speech";
