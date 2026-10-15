@@ -26,7 +26,7 @@ pub(super) fn tools() -> Vec<Tool> {
         Tool {
             name: "speak_text",
             description: "A text voiced into an audio file in one call: voice is a voice name of voices_list (none: the engine's base voice), engine an id of engines_list (default higgs), lang a code or auto, format wav, flac, mp3, ogg or m4a (default flac). Lines like \"Anna: ...\" give a dialogue with the cast of the voices named after the speakers. The first call makes a Speech project (project_id) and voices it; calling again with the same text and arguments answers with the file at once. The answer names the file on this computer.",
-            schema: || object(json!({ "text": { "type": "string" }, "voice": { "type": "string" }, "engine": { "type": "string", "enum": crate::engines::all().iter().map(|e| e.id).collect::<Vec<_>>() }, "lang": { "type": "string" }, "format": { "type": "string", "enum": ["wav", "flac", "mp3", "ogg", "m4a"] }, "direction": { "type": "string", "description": "how it should sound (tone, pace), for the engines that take it" }, "seconds": seconds_arg() }), &["text"]),
+            schema: || object(json!({ "text": { "type": "string" }, "voice": { "type": "string" }, "engine": { "type": "string", "enum": crate::engines::all().iter().map(|e| e.id).collect::<Vec<_>>() }, "lang": { "type": "string" }, "format": { "type": "string", "enum": ["wav", "flac", "mp3", "ogg", "m4a"] }, "direction": { "type": "string", "description": "how it should sound (tone, pace), for the engines that take it" }, "seed": { "type": "integer", "minimum": 0, "description": "a fixed seed: another seed gives another take of the same text" }, "seconds": seconds_arg() }), &["text"]),
             call: |_| composite("speak_text"),
         },
         Tool {
@@ -165,9 +165,14 @@ async fn speak(args: &Value, until: Instant) -> Result<Value, String> {
         return Err(format!("format is wav, flac, mp3, ogg or m4a, not {format}"));
     }
     let field = |n: &str| args.get(n).and_then(Value::as_str).map(str::trim).filter(|v| !v.is_empty()).map(str::to_string);
-    let key = blake3::hash(json!({ "text": said, "voice": field("voice"), "engine": field("engine"), "lang": field("lang"), "direction": field("direction") }).to_string().as_bytes()).to_hex()[..16].to_string();
+    let seed = args.get("seed").and_then(Value::as_u64);
+    let mut keyed = json!({ "text": said, "voice": field("voice"), "engine": field("engine"), "lang": field("lang"), "direction": field("direction") });
+    if let Some(seed) = seed {
+        keyed["seed"] = json!(seed);
+    }
+    let key = blake3::hash(keyed.to_string().as_bytes()).to_hex()[..16].to_string();
     let name: String = said.chars().take(40).collect();
-    let made = ok(Method::POST, "/projects".into(), Some(json!({ "name": name, "text": said, "voice": field("voice"), "engine": field("engine"), "lang": field("lang"), "direction": field("direction"), "key": key }))).await?;
+    let made = ok(Method::POST, "/projects".into(), Some(json!({ "name": name, "text": said, "voice": field("voice"), "engine": field("engine"), "lang": field("lang"), "direction": field("direction"), "seed": seed, "key": key }))).await?;
     let pid = made["project_id"].as_str().ok_or("POST /projects answered no project_id")?.to_string();
     let want = format!("{}.{format}", made["project"]["name"].as_str().unwrap_or("speech"));
     let exports = ok(Method::GET, format!("/projects/{}/exports", segment(&pid)), None).await?;

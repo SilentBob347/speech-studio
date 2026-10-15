@@ -42,6 +42,8 @@ pub struct Engine {
     pub reads: Reads,
     /// Голоса самого движка: у движка без клона голос блока — один из них.
     pub presets: Vec<Preset>,
+    /// Без голоса из библиотеки не говорит: своих голосов нет, базового голоса тоже.
+    pub needs_voice: bool,
     /// Почему движок на этой машине не пойдёт (видеокарта, файлы); None — доступен.
     pub unavailable: Option<String>,
 }
@@ -87,6 +89,7 @@ pub fn higgs() -> Engine {
         max_chars: 400,
         reads: Reads { stress: false, yo: true, phonemes: false, accent: false },
         presets: Vec::new(),
+        needs_voice: false,
         unavailable: None,
     }
 }
@@ -108,6 +111,7 @@ pub fn openrouter() -> Engine {
         max_chars: 1000,
         reads: Reads { stress: false, yo: true, phonemes: false, accent: false },
         presets: Vec::new(),
+        needs_voice: false,
         unavailable: None,
     }
 }
@@ -136,6 +140,7 @@ pub fn drama() -> Engine {
         max_chars: 400,
         reads: Reads { stress: false, yo: true, phonemes: false, accent: false },
         presets: Vec::new(),
+        needs_voice: true,
         unavailable: None,
     }
 }
@@ -163,6 +168,7 @@ pub fn supertonic() -> Engine {
         max_chars: crate::supertonic::MAX_CHARS,
         reads: Reads { stress: true, yo: true, phonemes: false, accent: false },
         presets: crate::supertonic::VOICES.iter().map(|v| preset(v)).collect(),
+        needs_voice: false,
         unavailable: None,
     }
 }
@@ -191,6 +197,7 @@ pub fn qwen() -> Engine {
         max_chars: 400,
         reads: Reads { stress: false, yo: true, phonemes: false, accent: false },
         presets: crate::qwen_tts::SPEAKERS.iter().map(|(id, name, gender, native)| Preset { id, name, gender, native }).collect(),
+        needs_voice: false,
         unavailable: None,
     }
 }
@@ -204,6 +211,7 @@ pub fn qwen_stress() -> Engine {
         languages: &["ru"],
         presets: Vec::new(),
         reads: Reads { stress: true, yo: true, phonemes: false, accent: false },
+        needs_voice: true,
         ..qwen()
     }
 }

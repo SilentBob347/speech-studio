@@ -90,7 +90,8 @@ fn keyed_project(workspace: &Path, key: &str) -> Option<(String, SpeechProject)>
     })
 }
 
-/// POST /projects {name, text?, voice?, lang?} — новый проект Speech: текст режется на блоки (абзацы или диалог).
+/// POST /projects {name, text?, voice?, lang?, seed?} — новый проект Speech: текст режется на блоки (абзацы или диалог);
+/// `seed` фиксирует сид дублей.
 pub async fn create(State(st): State<AppState>, Json(body): Json<Value>) -> Response {
     let name = body.get("name").and_then(Value::as_str).map(str::trim).filter(|n| !n.is_empty()).map(str::to_string).unwrap_or_else(|| t!("speech-untitled"));
     let text = body.get("text").and_then(Value::as_str).unwrap_or("").to_string();
@@ -101,6 +102,7 @@ pub async fn create(State(st): State<AppState>, Json(body): Json<Value>) -> Resp
     let key = body.get("key").and_then(Value::as_str).unwrap_or("").to_string();
     let engine = body.get("engine").and_then(Value::as_str).filter(|e| !e.is_empty()).map(str::to_string);
     let direction = body.get("direction").and_then(Value::as_str).map(str::trim).unwrap_or("").to_string();
+    let seed = body.get("seed").and_then(Value::as_u64);
     if !key.is_empty() {
         if let Some((pid, project)) = keyed_project(&p.workspace, &key) {
             return Json(json!({ "project_id": pid, "project": shown(&p, &project), "existing": true })).into_response();
@@ -133,6 +135,10 @@ pub async fn create(State(st): State<AppState>, Json(body): Json<Value>) -> Resp
             };
             project.settings.params.engine_defaults(&manifest);
             project.settings.engine = e;
+        }
+        if let Some(seed) = seed {
+            project.settings.params.seed_mode = "fixed".into();
+            project.settings.params.seed = seed % crate::tts_host::SEED_RANGE;
         }
         project.key = key;
         if !direction.is_empty() {
