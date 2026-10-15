@@ -6,6 +6,7 @@ import { named } from "../../lib/a11y";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import VoicePicker from "./VoicePicker";
+import EngineSelect from "./EngineSelect";
 import TagPalette from "./TagPalette";
 import PrepareView from "./PrepareView";
 
@@ -54,9 +55,14 @@ function AutoText({ value, onCommit, label, inputRef, stale }: { value: string; 
   );
 }
 
-export default function BlockRow({ pid, engine, block, index, state, fit, rendering, playing, tint, stressing, doubts, selected, selecting, a }: {
+export default function BlockRow({ pid, engine, projectEngine, speakerEngine, voice, block, index, state, fit, rendering, playing, tint, stressing, doubts, selected, selecting, a }: {
   pid: string;
+  /** The engine that voices this block (its own, its speaker's or the project's). */
   engine: string;
+  projectEngine: string;
+  speakerEngine: string | null;
+  /** The voice this block speaks with, its own or inherited. */
+  voice: string | null;
   selected: boolean;
   selecting: boolean;
   fit?: "fits" | "tight" | "impossible";
@@ -174,9 +180,14 @@ export default function BlockRow({ pid, engine, block, index, state, fit, render
       </div>
       {open && (
         <div className="mx-2 mb-2 ml-[8.25rem] rounded-lg bg-[var(--color-surface-2)]/60 border border-[var(--color-border)] p-2.5 space-y-2">
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             <label className="text-[11px] text-[var(--color-muted)]">{t("speech.blockVoice")}
               <VoicePicker engine={engine} value={block.voice} onChange={(v) => a.patch({ voice: v })} inherit={t("speech.voiceAsCast")} label={t("speech.blockVoice")}
+                className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]" />
+            </label>
+            <label className="text-[11px] text-[var(--color-muted)]">{t("speech.blockEngine")}
+              <EngineSelect value={block.engine ?? null} projectEngine={projectEngine} voice={voice} onChange={(e, v) => a.patch(v === undefined ? { engine: e } : { engine: e, voice: v })}
+                inherit={speakerEngine ? t("speech.engineAsSpeaker") : t("speech.engineAsProject")} label={t("speech.blockEngine")}
                 className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]" />
             </label>
             <label className="text-[11px] text-[var(--color-muted)]">{t("speech.pauseAfter")}

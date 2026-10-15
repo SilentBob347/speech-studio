@@ -23,9 +23,15 @@ pub struct EngineNeed {
     pub version: String,
 }
 
-/// Движки проекта и его дублей с версиями, каждый один раз.
+/// Движки проекта, его персонажей и блоков и его дублей с версиями, каждый один раз.
 fn engines_of(project: &SpeechProject, current: String) -> Vec<EngineNeed> {
     let mut seen: Vec<EngineNeed> = vec![EngineNeed { id: project.settings.engine.clone(), version: current }];
+    for b in project.blocks() {
+        let own = project.engine_of(b);
+        if !seen.iter().any(|e| e.id == own) {
+            seen.push(EngineNeed { id: own.to_string(), version: String::new() });
+        }
+    }
     for t in project.blocks().flat_map(|b| b.takes.iter()).filter(|t| !t.engine.is_empty()) {
         let need = EngineNeed { id: t.engine.split(':').next().unwrap_or_default().to_string(), version: t.engine.clone() };
         if !seen.contains(&need) {
@@ -104,7 +110,7 @@ pub fn pack(p: &SpeechPaths, pid: &str, with_audio: bool) -> Result<(String, u64
         app_version: env!("CARGO_PKG_VERSION").into(),
         created: sp::now(),
         name: project.name.clone(),
-        engines: engines_of(&project, crate::speech_jobs::engine_tag(p, &project)),
+        engines: engines_of(&project, crate::speech_jobs::engine_tag(p, &project, &project.settings.engine)),
         with_audio,
         voices,
         assets: files.iter().map(|(path, b)| Asset { path: path.clone(), size: b.len() as u64, sha256: sha(b) }).collect(),

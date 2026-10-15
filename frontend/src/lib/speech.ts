@@ -9,7 +9,7 @@ export type QcCheck = { text_checked: boolean; wer: number; words: number; inser
 export type QcIssue = "tail" | "stretched" | "gap" | "repeat";
 export type QcSettings = { asr_check: boolean; strictness: "strict" | "normal" | "lenient"; takes: number; similarity: boolean };
 export type Block = {
-  id: string; speaker: string; voice: string | null; text: string; direction: string; pause_ms: number | null; cut_previous?: boolean;
+  id: string; speaker: string; voice: string | null; text: string; direction: string; pause_ms: number | null; cut_previous?: boolean; engine?: string | null;
   hidden: boolean; takes: Take[]; active: number | null; pinned: number | null; error: { key: string; text: string } | null;
   note: string; marker: Marker | ""; start: number | null; end: number | null;
 };
@@ -51,7 +51,7 @@ export type UnknownWord = { word: string; count: number; why: "unread" | "no_str
 export type BlockState = "pending" | "ready" | "stale" | "failed" | "skipped";
 export type SpeechProject = {
   kind: "speech"; version: number; name: string; created: number; settings: SpeechSettings;
-  cast: Record<string, string>; chapters: Chapter[]; dictionary: DictEntry[];
+  cast: Record<string, string>; cast_engines?: Record<string, string>; chapters: Chapter[]; dictionary: DictEntry[];
   status?: Record<string, { state: BlockState; key: string; fit?: "fits" | "tight" | "impossible" }>;
 };
 export type ProjectCard = { pid: string; kind: string; name: string; mtime: number; created?: number; blocks?: number; ready?: number };
@@ -72,6 +72,10 @@ export type HistoryTake = {
   voice: string; engine: string; source: string; wer: number | null; active: boolean; first_ms: number | null;
 };
 export type QueuedSynth = { n: number; added: number; scope: { ids: string[] | null; from: string | null; force: boolean; seed: number | null } };
+/** The engine that voices a block: its own, its speaker's, the project's. */
+export const engineOf = (p: SpeechProject, b: Block) => b.engine || p.cast_engines?.[b.speaker] || p.settings.engine;
+/** The voice a block speaks with: its own, its speaker's, the project's. */
+export const voiceOf = (p: SpeechProject, b: Block) => b.voice || p.cast[b.speaker] || p.settings.voice || null;
 export type TimelineBlock = { block: string; speaker: string; start: number; end: number; voiced: boolean; overlap: { with: string; secs: number } | null; cut_previous: boolean };
 export type ExportProblem = { block: string; state: BlockState | "missing" | "modified" | "duration" };
 

@@ -78,6 +78,9 @@ pub struct Block {
     pub text: String,
     pub direction: String,
     pub pause_ms: Option<i64>,
+    /// Свой движок блока; нет — движок персонажа или проекта.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub engine: Option<String>,
     /// Перебивание (отрицательная пауза) обрывает предыдущую реплику, а не звучит поверх неё.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub cut_previous: bool,
@@ -172,6 +175,9 @@ pub struct SpeechProject {
     pub created: u64,
     pub settings: Settings,
     pub cast: BTreeMap<String, String>,
+    /// Движок персонажа, когда он не тот, что у проекта (только локальные движки: у облака одна настройка на проект).
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub cast_engines: BTreeMap<String, String>,
     pub chapters: Vec<Chapter>,
     /// Словарь произношения проекта: срабатывает раньше глобального.
     pub dictionary: Vec<crate::pron_dict::Entry>,
@@ -192,7 +198,7 @@ pub struct BookMeta {
 
 impl Default for SpeechProject {
     fn default() -> Self {
-        SpeechProject { kind: KIND.into(), version: 1, name: String::new(), created: 0, settings: Settings::default(), cast: BTreeMap::new(), chapters: Vec::new(), dictionary: Vec::new(), book: None, key: String::new() }
+        SpeechProject { kind: KIND.into(), version: 1, name: String::new(), created: 0, settings: Settings::default(), cast: BTreeMap::new(), cast_engines: BTreeMap::new(), chapters: Vec::new(), dictionary: Vec::new(), book: None, key: String::new() }
     }
 }
 
@@ -235,6 +241,11 @@ impl SpeechProject {
     }
 
     /// Голос блока: свой, иначе спикера по составу, иначе голос проекта; `None` — базовый голос движка.
+    /// Движок, что озвучивает блок: свой блока, персонажа, проекта.
+    pub fn engine_of<'a>(&'a self, b: &'a Block) -> &'a str {
+        b.engine.as_deref().filter(|e| !e.is_empty()).or_else(|| self.cast_engines.get(&b.speaker).map(String::as_str).filter(|e| !e.is_empty())).unwrap_or(&self.settings.engine)
+    }
+
     pub fn voice_of(&self, b: &Block) -> Option<String> {
         b.voice.clone().filter(|v| !v.is_empty()).or_else(|| self.cast.get(&b.speaker).cloned().filter(|v| !v.is_empty())).or_else(|| self.settings.voice.clone().filter(|v| !v.is_empty()))
     }
@@ -271,12 +282,18 @@ impl SpeechProject {
                 if !b.marker.is_empty() && !MARKERS.contains(&b.marker.as_str()) {
                     return Err(format!("block {} marker {:?} is not one of {MARKERS:?}", b.id, b.marker));
                 }
+                if let Some(e) = b.engine.as_deref().filter(|e| !e.is_empty()) {
+                    own_engine_ok(e, &self.settings.engine).map_err(|why| format!("block {}: {why}", b.id))?;
+                }
                 if let Some(p) = b.pause_ms {
                     if !(-2000..=10_000).contains(&p) {
                         return Err(format!("block {} pause {p} ms is outside -2000..10000", b.id));
                     }
                 }
             }
+        }
+        for (speaker, e) in self.cast_engines.iter().filter(|(_, e)| !e.is_empty()) {
+            own_engine_ok(e, &self.settings.engine).map_err(|why| format!("speaker {speaker}: {why}"))?;
         }
         for p in [self.settings.pause_same_ms, self.settings.pause_switch_ms] {
             if !(-2000..=10_000).contains(&p) {
@@ -512,6 +529,15 @@ pub fn status(b: &Block, key: &str) -> &'static str {
 }
 
 /// Проект для окна: сам проект и по каждому блоку его ключ и статус.
+/// Движок блока или персонажа: известный и локальный — облачный только тот, что выбран у проекта.
+fn own_engine_ok(engine: &str, project_engine: &str) -> Result<(), String> {
+    match crate::engines::get(engine) {
+        None => Err(format!("engine {engine:?} is not one of the studio's engines")),
+        Some(_) if crate::engines::is_cloud(engine) && engine != project_engine => Err(format!("cloud engine {engine:?} is set up for the whole project only")),
+        Some(_) => Ok(()),
+    }
+}
+
 /// Прогноз до синтеза для блока по таймкодам: `fits`, `tight` (уложится ускорением) или `impossible` — по
 /// оценке длины текста при темпе языка (механизм `dub_core::fit::verdict`).
 pub fn fit_forecast(project: &SpeechProject, b: &Block) -> Option<&'static str> {
@@ -603,6 +629,23 @@ mod tests {
         b2.pause_ms = Some(900);
         p.settings.params.temperature = 1.0;
         assert_eq!(k, synth_key(&p, &b2, "v1", "higgs:q8_0", 12.0, ""), "a pause is silence, it does not change the clip");
+    }
+
+    #[test]
+    fn a_block_speaks_with_its_own_engine_then_its_speakers_then_the_projects() {
+        let mut p = from_text("t", "Раз.\n\nДва.\n\nТри.", "Р");
+        p.settings.engine = "higgs".into();
+        p.chapters[0].blocks[1].speaker = "Анна".into();
+        p.cast_engines.insert("Анна".into(), crate::supertonic::ENGINE.into());
+        p.chapters[0].blocks[2].speaker = "Анна".into();
+        p.chapters[0].blocks[2].engine = Some(crate::qwen_tts::ENGINE.into());
+        let b = &p.chapters[0].blocks;
+        assert_eq!((p.engine_of(&b[0]), p.engine_of(&b[1]), p.engine_of(&b[2])), ("higgs", crate::supertonic::ENGINE, crate::qwen_tts::ENGINE));
+        assert!(p.validate().is_ok());
+        p.chapters[0].blocks[0].engine = Some("openrouter".into());
+        assert!(p.validate().is_err(), "a cloud engine is set up for the whole project only");
+        p.chapters[0].blocks[0].engine = Some("nope".into());
+        assert!(p.validate().is_err());
     }
 
     #[test]

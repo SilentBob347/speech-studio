@@ -242,6 +242,11 @@ pub fn for_window(models_root: &std::path::Path) -> Vec<Engine> {
     all
 }
 
+/// Облачные движки: модель и голос у них — одна настройка на проект.
+pub fn is_cloud(id: &str) -> bool {
+    matches!(id, "openrouter" | "google" | "fal" | "runware")
+}
+
 pub fn get(id: &str) -> Option<Engine> {
     all().into_iter().find(|e| e.id == id)
 }

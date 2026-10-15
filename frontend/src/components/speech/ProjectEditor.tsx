@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, BookOpen, ChartGantt, Download, Drama, History, ListOrdered, Loader2, Play, Redo2, Search, Settings2, Sparkles, SpellCheck, Square, Undo2, Users, X } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
-import { activeTake, newId, spliceChars, SPEAKER_TINTS, speechApi, stressDoubts, type Block, type BlockState, type SpeechProject, type QueuedSynth, type StressWord } from "../../lib/speech";
+import { activeTake, engineOf, newId, spliceChars, SPEAKER_TINTS, speechApi, stressDoubts, voiceOf, type Block, type BlockState, type SpeechProject, type QueuedSynth, type StressWord } from "../../lib/speech";
 import { openSettings } from "../../lib/settingsNav";
 import { useSpeechProject } from "../../lib/useSpeechProject";
 import { useLivePlayback } from "../../lib/livePlayback";
@@ -25,6 +25,7 @@ import ExportDialog from "./ExportDialog";
 import DictionaryDialog from "./DictionaryDialog";
 import SearchReplace from "./SearchReplace";
 import ProjectTimeline, { type OverlapChoice } from "./ProjectTimeline";
+import EngineSelect from "./EngineSelect";
 import HistoryDialog from "./HistoryDialog";
 
 function blockList(p: SpeechProject): Block[] {
@@ -433,8 +434,12 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           {speakers.map((s) => (
             <label key={s} className="block text-[11px]">
               <span className="flex items-baseline gap-1.5"><span className="font-semibold" style={{ color: tintOf(s) }}>{s}</span><span className="text-[10px] tabnum text-[var(--color-muted)]">{t("speech.castBlocks", { n: blocks.filter((b) => b.speaker === s && !b.hidden).length })}</span></span>
-              <VoicePicker engine={project.settings.engine} value={project.cast[s] ?? null} onChange={(v) => castVoice(s, v)} inherit={t("speech.voiceAsProject")} label={t("speech.voiceFor", { speaker: s })}
+              <VoicePicker engine={project.cast_engines?.[s] || project.settings.engine} value={project.cast[s] ?? null} onChange={(v) => castVoice(s, v)} inherit={t("speech.voiceAsProject")} label={t("speech.voiceFor", { speaker: s })}
                 className="mt-1 w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-2 py-1.5 text-[12px]" />
+              <EngineSelect value={project.cast_engines?.[s] ?? null} projectEngine={project.settings.engine} voice={project.cast[s] || project.settings.voice || null}
+                onChange={(e, v) => edit((p) => { const all = { ...(p.cast_engines ?? {}) }; if (e) all[s] = e; else delete all[s]; p.cast_engines = all; if (v) p.cast[s] = v; return p; })}
+                inherit={t("speech.engineAsProject")} label={t("speech.engineFor", { speaker: s })}
+                className="mt-1 w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-2 py-1 text-[11px] text-[var(--color-muted)]" />
             </label>
           ))}
         </aside>
@@ -459,7 +464,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
                   const index = blocks.indexOf(b);
                   const rendering = !!job && (job.ids === null ? ["pending", "stale", "failed"].includes(stateOf(b)) : job.ids.includes(b.id));
                   const note = notes[b.id];
-                  return <BlockRow key={b.id} pid={pid} engine={project.settings.engine} block={b} index={index} state={stateOf(b)} fit={project.status?.[b.id]?.fit} rendering={rendering} playing={playing === b.id} tint={tintOf(b.speaker)}
+                  return <BlockRow key={b.id} pid={pid} engine={engineOf(project, b)} projectEngine={project.settings.engine} speakerEngine={project.cast_engines?.[b.speaker] || null} voice={voiceOf(project, b)} block={b} index={index} state={stateOf(b)} fit={project.status?.[b.id]?.fit} rendering={rendering} playing={playing === b.id} tint={tintOf(b.speaker)}
                     stressing={!!stressing?.includes(b.id)} doubts={note && note.text === b.text ? note.words : []}
                     selected={selected.includes(b.id)} selecting={selected.length > 0} a={actions(b)} />;
                 })}

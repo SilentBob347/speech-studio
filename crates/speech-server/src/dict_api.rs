@@ -88,7 +88,7 @@ pub async fn prepare(State(st): State<AppState>, Json(body): Json<PrepareBody>) 
             let entries = speech_jobs::dictionary(&p, &project);
             let russian = crate::stress::is_russian(&body.text, &project.settings.lang);
             let stress = project.settings.auto_stress && russian && crate::stress::installed(&p.repo_root);
-            let prepared = crate::prep::prepare(&body.text, &speech_jobs::prep_opts(&p, &project, voice.as_deref(), &entries, stress))?;
+            let prepared = crate::prep::prepare(&body.text, &speech_jobs::prep_opts(&p, &project, &project.settings.engine, voice.as_deref(), &entries, stress))?;
             Ok(json!({ "prepared": prepared, "stress_applied": stress, "stress_missing": project.settings.auto_stress && russian && !stress }))
         })
         .await,
@@ -132,7 +132,7 @@ pub async fn unknown_words(State(st): State<AppState>, AxPath(pid): AxPath<Strin
             let mut words: BTreeMap<String, (usize, &'static str)> = BTreeMap::new();
             for b in project.blocks().filter(|b| !b.hidden) {
                 let voice = project.voice_of(b);
-                let prepared = crate::prep::prepare(&b.text, &speech_jobs::prep_opts(&p, &project, voice.as_deref(), &entries, false))?;
+                let prepared = crate::prep::prepare(&b.text, &speech_jobs::prep_opts(&p, &project, project.engine_of(b), voice.as_deref(), &entries, false))?;
                 for w in &prepared.unknown {
                     words.entry(w.clone()).or_insert((0, "unread")).0 += 1;
                 }
