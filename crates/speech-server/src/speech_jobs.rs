@@ -856,6 +856,83 @@ pub fn loudness(preset: &str) -> Option<(f64, f64, f64)> {
     }
 }
 
+/// Где блок встаёт в склейке: после предыдущего через паузу (паузу после предыдущего блока, иначе по смене спикера или
+/// того же; не короче паузы главы; отрицательная — перебивание), а в режиме таймкодов — на время реплики. Один расчёт
+/// для экспорта и шкалы окна.
+pub(crate) struct Placer<'a> {
+    project: &'a SpeechProject,
+    chapter_of: std::collections::HashMap<&'a str, usize>,
+    sr: u32,
+    cursor: i64,
+    prev: Option<(&'a str, Option<usize>, Option<i64>)>,
+}
+
+impl<'a> Placer<'a> {
+    pub fn new(project: &'a SpeechProject, sr: u32) -> Self {
+        let chapter_of = project.chapters.iter().enumerate().flat_map(|(ci, c)| c.blocks.iter().map(move |b| (b.id.as_str(), ci))).collect();
+        Placer { project, chapter_of, sr, cursor: 0, prev: None }
+    }
+
+    /// Начало блока длиной `len` сэмплов; `lead` — на сколько секунд дубль начат раньше реплики при подгонке.
+    pub fn place(&mut self, b: &'a Block, lead: f64, len: usize) -> usize {
+        let s = &self.project.settings;
+        let chapter = self.chapter_of.get(b.id.as_str()).copied();
+        if let Some((speaker, prev_chapter, after)) = self.prev {
+            let ms = after.unwrap_or(if speaker == b.speaker { s.pause_same_ms } else { s.pause_switch_ms });
+            let ms = if prev_chapter != chapter { ms.max(CHAPTER_PAUSE_MS) } else { ms };
+            self.cursor = (self.cursor + self.sr as i64 * ms / 1000).max(0);
+        }
+        let at = match (s.timeline, b.start) {
+            (true, Some(start)) => ((start - lead).max(0.0) * self.sr as f64) as usize,
+            _ => self.cursor as usize,
+        };
+        self.cursor = self.cursor.max((at + len) as i64);
+        self.prev = Some((b.speaker.as_str(), chapter, b.pause_ms));
+        at
+    }
+}
+
+/// Перебивание обрывает предыдущую реплику: её звук после `cut` уходит из склейки за 30 мс.
+fn cut_tail(mix: &mut [f32], prev_at: usize, prev: &[f32], cut: usize) {
+    let fade = (SR as usize * 30 / 1000).max(1);
+    for (k, s) in prev.iter().enumerate().skip(cut.saturating_sub(prev_at)) {
+        let into = prev_at + k - cut;
+        let keep = if into < fade { 1.0 - into as f32 / fade as f32 } else { 0.0 };
+        if let Some(m) = mix.get_mut(prev_at + k) {
+            *m -= s * (1.0 - keep);
+        }
+    }
+}
+
+/// Шкала проекта для окна: каждый блок, что войдёт в экспорт, с началом и концом в секундах (по дублю или, пока его
+/// нет, по оценке длины текста) и перекрытием с предыдущим; перебивание, что обрывает предыдущую реплику, укорачивает её.
+pub fn timeline(project: &SpeechProject) -> Vec<Value> {
+    const RATE: u32 = 1000;
+    let mut placer = Placer::new(project, RATE);
+    let mut prev: Option<(&str, f64)> = None;
+    let mut rows: Vec<Value> = Vec::new();
+    for b in project.blocks().filter(|b| !b.hidden && !b.text.trim().is_empty()) {
+        let take = b.active.and_then(|n| b.takes.iter().find(|t| t.n == n));
+        let lang = if project.settings.lang == "auto" { if crate::stress::is_russian(&b.text, "auto") { "ru" } else { "en" } } else { project.settings.lang.as_str() };
+        let secs = take.map(|t| t.duration).unwrap_or_else(|| dub_core::fit::estimate(&crate::speech_text::visible(&b.text), dub_core::fit::table_cps(lang)));
+        let start = placer.place(b, take.map(|t| t.fit_lead).unwrap_or(0.0), (secs * RATE as f64) as usize) as f64 / RATE as f64;
+        let end = start + secs;
+        let overlap = prev.filter(|(_, prev_end)| *prev_end > start + 1e-3).map(|(id, prev_end)| json!({ "with": id, "secs": round3(prev_end - start) }));
+        if let (true, Some(last)) = (b.cut_previous && overlap.is_some(), rows.last_mut()) {
+            last["end"] = json!(round3(start));
+        }
+        rows.push(json!({ "block": b.id, "speaker": b.speaker, "start": round3(start), "end": round3(end), "voiced": take.is_some(), "overlap": overlap, "cut_previous": b.cut_previous }));
+        prev = Some((b.id.as_str(), end));
+    }
+    rows
+}
+
+fn round3(v: f64) -> f64 {
+    (v * 1000.0).round() / 1000.0
+}
+
+/// Что мешает экспорту: блоки без звука, устаревшие, упавшие, со стёртым или изменённым после записи файлом дубля, не
+/// влезшие в реплику даже с ускорением (`duration` — единственное, что пользователь может разрешить). Пусто — можно.
 pub fn export_check(p: &SpeechPaths, pid: &str, project: &SpeechProject) -> Vec<Value> {
     let keys = keys(p, project);
     project
@@ -918,9 +995,9 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         return export_clips(p, pid, &project, &blocks, opts, work.path(), progress);
     }
     let mut mix: Vec<f32> = Vec::new();
-    let mut cursor: i64 = 0;
-    let mut marks = Vec::new();
-    let mut prev_speaker: Option<&str> = None;
+    let mut placer = Placer::new(&project, SR);
+    let mut marks: Vec<Value> = Vec::new();
+    let mut prev_audio: Option<(usize, Vec<f32>)> = None;
     let mut cues: Vec<(f64, f64, String, String)> = Vec::new();
     // each block's place in the file and the words recognition timed in its take, for synced text
     let mut timed: Vec<(f64, f64, String, String, Vec<(String, f64, f64)>)> = Vec::new();
@@ -934,16 +1011,22 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         let wav = work.path().join(format!("{i}.wav"));
         crate::media::extract_audio(&src, &wav, SR, 1)?;
         let (samples, _) = crate::wavio::read_mono_f32(&wav)?;
-        if let Some(prev) = prev_speaker {
-            let ms = b.pause_ms.unwrap_or(if prev == b.speaker { project.settings.pause_same_ms } else { project.settings.pause_switch_ms });
-            let new_chapter = chapter_starts.last().is_some_and(|(last, _)| chapter_of.get(b.id.as_str()) != Some(last));
-            let ms = if new_chapter { ms.max(CHAPTER_PAUSE_MS) } else { ms };
-            cursor = (cursor + SR as i64 * ms / 1000).max(0);
+        let at = placer.place(b, take.fit_lead, samples.len());
+        if let Some((prev_at, prev)) = prev_audio.as_ref().filter(|(pa, pv)| b.cut_previous && at < pa + pv.len()) {
+            cut_tail(&mut mix, *prev_at, prev, at);
+            let cut = at as f64 / SR as f64;
+            if let Some(m) = marks.last_mut() {
+                m["end"] = json!(cut);
+            }
+            if let Some(c) = cues.last_mut() {
+                c.1 = cut;
+            }
+            if let Some(t) = timed.last_mut() {
+                t.1 = cut;
+                t.4.retain(|w| w.1 < cut);
+            }
+            prev_end = Some(at);
         }
-        let at = match (project.settings.timeline, b.start) {
-            (true, Some(start)) => ((start - take.fit_lead).max(0.0) * SR as f64) as usize,
-            _ => cursor as usize,
-        };
         marks.push(json!({ "block": b.id, "start": at as f64 / SR as f64, "end": (at + samples.len()) as f64 / SR as f64 }));
         if let Some(ci) = chapter_of.get(b.id.as_str()) {
             if chapter_starts.last().is_none_or(|(last, _)| last != ci) {
@@ -972,11 +1055,10 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
             mix[at + k] += *s;
         }
         prev_end = Some(at + samples.len());
-        cursor = cursor.max((at + samples.len()) as i64);
         if let Some(own) = b.pause_ms.filter(|_| i + 1 == blocks.len()) {
             mix.resize(mix.len() + (SR as i64 * own.max(0) / 1000) as usize, 0.0);
         }
-        prev_speaker = Some(b.speaker.as_str());
+        prev_audio = Some((at, samples));
     }
     progress(json!({ "type": "progress", "stage": "speech_export", "msg": t!("speech-export-loudness"), "pct": 92 }));
     let levelled = match loudness(&project.settings.loudness) {
@@ -1278,6 +1360,36 @@ mod tests {
         assert_eq!(states, vec![("b".to_string(), "modified".to_string()), ("c".to_string(), "duration".to_string())], "a take of an old project has no size and is not compared");
         std::fs::remove_file(dir.join("a-1.flac")).unwrap();
         assert_eq!(export_check(&p, "pid", &project)[0]["state"], "missing");
+    }
+
+    #[test]
+    fn the_timeline_places_blocks_as_the_export_does_and_names_an_interruption() {
+        let block = |id: &str, speaker: &str, pause: Option<i64>, secs: f64| Block {
+            id: id.into(),
+            speaker: speaker.into(),
+            text: "Текст.".into(),
+            pause_ms: pause,
+            takes: vec![Take { n: 1, duration: secs, ..Default::default() }],
+            active: Some(1),
+            ..Default::default()
+        };
+        let mut project = SpeechProject::default();
+        project.chapters = vec![sp::Chapter { id: "c".into(), title: String::new(), blocks: vec![block("a", "A", Some(-500), 2.0), block("b", "B", Some(300), 2.0), block("c", "B", None, 1.0)] }];
+        let rows = timeline(&project);
+        let at = |i: usize, k: &str| rows[i][k].as_f64().unwrap();
+        assert_eq!((at(0, "start"), at(1, "start"), at(2, "start")), (0.0, 1.5, 3.8));
+        assert_eq!(rows[1]["overlap"], json!({ "with": "a", "secs": 0.5 }));
+        assert!(rows[2]["overlap"].is_null());
+        project.chapters[0].blocks[1].cut_previous = true;
+        let rows = timeline(&project);
+        assert_eq!((rows[0]["end"].as_f64(), rows[1]["overlap"]["secs"].as_f64()), (Some(1.5), Some(0.5)), "the cut reply ends where the interruption starts");
+
+        let mut mix = vec![1.0f32; 2000];
+        cut_tail(&mut mix, 0, &[1.0; 2000], 1000);
+        let fade = SR as usize * 30 / 1000;
+        assert_eq!((mix[999], mix[1000]), (1.0, 1.0));
+        assert!(mix[1000 + fade / 2] > 0.4 && mix[1000 + fade / 2] < 0.6);
+        assert!(mix[1000 + fade..].iter().all(|v| v.abs() < 1e-6));
     }
 
     #[test]

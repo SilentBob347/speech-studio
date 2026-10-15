@@ -300,6 +300,16 @@ pub async fn history(State(st): State<AppState>, axum::extract::Query(q): axum::
     }
 }
 
+/// GET /projects/{pid}/timeline — блоки проекта на общей шкале экспорта с перекрытиями.
+pub async fn timeline(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Response {
+    let ws = st.workspace.clone();
+    match joined(tokio::task::spawn_blocking(move || sp::load(&ws, &pid).map(|project| speech_jobs::timeline(&project))).await) {
+        Ok(Ok(rows)) => Json(json!({ "blocks": rows })).into_response(),
+        Ok(Err(e)) => refuse(StatusCode::NOT_FOUND, "no_project", e),
+        Err(r) => r,
+    }
+}
+
 /// GET /projects/{pid}/export-check — что мешает экспорту.
 pub async fn export_check(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Response {
     let p = paths(&st);

@@ -1607,5 +1607,22 @@
     "strength": "Intensidad de la supresión de ruido",
     "db": "hasta −{{db}} dB",
     "full": "del todo"
+  },
+  "timeline": {
+    "title": "Línea de tiempo",
+    "open": "Línea de tiempo",
+    "hint": "Bloques en la escala de tiempo de la exportación: dónde se solapan las réplicas y qué hacer",
+    "overlaps": "solapamientos: {{n}}",
+    "zoomIn": "Acercar",
+    "zoomOut": "Alejar",
+    "estimate": "estimación, aún sin locutar",
+    "block": "Réplica: {{speaker}}, {{at}}",
+    "overlap": "Solapamiento de {{secs}} s",
+    "choice_cut": "Cortar la réplica anterior",
+    "choiceHint_cut": "La interrupción corta la réplica anterior",
+    "choice_join": "Unir",
+    "choiceHint_join": "La réplica empieza justo después de la anterior, sin pausa",
+    "choice_keep": "Mantener el solapamiento",
+    "choiceHint_keep": "Ambas réplicas suenan a la vez"
   }
 }

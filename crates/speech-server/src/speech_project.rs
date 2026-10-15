@@ -78,6 +78,9 @@ pub struct Block {
     pub text: String,
     pub direction: String,
     pub pause_ms: Option<i64>,
+    /// Перебивание (отрицательная пауза) обрывает предыдущую реплику, а не звучит поверх неё.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub cut_previous: bool,
     pub hidden: bool,
     pub takes: Vec<Take>,
     pub active: Option<u32>,

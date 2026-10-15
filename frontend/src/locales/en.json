@@ -1607,5 +1607,22 @@
     "strength": "Noise suppression strength",
     "db": "down to −{{db}} dB",
     "full": "all the way"
+  },
+  "timeline": {
+    "title": "Timeline",
+    "open": "Timeline",
+    "hint": "Blocks on the export's time scale: where replies overlap and what to do about it",
+    "overlaps": "overlaps: {{n}}",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "estimate": "estimate, not voiced yet",
+    "block": "Reply: {{speaker}}, {{at}}",
+    "overlap": "Overlap of {{secs}} s",
+    "choice_cut": "Cut the previous reply",
+    "choiceHint_cut": "The interruption cuts the previous reply off",
+    "choice_join": "Join",
+    "choiceHint_join": "The reply starts right after the previous one, no pause",
+    "choice_keep": "Keep the overlap",
+    "choiceHint_keep": "Both replies sound at once"
   }
 }

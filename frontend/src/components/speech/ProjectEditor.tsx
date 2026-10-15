@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, BookOpen, Download, Drama, History, ListOrdered, Loader2, Play, Redo2, Search, Settings2, Sparkles, SpellCheck, Square, Undo2, Users, X } from "lucide-react";
+import { ArrowLeft, BookOpen, ChartGantt, Download, Drama, History, ListOrdered, Loader2, Play, Redo2, Search, Settings2, Sparkles, SpellCheck, Square, Undo2, Users, X } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { activeTake, newId, spliceChars, SPEAKER_TINTS, speechApi, stressDoubts, type Block, type BlockState, type SpeechProject, type QueuedSynth, type StressWord } from "../../lib/speech";
 import { openSettings } from "../../lib/settingsNav";
@@ -24,6 +24,7 @@ import ProjectSettings from "./ProjectSettings";
 import ExportDialog from "./ExportDialog";
 import DictionaryDialog from "./DictionaryDialog";
 import SearchReplace from "./SearchReplace";
+import ProjectTimeline, { type OverlapChoice } from "./ProjectTimeline";
 import HistoryDialog from "./HistoryDialog";
 
 function blockList(p: SpeechProject): Block[] {
@@ -50,6 +51,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   const [exporting, setExporting] = useState(false);
   const [dictionary, setDictionary] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [timelineOpen, setTimelineOpen] = useState(false);
   const [history, setHistory] = useState(false);
   const [castOpen, setCastOpen] = useState(false);
   const [casting, setCasting] = useState(false);
@@ -357,6 +359,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           <button onClick={() => setSettings(true)} className={bar}><Settings2 size={13} />{t("speech.settings")}</button>
           <button onClick={() => setSearching((v) => !v)} aria-pressed={searching} className={bar} title={t("search.title")}><Search size={13} />{t("search.open")}</button>
           <button onClick={() => setHistory(true)} className={bar} title={t("history.title")}><History size={13} />{t("history.open")}</button>
+          <button onClick={() => setTimelineOpen((v) => !v)} aria-pressed={timelineOpen} className={bar} title={t("timeline.hint")}><ChartGantt size={13} />{t("timeline.open")}</button>
           <button onClick={() => setCastOpen((v) => !v)} aria-expanded={castOpen} className={`${bar} lg:hidden`}><Users size={13} />{t("speech.cast")}</button>
           <button onClick={() => void castCharacters()} disabled={casting} className={bar} title={t("speech.castCharactersHint")}>{casting ? <Loader2 size={13} className="animate-spin" /> : <Drama size={13} />}{t("speech.castCharacters")}</button>
           <button onClick={() => setDictionary(true)} className={bar} title={t("speech.dictionaryHint")}><BookOpen size={13} />{t("speech.dictionary")}</button>
@@ -402,6 +405,18 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           <button onClick={() => setSelected(blocks.map((b) => b.id))} className="px-2.5 py-1 rounded-md text-[12px] text-[var(--color-muted)] hover:text-[var(--color-text)]">{t("speech.selectAll")}</button>
           <button onClick={() => setSelected([])} className="ml-auto p-1 rounded text-[var(--color-muted)] hover:text-[var(--color-text)]" {...named(t("speech.selectNone"))}><X size={14} /></button>
         </div>
+      )}
+      {timelineOpen && (
+        <ProjectTimeline pid={pid} speakers={speakers} tintOf={tintOf} refresh={saving ? undefined : project} onClose={() => setTimelineOpen(false)}
+          onJump={(id) => document.getElementById(`block-${id}`)?.scrollIntoView({ block: "center", behavior: "smooth" })}
+          onChoose={(id, previous, choice: OverlapChoice) => edit((p) => {
+            const at = locate(p, id);
+            const before = locate(p, previous);
+            if (!at || !before) return p;
+            p.chapters[at[0]].blocks[at[1]].cut_previous = choice === "cut";
+            if (choice === "join") p.chapters[before[0]].blocks[before[1]].pause_ms = 0;
+            return p;
+          })} />
       )}
       {searching && (
         <SearchReplace blocks={blocks} onClose={() => setSearching(false)}

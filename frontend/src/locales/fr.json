@@ -1607,5 +1607,22 @@
     "strength": "Intensité de la réduction de bruit",
     "db": "jusqu’à −{{db}} dB",
     "full": "au maximum"
+  },
+  "timeline": {
+    "title": "Chronologie",
+    "open": "Chronologie",
+    "hint": "Les blocs sur l’échelle de temps de l’export : où les répliques se chevauchent et quoi en faire",
+    "overlaps": "chevauchements : {{n}}",
+    "zoomIn": "Agrandir",
+    "zoomOut": "Réduire",
+    "estimate": "estimation, pas encore doublé",
+    "block": "Réplique : {{speaker}}, {{at}}",
+    "overlap": "Chevauchement de {{secs}} s",
+    "choice_cut": "Couper la réplique précédente",
+    "choiceHint_cut": "L’interruption coupe la réplique précédente",
+    "choice_join": "Enchaîner",
+    "choiceHint_join": "La réplique commence juste après la précédente, sans pause",
+    "choice_keep": "Garder le chevauchement",
+    "choiceHint_keep": "Les deux répliques sonnent en même temps"
   }
 }

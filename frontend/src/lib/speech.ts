@@ -9,7 +9,7 @@ export type QcCheck = { text_checked: boolean; wer: number; words: number; inser
 export type QcIssue = "tail" | "stretched" | "gap" | "repeat";
 export type QcSettings = { asr_check: boolean; strictness: "strict" | "normal" | "lenient"; takes: number; similarity: boolean };
 export type Block = {
-  id: string; speaker: string; voice: string | null; text: string; direction: string; pause_ms: number | null;
+  id: string; speaker: string; voice: string | null; text: string; direction: string; pause_ms: number | null; cut_previous?: boolean;
   hidden: boolean; takes: Take[]; active: number | null; pinned: number | null; error: { key: string; text: string } | null;
   note: string; marker: Marker | ""; start: number | null; end: number | null;
 };
@@ -72,6 +72,7 @@ export type HistoryTake = {
   voice: string; engine: string; source: string; wer: number | null; active: boolean; first_ms: number | null;
 };
 export type QueuedSynth = { n: number; added: number; scope: { ids: string[] | null; from: string | null; force: boolean; seed: number | null } };
+export type TimelineBlock = { block: string; speaker: string; start: number; end: number; voiced: boolean; overlap: { with: string; secs: number } | null; cut_previous: boolean };
 export type ExportProblem = { block: string; state: BlockState | "missing" | "modified" | "duration" };
 
 export const speechApi = {
@@ -91,6 +92,7 @@ export const speechApi = {
   unqueue: (pid: string, n?: number) => sendCoded<{ removed: number }>("DELETE", n == null ? `/projects/${pid}/queue` : `/projects/${pid}/queue/${n}`),
   history: (pid?: string) => getCoded<{ takes: HistoryTake[] }>(pid ? `/history?pid=${pid}` : "/history"),
   exportCheck: (pid: string) => getCoded<{ problems: ExportProblem[] }>(`/projects/${pid}/export-check`),
+  timeline: (pid: string) => getCoded<{ blocks: TimelineBlock[] }>(`/projects/${pid}/timeline`),
   export: (pid: string, format: ExportFormat, chapter?: string, perBlock = false, partMinutes = 0, allowDuration = false) => postCoded<{ job_id: string }>(`/projects/${pid}/export`, { format, chapter, per_block: perBlock, part_minutes: partMinutes || undefined, allow_duration: allowDuration || undefined }),
   exportsToFolder: (pid: string, files: string[]) => postCoded<{ folder: string | null; copied?: number }>(`/projects/${pid}/exports-to-folder`, { files }),
   fromSubtitles: (file: File, name?: string) => {

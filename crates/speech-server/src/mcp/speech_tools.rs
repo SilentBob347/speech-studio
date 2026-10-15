@@ -79,6 +79,12 @@ pub(super) fn tools() -> Vec<Tool> {
             call: |args| get(project_path(args, "/export-check")?),
         },
         Tool {
+            name: "project_timeline",
+            description: "The project on the export's time scale: each block that goes into the export with its speaker, start and end in seconds (by its take, or estimated from the text while it is not voiced) and the overlap with the previous block when a negative pause after that block makes this one interrupt it. A block's cut_previous true cuts the interrupted reply off; a pause after of 0 on the previous block joins them back to back.",
+            schema: project_only,
+            call: |args| get(project_path(args, "/timeline")?),
+        },
+        Tool {
             name: "project_exports",
             description: "The files built for a project (audio, subtitles, chapters, transcripts) with their size, and the folder they are in.",
             schema: project_only,

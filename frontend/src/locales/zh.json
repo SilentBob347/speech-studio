@@ -1607,5 +1607,22 @@
     "strength": "降噪强度",
     "db": "最多 −{{db}} dB",
     "full": "完全"
+  },
+  "timeline": {
+    "title": "时间轴",
+    "open": "时间轴",
+    "hint": "导出时间轴上的段落：台词在哪里重叠以及如何处理",
+    "overlaps": "重叠：{{n}}",
+    "zoomIn": "放大",
+    "zoomOut": "缩小",
+    "estimate": "估计值，尚未配音",
+    "block": "台词：{{speaker}}，{{at}}",
+    "overlap": "重叠 {{secs}} 秒",
+    "choice_cut": "截断上一句",
+    "choiceHint_cut": "插话会截断上一句台词",
+    "choice_join": "接续",
+    "choiceHint_join": "这句紧接上一句开始，没有停顿",
+    "choice_keep": "保留重叠",
+    "choiceHint_keep": "两句台词同时播放"
   }
 }

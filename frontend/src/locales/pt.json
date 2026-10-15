@@ -1607,5 +1607,22 @@
     "strength": "Intensidade da supressão de ruído",
     "db": "até −{{db}} dB",
     "full": "ao máximo"
+  },
+  "timeline": {
+    "title": "Linha do tempo",
+    "open": "Linha do tempo",
+    "hint": "Os blocos na escala de tempo da exportação: onde as falas se sobrepõem e o que fazer",
+    "overlaps": "sobreposições: {{n}}",
+    "zoomIn": "Aproximar",
+    "zoomOut": "Afastar",
+    "estimate": "estimativa, ainda sem locução",
+    "block": "Fala: {{speaker}}, {{at}}",
+    "overlap": "Sobreposição de {{secs}} s",
+    "choice_cut": "Cortar a fala anterior",
+    "choiceHint_cut": "A interrupção corta a fala anterior",
+    "choice_join": "Juntar",
+    "choiceHint_join": "A fala começa logo após a anterior, sem pausa",
+    "choice_keep": "Manter a sobreposição",
+    "choiceHint_keep": "As duas falas soam ao mesmo tempo"
   }
 }
