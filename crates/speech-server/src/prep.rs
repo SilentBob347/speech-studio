@@ -111,6 +111,11 @@ pub fn fingerprint(text: &str, o: &Opts, compiled: &[(Entry, fancy_regex::Regex)
         any = true;
         h.update(b"normalize-v1");
     }
+    if lang == "ru" && o.stress && crate::engines::get(o.engine).is_some_and(|e| e.reads.stress) {
+        any = true;
+        h.update(b"stress-");
+        h.update(crate::stress::omograph_model(o.models_root).as_bytes());
+    }
     if any { h.finalize().to_hex()[..12].to_string() } else { String::new() }
 }
 
@@ -149,5 +154,8 @@ mod tests {
         assert_eq!(fingerprint("Привет, мир", &opts(&entries), &compiled), "");
         assert_ne!(fingerprint("Привет, кот", &opts(&entries), &compiled), "");
         assert_ne!(fingerprint("Привет, 5 мир", &opts(&entries), &compiled), "");
+        let stressed = |engine| Opts { engine, stress: true, ..opts(&entries) };
+        assert_eq!(fingerprint("Привет, мир", &stressed("higgs"), &compiled), "", "Higgs does not read the marks");
+        assert_ne!(fingerprint("Привет, мир", &stressed(crate::supertonic::ENGINE), &compiled), "", "Supertonic reads them");
     }
 }

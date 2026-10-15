@@ -78,13 +78,18 @@ pub struct Stresser {
     accent: Mutex<Session>,
     omograph: Mutex<Session>,
     omo_tok: tokenizers::Tokenizer,
-    /// The homograph model's folder, and whether it is a BERT that reads `token_type_ids`.
+    /// The homograph model's folder, and whether the model takes `token_type_ids`.
     omo_dir: PathBuf,
     omo_types: bool,
 }
 
 pub fn dir(models_root: &Path) -> PathBuf {
     models_root.join(DIR)
+}
+
+/// The homograph model stress marks come from, by name: a take of an engine that reads the marks is keyed by it.
+pub fn omograph_model(models_root: &Path) -> String {
+    omograph_dir(&dir(models_root)).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()
 }
 
 /// The homograph model to use: big_poetry (weight-only int8, nerualdreming/ruaccent-omograph-int8) once it is
@@ -172,6 +177,7 @@ impl Stresser {
             })
             .collect();
         let omo_dir = omograph_dir(d);
+        let omograph = session(&omo_dir.join("model.onnx"), if omo_dir.ends_with("tiny2") { 2 } else { 4 })?;
         let mut omo_tok = tokenizers::Tokenizer::from_file(omo_dir.join("tokenizer.json")).map_err(|e| e.to_string())?;
         omo_tok
             .with_truncation(Some(tokenizers::TruncationParams { max_length: 512, ..Default::default() }))
@@ -184,9 +190,9 @@ impl Stresser {
             yo_homographs: json_gz(&dict.join("yo_homographs.json.gz"))?,
             chars,
             accent: Mutex::new(session(&d.join("nn/nn_accent/model.onnx"), 2)?),
-            omograph: Mutex::new(session(&omo_dir.join("model.onnx"), if omo_dir.ends_with("tiny2") { 2 } else { 4 })?),
+            omo_types: omograph.inputs().iter().any(|i| i.name() == "token_type_ids"),
+            omograph: Mutex::new(omograph),
             omo_tok,
-            omo_types: !omo_dir.ends_with("tiny2"),
             omo_dir,
         })
     }

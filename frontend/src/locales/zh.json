@@ -819,6 +819,7 @@
   },
   "speech": {
     "baseVoice": "引擎基础声音",
+    "pickVoice": "请选择声音",
     "voiceMissing": "{{name}}（已不在声音库中）",
     "newTitle": "新项目",
     "newHint": "粘贴文本：段落会成为段落块，类似“Anna: …”或“[Anna] …”的行会成为对话，每个说话人各有声音。",

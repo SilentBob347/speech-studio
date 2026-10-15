@@ -14,8 +14,7 @@ pub const ENGINE_STRESS: &str = "qwen3-tts-ru";
 /// siriusfreak/qwen3-tts-12hz-1.7b-ru-stress-cf `lora/adapter.safetensors`: r 16, alpha 32 on the Base talker.
 pub const STRESS_LORA: &str = "qwen-talker-1.7b-base-ru-stress-lora.safetensors";
 const STRESS_LORA_SCALE: f32 = 32.0 / 16.0;
-/// The longest reference the stress adapter clones from: it was trained on short clips, and from 12 s on it ends
-/// phrases early, at 18 s before the first frame.
+/// The longest reference the stress adapter clones from: trained on short clips, it ends phrases early after a longer one.
 pub const STRESS_REF_SECS: f64 = 10.0;
 /// The folder of the weights and the library inside the models root.
 pub const DIR: &str = "qwen3-tts";
@@ -102,6 +101,16 @@ struct Audio {
     channels: i32,
 }
 
+/// Voice-clone conditioning the library extracts from a reference once: speaker embedding and codec codes.
+#[repr(C)]
+struct VoiceRef {
+    ref_spk_emb: *mut f32,
+    ref_spk_dim: i32,
+    ref_codes: *mut i32,
+    ref_t: i32,
+    num_codebooks: i32,
+}
+
 #[repr(C)]
 struct RawContext {
     _private: [u8; 0],
@@ -118,6 +127,8 @@ struct Api {
     synthesize: unsafe extern "C" fn(*mut RawContext, *const TtsParams, *mut Audio) -> i32,
     audio_free: unsafe extern "C" fn(*mut Audio),
     model_type: unsafe extern "C" fn(*const RawContext) -> *const c_char,
+    extract_voice_ref: unsafe extern "C" fn(*mut RawContext, *const f32, i32, *mut VoiceRef) -> i32,
+    voice_ref_free: unsafe extern "C" fn(*mut VoiceRef),
 }
 
 /// The library, loaded once and kept for the life of the process: ggml's static initialiser refuses a second load
@@ -147,6 +158,8 @@ fn library(dir: &Path) -> Result<Api, String> {
             synthesize: sym!("qt_synthesize"),
             audio_free: sym!("qt_audio_free"),
             model_type: sym!("qt_model_type"),
+            extract_voice_ref: sym!("qt_extract_voice_ref"),
+            voice_ref_free: sym!("qt_voice_ref_free"),
         }
     };
     *loaded = Some((lib, api));
@@ -158,6 +171,8 @@ pub struct Engine {
     api: Api,
     raw: *mut RawContext,
     stop: AtomicBool,
+    /// The last reference's conditioning by the hash of its samples: a block's phrases and retries share it.
+    voice: std::sync::Mutex<Option<([u8; 32], VoiceRef)>>,
 }
 
 // qt_synthesize is thread safe and the handle is only freed on drop.
@@ -265,7 +280,7 @@ impl Engine {
         if raw.is_null() {
             return Err(format!("qwen3-tts: {}", unsafe { last_error(&api) }));
         }
-        let engine = Engine { api, raw, stop: AtomicBool::new(false) };
+        let engine = Engine { api, raw, stop: AtomicBool::new(false), voice: std::sync::Mutex::new(None) };
         let kind = unsafe { CStr::from_ptr((engine.api.model_type)(engine.raw)) }.to_string_lossy().into_owned();
         let expected = if clone { "base" } else { "custom_voice" };
         if kind != expected {
@@ -298,10 +313,27 @@ impl Engine {
         p.abi_version = ABI_VERSION;
         p.text = text.as_ptr();
         p.speaker = speaker.as_ref().map_or(std::ptr::null(), |s| s.as_ptr());
+        let mut voice = self.voice.lock().unwrap_or_else(|e| e.into_inner());
         if let Some((audio, _)) = say.reference {
-            p.ref_audio_24k = audio.as_ptr();
-            p.ref_n_samples = audio.len() as i32;
-            p.ref_text = ref_text.as_ref().map_or(std::ptr::null(), |t| t.as_ptr());
+            let key: [u8; 32] = *blake3::hash(unsafe { std::slice::from_raw_parts(audio.as_ptr() as *const u8, std::mem::size_of_val(audio)) }).as_bytes();
+            if voice.as_ref().is_none_or(|(k, _)| *k != key) {
+                if let Some((_, mut old)) = voice.take() {
+                    unsafe { (self.api.voice_ref_free)(&mut old) };
+                }
+                let mut r: VoiceRef = unsafe { std::mem::zeroed() };
+                if unsafe { (self.api.extract_voice_ref)(self.raw, audio.as_ptr(), audio.len() as i32, &mut r) } != 0 {
+                    return Err(format!("qwen3-tts: {}", unsafe { last_error(&self.api) }));
+                }
+                *voice = Some((key, r));
+            }
+            let r = &voice.as_ref().expect("set above").1;
+            p.ref_spk_emb = r.ref_spk_emb;
+            p.ref_spk_dim = r.ref_spk_dim;
+            if let Some(t) = &ref_text {
+                p.ref_codes = r.ref_codes;
+                p.ref_t = r.ref_t;
+                p.ref_text = t.as_ptr();
+            }
         }
         p.lang = lang.as_ref().map_or(std::ptr::null(), |l| l.as_ptr());
         p.instruct = instruct.as_ref().map_or(std::ptr::null(), |i| i.as_ptr());
@@ -340,6 +372,9 @@ impl Engine {
 
 impl Drop for Engine {
     fn drop(&mut self) {
+        if let Some((_, mut r)) = self.voice.get_mut().unwrap_or_else(|e| e.into_inner()).take() {
+            unsafe { (self.api.voice_ref_free)(&mut r) };
+        }
         unsafe { (self.api.free)(self.raw) };
     }
 }

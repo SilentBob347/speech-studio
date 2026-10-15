@@ -26,7 +26,9 @@ export default function VoicePicker({ value, onChange, inherit, label, className
   ));
   return (
     <select aria-label={label} value={value ?? ""} onChange={(e) => onChange(e.target.value || null)} className={style}>
-      {(inherit || !presets.length) && <option value="">{inherit ?? t("speech.baseVoice")}</option>}
+      {inherit ? <option value="">{inherit}</option>
+        : caps?.needs_voice ? <option value="" disabled>{t("speech.pickVoice")}</option>
+        : !presets.length && <option value="">{t("speech.baseVoice")}</option>}
       {missing && <option value={value}>{t(presets.length && !clones ? "speech.voiceNotPreset" : "speech.voiceMissing", { name: prettyVoice(value) })}</option>}
       {presets.length > 0 && (
         <optgroup label={t("speech.engineVoices")}>

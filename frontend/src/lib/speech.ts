@@ -25,6 +25,7 @@ export type EngineCaps = {
   clone: string; continuation: boolean; streaming: boolean; deterministic_seed: boolean; max_chars: number;
   reads: { stress: boolean; yo: boolean; phonemes: boolean; accent: boolean };
   presets: EnginePreset[];
+  needs_voice: boolean;
   unavailable: string | null;
 };
 export type Loudness = "off" | "video" | "podcast" | "acx";

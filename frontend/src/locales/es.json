@@ -819,6 +819,7 @@
   },
   "speech": {
     "baseVoice": "Voz base del motor",
+    "pickVoice": "Elija una voz",
     "voiceMissing": "{{name}} (ya no está en la biblioteca)",
     "newTitle": "Proyecto nuevo",
     "newHint": "Pega un texto: los párrafos se vuelven bloques y las líneas como «Ana: …» o «[Ana] …» un diálogo con una voz para cada hablante.",

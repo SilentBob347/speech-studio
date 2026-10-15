@@ -300,6 +300,7 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
     let mut rate = 1.0f64;
     let stress = project.settings.auto_stress && crate::stress::is_russian(&b.text, &project.settings.lang);
     let text = crate::prep::prepare(&b.text, &prep_opts(p, project, voice.as_deref(), entries, stress)).map_err(|e| t!("stress-failed", detail = e))?.text;
+    let max_chars = manifest.as_ref().map_or(usize::MAX, |m| m.max_chars.max(1));
     let live = std::sync::Arc::new(crate::live::Phrase::begin(pid, &b.id));
     for (k, piece) in stx::pieces(&text).into_iter().enumerate() {
         match piece {
@@ -317,31 +318,37 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
                 if say.is_empty() {
                     continue;
                 }
-                let req = tts_host::Request {
-                    text: &say,
-                    lang,
-                    ref_wav: reference.as_ref().map(|(w, _)| w.as_path()),
-                    ref_text: reference.as_ref().and_then(|(_, t)| t.as_deref()),
-                    preset: preset.as_deref(),
-                    instruct: Some(b.direction.trim()).filter(|d| !d.is_empty() && crate::qwen_tts::is_engine(&project.settings.engine)),
-                    params: &params,
-                    fresh_seed: fresh.wrapping_add(k as u64),
-                    live: (!retimed).then(|| live.clone()),
-                };
-                let s = tts_host::synth(&engine, &req)?;
-                if k == 0 || seed == 0 {
-                    seed = s.seed;
-                    temperature = s.temperature;
-                }
-                secs += s.seconds;
-                retried.extend(s.defects.iter().map(|d| d.to_string()));
-                let samples = resample_to(s.samples, s.sr);
-                if retimed {
-                    let samples = at_rate(&samples, rate)?;
-                    live.chunk(&samples, SR);
-                    out.extend(samples);
-                } else {
-                    out.extend(samples);
+                for (j, phrase) in stx::phrases(&say, max_chars).iter().enumerate() {
+                    if j > 0 {
+                        live.pause(stx::PHRASE_GAP_MS, SR);
+                        out.extend(std::iter::repeat_n(0.0, (SR * stx::PHRASE_GAP_MS / 1000) as usize));
+                    }
+                    let req = tts_host::Request {
+                        text: phrase,
+                        lang,
+                        ref_wav: reference.as_ref().map(|(w, _)| w.as_path()),
+                        ref_text: reference.as_ref().and_then(|(_, t)| t.as_deref()),
+                        preset: preset.as_deref(),
+                        instruct: Some(b.direction.trim()).filter(|d| !d.is_empty() && crate::qwen_tts::is_engine(&project.settings.engine)),
+                        params: &params,
+                        fresh_seed: fresh.wrapping_add(k as u64).wrapping_add((j as u64) << 32),
+                        live: (!retimed).then(|| live.clone()),
+                    };
+                    let s = tts_host::synth(&engine, &req)?;
+                    if (k == 0 && j == 0) || seed == 0 {
+                        seed = s.seed;
+                        temperature = s.temperature;
+                    }
+                    secs += s.seconds;
+                    retried.extend(s.defects.iter().map(|d| d.to_string()));
+                    let samples = resample_to(s.samples, s.sr);
+                    if retimed {
+                        let samples = at_rate(&samples, rate)?;
+                        live.chunk(&samples, SR);
+                        out.extend(samples);
+                    } else {
+                        out.extend(samples);
+                    }
                 }
             }
         }

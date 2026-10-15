@@ -521,7 +521,7 @@ fn run_guarded(engine: &Tts, call: Call, timeout: Duration, live: Option<Arc<cra
                         text: &t,
                         lang: &lang,
                         speaker: preset.as_deref(),
-                        reference: reference.as_deref().map(|a| (a, rt.as_deref())),
+                        reference: reference.as_ref().map(|a| (a.as_slice(), rt.as_deref())),
                         instruct: instruct.as_deref().filter(|_| preset.is_some()),
                         seed,
                         temperature: dp.temperature,
@@ -568,14 +568,27 @@ fn run_guarded(engine: &Tts, call: Call, timeout: Duration, live: Option<Arc<cra
 }
 
 
-/// What Qwen3-TTS speaks with: a voice of the model needs nothing more; a clone needs its reference as mono 24 kHz.
-fn qwen_reference(preset: Option<&str>, reference: Option<&Path>) -> Result<Option<Vec<f32>>, String> {
+/// What Qwen3-TTS speaks with: a voice of the model needs nothing more; a clone needs its reference as mono 24 kHz, kept
+/// for the phrases and retries of the same file.
+fn qwen_reference(preset: Option<&str>, reference: Option<&Path>) -> Result<Option<Arc<Vec<f32>>>, String> {
+    type Kept = (PathBuf, u64, Option<std::time::SystemTime>, Arc<Vec<f32>>);
+    static KEPT: Mutex<Option<Kept>> = Mutex::new(None);
     match (preset, reference) {
         (Some(_), _) => Ok(None),
         (None, Some(wav)) => {
+            let meta = std::fs::metadata(wav).map_err(|e| format!("{}: {e}", wav.display()))?;
+            let (len, modified) = (meta.len(), meta.modified().ok());
+            let mut kept = KEPT.lock().unwrap_or_else(|e| e.into_inner());
+            if let Some((p, l, m, audio)) = kept.as_ref() {
+                if p == wav && *l == len && *m == modified {
+                    return Ok(Some(audio.clone()));
+                }
+            }
             let tmp = tempfile::Builder::new().suffix(".wav").tempfile().map_err(|e| e.to_string())?;
             crate::media::extract_audio(wav, tmp.path(), crate::qwen_tts::SAMPLE_RATE, 1)?;
-            Ok(Some(crate::wavio::read_mono_f32(tmp.path())?.0))
+            let audio = Arc::new(crate::wavio::read_mono_f32(tmp.path())?.0);
+            *kept = Some((wav.to_path_buf(), len, modified, audio.clone()));
+            Ok(Some(audio))
         }
         (None, None) => Err(t!("speech-voice-preset-needed")),
     }

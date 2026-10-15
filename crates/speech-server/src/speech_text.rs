@@ -240,6 +240,94 @@ pub fn has_stress(text: &str) -> bool {
     STRESS.is_match(text)
 }
 
+/// Тишина между фразами, на которые режется длинный кусок (как в Supertonic `call`).
+pub const PHRASE_GAP_MS: u32 = 300;
+
+/// Кусок текста фразами не длиннее `max` знаков — алгоритм Supertonic `chunk_text`: по предложениям, у слишком
+/// длинного предложения по запятым, у слишком длинной части по словам.
+pub fn phrases(text: &str, max: usize) -> Vec<String> {
+    let text = text.trim();
+    let len = |s: &str| s.chars().count();
+    if len(text) <= max {
+        return vec![text.to_string()];
+    }
+    let mut out: Vec<String> = Vec::new();
+    let mut current = String::new();
+    let flush = |current: &mut String, out: &mut Vec<String>| {
+        if !current.trim().is_empty() {
+            out.push(current.trim().to_string());
+        }
+        current.clear();
+    };
+    for sentence in sentences(text) {
+        let sentence = sentence.trim();
+        if sentence.is_empty() {
+            continue;
+        }
+        if len(sentence) > max {
+            flush(&mut current, &mut out);
+            for part in sentence.split(',').map(str::trim).filter(|p| !p.is_empty()) {
+                if len(part) > max {
+                    flush(&mut current, &mut out);
+                    let mut words = String::new();
+                    for word in part.split_whitespace() {
+                        if !words.is_empty() && len(&words) + len(word) + 1 > max {
+                            flush(&mut words, &mut out);
+                        }
+                        if !words.is_empty() {
+                            words.push(' ');
+                        }
+                        words.push_str(word);
+                    }
+                    flush(&mut words, &mut out);
+                } else {
+                    if !current.is_empty() && len(&current) + len(part) + 2 > max {
+                        flush(&mut current, &mut out);
+                    }
+                    if !current.is_empty() {
+                        current.push_str(", ");
+                    }
+                    current.push_str(part);
+                }
+            }
+            continue;
+        }
+        if !current.is_empty() && len(&current) + len(sentence) + 1 > max {
+            flush(&mut current, &mut out);
+        }
+        if !current.is_empty() {
+            current.push(' ');
+        }
+        current.push_str(sentence);
+    }
+    flush(&mut current, &mut out);
+    out
+}
+
+/// Предложения: конец — `.`, `!`, `?` или `…` с пробелом после, кроме сокращений.
+fn sentences(text: &str) -> Vec<&str> {
+    const ABBREVIATIONS: &[&str] = &["Dr.", "Mr.", "Mrs.", "Ms.", "Prof.", "Sr.", "Jr.", "St.", "etc.", "vs.", "i.e.", "e.g.", "т.е.", "т.д.", "т.п.", "др.", "г.", "гг.", "им.", "ул.", "св."];
+    let mut out = Vec::new();
+    let mut start = 0;
+    let chars: Vec<(usize, char)> = text.char_indices().collect();
+    for (i, &(at, c)) in chars.iter().enumerate() {
+        if !matches!(c, '.' | '!' | '?' | '…') || !chars.get(i + 1).is_some_and(|&(_, n)| n.is_whitespace()) {
+            continue;
+        }
+        let end = at + c.len_utf8();
+        let head = &text[start..end];
+        if c == '.' && ABBREVIATIONS.iter().any(|a| head.ends_with(a) && head[..head.len() - a.len()].chars().last().is_none_or(|p| !p.is_alphanumeric())) {
+            continue;
+        }
+        out.push(head);
+        start = end;
+    }
+    if start < text.len() {
+        out.push(&text[start..]);
+    }
+    out
+}
+
 /// Видимый текст без разметки синтеза: для субтитров, глав и поиска.
 pub fn visible(text: &str) -> String {
     let t = PAUSE.replace_all(text, " ");
@@ -269,6 +357,18 @@ mod tests {
             assert!(s.contains("замок") && !s.contains('\u{301}') && !s.contains('+') && !s.contains("<|") && !s.contains("[laughs]"), "{engine}: {s}");
             assert!(ignored.stress && ignored.unknown_tags.len() == 2, "{engine}: {ignored:?}");
         }
+    }
+
+    #[test]
+    fn long_text_is_cut_into_phrases_by_sentences_then_commas_then_words() {
+        assert_eq!(phrases("Коротко.", 20), vec!["Коротко."]);
+        assert_eq!(phrases("Раз два три. Четыре пять! Шесть семь восемь?", 26), vec!["Раз два три. Четыре пять!", "Шесть семь восемь?"]);
+        assert_eq!(phrases("Он пришёл в т.е. другой дом. Вот так.", 30), vec!["Он пришёл в т.е. другой дом.", "Вот так."]);
+        assert_eq!(phrases("один два три четыре, пять шесть семь восемь", 22), vec!["один два три четыре", "пять шесть семь восемь"]);
+        let long = "слово ".repeat(40);
+        let cut = phrases(&long, 50);
+        assert!(cut.len() > 1 && cut.iter().all(|p| p.chars().count() <= 50), "{cut:?}");
+        assert_eq!(cut.join(" "), long.trim());
     }
 
     #[test]

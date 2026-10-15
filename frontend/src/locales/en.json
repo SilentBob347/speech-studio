@@ -819,6 +819,7 @@
   },
   "speech": {
     "baseVoice": "Engine's base voice",
+    "pickVoice": "Choose a voice",
     "voiceMissing": "{{name}} (no longer in the library)",
     "newTitle": "New project",
     "newHint": "Paste a text: paragraphs become blocks, and lines like \"Anna: …\" or \"[Anna] …\" become a dialog with a voice for each speaker.",
