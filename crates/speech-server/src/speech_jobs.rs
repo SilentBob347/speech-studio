@@ -970,7 +970,7 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
     }
     progress(json!({ "type": "progress", "stage": "speech_export", "msg": t!("speech-export-loudness"), "pct": 92 }));
     let levelled = match loudness(&project.settings.loudness) {
-        Some((i, tp, _)) => Some(crate::loudness::level(&mut mix, SR, i, peak_for(&opts.format, tp))?),
+        Some((i, tp, _)) => Some(crate::loudness::level(&mut mix, SR, i, peak_for(&opts.format, tp), project.settings.loudness != "acx")?),
         None => None,
     };
     let acx = project.settings.loudness == "acx";
@@ -1124,7 +1124,7 @@ fn export_clips(p: &SpeechPaths, pid: &str, project: &SpeechProject, blocks: &[&
         crate::media::extract_audio(&takes_dir(p, pid).join(&take.file), &wav, SR, 1)?;
         let (mut samples, _) = crate::wavio::read_mono_f32(&wav)?;
         if let Some((target, tp, _)) = loudness(&project.settings.loudness) {
-            crate::loudness::level(&mut samples, SR, target, peak_for(&opts.format, tp))?;
+            crate::loudness::level(&mut samples, SR, target, peak_for(&opts.format, tp), project.settings.loudness != "acx")?;
         }
         crate::wavio::write_mono_f32(&wav, &samples, SR)?;
         let label = if b.note.trim().is_empty() { crate::speech_text::visible(&b.text).chars().take(40).collect::<String>() } else { b.note.trim_end_matches(".txt").to_string() };

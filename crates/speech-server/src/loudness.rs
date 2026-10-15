@@ -124,9 +124,14 @@ pub fn true_peak_db(x: &[f32], sr: u32) -> Result<f64, String> {
     Ok(if peak <= 0.0 { -120.0 } else { 20.0 * peak.log10() })
 }
 
+/// Моно, которое играют обе колонки, звучит на 3,01 дБ громче замера одного канала (`ffmpeg-normalize --dual-mono`).
+pub const DUAL_MONO_DB: f64 = 3.0103;
+
 /// Привести моно-сигнал к `target` LUFS с истинным пиком не выше `peak_db` dBTP: ограничитель работает по отсчётам,
-/// поэтому после него пик меряется по BS.1770, и при выходе за потолок порог опускается на превышение.
-pub fn level(x: &mut [f32], sr: u32, target: f64, peak_db: f64) -> Result<Levelled, String> {
+/// поэтому после него пик меряется по BS.1770, и при выходе за потолок порог опускается на превышение. С `dual_mono`
+/// громкость меряется как у моно на двух колонках.
+pub fn level(x: &mut [f32], sr: u32, target: f64, peak_db: f64, dual_mono: bool) -> Result<Levelled, String> {
+    let integrated_lufs = |x: &[f32], sr: u32| integrated_lufs(x, sr).map(|l| if dual_mono { l + DUAL_MONO_DB } else { l });
     let before = integrated_lufs(x, sr).ok_or_else(|| t!("media-loudnorm-silent"))?;
     let mut limit_db = peak_db - TRUE_PEAK_MARGIN_DB;
     let mut now = before;
@@ -171,7 +176,7 @@ mod tests {
     fn a_quiet_recording_reaches_the_target_without_passing_the_peak() {
         let sr = 24_000;
         let mut x = speechlike(8.0, sr, 0.05);
-        let r = level(&mut x, sr, -14.0, -1.0).unwrap();
+        let r = level(&mut x, sr, -14.0, -1.0, false).unwrap();
         assert!(r.before < -25.0, "{r:?}");
         assert!((r.after + 14.0).abs() < 0.6, "{r:?}");
         let tp = true_peak_db(&x, sr).unwrap();
@@ -179,8 +184,18 @@ mod tests {
     }
 
     #[test]
+    fn dual_mono_lands_three_decibels_lower_in_the_channel() {
+        let sr = 24_000;
+        let mut x = speechlike(8.0, sr, 0.05);
+        let r = level(&mut x, sr, -16.0, -1.0, true).unwrap();
+        assert!((r.after + 16.0).abs() < 0.6, "{r:?}");
+        let channel = integrated_lufs(&x, sr).unwrap();
+        assert!((channel - (-16.0 - DUAL_MONO_DB)).abs() < 0.6, "one channel {channel}");
+    }
+
+    #[test]
     fn silence_is_refused() {
         let mut x = vec![0.0f32; 48_000];
-        assert!(level(&mut x, 24_000, -16.0, -1.0).is_err());
+        assert!(level(&mut x, 24_000, -16.0, -1.0, false).is_err());
     }
 }
