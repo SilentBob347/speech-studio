@@ -80,8 +80,8 @@ fn engine_tag(p: &SpeechPaths, project: &SpeechProject) -> String {
         crate::models::DRAMA_TTS.to_string()
     } else if project.settings.engine == crate::supertonic::ENGINE {
         format!("{}:int8", crate::supertonic::ENGINE)
-    } else if project.settings.engine == crate::qwen_tts::ENGINE {
-        format!("{}:{}", crate::qwen_tts::ENGINE, crate::models::qwen_quant(&p.models_root))
+    } else if crate::qwen_tts::is_engine(&project.settings.engine) {
+        format!("{}:{}", project.settings.engine, crate::models::qwen_quant(&p.models_root))
     } else {
         format!("higgs:{}", higgs_config(p).quant)
     }
@@ -256,6 +256,9 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
     if drama && voice.is_none() {
         return Err(t!("drama-needs-voice"));
     }
+    if project.settings.engine == crate::qwen_tts::ENGINE_STRESS && voice.is_none() {
+        return Err(t!("render-qwen-stress-needs-voice"));
+    }
     // an engine with its own voices speaks one of them; a library voice there is cloned when the engine clones,
     // otherwise named, not quietly swapped
     let clones_too = manifest.as_ref().is_some_and(|m| m.clone != "none");
@@ -270,12 +273,12 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
         tts_host::drama(&p.models_root)?
     } else if project.settings.engine == crate::supertonic::ENGINE {
         tts_host::supertonic(&p.models_root)?
-    } else if project.settings.engine == crate::qwen_tts::ENGINE {
-        tts_host::qwen(&p.models_root, preset.is_none())?
+    } else if crate::qwen_tts::is_engine(&project.settings.engine) {
+        tts_host::qwen(&p.models_root, preset.is_none(), project.settings.engine == crate::qwen_tts::ENGINE_STRESS)?
     } else {
         tts_host::engine(&higgs_config(p))?
     };
-    let limit = ref_limit(&p.models_root);
+    let limit = if project.settings.engine == crate::qwen_tts::ENGINE_STRESS { ref_limit(&p.models_root).min(crate::qwen_tts::STRESS_REF_SECS) } else { ref_limit(&p.models_root) };
     let clones = preset.is_none();
     let continues = manifest.as_ref().is_some_and(|m| m.continuation);
     let continued = sp::continuation_source(project, b).filter(|(_, t)| clones && continues && t.duration > 0.5 && t.duration <= limit + 0.5);
@@ -319,7 +322,7 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
                     ref_wav: reference.as_ref().map(|(w, _)| w.as_path()),
                     ref_text: reference.as_ref().and_then(|(_, t)| t.as_deref()),
                     preset: preset.as_deref(),
-                    instruct: Some(b.direction.trim()).filter(|d| !d.is_empty() && project.settings.engine == crate::qwen_tts::ENGINE),
+                    instruct: Some(b.direction.trim()).filter(|d| !d.is_empty() && crate::qwen_tts::is_engine(&project.settings.engine)),
                     params: &params,
                     fresh_seed: fresh.wrapping_add(k as u64),
                     live: Some(live.clone()),
@@ -336,7 +339,7 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
             }
         }
     }
-    ignored.stress = stx::has_stress(&b.text);
+    ignored.stress = stx::has_stress(&b.text) && !manifest.as_ref().is_some_and(|m| m.reads.stress);
     if out.is_empty() {
         return Err(t!("speech-block-silent"));
     }

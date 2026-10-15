@@ -211,12 +211,17 @@ pub fn supertonic(models_root: &Path) -> Result<Tts, String> {
 }
 
 
-/// Загруженный Qwen3-TTS выбранного кванта: CustomVoice для голосов модели, Base для клона (`clone`); другой
-/// квант, другой чекпоинт или другой движок выгружаются. Только на видеокарте NVIDIA с CUDA 13: на неподходящей —
-/// ошибка с причиной.
-pub fn qwen(models_root: &Path, clone: bool) -> Result<Tts, String> {
+/// Загруженный Qwen3-TTS выбранного кванта: CustomVoice для голосов модели, Base для клона (`clone`), Base с
+/// адаптером русских ударений (`stress`); другой квант, другой чекпоинт или другой движок выгружаются. Только на
+/// видеокарте NVIDIA с CUDA 13: на неподходящей — ошибка с причиной.
+pub fn qwen(models_root: &Path, clone: bool, stress: bool) -> Result<Tts, String> {
     let quant = crate::models::qwen_quant(models_root);
-    let key = format!("{}:{}:{quant}", crate::qwen_tts::ENGINE, if clone { "base" } else { "custom" });
+    let talker = match (clone, stress) {
+        (_, true) => "base+ru-stress",
+        (true, false) => "base",
+        (false, false) => "custom",
+    };
+    let key = format!("{}:{talker}:{quant}", crate::qwen_tts::ENGINE);
     let mut slot = host();
     if let Some((k, Tts::Qwen(e))) = slot.as_ref() {
         if *k == key {
@@ -225,8 +230,12 @@ pub fn qwen(models_root: &Path, clone: bool) -> Result<Tts, String> {
         }
     }
     *slot = None;
-    if !crate::qwen_tts::installed(models_root, &quant, clone) {
-        return Err(if clone { t!("render-qwen-clone-missing") } else { t!("render-qwen-missing") });
+    if !crate::qwen_tts::installed(models_root, &quant, clone || stress, stress) {
+        return Err(match (clone, stress) {
+            (_, true) => t!("render-qwen-stress-missing"),
+            (true, false) => t!("render-qwen-clone-missing"),
+            (false, false) => t!("render-qwen-missing"),
+        });
     }
     let gpu = crate::hw::gpu_report();
     if !gpu.cuda13_ok {
@@ -237,7 +246,7 @@ pub fn qwen(models_root: &Path, clone: bool) -> Result<Tts, String> {
             _ => t!("render-higgs-no-gpu", card = card),
         });
     }
-    let e = Arc::new(crate::qwen_tts::Engine::load(models_root, &quant, clone).map_err(|e| t!("render-qwen-load-failed", error = e))?);
+    let e = Arc::new(crate::qwen_tts::Engine::load(models_root, &quant, clone || stress, stress).map_err(|e| t!("render-qwen-load-failed", error = e))?);
     *slot = Some((key, Tts::Qwen(e.clone())));
     touch();
     Ok(Tts::Qwen(e))

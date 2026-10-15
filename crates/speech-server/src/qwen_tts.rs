@@ -1,5 +1,6 @@
 //! Qwen3-TTS CustomVoice through qwentts.cpp (ServeurpersoCom, ggml on CUDA) loaded at run time: its public C ABI
-//! `qwen.h` (struct ABI 6) — nine named speakers, a style instruction, streaming chunks and cooperative cancel.
+//! `qwen.h` (struct ABI 7) — nine named speakers, a style instruction, streaming chunks, cooperative cancel and a LoRA
+//! adapter on the talker applied beside its quantised weights.
 
 use std::ffi::{c_char, c_void, CStr, CString};
 use std::path::{Path, PathBuf};
@@ -8,6 +9,14 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use libloading::Library;
 
 pub const ENGINE: &str = "qwen3-tts";
+/// The Base talker with the Russian stress adapter: a clone that reads U+0301 after the stressed vowel.
+pub const ENGINE_STRESS: &str = "qwen3-tts-ru";
+/// siriusfreak/qwen3-tts-12hz-1.7b-ru-stress-cf `lora/adapter.safetensors`: r 16, alpha 32 on the Base talker.
+pub const STRESS_LORA: &str = "qwen-talker-1.7b-base-ru-stress-lora.safetensors";
+const STRESS_LORA_SCALE: f32 = 32.0 / 16.0;
+/// The longest reference the stress adapter clones from: it was trained on short clips, and from 12 s on it ends
+/// phrases early, at 18 s before the first frame.
+pub const STRESS_REF_SECS: f64 = 10.0;
 /// The folder of the weights and the library inside the models root.
 pub const DIR: &str = "qwen3-tts";
 pub const CODEC: &str = "qwen-tokenizer-12hz-Q8_0.gguf";
@@ -35,7 +44,7 @@ pub const SPEAKERS: &[(&str, &str, &str, &str)] = &[
 ];
 pub const LANGS: &[&str] = &["ru", "en", "zh", "ja", "ko", "de", "fr", "es", "pt", "it"];
 pub const SAMPLE_RATE: u32 = 24_000;
-const ABI_VERSION: i32 = 6;
+const ABI_VERSION: i32 = 7;
 const STATUS_CANCELLED: i32 = -5;
 
 #[repr(C)]
@@ -48,6 +57,8 @@ struct InitParams {
     max_batch: i32,
     codec_chunk_sec: f32,
     device: *const c_char,
+    lora_path: *const c_char,
+    lora_scale: f32,
 }
 
 type ChunkFn = unsafe extern "C" fn(*const f32, i32, *mut c_void) -> bool;
@@ -172,14 +183,22 @@ pub fn dir(models_root: &Path) -> PathBuf {
     models_root.join(DIR)
 }
 
+pub fn is_engine(id: &str) -> bool {
+    id == ENGINE || id == ENGINE_STRESS
+}
+
 pub fn talker(models_root: &Path, quant: &str, clone: bool) -> Option<PathBuf> {
     QUANTS.iter().find(|(q, _, _)| *q == quant).map(|(_, custom, base)| dir(models_root).join(if clone { base } else { custom }))
 }
 
-/// The library, the codec and the talker of `quant` for named speakers (`clone` false) or for cloning.
-pub fn installed(models_root: &Path, quant: &str, clone: bool) -> bool {
+/// The library, the codec and the talker of `quant` for named speakers (`clone` false) or for cloning, with the
+/// stress adapter when `stress`.
+pub fn installed(models_root: &Path, quant: &str, clone: bool, stress: bool) -> bool {
     let d = dir(models_root);
-    d.join(LIBRARY).is_file() && d.join(CODEC).is_file() && talker(models_root, quant, clone).is_some_and(|t| t.is_file())
+    d.join(LIBRARY).is_file()
+        && d.join(CODEC).is_file()
+        && talker(models_root, quant, clone).is_some_and(|t| t.is_file())
+        && (!stress || d.join(STRESS_LORA).is_file())
 }
 
 fn cstring(s: &str, what: &str) -> Result<CString, String> {
@@ -217,8 +236,11 @@ unsafe extern "C" fn cancel_trampoline(user: *mut c_void) -> bool {
 
 impl Engine {
     /// Loads the library (its CUDA libraries are found on PATH) and the talker of `quant`: Base when `clone`, else
-    /// CustomVoice.
-    pub fn load(models_root: &Path, quant: &str, clone: bool) -> Result<Engine, String> {
+    /// CustomVoice; `stress` adds the Russian stress adapter to the Base talker.
+    pub fn load(models_root: &Path, quant: &str, clone: bool, stress: bool) -> Result<Engine, String> {
+        if stress && !clone {
+            return Err("qwen3-tts: the stress adapter is trained on the Base talker".into());
+        }
         let d = dir(models_root);
         // its ggml libraries sit beside it under names other engines' libraries could share: this folder comes first
         let path = std::env::var("PATH").unwrap_or_default();
@@ -229,11 +251,16 @@ impl Engine {
         let api = library(&d)?;
         let talker = talker(models_root, quant, clone).ok_or_else(|| format!("qwen3-tts: no quantisation {quant}"))?;
         let (t, c) = (cstring(&talker.to_string_lossy(), "talker path")?, cstring(&d.join(CODEC).to_string_lossy(), "codec path")?);
+        let lora = if stress { Some(cstring(&d.join(STRESS_LORA).to_string_lossy(), "adapter path")?) } else { None };
         let mut p: InitParams = unsafe { std::mem::zeroed() };
         unsafe { (api.init_default)(&mut p) };
         p.abi_version = ABI_VERSION;
         p.talker_path = t.as_ptr();
         p.codec_path = c.as_ptr();
+        if let Some(lora) = &lora {
+            p.lora_path = lora.as_ptr();
+            p.lora_scale = STRESS_LORA_SCALE;
+        }
         let raw = unsafe { (api.init)(&p) };
         if raw.is_null() {
             return Err(format!("qwen3-tts: {}", unsafe { last_error(&api) }));
@@ -340,7 +367,7 @@ mod tests {
     fn speaks_russian_on_the_gpu_and_streams() {
         let root = PathBuf::from(std::env::var("QWEN_ROOT").expect("QWEN_ROOT"));
         let quant = std::env::var("QWEN_QUANT").unwrap_or_else(|_| "Q4_K_M".into());
-        let e = Engine::load(&root, &quant, false).unwrap();
+        let e = Engine::load(&root, &quant, false, false).unwrap();
         eprintln!("qwentts {}", e.version());
         let say = Say { text: "Сегодня в восемь вечера мы встретимся у старого моста.", lang: "ru", speaker: Some("ryan"), reference: None, instruct: None, seed: 42, temperature: 0.7, top_k: 50, top_p: 0.9, max_new_tokens: 0 };
         let chunks = std::sync::atomic::AtomicUsize::new(0);
@@ -366,8 +393,8 @@ mod tests {
     #[ignore]
     fn clones_a_reference_after_the_named_voices_were_freed() {
         let root = PathBuf::from(std::env::var("QWEN_ROOT").expect("QWEN_ROOT"));
-        drop(Engine::load(&root, "Q4_K_M", false).unwrap());
-        let e = Engine::load(&root, "Q4_K_M", true).unwrap();
+        drop(Engine::load(&root, "Q4_K_M", false, false).unwrap());
+        let e = Engine::load(&root, "Q4_K_M", true, false).unwrap();
         let (reference, sr) = crate::wavio::read_mono_f32(Path::new(&std::env::var("QWEN_REF").expect("QWEN_REF"))).unwrap();
         assert_eq!(sr, SAMPLE_RATE);
         let text = std::env::var("QWEN_REF_TEXT").ok();
@@ -376,6 +403,36 @@ mod tests {
         eprintln!("[OK] clone {:.2} s", wav.len() as f64 / SAMPLE_RATE as f64);
         if let Ok(out) = std::env::var("QWEN_OUT") {
             crate::wavio::write_mono_f32(Path::new(&out), &wav, SAMPLE_RATE).unwrap();
+        }
+    }
+
+    /// The same marked phrases from the Base talker without and with the stress adapter, same reference and seed:
+    /// `QWEN_REF`, `QWEN_REF_TEXT` as above, `QWEN_OUT_DIR` gets `<n>-base.wav` and `<n>-stress.wav`.
+    #[test]
+    #[ignore]
+    fn the_stress_adapter_loads_beside_the_quantised_base_and_speaks() {
+        let root = PathBuf::from(std::env::var("QWEN_ROOT").expect("QWEN_ROOT"));
+        let out = PathBuf::from(std::env::var("QWEN_OUT_DIR").expect("QWEN_OUT_DIR"));
+        let (reference, sr) = crate::wavio::read_mono_f32(Path::new(&std::env::var("QWEN_REF").expect("QWEN_REF"))).unwrap();
+        assert_eq!(sr, SAMPLE_RATE);
+        let ref_text = std::env::var("QWEN_REF_TEXT").ok();
+        let phrases = [
+            "Он запер ста\u{301}рый замо\u{301}к и пошёл к за\u{301}мку на горе\u{301}.",
+            "Мука\u{301} была\u{301} в мешке\u{301}, а му\u{301}ка — в душе\u{301}.",
+            "В а\u{301}тласе на столе\u{301} лежа\u{301}л кусо\u{301}к атла\u{301}са.",
+        ];
+        assert!(Engine::load(&root, "Q4_K_M", false, true).is_err(), "the adapter is for the Base talker");
+        for stress in [false, true] {
+            let e = Engine::load(&root, "Q4_K_M", true, stress).unwrap();
+            for (n, text) in phrases.iter().enumerate() {
+                let say = Say { text, lang: "ru", speaker: None, reference: Some((&reference, ref_text.as_deref())), instruct: None, seed: 11, temperature: 0.7, top_k: 50, top_p: 0.9, max_new_tokens: 0 };
+                let started = std::time::Instant::now();
+                let wav = e.speak(&say, None).unwrap();
+                let secs = wav.len() as f64 / SAMPLE_RATE as f64;
+                eprintln!("[OK] {} {n}: {secs:.2} s in {:.2} s", if stress { "stress" } else { "base" }, started.elapsed().as_secs_f64());
+                assert!(secs > 1.0 && secs < 15.0, "{secs}");
+                crate::wavio::write_mono_f32(&out.join(format!("{n}-{}.wav", if stress { "stress" } else { "base" })), &wav, SAMPLE_RATE).unwrap();
+            }
         }
     }
 }

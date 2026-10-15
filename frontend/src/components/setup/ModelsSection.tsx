@@ -309,6 +309,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
             {rowOf("supertonic3")}
             {variantPicker("Qwen3-TTS 1.7B", ["qwen3-tts", "qwen3-tts-q8_0"])}
             {rowOf("qwen3-tts-engine")}
+            {rowOf("qwen3-tts-ru-stress")}
           </>
         )}
       </>)}

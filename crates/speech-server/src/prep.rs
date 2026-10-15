@@ -84,7 +84,7 @@ pub fn prepare(text: &str, o: &Opts) -> Result<Prepared, String> {
             engine.push(out);
         }
     }
-    p.ignored.stress = stx::has_stress(text);
+    p.ignored.stress = stx::has_stress(text) && !crate::engines::get(o.engine).is_some_and(|e| e.reads.stress);
     p.engine_text = engine.join(" ");
     p.text = t;
     Ok(p)

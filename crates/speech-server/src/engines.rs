@@ -161,7 +161,7 @@ pub fn supertonic() -> Engine {
         streaming: false,
         deterministic_seed: true,
         max_chars: crate::supertonic::MAX_CHARS,
-        reads: Reads { stress: false, yo: true, phonemes: false, accent: false },
+        reads: Reads { stress: true, yo: true, phonemes: false, accent: false },
         presets: crate::supertonic::VOICES.iter().map(|v| preset(v)).collect(),
         unavailable: None,
     }
@@ -195,13 +195,26 @@ pub fn qwen() -> Engine {
     }
 }
 
+/// Qwen3-TTS 1.7B Base с адаптером русских ударений (siriusfreak, 96% знаков по словарю против 17% у исходной):
+/// только клон голоса из библиотеки, ударение «+» доходит до модели знаком после гласной.
+pub fn qwen_stress() -> Engine {
+    Engine {
+        id: crate::qwen_tts::ENGINE_STRESS,
+        name: "Qwen3-TTS · русские ударения",
+        languages: &["ru"],
+        presets: Vec::new(),
+        reads: Reads { stress: true, yo: true, phonemes: false, accent: false },
+        ..qwen()
+    }
+}
+
 /// fal, Runware и Google Gemini: модель из каталога или настроек, голоса — у модели; языки — у модели.
 pub fn catalog(id: &'static str, name: &'static str) -> Engine {
     Engine { id, name, ..openrouter() }
 }
 
 pub fn all() -> Vec<Engine> {
-    vec![higgs(), drama(), supertonic(), qwen(), openrouter(), catalog("google", "Google Gemini"), catalog("fal", "fal.ai"), catalog("runware", "Runware")]
+    vec![higgs(), drama(), supertonic(), qwen(), qwen_stress(), openrouter(), catalog("google", "Google Gemini"), catalog("fal", "fal.ai"), catalog("runware", "Runware")]
 }
 
 /// Движки для окна: у Drama 3 и Supertonic — почему они здесь не пойдут (видеокарта или нескачанные файлы).
@@ -212,8 +225,10 @@ pub fn for_window(models_root: &std::path::Path) -> Vec<Engine> {
             e.unavailable = crate::models::drama_unavailable().or_else(|| (!crate::models::drama_installed(models_root)).then(|| t!("render-drama-missing")));
         } else if e.id == crate::supertonic::ENGINE && !crate::supertonic::installed(models_root) {
             e.unavailable = Some(t!("render-supertonic-missing"));
-        } else if e.id == crate::qwen_tts::ENGINE && !crate::qwen_tts::installed(models_root, &crate::models::qwen_quant(models_root), false) {
+        } else if e.id == crate::qwen_tts::ENGINE && !crate::qwen_tts::installed(models_root, &crate::models::qwen_quant(models_root), false, false) {
             e.unavailable = Some(t!("render-qwen-missing"));
+        } else if e.id == crate::qwen_tts::ENGINE_STRESS && !crate::qwen_tts::installed(models_root, &crate::models::qwen_quant(models_root), true, true) {
+            e.unavailable = Some(t!("render-qwen-stress-missing"));
         }
     }
     all

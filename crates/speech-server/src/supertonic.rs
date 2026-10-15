@@ -303,4 +303,28 @@ mod tests {
             crate::wavio::write_mono_f32(Path::new(&out), &wav, m.sample_rate()).unwrap();
         }
     }
+
+    /// The same homograph phrases without and with U+0301 after the stressed vowel, one voice and seed:
+    /// `SUPERTONIC_OUT_DIR` gets `<n>-plain.wav` and `<n>-acute.wav` to listen to.
+    #[test]
+    #[ignore]
+    fn speaks_marked_stress_beside_plain_text() {
+        let root = PathBuf::from(std::env::var("SUPERTONIC_ROOT").expect("SUPERTONIC_ROOT"));
+        let out = PathBuf::from(std::env::var("SUPERTONIC_OUT_DIR").expect("SUPERTONIC_OUT_DIR"));
+        let m = Model::load(&root, true).unwrap();
+        let phrases = [
+            "Он запер ста\u{301}рый замо\u{301}к и пошёл к за\u{301}мку на горе\u{301}.",
+            "Мука\u{301} была\u{301} в мешке\u{301}, а му\u{301}ка — в душе\u{301}.",
+            "В а\u{301}тласе на столе\u{301} лежа\u{301}л кусо\u{301}к атла\u{301}са.",
+        ];
+        for (n, marked) in phrases.iter().enumerate() {
+            for (kind, text) in [("plain", marked.replace('\u{301}', "")), ("acute", marked.to_string())] {
+                let wav = m.speak(&text, "ru", "M1", DEFAULT_STEPS, DEFAULT_SPEED, 7).unwrap();
+                let secs = wav.len() as f64 / m.sample_rate() as f64;
+                eprintln!("[OK] {kind} {n}: {secs:.2} s");
+                assert!(secs > 1.0 && secs < 12.0, "{secs}");
+                crate::wavio::write_mono_f32(&out.join(format!("{n}-{kind}.wav")), &wav, m.sample_rate()).unwrap();
+            }
+        }
+    }
 }
