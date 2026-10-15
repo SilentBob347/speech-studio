@@ -644,7 +644,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           { icon: BookOpen, label: t("speech.dictionary"), act: () => setDictionary(true), narrowOnly: !simple },
           { icon: Drama, label: t("speech.castCharacters"), act: () => void castCharacters(), disabled: casting, narrowOnly: !simple },
           { icon: Users, label: t("speech.cast"), act: () => setCastOpen((v) => !v), belowLarge: true },
-          { icon: ListChecks, label: t("lint.open"), act: () => setLinting(true) },
+          { icon: ListChecks, label: t("lint.open"), act: () => void flush().then(() => setLinting(true)) },
           { icon: History, label: t("history.open"), act: () => setHistory(true) },
           { icon: Wand2, label: selected.length ? t("enrich.runSelected", { n: selected.length }) : t("enrich.run"), act: () => void enrich(selected.length ? selected : null), disabled: enriching },
           { icon: Wand2, label: selected.length ? t("enrich.punctSelected", { n: selected.length }) : t("enrich.punct"), act: () => void enrich(selected.length ? selected : null, "punctuation"), disabled: enriching },

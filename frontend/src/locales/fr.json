@@ -2063,7 +2063,14 @@
     "marks_ignored": "{{engine}} ne lira pas les accents toniques ni les phonèmes : ils sont retirés.",
     "unread": "Reste tel qu'écrit : {{words}}",
     "dictionary": "Une règle du dictionnaire n'a pas fonctionné : {{rules}}",
-    "prepare": "Le texte n'a pas pu être préparé : {{detail}}"
+    "prepare": "Le texte n'a pas pu être préparé : {{detail}}",
+    "markup_pause": "Une balise de pause n’est pas reconnue et sera lue à voix haute : {{text}}. Écrivez [pause 500ms] ou [pause 1s].",
+    "markup_rate": "Une balise de débit n’est pas reconnue et sera lue à voix haute : {{text}}. Écrivez [rate:0.9].",
+    "markup_rate_range": "Un débit hors de 0,25–4 sera borné : {{text}}.",
+    "markup_accent": "L’accent ** est ouvert sans être fermé : les astérisques restent dans le texte.",
+    "markup_phonemes": "Les phonèmes [[ ]] sont ouverts sans être fermés.",
+    "markup_engine_tag": "Une balise de moteur n’a pas la forme <|catégorie:valeur|> : {{text}}.",
+    "markup_scope": "Une balise de passage n’a pas sa paire : {{text}}."
   },
   "quick": {
     "title": "Doublage rapide",

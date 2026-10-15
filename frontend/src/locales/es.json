@@ -2063,7 +2063,14 @@
     "marks_ignored": "{{engine}} no leerá las marcas de acento ni los fonemas: se quitan.",
     "unread": "Queda tal como está escrito: {{words}}",
     "dictionary": "Una regla del diccionario no funcionó: {{rules}}",
-    "prepare": "No se pudo preparar el texto: {{detail}}"
+    "prepare": "No se pudo preparar el texto: {{detail}}",
+    "markup_pause": "Una etiqueta de pausa no se reconoce y se leerá en voz alta: {{text}}. Escriba [pause 500ms] o [pause 1s].",
+    "markup_rate": "Una etiqueta de ritmo no se reconoce y se leerá en voz alta: {{text}}. Escriba [rate:0.9].",
+    "markup_rate_range": "Un ritmo fuera de 0,25–4 se recortará: {{text}}.",
+    "markup_accent": "El énfasis ** se abre y no se cierra: los asteriscos quedan en el texto.",
+    "markup_phonemes": "Los fonemas [[ ]] se abren y no se cierran.",
+    "markup_engine_tag": "Una etiqueta del motor no tiene la forma <|categoría:valor|>: {{text}}.",
+    "markup_scope": "Una etiqueta de fragmento no tiene pareja: {{text}}."
   },
   "quick": {
     "title": "Locución rápida",

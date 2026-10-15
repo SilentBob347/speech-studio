@@ -93,7 +93,7 @@ function AutoText({ value, onCommit, label, inputRef, stale, locked }: { value: 
   const marks = useMemo(() => cues(draft), [draft]);
   const area = (
     <textarea ref={inputRef} value={draft} rows={1} aria-label={label} spellCheck readOnly={locked}
-      onChange={(e) => setDraft(e.target.value)} onBlur={() => { if (draft !== value) onCommit(draft); }}
+      onChange={(e) => setDraft(e.target.value)} onBlur={(e) => { const typed = e.currentTarget.value; if (typed !== value) onCommit(typed); }}
       className={`relative block w-full resize-none overflow-hidden bg-transparent text-[14px] leading-relaxed focus:outline-none placeholder:text-[var(--color-muted)] ${stale ? "underline decoration-dotted decoration-[var(--color-warn)] underline-offset-4" : ""}`} />
   );
   if (!marks.length) return area;

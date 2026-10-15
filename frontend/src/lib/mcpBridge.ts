@@ -327,6 +327,18 @@ function find(args: BridgeArgs): HTMLElement {
 }
 
 /** Sets a value the way typing does, so React sees it. */
+/** A window in the background gets no focus events from focus() and blur(), so the bridge sends them: a field that
+ * saves on blur saves, and a list that opens on focus opens, as with the user's own click. */
+function focusIn(element: HTMLElement): void {
+  element.focus();
+  if (!document.hasFocus()) element.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+}
+
+function focusOut(element: HTMLElement): void {
+  element.blur();
+  if (!document.hasFocus()) element.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+}
+
 function setValue(element: HTMLElement, value: string): void {
   if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
     const prototype = element instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLTextAreaElement.prototype;
@@ -414,7 +426,7 @@ const builtIn: Record<string, Handler> = {
     element.scrollIntoView({ block: "center" });
     flash(element);
     // an input opens its list on focus (the language pickers), as the user's click does
-    if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) element.focus();
+    if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) focusIn(element);
     element.click();
     await settle();
     return { text: `Clicked ${name}${row ? ` in ${row}` : ""}.` };
@@ -425,10 +437,10 @@ const builtIn: Record<string, Handler> = {
     const element = find(args);
     element.scrollIntoView({ block: "center" });
     flash(element);
-    element.focus();
+    focusIn(element);
     setValue(element, args.value);
     if (args.submit) element.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-    element.blur();
+    focusOut(element);
     await settle();
     return { text: "Typed." };
   },

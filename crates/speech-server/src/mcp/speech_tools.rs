@@ -110,7 +110,7 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "project_lint",
-            description: "Check a project before voicing it: block by block, what would go wrong (level error: an empty block, an engine unavailable or without the project's language, no voice where the engine needs one, a voice missing or without the reference text Drama 3 needs, a broken dictionary rule) or not be read as written (level warn: tags or stress marks the engine does not read, a direction it ignores, what normalisation left unread).",
+            description: "Check a project before voicing it: block by block, what would go wrong (level error: an empty block, an engine unavailable or without the project's language, no voice where the engine needs one, a voice missing or without the reference text Drama 3 needs, a broken dictionary rule) or not be read as written (level warn: markup that would not work - a pause or tempo tag that does not parse or a tempo out of range, ** or [[ ]] left open, a span tag without its pair, an engine tag not <|category:value|> - tags or stress marks the engine does not read, a direction it ignores, what normalisation left unread).",
             schema: project_only,
             call: |args| get(project_path(args, "/lint")?),
         },

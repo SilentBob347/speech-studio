@@ -2063,7 +2063,14 @@
     "marks_ignored": "{{engine}} will not read stress marks or phonemes: they are taken out.",
     "unread": "Left as written: {{words}}",
     "dictionary": "A dictionary rule did not work: {{rules}}",
-    "prepare": "The text could not be prepared: {{detail}}"
+    "prepare": "The text could not be prepared: {{detail}}",
+    "markup_pause": "A pause tag does not parse and will be read aloud: {{text}}. Write [pause 500ms] or [pause 1s].",
+    "markup_rate": "A tempo tag does not parse and will be read aloud: {{text}}. Write [rate:0.9].",
+    "markup_rate_range": "A tempo outside 0.25–4 will be clamped: {{text}}.",
+    "markup_accent": "Stress ** is opened and never closed: the asterisks stay in the text.",
+    "markup_phonemes": "Phonemes [[ ]] are opened and never closed.",
+    "markup_engine_tag": "An engine tag is not in the form <|category:value|>: {{text}}.",
+    "markup_scope": "A span tag has no pair: {{text}}."
   },
   "quick": {
     "title": "Quick voicing",

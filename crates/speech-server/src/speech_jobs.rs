@@ -1131,6 +1131,9 @@ pub fn lint(p: &SpeechPaths, project: &SpeechProject) -> Vec<Value> {
             },
             _ => {}
         }
+        for (problem, markup) in crate::speech_text::markup_problems(&b.text) {
+            issue(&b.id, "warn", "markup", json!({ "problem": problem, "text": markup }));
+        }
         if !b.direction.trim().is_empty() && !engine.direction {
             issue(&b.id, "warn", "direction_ignored", json!({ "engine": engine.name }));
         }

@@ -382,8 +382,68 @@ pub fn visible(text: &str) -> String {
     t.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
+static COMMAND: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)\[\s*(pause|rate)\b[^\]\n]{0,40}\]").expect("command"));
+static ENGINE_TAG: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"<\|[^<>\n]{0,48}\|?>").expect("engine tag"));
+static SCOPE_TAG: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"<(/?)([a-z][a-z -]{0,30})>").expect("scope tag"));
+
+/// Markup the text means but that would not work: a pause or tempo tag that does not parse (read aloud as words) or a
+/// tempo outside `RATE_RANGE` (clamped), `**` or `[[…]]` left open, a span tag opened without its close or closed
+/// without its opening, an engine tag that is not `<|category:value|>`. Each as the problem and the markup.
+pub fn markup_problems(text: &str) -> Vec<(&'static str, String)> {
+    let mut out: Vec<(&'static str, String)> = Vec::new();
+    for m in COMMAND.find_iter(text) {
+        match PAUSE.captures(m.as_str()).filter(|c| c.get(0).is_some_and(|w| w.as_str() == m.as_str())) {
+            None => out.push((if m.as_str().to_lowercase().contains("rate") { "rate" } else { "pause" }, m.as_str().to_string())),
+            Some(c) => {
+                if let Some(r) = c.get(5) {
+                    let rate: f64 = r.as_str().replace(',', ".").parse().unwrap_or(0.0);
+                    if !(RATE_RANGE.0..=RATE_RANGE.1).contains(&rate) {
+                        out.push(("rate_range", m.as_str().to_string()));
+                    }
+                }
+            }
+        }
+    }
+    if text.matches("**").count() % 2 == 1 {
+        out.push(("accent", "**".to_string()));
+    }
+    if text.matches("[[").count() != text.matches("]]").count() {
+        out.push(("phonemes", "[[ ]]".to_string()));
+    }
+    for m in ENGINE_TAG.find_iter(text) {
+        if !HIGGS_TAG.is_match(m.as_str()) {
+            out.push(("engine_tag", m.as_str().to_string()));
+        }
+    }
+    let mut open: Vec<String> = Vec::new();
+    for c in SCOPE_TAG.captures_iter(text) {
+        let name = c[2].to_string();
+        let closes = text.contains(&format!("</{name}>"));
+        if c[1].is_empty() {
+            if closes {
+                open.push(name);
+            }
+        } else if let Some(at) = open.iter().rposition(|n| *n == name) {
+            open.remove(at);
+        } else {
+            out.push(("scope", c[0].to_string()));
+        }
+    }
+    out.extend(open.into_iter().map(|n| ("scope", format!("<{n}>"))));
+    out
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn markup_that_would_not_work_is_named() {
+        use super::markup_problems;
+        assert!(markup_problems("Привет [pause 500ms] мир [rate:0.8]тише[rate:1] <whisper>шёпот</whisper> <|emotion:anger|> **да** [[a b]].").is_empty());
+        assert_eq!(markup_problems("Раз [pause пять] два [rate:9] три."), vec![("pause", "[pause пять]".to_string()), ("rate_range", "[rate:9]".to_string())]);
+        assert_eq!(markup_problems("**да и <|emotion anger|> <whisper>тихо"), vec![("accent", "**".to_string()), ("engine_tag", "<|emotion anger|>".to_string())]);
+        assert_eq!(markup_problems("громко</whisper> и <laugh> смех"), vec![("scope", "</whisper>".to_string())]);
+    }
+
     #[test]
     fn drama_keeps_its_point_tags_and_drops_higgs_ones() {
         let (text, ig) = for_drama("[laughs] Ну д+авай <|emotion:awe|> уже [sighs] <whisper>тихо</whisper> пойдём.", "ru");

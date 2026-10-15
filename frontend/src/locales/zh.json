@@ -2063,7 +2063,14 @@
     "marks_ignored": "{{engine}} 不会读取重音符号或音素：它们会被去掉。",
     "unread": "将按原样保留：{{words}}",
     "dictionary": "词典规则未生效：{{rules}}",
-    "prepare": "文本无法准备：{{detail}}"
+    "prepare": "文本无法准备：{{detail}}",
+    "markup_pause": "停顿标签无法识别，会被读出来：{{text}}。请写 [pause 500ms] 或 [pause 1s]。",
+    "markup_rate": "语速标签无法识别，会被读出来：{{text}}。请写 [rate:0.9]。",
+    "markup_rate_range": "超出 0.25–4 的语速会被截断：{{text}}。",
+    "markup_accent": "重读标记 ** 只开未关，星号会留在文本里。",
+    "markup_phonemes": "音素 [[ ]] 只开未关。",
+    "markup_engine_tag": "引擎标签不符合 <|类别:值|> 格式：{{text}}。",
+    "markup_scope": "片段标签缺少配对：{{text}}。"
   },
   "quick": {
     "title": "快速配音",

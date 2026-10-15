@@ -31,6 +31,7 @@ export default function LintDialog({ pid, blocks, onJump, onClose }: { pid: stri
       case "dictionary": return t("lint.dictionary", { rules: list(i.detail) });
       case "prepare": return t("lint.prepare", { detail: String(i.detail) });
       case "engine": return t("lint.engine", { engine: String(i.detail) });
+      case "markup": return t(`lint.markup_${String(d.problem) as "pause"}`, { text: d.text });
       default: return t("lint.empty");
     }
   };
