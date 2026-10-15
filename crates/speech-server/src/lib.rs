@@ -589,6 +589,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/mcp/window", get(mcp::window_events))
         .route("/mcp/window/result", post(mcp::window_result).layer(axum::extract::DefaultBodyLimit::max(64 * 1024 * 1024)))
         .route("/mcp/window/focus", post(mcp::window_focus))
+        .route("/mcp/agent-llm/v1/chat/completions", post(mcp::agent_llm))
         .layer(guard::cors())
         .layer(axum::middleware::from_fn(guard::origin_guard))
 }

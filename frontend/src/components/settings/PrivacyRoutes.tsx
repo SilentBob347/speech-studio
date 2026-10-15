@@ -15,7 +15,7 @@ export default function PrivacyRoutes() {
   const askAgain = (stage: CloudStage) => {
     api.setSelection(consentKey(stage), "0").then(setSel, (e: unknown) => setProblem(errorText(e)));
   };
-  const director = sel?.llm_provider === "openrouter" ? "cloud" : sel?.llm_provider === "server" ? "server" : "local";
+  const director = sel?.llm_provider === "openrouter" ? "cloud" : sel?.llm_provider === "server" ? "server" : sel?.llm_provider === "agent" ? "agent" : "local";
   const icon = (where: "local" | "server" | "cloud") => where === "cloud" ? <Cloud size={13} className="text-[var(--color-warn)]" /> : where === "server" ? <Server size={13} className="text-[var(--color-accent-2)]" /> : <HardDrive size={13} className="text-[var(--color-accent)]" />;
   type RouteKey = "route_speech" | "route_listening" | "route_local" | `route_director_${typeof director}` | `route_assistant_${"agent" | "openrouter"}`;
   const routeKey = (stage: CloudStage | "local"): RouteKey =>
@@ -23,7 +23,7 @@ export default function PrivacyRoutes() {
   const rows: { stage: CloudStage | "local"; where: "local" | "server" | "cloud" | "choice" }[] = [
     { stage: "speech", where: "choice" },
     { stage: "listening", where: "choice" },
-    { stage: "director", where: director },
+    { stage: "director", where: director === "agent" ? "local" : director },
     { stage: "assistant", where: sel?.assistant === "agent" ? "local" : "cloud" },
     { stage: "local", where: "local" },
   ];

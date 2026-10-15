@@ -132,6 +132,19 @@ fn open_openrouter(o: &LlmOpen, mode: LlmMode) -> Result<LlmProvider, String> {
     Ok(LlmProvider::Remote { client, label: format!("OpenRouter · {model}") })
 }
 
+/// The agent connected over MCP: the studio's own chat client, pointed at this server's `/mcp/agent-llm`, which
+/// hands each request to the agent (`mcp::agent_llm`). One attempt: a repeat would ask the agent twice.
+fn open_agent(mode: LlmMode) -> Result<LlmProvider, String> {
+    if mode == LlmMode::Vision {
+        return Err(t!("llm-agent-no-vision"));
+    }
+    let port = crate::service::bound_port().ok_or_else(|| t!("llm-agent-no-port"))?;
+    let client = ChatClient::openai_compatible(&format!("http://127.0.0.1:{port}/mcp/agent-llm"), "agent", None)
+        .map_err(|e| t!("llm-local-client", error = e.localize()))?
+        .with_retries(0);
+    Ok(LlmProvider::Remote { client, label: t!("llm-agent-label") })
+}
+
 /// Открыть провайдер одной стадии: Text — перевод (своя Gemma без mmproj), Vision — кадры (своя Gemma с
 /// mmproj). Err — человекочитаемая причина.
 pub fn open(o: &LlmOpen, mode: LlmMode) -> Result<LlmProvider, String> {
@@ -139,6 +152,7 @@ pub fn open(o: &LlmOpen, mode: LlmMode) -> Result<LlmProvider, String> {
         LlmBackend::Local => start_gemma(o, mode == LlmMode::Vision),
         LlmBackend::Server => open_server(o, mode),
         LlmBackend::OpenRouter => open_openrouter(o, mode),
+        LlmBackend::Agent => open_agent(mode),
     }
 }
 

@@ -381,12 +381,12 @@ export type OrPricing = { prompt?: string; completion?: string; image?: string; 
 export type OrModel = { id: string; name: string; context_length?: number | null; pricing?: OrPricing | null; input_modalities?: string[]; voices?: string[] };
 export type OrModelKind = "llm" | "vision" | "tts" | "asr";
 export type OrCatalog = { refreshed_at: number; total: number; counts: Record<OrModelKind, number> };
-// Провайдер перевода/vision: своя Gemma, локальный OpenAI-совместимый сервер или OpenRouter. Сервер отдаёт
+// Провайдер перевода/vision: своя Gemma, локальный OpenAI-совместимый сервер, OpenRouter или подключённый агент. Сервер отдаёт
 // действующий провайдер в llm_provider/vision_provider, даже если он выбран прежними флагами or_*_on.
-export type LlmProviderKind = "local" | "server" | "openrouter";
+export type LlmProviderKind = "local" | "server" | "openrouter" | "agent";
 export const llmProviderOf = (sel: Selection | undefined, stage: "llm" | "vision"): LlmProviderKind => {
   const v = slot(sel, stage === "llm" ? "llm_provider" : "vision_provider");
-  return v === "server" || v === "openrouter" ? v : "local";
+  return v === "server" || v === "openrouter" || v === "agent" ? v : "local";
 };
 
 export const api = {

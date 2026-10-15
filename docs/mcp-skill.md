@@ -89,6 +89,12 @@ connected and the address to paste.
 - **Being the assistant**: when the user chose «Agent (MCP)» as the assistant (Settings, Agent), what they write in the
   Assistant panel waits for you: `assistant_requests_wait`, do what the request asks with the tools (the panel shows each
   call), then `assistant_request_answer` with your answer in words, in the language the request names.
+- **Being the studio's model**: when the user chose «Agent (MCP)» as the script assistant's model (Settings, Models,
+  instead of Gemma, a local server or OpenRouter), the studio's own model work - the podcast script, the characters of a
+  book, punctuation, enrichment - comes to you through the same `assistant_requests_wait` as kind `studio_model`, with
+  the `instructions` and the `request` its model would get and the `answer_schema` its answer must match. Write it
+  yourself as that model would and answer with `assistant_request_answer`: the JSON object of the schema (or plain text
+  without one); the job goes on with it. The job waits for you up to 9.5 minutes; keep calling while one runs.
 
 
 ## Speech: voicing
