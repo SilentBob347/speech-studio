@@ -70,7 +70,7 @@ export default function MusicDialog({ pid, tracks, flush, onClose, onDone }: {
             ) : (
               <a key={s.id} href={s.page} target="_blank" rel="noreferrer" title={t("tracks.downloadHint", { name: s.name })}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-[var(--color-border)] text-[12px] text-[var(--color-text)] hover:border-[var(--color-accent)]">
-                <ExternalLink size={12} className="text-[var(--color-accent)]" />{s.name}<span className="text-[var(--color-muted)]">· {t("tracks.download")}</span>
+                {s.name}<span className="text-[var(--color-muted)]">· {t("tracks.download")}</span><ExternalLink size={12} className="text-[var(--color-accent)]" aria-hidden />
               </a>
             ))}
           </div>
