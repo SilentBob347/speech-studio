@@ -143,6 +143,16 @@ impl ListenProject {
     }
 
     pub fn validate(&self) -> Result<(), String> {
+        let (s, v) = (&self.settings, &self.settings.vad);
+        if !(0.05..=0.95).contains(&v.threshold) || !(0.0..=0.5).contains(&v.hysteresis) {
+            return Err(format!("speech threshold {} and hysteresis {} must be within 0.05..0.95 and 0..0.5", v.threshold, v.hysteresis));
+        }
+        if v.min_speech_ms > 5000 || v.min_silence_ms > 5000 || v.pad_ms > 1000 {
+            return Err(format!("speech {} ms, silence {} ms, padding {} ms: at most 5000, 5000, 1000", v.min_speech_ms, v.min_silence_ms, v.pad_ms));
+        }
+        if !(0.0..=100.0).contains(&s.denoise_db) {
+            return Err(format!("noise suppression limit {} dB is outside 0..100", s.denoise_db));
+        }
         if self.kind != KIND {
             return Err(format!("kind {} is not {KIND}", self.kind));
         }

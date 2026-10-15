@@ -882,6 +882,7 @@
     "engineAsSpeaker": "motor como o do personagem",
     "engineFor": "Motor para «{{speaker}}»",
     "engineTakesVoice": "a voz passa a ser {{voice}}",
+    "engineNeedsLibrary": "precisa de uma voz da biblioteca",
     "voiceAsCast": "a do falante",
     "pauseAfter": "Pausa depois, ms",
     "pauseAuto": "auto",

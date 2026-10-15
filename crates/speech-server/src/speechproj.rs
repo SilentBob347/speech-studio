@@ -26,16 +26,16 @@ pub struct EngineNeed {
 /// Движки проекта, его персонажей и блоков и его дублей с версиями, каждый один раз.
 fn engines_of(project: &SpeechProject, current: String) -> Vec<EngineNeed> {
     let mut seen: Vec<EngineNeed> = vec![EngineNeed { id: project.settings.engine.clone(), version: current }];
-    for b in project.blocks() {
-        let own = project.engine_of(b);
-        if !seen.iter().any(|e| e.id == own) {
-            seen.push(EngineNeed { id: own.to_string(), version: String::new() });
-        }
-    }
     for t in project.blocks().flat_map(|b| b.takes.iter()).filter(|t| !t.engine.is_empty()) {
         let need = EngineNeed { id: t.engine.split(':').next().unwrap_or_default().to_string(), version: t.engine.clone() };
         if !seen.contains(&need) {
             seen.push(need);
+        }
+    }
+    for b in project.blocks() {
+        let own = project.engine_of(b);
+        if !seen.iter().any(|e| e.id == own) {
+            seen.push(EngineNeed { id: own.to_string(), version: String::new() });
         }
     }
     seen

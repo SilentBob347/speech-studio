@@ -418,6 +418,8 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
         let second = fit_to_cue(project, b, second)?;
         if !second.samples.is_empty() && second.needed < fitted.needed {
             (fitted, params, seed, temperature) = (second, again, s2, t2);
+            live.restart();
+            live.chunk(&fitted.samples, SR);
         }
     }
     ignored.stress = stx::has_stress(&b.text) && !manifest.as_ref().is_some_and(|m| m.reads.stress);
@@ -971,8 +973,12 @@ impl<'a> Placer<'a> {
     }
 }
 
-/// Перебивание обрывает предыдущую реплику: её звук после `cut` уходит из склейки за 30 мс.
+/// Перебивание обрывает предыдущую реплику: её звук после `cut` уходит из склейки за 30 мс; перебивание, что начато
+/// раньше самой реплики, её не трогает.
 fn cut_tail(mix: &mut [f32], prev_at: usize, prev: &[f32], cut: usize) {
+    if cut <= prev_at {
+        return;
+    }
     let fade = (SR as usize * 30 / 1000).max(1);
     for (k, s) in prev.iter().enumerate().skip(cut.saturating_sub(prev_at)) {
         let into = prev_at + k - cut;

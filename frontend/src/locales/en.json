@@ -882,6 +882,7 @@
     "engineAsSpeaker": "engine as the speaker's",
     "engineFor": "Engine for “{{speaker}}”",
     "engineTakesVoice": "the voice becomes {{voice}}",
+    "engineNeedsLibrary": "needs a library voice",
     "voiceAsCast": "as the speaker's",
     "pauseAfter": "Pause after, ms",
     "pauseAuto": "auto",

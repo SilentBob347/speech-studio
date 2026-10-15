@@ -882,6 +882,7 @@
     "engineAsSpeaker": "движок как у персонажа",
     "engineFor": "Движок для «{{speaker}}»",
     "engineTakesVoice": "голос сменится на {{voice}}",
+    "engineNeedsLibrary": "нужен голос из библиотеки",
     "voiceAsCast": "как у спикера",
     "pauseAfter": "Пауза после, мс",
     "pauseAuto": "авто",

@@ -882,6 +882,7 @@
     "engineAsSpeaker": "引擎同角色",
     "engineFor": "“{{speaker}}”的引擎",
     "engineTakesVoice": "声音将换为 {{voice}}",
+    "engineNeedsLibrary": "需要声音库中的声音",
     "voiceAsCast": "与说话人相同",
     "pauseAfter": "之后的停顿（毫秒）",
     "pauseAuto": "自动",

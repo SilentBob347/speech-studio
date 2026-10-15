@@ -24,9 +24,12 @@ export default function EngineSelect({ value, onChange, inherit, inheritEngine, 
   const engines = useEngines() ?? [];
   const isPreset = voice ? engines.some((e) => e.presets.some((p) => p.id === voice)) : false;
   const swap = (e: EngineCaps): string | undefined => {
-    const fits = e.presets.some((p) => p.id === voice) || (!!voice && !isPreset && e.clone !== "none") || (!voice && !e.needs_voice);
+    const library = !!voice && !isPreset;
+    const fits = e.presets.some((p) => p.id === voice) || (library && e.clone !== "none") || (!voice && !e.needs_voice);
     return fits ? undefined : e.presets[0]?.id;
   };
+  /** An engine that speaks only library voices while the voice in use is another engine's own one. */
+  const needsLibrary = (e: EngineCaps) => e.needs_voice && !e.presets.length && isPreset;
   const choices = engines.filter((e) => !(e.id in CLOUD_ENGINE_NAMES) || e.id === projectEngine);
   return (
     <select value={value ?? ""} onChange={(ev) => {
@@ -38,8 +41,9 @@ export default function EngineSelect({ value, onChange, inherit, inheritEngine, 
       <option value="">{inherit}</option>
       {choices.map((e) => {
         const instead = e.id === value ? undefined : swap(e);
-        const note = e.unavailable ?? (instead ? t("speech.engineTakesVoice", { voice: e.presets.find((p) => p.id === instead)?.name ?? instead }) : null);
-        return <option key={e.id} value={e.id} disabled={!!e.unavailable} title={note ?? undefined}>{note ? `${e.name} — ${note}` : e.name}</option>;
+        const blocked = e.unavailable ?? (e.id !== value && needsLibrary(e) ? t("speech.engineNeedsLibrary") : null);
+        const note = blocked ?? (instead ? t("speech.engineTakesVoice", { voice: e.presets.find((p) => p.id === instead)?.name ?? instead }) : null);
+        return <option key={e.id} value={e.id} disabled={!!blocked} title={note ?? undefined}>{note ? `${e.name} — ${note}` : e.name}</option>;
       })}
     </select>
   );
