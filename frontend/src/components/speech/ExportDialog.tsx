@@ -10,7 +10,8 @@ import { useEscapeLayer } from "../../lib/escape";
 
 /** Export: what keeps it back (blocks not voiced, out of date, with a lost or changed take file, or a take too long for
  * its cue, the one problem that can be let through), the format and the finished file to save. */
-const PART_MINUTES = [0, 60, 120, 300, 600] as const;
+// -1: a file per chapter
+const PART_MINUTES = [0, -1, 60, 120, 300, 600] as const;
 
 export default function ExportDialog({ pid, project, onClose, onVoiceMissing, onDone }: {
   pid: string;
@@ -58,7 +59,7 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
     setBusy(true);
     setError(null);
     try {
-      const { job_id } = await speechApi.export(pid, format, undefined, perBlock, perBlock ? 0 : partMinutes, allowDuration, { sample_rate: rate || undefined, bits: bits || undefined, kbps: kbps || undefined });
+      const { job_id } = await speechApi.export(pid, format, undefined, perBlock, perBlock ? 0 : Math.max(partMinutes, 0), allowDuration, { sample_rate: rate || undefined, bits: bits || undefined, kbps: kbps || undefined }, !perBlock && partMinutes === -1);
       const r = (await followJob(job_id, "export")) as { file: string; files?: string[]; subtitles?: string; subtitle_files?: string[]; timings?: string; player?: string; recipe?: string; chapters?: string | null; parts?: Part[] | null; acx?: AcxReport | null };
       if (r.files) { setClips(r.files); setRecipe(r.recipe ?? null); return; }
       setAcx(r.acx ?? null);
@@ -137,7 +138,7 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
             {!perBlock && (
               <label className="flex flex-wrap items-center gap-2 text-[12px]">{t("speech.parts")}
                 <select value={partMinutes} onChange={(e) => { setPartMinutes(Number(e.target.value)); setFile(null); setParts(null); }} className="bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]">
-                  {PART_MINUTES.map((m) => <option key={m} value={m}>{m ? t("speech.partsEvery", { h: m / 60 }) : t("speech.partsNone")}</option>)}
+                  {PART_MINUTES.map((m) => <option key={m} value={m}>{m === -1 ? t("speech.partsChapters") : m ? t("speech.partsEvery", { h: m / 60 }) : t("speech.partsNone")}</option>)}
                 </select>
                 <span className="text-[11px] text-[var(--color-muted)]">{t("speech.partsHint")}</span>
               </label>

@@ -1256,6 +1256,9 @@ pub struct ExportOpts {
     pub per_block: bool,
     /// Длинная книга — частями не длиннее стольких минут (по границам глав).
     pub part_minutes: Option<u32>,
+    /// A file per chapter, all levelled as one book: the loudness is set on the whole mix before it is cut, so the
+    /// chapters keep their levels against each other.
+    pub per_chapter: bool,
     /// Экспортировать, хотя дубли не влезли в реплику по длительности.
     pub allow_duration: bool,
     pub quality: crate::media::Quality,
@@ -1414,6 +1417,7 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         })
         .collect();
     let cuts = match opts.part_minutes.filter(|m| *m > 0 && total > *m as f64 * 60.0) {
+        _ if opts.per_chapter => chapters.iter().skip(1).map(|c| c.0).collect(),
         Some(m) => part_cuts(total, m as f64 * 60.0, &chapters.iter().map(|c| c.0).collect::<Vec<_>>(), &cues.iter().map(|c| c.0).collect::<Vec<_>>()),
         None => Vec::new(),
     };
@@ -1422,7 +1426,12 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
     let mut outputs = Vec::new();
     let mut tag_problems: Vec<String> = Vec::new();
     for (k, (a, z)) in bounds.iter().enumerate() {
-        let name = if bounds.len() > 1 { format!("{base} ({})", t!("speech-part-n", n = (k + 1) as i64)) } else { base.clone() };
+        let chapter_title = (opts.per_chapter && bounds.len() > 1).then(|| chapters[k].2.clone());
+        let name = match &chapter_title {
+            Some(title) => format!("{:02} {}", k + 1, file_stem(&project.name, Some(title))),
+            None if bounds.len() > 1 => format!("{base} ({})", t!("speech-part-n", n = (k + 1) as i64)),
+            None => base.clone(),
+        };
         let within = |s: f64| s >= *a - 1e-6 && s < *z - 1e-6;
         let part_chapters: Vec<(f64, f64, String)> = chapters.iter().filter(|c| within(c.0)).map(|(s, e, t)| (s - a, e.min(*z) - a, t.clone())).collect();
         let part_cues: Vec<(f64, f64, String, String)> = cues.iter().filter(|c| within(c.0)).map(|(s, e, w, t)| (s - a, e - a, w.clone(), t.clone())).collect();
@@ -1438,7 +1447,11 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         let file = format!("{name}.{}", opts.format);
         let target = exports.join(&file);
         let meta = crate::media::AudioMeta {
-            title: if bounds.len() > 1 { format!("{} ({})", project.name, t!("speech-part-n", n = (k + 1) as i64)) } else { project.name.clone() },
+            title: match &chapter_title {
+                Some(title) => title.clone(),
+                None if bounds.len() > 1 => format!("{} ({})", project.name, t!("speech-part-n", n = (k + 1) as i64)),
+                None => project.name.clone(),
+            },
             artist: project.book.as_ref().map(|b| b.author.clone()).filter(|a| !a.is_empty()).unwrap_or_else(|| voice.clone()),
             album: project.book.as_ref().map(|b| b.title.clone()).unwrap_or_default(),
             comment: format!("Speech Studio · {}", crate::engines::get(&project.settings.engine).map(|e| e.name).unwrap_or("")),

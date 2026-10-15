@@ -423,7 +423,7 @@ pub async fn own_ref(State(st): State<AppState>, AxPath((pid, bid)): AxPath<(Str
     }
 }
 
-/// POST /projects/{pid}/export {format, chapter?, per_block?, part_minutes?, allow_duration?, sample_rate?, bits?, kbps?} —
+/// POST /projects/{pid}/export {format, chapter?, per_block?, part_minutes?, per_chapter?, allow_duration?, sample_rate?, bits?, kbps?} —
 /// файл экспорта задачей.
 pub async fn export(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<Value>) -> Response {
     if let Err(e) = sp::load(&st.workspace, &pid) {
@@ -434,6 +434,7 @@ pub async fn export(State(st): State<AppState>, AxPath(pid): AxPath<String>, Jso
         chapter: body.get("chapter").and_then(Value::as_str).map(str::to_string),
         per_block: body.get("per_block").and_then(Value::as_bool).unwrap_or(false),
         part_minutes: body.get("part_minutes").and_then(Value::as_u64).map(|m| m.min(24 * 60) as u32),
+        per_chapter: body.get("per_chapter").and_then(Value::as_bool).unwrap_or(false),
         allow_duration: body.get("allow_duration").and_then(Value::as_bool).unwrap_or(false),
         quality: crate::media::Quality {
             rate: body.get("sample_rate").and_then(Value::as_u64).map(|r| r as u32),
