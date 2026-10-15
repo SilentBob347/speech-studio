@@ -1145,3 +1145,6 @@ music-track = Música
 listen-export-rules = No hay reglas de subtítulos «{ $rules }»; hay: { $known }
 itn-no-lang = No sé escribir números en cifras para { $lang }: solo ru, en, es, fr, pt, de, it, nl, da
 listen-whisper-for-lang = Parakeet no conoce { $lang }: hace falta Whisper y no está instalado; descárguelo en Ajustes → Modelos o elija un reconocedor en la nube
+listen-live-name = el reconocimiento en vivo
+listen-live-no-vad = El reconocimiento en vivo necesita Silero VAD ({ $path }): descárguelo en Ajustes → Modelos
+listen-live-broke = El reconocimiento en vivo se interrumpió: la grabación se guardó, reconózcala como siempre

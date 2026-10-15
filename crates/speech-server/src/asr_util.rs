@@ -14,6 +14,12 @@ pub struct Heard {
 }
 
 pub fn transcribe(repo_root: &Path, models_root: &Path, audio: &Path, lang: &str, what: &str) -> Result<Heard, String> {
+    let choice = choice(repo_root, models_root, lang, what)?;
+    run(&choice, models_root, audio, if lang == "auto" { "" } else { lang })
+}
+
+/// The recogniser for `lang`: the one chosen in the settings, Whisper for a language Parakeet does not know.
+pub fn choice(repo_root: &Path, models_root: &Path, lang: &str, what: &str) -> Result<crate::models::AsrChoice, String> {
     let mut sel = crate::models::load_selection(models_root);
     let mut choice = crate::models::resolve_asr_choice(repo_root, models_root, &sel);
     let lang = if lang.is_empty() || lang == "auto" { "" } else { lang };
@@ -26,7 +32,7 @@ pub fn transcribe(repo_root: &Path, models_root: &Path, audio: &Path, lang: &str
             return Err(t!("voice-lang-needs-whisper", name = what.to_string(), lang = lang.to_string()));
         }
     }
-    run(&choice, models_root, audio, lang)
+    Ok(choice)
 }
 
 /// The other model of the Parakeet and Whisper pair than the one `transcribe` runs, when it is on this computer and

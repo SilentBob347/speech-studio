@@ -947,3 +947,6 @@ music-track = 音乐
 listen-export-rules = 没有字幕规则“{ $rules }”；可用：{ $known }
 itn-no-lang = 不支持把 { $lang } 的数字写成阿拉伯数字：仅支持 ru、en、es、fr、pt、de、it、nl、da
 listen-whisper-for-lang = Parakeet 不支持 { $lang }，需要 Whisper，但它未安装：请在“设置 → 模型”中下载，或选择云端识别器
+listen-live-name = 实时识别
+listen-live-no-vad = 实时识别需要 Silero VAD（{ $path }）——请在“设置 → 模型”中下载
+listen-live-broke = 实时识别中断——录音已保存，请照常识别

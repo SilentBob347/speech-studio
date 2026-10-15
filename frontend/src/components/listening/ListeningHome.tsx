@@ -151,7 +151,7 @@ export default function ListeningHome({ onOpen }: { onOpen: (pid: string) => voi
               } />
           )}
           <UrlImport onReady={(f) => onOpen(f.pid)} />
-          <MicRecorder onDone={(pid, project) => { void prepare(pid, project, start).then(() => onOpen(pid), (e: unknown) => setError(errorText(e))); }} onError={setError} />
+          <MicRecorder lang={start.lang} onDone={(pid, project) => { void prepare(pid, project, start).then(() => onOpen(pid), (e: unknown) => setError(errorText(e))); }} onError={setError} />
           {error && <p role="alert" className="text-[12px] text-[var(--color-warn)] break-words">{error}</p>}
         </section>
         <section aria-labelledby="listen-list" className="space-y-3">
@@ -188,26 +188,36 @@ export default function ListeningHome({ onOpen }: { onOpen: (pid: string) => voi
 }
 
 /** A recording from a microphone straight into a new project: device, level, time. */
-function MicRecorder({ onDone, onError }: { onDone: (pid: string, project: ListenProject) => void; onError: (e: string) => void }) {
+function MicRecorder({ lang, onDone, onError }: { lang: string; onDone: (pid: string, project: ListenProject) => void; onError: (e: string) => void }) {
   const { t } = useTranslation();
   const [devices, setDevices] = useState<string[] | null>(null);
   const [device, setDevice] = useState("");
   const [recording, setRecording] = useState(false);
   const [level, setLevel] = useState(0);
   const [seconds, setSeconds] = useState(0);
+  const [live, setLive] = useState(true);
+  const [heard, setHeard] = useState<{ start: number; text: string }[]>([]);
+  const [partial, setPartial] = useState<{ start: number; text: string } | null>(null);
   const timer = useRef<number | null>(null);
+  const polls = useRef(0);
   useEffect(() => {
     api.recordDevices().then((d) => { setDevices(d.devices); setDevice(d.devices[0] ?? ""); }, () => setDevices([]));
     return () => { if (timer.current) window.clearInterval(timer.current); };
   }, []);
   const start = async () => {
     try {
-      await listenApi.recordStart(device || undefined);
+      await listenApi.recordStart(device || undefined, live, lang);
       setRecording(true);
+      setHeard([]);
+      setPartial(null);
       const began = Date.now();
       timer.current = window.setInterval(() => {
         setSeconds(Math.floor((Date.now() - began) / 1000));
         api.recordLevel().then((l) => setLevel(l.level), () => undefined);
+        polls.current += 1;
+        if (live && polls.current % 8 === 0) {
+          listenApi.recordLive().then((s) => { setHeard(s.lines); setPartial(s.partial); if (s.error) onError(s.error); }, (e: unknown) => onError(errorText(e)));
+        }
       }, 120);
     } catch (e) { onError(errorText(e)); }
   };
@@ -234,6 +244,9 @@ function MicRecorder({ onDone, onError }: { onDone: (pid: string, project: Liste
         <div className="flex-1 h-1.5 rounded-full bg-[var(--color-surface-2)] overflow-hidden" role="meter" aria-label={t("voices.level")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(Math.min(1, level * 1.4) * 100)}>
           <div className="h-full bg-[var(--color-accent)] transition-[width] duration-100" style={{ width: `${Math.min(100, level * 140)}%` }} />
         </div>
+        <label className="inline-flex items-center gap-1.5 text-[12px] cursor-pointer" title={t("listen.liveHint")}>
+          <input type="checkbox" checked={live} onChange={(e) => setLive(e.target.checked)} disabled={recording} className="w-3.5 h-3.5 accent-[var(--color-accent)]" />{t("listen.live")}
+        </label>
         <span className="mono text-[12px] tabnum w-12 text-right text-[var(--color-muted)]">{clock(seconds)}</span>
         {recording ? (
           <button onClick={() => void stop()} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--color-warn)] text-[var(--color-on-accent)] text-[12px] font-semibold"><Square size={12} />{t("listen.micStop")}</button>
@@ -241,6 +254,13 @@ function MicRecorder({ onDone, onError }: { onDone: (pid: string, project: Liste
           <button onClick={() => void start()} disabled={!devices?.length} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)] disabled:opacity-40"><Mic size={12} />{t("listen.micStart")}</button>
         )}
       </div>
+      {recording && live && (
+        <div aria-live="polite" className="max-h-40 overflow-y-auto rounded-md bg-[var(--color-surface-2)] px-2 py-1.5 text-[12px] space-y-1">
+          {heard.map((h) => <p key={h.start}><span className="mono text-[10px] text-[var(--color-muted)] mr-2">{clock(h.start)}</span>{h.text}</p>)}
+          {partial && <p className="text-[var(--color-muted)]"><span className="mono text-[10px] mr-2">{clock(partial.start)}</span>{partial.text}…</p>}
+          {!heard.length && !partial && <p className="text-[var(--color-muted)]">{t("listen.liveWaiting")}</p>}
+        </div>
+      )}
     </div>
   );
 }

@@ -16,6 +16,27 @@ fn recorder() -> &'static Mutex<Option<RecState>> {
     R.get_or_init(|| Mutex::new(None))
 }
 
+/// Where the microphone's sound also goes while it records, mono at `rate()`: live recognition listens there.
+fn tap_cell() -> &'static Mutex<Option<Sender<Vec<f32>>>> {
+    static T: OnceLock<Mutex<Option<Sender<Vec<f32>>>>> = OnceLock::new();
+    T.get_or_init(|| Mutex::new(None))
+}
+
+fn rate_cell() -> &'static AtomicU32 {
+    static R: OnceLock<AtomicU32> = OnceLock::new();
+    R.get_or_init(|| AtomicU32::new(0))
+}
+
+/// Sends the recording's sound to `to` as it comes, or stops sending it.
+pub fn tap(to: Option<Sender<Vec<f32>>>) {
+    *tap_cell().lock().unwrap_or_else(|p| p.into_inner()) = to;
+}
+
+/// The sample rate the microphone records at, while it records.
+pub fn rate() -> u32 {
+    rate_cell().load(Ordering::Relaxed)
+}
+
 fn peak_cell() -> &'static AtomicU32 {
     static P: OnceLock<AtomicU32> = OnceLock::new();
     P.get_or_init(|| AtomicU32::new(0))
@@ -97,6 +118,7 @@ pub fn start(path: &std::path::Path, device: Option<String>) -> Result<(), Strin
             Err(e) => { let _ = ready_tx.send(Err(t!("record-create-wav", error = e.to_string()))); return; }
         };
         let emit_every = (sr / 20).max(1) as usize;
+        rate_cell().store(sr, Ordering::Relaxed);
 
         macro_rules! cb {
             ($ty:ty, $to_f:expr) => {{
@@ -104,14 +126,19 @@ pub fn start(path: &std::path::Path, device: Option<String>) -> Result<(), Strin
                 let mut peak = 0f32;
                 let mut frames = 0usize;
                 move |data: &[$ty], _: &cpal::InputCallbackInfo| {
+                    let mut heard = Vec::with_capacity(data.len() / ch);
                     if let Ok(mut g) = w.lock() {
                         if let Some(wr) = g.as_mut() {
                             for frame in data.chunks(ch) {
                                 let mono = frame.iter().map(|&s| $to_f(s)).sum::<f32>() / ch as f32;
                                 peak = peak.max(mono.abs());
                                 let _ = wr.write_sample((mono.clamp(-1.0, 1.0) * i16::MAX as f32) as i16);
+                                heard.push(mono);
                             }
                         }
+                    }
+                    if let Some(to) = tap_cell().lock().ok().as_deref().and_then(Option::as_ref) {
+                        let _ = to.send(heard);
                     }
                     frames += data.len() / ch;
                     if frames >= emit_every {

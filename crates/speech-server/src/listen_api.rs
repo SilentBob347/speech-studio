@@ -106,9 +106,13 @@ pub async fn upload(State(st): State<AppState>, mut multipart: axum::extract::Mu
 
 static RECORDING: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 
-/// POST /listen/record/start {device?} — запись с микрофона в новый проект.
+/// POST /listen/record/start {device?, live?, lang?} — запись с микрофона в новый проект; с `live` она распознаётся по
+/// фразам, пока идёт (`/listen/record/live`).
 pub async fn record_start(State(st): State<AppState>, body: Option<Json<Value>>) -> Response {
-    let device = body.and_then(|Json(v)| v.get("device").and_then(Value::as_str).map(str::to_string)).filter(|d| !d.is_empty());
+    let body = body.map(|Json(v)| v).unwrap_or(Value::Null);
+    let device = body.get("device").and_then(Value::as_str).map(str::to_string).filter(|d| !d.is_empty());
+    let live = body.get("live").and_then(Value::as_bool).unwrap_or(false);
+    let lang = body.get("lang").and_then(Value::as_str).unwrap_or("auto").to_string();
     let pid = sp::new_id();
     let dir = lp::dir(&st.workspace, &pid);
     if let Err(e) = std::fs::create_dir_all(&dir) {
@@ -117,8 +121,16 @@ pub async fn record_start(State(st): State<AppState>, body: Option<Json<Value>>)
     let path = dir.join("source.wav");
     match joined(tokio::task::spawn_blocking(move || crate::record::start(&path, device)).await) {
         Ok(Ok(())) => {
+            if live {
+                let (root, models) = (st.repo_root.clone(), st.models_root.clone());
+                if let Err(e) = joined(tokio::task::spawn_blocking(move || crate::listen_live::start(&root, &models, &lang)).await).and_then(|r| r.map_err(|e| refuse(StatusCode::CONFLICT, "live_failed", e))) {
+                    let _ = tokio::task::spawn_blocking(crate::record::stop).await;
+                    let _ = std::fs::remove_dir_all(&dir);
+                    return e;
+                }
+            }
             *RECORDING.lock().unwrap_or_else(|e| e.into_inner()) = Some(pid.clone());
-            Json(json!({ "pid": pid })).into_response()
+            Json(json!({ "pid": pid, "live": live })).into_response()
         }
         Ok(Err(e)) => {
             let _ = std::fs::remove_dir_all(&dir);
@@ -136,10 +148,30 @@ pub async fn record_stop(State(st): State<AppState>) -> Response {
     let ws = st.workspace.clone();
     let res = joined(tokio::task::spawn_blocking(crate::mcp::carry(move || {
         crate::record::stop()?;
-        make(&ws, &pid, &t!("listen-mic-name", time = chrono::Local::now().format("%d.%m %H:%M").to_string()), "source.wav", &t!("listen-mic-origin"))
+        let heard = crate::listen_live::finish();
+        let made = make(&ws, &pid, &t!("listen-mic-name", time = chrono::Local::now().format("%d.%m %H:%M").to_string()), "source.wav", &t!("listen-mic-origin"))?;
+        let heard = heard?;
+        if heard.is_empty() {
+            return Ok(made);
+        }
+        // the phrases heard live are the recording's first transcript, in one speaker's voice
+        let mut project = lp::load(&ws, &pid)?;
+        project.speakers.insert("0".into(), t!("listen-speaker-n", n = 1));
+        project.lines = heard
+            .iter()
+            .enumerate()
+            .map(|(i, (start, end, text))| lp::Line { id: format!("live{i}"), start: *start, end: *end, speaker: "0".into(), words: lp::spread_words(text, *start, *end), text: text.clone(), approx: true, ..Default::default() })
+            .collect();
+        lp::save(&ws, &pid, &project)?;
+        Ok(json!({ "pid": pid, "project": project }))
     }))
     .await);
     saved(res, StatusCode::INTERNAL_SERVER_ERROR)
+}
+
+/// GET /listen/record/live — what live recognition of the recording under way has heard: phrases with their times.
+pub async fn record_live() -> Json<Value> {
+    Json(crate::listen_live::state())
 }
 
 /// GET /listen/{pid} — проект.

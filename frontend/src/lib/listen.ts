@@ -74,7 +74,9 @@ export const listenApi = {
     form.append("file", file, file.name);
     return fetch(`${BASE}/listen/upload`, { method: "POST", body: form }).then(coded<{ pid: string; project: ListenProject }>);
   },
-  recordStart: (device?: string) => postCoded<{ pid: string }>("/listen/record/start", { device: device ?? "" }),
+  /** With `live` the recording is recognised phrase by phrase while it records (recordLive), in `lang`. */
+  recordStart: (device?: string, live = false, lang = "auto") => postCoded<{ pid: string }>("/listen/record/start", { device: device ?? "", live, lang }),
+  recordLive: () => getCoded<{ running: boolean; lines: { start: number; end: number; text: string }[]; partial: { start: number; text: string } | null; error: string | null }>("/listen/record/live"),
   recordStop: () => postCoded<{ pid: string; project: ListenProject }>("/listen/record/stop", {}),
   get: (pid: string) => getCoded<ListenProject>(`/listen/${pid}`),
   put: (pid: string, project: ListenProject) => sendCoded<ListenProject>("PUT", `/listen/${pid}`, project),

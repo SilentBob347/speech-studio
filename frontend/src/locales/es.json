@@ -1564,6 +1564,9 @@
     "repeat": "Locutar de nuevo con los mismos parámetros"
   },
   "listen": {
+    "live": "En vivo",
+    "liveHint": "Reconocer frase a frase mientras se graba: el texto aparece tras cada pausa y será la primera transcripción. Los hablantes y las palabras exactas los da el reconocimiento normal al parar.",
+    "liveWaiting": "Hable: la frase aparecerá tras una pausa…",
     "quickTitle": "Reconocimiento rápido",
     "quickHint": "Elija un archivo y se reconoce al momento con el reconocedor y el idioma elegidos arriba; copie o guarde el texto. La grabación queda en la lista para abrirla después.",
     "quickPick": "Elegir archivo",

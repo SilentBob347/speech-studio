@@ -1564,6 +1564,9 @@
     "repeat": "Voice again with the same parameters"
   },
   "listen": {
+    "live": "Live",
+    "liveHint": "Recognise phrase by phrase while recording: the text shows after each pause and becomes the recording's first transcript. Speakers and exact words come from the usual recognition after you stop.",
+    "liveWaiting": "Speak — a phrase shows after a pause…",
     "quickTitle": "Quick recognition",
     "quickHint": "Pick a file and it is recognised at once with the recogniser and language chosen above; copy or save the text. The recording stays in the list to open later.",
     "quickPick": "Pick a file",

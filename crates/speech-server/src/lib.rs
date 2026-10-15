@@ -89,6 +89,7 @@ mod vad;
 mod voice_api;
 mod voice_fx;
 mod tracks;
+mod listen_live;
 mod itn;
 mod music_studios;
 mod voice_jobs;
@@ -520,6 +521,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/separate", post(listen_api::separate_file))
         .route("/listen/record/start", post(listen_api::record_start))
         .route("/listen/record/stop", post(listen_api::record_stop))
+        .route("/listen/record/live", get(listen_api::record_live))
         .route("/listen/{pid}", get(listen_api::get).put(listen_api::put))
         .route("/listen/{pid}/audio", get(listen_api::audio))
         .route("/listen/{pid}/transcribe", post(listen_api::transcribe))

@@ -1151,3 +1151,6 @@ music-track = Music
 listen-export-rules = No subtitle rules “{ $rules }”; there are: { $known }
 itn-no-lang = Numbers as digits are not known for { $lang }: only ru, en, es, fr, pt, de, it, nl, da
 listen-whisper-for-lang = Parakeet does not know { $lang } — it needs Whisper, which is not installed: download it in Settings → Models or pick a cloud recogniser
+listen-live-name = live recognition
+listen-live-no-vad = Live recognition needs Silero VAD ({ $path }) — download it in Settings → Models
+listen-live-broke = Live recognition broke down — the recording is kept, recognise it as usual

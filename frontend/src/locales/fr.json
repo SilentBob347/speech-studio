@@ -1564,6 +1564,9 @@
     "repeat": "Redire avec les mêmes paramètres"
   },
   "listen": {
+    "live": "En direct",
+    "liveHint": "Reconnaître phrase par phrase pendant l’enregistrement : le texte s’affiche après chaque pause et devient la première transcription. Les locuteurs et les mots exacts viennent de la reconnaissance habituelle après l’arrêt.",
+    "liveWaiting": "Parlez — la phrase apparaît après une pause…",
     "quickTitle": "Reconnaissance rapide",
     "quickHint": "Choisissez un fichier : il est reconnu aussitôt avec le reconnaisseur et la langue choisis plus haut ; copiez ou enregistrez le texte. L’enregistrement reste dans la liste pour l’ouvrir plus tard.",
     "quickPick": "Choisir un fichier",

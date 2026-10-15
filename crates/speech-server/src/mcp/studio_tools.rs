@@ -275,9 +275,15 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "listen_record_start",
-            description: "Start recording a new Listening recording from the user's microphone (device from voice_record_devices; the default one when left out). listen_record_stop ends it and makes the recording.",
-            schema: || object(json!({ "device": { "type": "string" } }), &[]),
-            call: |args| post("/listen/record/start".into(), match given(args, "device") { Some(device) => json!({ "device": device }), None => json!({}) }),
+            description: "Start recording a new Listening recording from the user's microphone (device from voice_record_devices; the default one when left out). With live it is recognised phrase by phrase while it records (listen_record_live), in lang (auto by default), and the phrases become its first transcript. listen_record_stop ends it and makes the recording.",
+            schema: || object(json!({ "device": { "type": "string" }, "live": { "type": "boolean" }, "lang": { "type": "string" } }), &[]),
+            call: |args| post("/listen/record/start".into(), body_without(args, &[])),
+        },
+        Tool {
+            name: "listen_record_live",
+            description: "What live recognition of the microphone recording under way has heard: its phrases with their start and end in seconds, whether it still runs, and why it stopped when it failed.",
+            schema: || object(json!({}), &[]),
+            call: |_| get("/listen/record/live".into()),
         },
         Tool {
             name: "listen_record_stop",
