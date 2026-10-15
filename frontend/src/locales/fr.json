@@ -1315,8 +1315,6 @@
     "drop": "Déposez ici un fichier audio ou vidéo",
     "pickFile": "Choisir un fichier",
     "uploading": "Envoi…",
-    "batchUploading": "Envoi du fichier {{n}} sur {{total}}…",
-    "batchQueued": "Enregistrements en file de reconnaissance : {{n}}. Ils sont reconnus l’un après l’autre avec les réglages par défaut.",
     "formats": "WAV, FLAC, MP3, M4A, OGG, Opus, MP4, MKV, WebM, MOV et d’autres",
     "mic": "Enregistrer au micro",
     "micStart": "Enregistrer",
@@ -1726,5 +1724,22 @@
     "position": "Position dans le bloc",
     "rate": "Vitesse",
     "idle": "Blocs doublés : {{voiced}} sur {{total}} · {{length}}"
+  },
+  "batch": {
+    "speechTitle": "Lot de doublage",
+    "listenTitle": "Lot de reconnaissance",
+    "progress": "{{done}} sur {{total}}",
+    "queued": "en file",
+    "working": "en cours",
+    "done": "terminé",
+    "error": "erreur",
+    "open": "Ouvrir",
+    "saveAll": "Tout enregistrer dans un dossier",
+    "saved": "Fichiers enregistrés : {{n}} — {{folder}}",
+    "blocksFailed": "blocs non doublés : {{n}} — {{error}}",
+    "exporting": "exportation…",
+    "speechOpen": "Lot de fichiers",
+    "speechHint": "Chaque .txt devient son propre projet avec les réglages ci-dessus : doublés l'un après l'autre, puis « Tout enregistrer dans un dossier »",
+    "formats": "Formats"
   }
 }

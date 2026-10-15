@@ -1315,8 +1315,6 @@
     "drop": "将音频或视频文件拖到这里",
     "pickFile": "选择文件",
     "uploading": "正在上传…",
-    "batchUploading": "正在上传第 {{n}} 个文件，共 {{total}} 个…",
-    "batchQueued": "已加入识别队列的录音：{{n}} 个。将按顺序使用默认设置逐个识别。",
     "formats": "WAV、FLAC、MP3、M4A、OGG、Opus、MP4、MKV、WebM、MOV 等",
     "mic": "用麦克风录音",
     "micStart": "录音",
@@ -1726,5 +1724,22 @@
     "position": "段落内的位置",
     "rate": "速度",
     "idle": "已配音段落：{{voiced}} / {{total}} · {{length}}"
+  },
+  "batch": {
+    "speechTitle": "批量配音",
+    "listenTitle": "批量识别",
+    "progress": "{{done}} / {{total}}",
+    "queued": "排队中",
+    "working": "处理中",
+    "done": "完成",
+    "error": "出错",
+    "open": "打开",
+    "saveAll": "全部保存到文件夹",
+    "saved": "已保存文件：{{n}} — {{folder}}",
+    "blocksFailed": "未配音的段落：{{n}} — {{error}}",
+    "exporting": "导出中…",
+    "speechOpen": "批量文件",
+    "speechHint": "每个 .txt 成为一个使用上方设置的项目：依次配音，然后「全部保存到文件夹」",
+    "formats": "格式"
   }
 }

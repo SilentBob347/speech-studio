@@ -108,7 +108,7 @@ export const speechApi = {
   exportCheck: (pid: string) => getCoded<{ problems: ExportProblem[] }>(`/projects/${pid}/export-check`),
   timeline: (pid: string) => getCoded<{ blocks: TimelineBlock[] }>(`/projects/${pid}/timeline`),
   export: (pid: string, format: ExportFormat, chapter?: string, perBlock = false, partMinutes = 0, allowDuration = false) => postCoded<{ job_id: string }>(`/projects/${pid}/export`, { format, chapter, per_block: perBlock, part_minutes: partMinutes || undefined, allow_duration: allowDuration || undefined }),
-  exportsToFolder: (pid: string, files: string[]) => postCoded<{ folder: string | null; copied?: number }>(`/projects/${pid}/exports-to-folder`, { files }),
+  exportsToFolder: (pid: string, files: string[], folder?: string) => postCoded<{ folder: string | null; copied?: number }>(`/projects/${pid}/exports-to-folder`, folder ? { files, folder } : { files }),
   fromSubtitles: (file: File, name?: string) => {
     const form = new FormData();
     if (name) form.append("name", name);

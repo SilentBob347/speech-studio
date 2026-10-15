@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Ear, FileAudio, Loader2, Mic, Square, Trash2 } from "lucide-react";
 import { api } from "../../lib/api";
-import { listenApi, clock, type ListenCard, type ListenEngine, type ListenProject } from "../../lib/listen";
+import { listenApi, clock, TRANSCRIPT_FORMATS, type ListenCard, type ListenEngine, type ListenProject, type TranscriptFormat } from "../../lib/listen";
+import BatchList, { type BatchItem } from "../BatchList";
 import { ENGINES } from "./ListenSettings";
 import { LANG_CHOICES } from "../speech/langs";
 import { speechApi } from "../../lib/speech";
@@ -38,7 +39,9 @@ export default function ListeningHome({ onOpen }: { onOpen: (pid: string) => voi
   const [error, setError] = useState<string | null>(null);
   const [drag, setDrag] = useState(false);
   const [removing, setRemoving] = useState<ListenCard | null>(null);
-  const [batch, setBatch] = useState<{ done: number; total: number } | null>(null);
+  const [batch, setBatch] = useState<BatchItem[] | null>(null);
+  const [batchRunning, setBatchRunning] = useState(false);
+  const [formats, setFormats] = useState<TranscriptFormat[]>(["srt", "txt"]);
   const file = useRef<HTMLInputElement>(null);
   const [start, setStart] = useState<Start>(savedStart);
   const pickStart = (next: Start) => {
@@ -62,19 +65,39 @@ export default function ListeningHome({ onOpen }: { onOpen: (pid: string) => voi
         onOpen(r.pid);
         return;
       }
-      setBatch({ done: 0, total: files.length });
-      const failed: string[] = [];
+      setBusy(false);
+      setBatch(files.map((f) => ({ name: f.name, status: "queued", pct: 0, pid: null, files: [] })));
+      setBatchRunning(true);
       for (const [k, f] of files.entries()) {
+        const upd = (patch: Partial<BatchItem>) => setBatch((xs) => xs && xs.map((x, j) => (j === k ? { ...x, ...patch } : x)));
         try {
+          upd({ status: "working", pct: 0, detail: t("listen.uploading") });
           const r = await listenApi.upload(f);
+          upd({ pid: r.pid });
           await prepare(r.pid, r.project, start);
-          await listenApi.transcribe(r.pid);
-        } catch (e) { failed.push(`${f.name}: ${errorText(e)}`); }
-        setBatch({ done: k + 1, total: files.length });
+          const { job_id } = await listenApi.transcribe(r.pid);
+          await api.watchJob(job_id, (e) => { if (e.type === "progress") upd({ pct: e.pct ?? 0, detail: e.msg || undefined }); });
+          upd({ status: "done", pct: 100, detail: undefined });
+        } catch (e) { upd({ status: "error", error: errorText(e) }); }
         load();
       }
-      if (failed.length) setError(failed.join("\n"));
+      setBatchRunning(false);
     } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
+  };
+  /** Writes every recognised recording of the batch in the chosen formats and copies them into one folder. */
+  const saveBatch = async () => {
+    let folder: string | undefined;
+    let copied = 0;
+    for (const it of batch ?? []) {
+      if (it.status !== "done" || !it.pid) continue;
+      const files: string[] = [];
+      for (const f of formats) files.push((await listenApi.export(it.pid, f, true, true)).file);
+      const out = await speechApi.exportsToFolder(it.pid, files, folder);
+      if (!out.folder) return null;
+      folder = out.folder;
+      copied += out.copied ?? 0;
+    }
+    return folder ? { folder, copied } : null;
   };
   const when = (s: number) => new Date(s * 1000).toLocaleString(i18n.language, { dateStyle: "medium", timeStyle: "short" });
 
@@ -107,12 +130,26 @@ export default function ListeningHome({ onOpen }: { onOpen: (pid: string) => voi
             className={`rounded-xl border-2 border-dashed px-5 py-8 grid place-items-center text-center gap-2 transition-colors ${drag ? "border-[var(--color-accent)] bg-[color-mix(in_oklab,var(--color-accent)_8%,transparent)]" : "border-[var(--color-border)]"}`}
           >
             {busy ? <Loader2 size={22} className="animate-spin text-[var(--color-accent)]" /> : <FileAudio size={22} className="text-[var(--color-accent)]" />}
-            <p className="text-[13px]">{busy ? (batch ? t("listen.batchUploading", { n: batch.done + 1 > batch.total ? batch.total : batch.done + 1, total: batch.total }) : t("listen.uploading")) : t("listen.drop")}</p>
+            <p className="text-[13px]">{busy ? t("listen.uploading") : t("listen.drop")}</p>
             <button onClick={() => file.current?.click()} disabled={busy} className="px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[13px] font-semibold disabled:opacity-40">{t("listen.pickFile")}</button>
             <input ref={file} type="file" accept={MEDIA} multiple hidden onChange={(e) => { const all = [...(e.target.files ?? [])]; e.target.value = ""; void upload(all); }} />
             <p className="text-[11px] text-[var(--color-muted)]">{t("listen.formats")}</p>
-            {!busy && batch && <p role="status" className="text-[12px] text-[var(--color-accent)]">{t("listen.batchQueued", { n: batch.total })}</p>}
           </div>
+          {batch && (
+            <BatchList title={t("batch.listenTitle")} items={batch} running={batchRunning} onOpen={onOpen} onSaveAll={saveBatch} onClose={() => setBatch(null)}
+              options={
+                <fieldset className="flex flex-wrap items-center gap-2 text-[12px]">
+                  <legend className="sr-only">{t("batch.formats")}</legend>
+                  <span className="text-[var(--color-muted)]">{t("batch.formats")}</span>
+                  {TRANSCRIPT_FORMATS.map((f) => (
+                    <label key={f} className="inline-flex items-center gap-1">
+                      <input type="checkbox" checked={formats.includes(f)} onChange={(e) => setFormats((all) => (e.target.checked ? [...all, f] : all.filter((x) => x !== f)))} className="accent-[var(--color-accent)]" />
+                      {f.toUpperCase()}
+                    </label>
+                  ))}
+                </fieldset>
+              } />
+          )}
           <UrlImport onReady={(f) => onOpen(f.pid)} />
           <MicRecorder onDone={(pid, project) => { void prepare(pid, project, start).then(() => onOpen(pid), (e: unknown) => setError(errorText(e))); }} onError={setError} />
           {error && <p role="alert" className="text-[12px] text-[var(--color-warn)] break-words">{error}</p>}

@@ -1315,8 +1315,6 @@
     "drop": "Solte aqui um arquivo de áudio ou vídeo",
     "pickFile": "Escolher arquivo",
     "uploading": "Enviando…",
-    "batchUploading": "Enviando o arquivo {{n}} de {{total}}…",
-    "batchQueued": "Gravações na fila de reconhecimento: {{n}}. São reconhecidas uma após a outra com as configurações padrão.",
     "formats": "WAV, FLAC, MP3, M4A, OGG, Opus, MP4, MKV, WebM, MOV e outros",
     "mic": "Gravar pelo microfone",
     "micStart": "Gravar",
@@ -1726,5 +1724,22 @@
     "position": "Posição no bloco",
     "rate": "Velocidade",
     "idle": "Blocos com voz: {{voiced}} de {{total}} · {{length}}"
+  },
+  "batch": {
+    "speechTitle": "Lote de locução",
+    "listenTitle": "Lote de reconhecimento",
+    "progress": "{{done}} de {{total}}",
+    "queued": "na fila",
+    "working": "em andamento",
+    "done": "pronto",
+    "error": "erro",
+    "open": "Abrir",
+    "saveAll": "Salvar tudo em uma pasta",
+    "saved": "Arquivos salvos: {{n}} — {{folder}}",
+    "blocksFailed": "blocos sem voz: {{n}} — {{error}}",
+    "exporting": "exportando…",
+    "speechOpen": "Lote de arquivos",
+    "speechHint": "Cada .txt vira seu próprio projeto com os ajustes acima: locutados um após o outro, depois «Salvar tudo em uma pasta»",
+    "formats": "Formatos"
   }
 }

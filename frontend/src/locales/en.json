@@ -1315,8 +1315,6 @@
     "drop": "Drop an audio or video file here",
     "pickFile": "Choose a file",
     "uploading": "Uploading…",
-    "batchUploading": "Uploading file {{n}} of {{total}}…",
-    "batchQueued": "Recordings queued for recognition: {{n}}. They are recognised one after another with the default settings.",
     "formats": "WAV, FLAC, MP3, M4A, OGG, Opus, MP4, MKV, WebM, MOV and others",
     "mic": "Record from the microphone",
     "micStart": "Record",
@@ -1726,5 +1724,22 @@
     "position": "Position in the block",
     "rate": "Speed",
     "idle": "Voiced {{voiced}} of {{total}} blocks · {{length}}"
+  },
+  "batch": {
+    "speechTitle": "Voicing batch",
+    "listenTitle": "Recognition batch",
+    "progress": "{{done}} of {{total}}",
+    "queued": "queued",
+    "working": "working",
+    "done": "done",
+    "error": "error",
+    "open": "Open",
+    "saveAll": "Save all to a folder",
+    "saved": "Files saved: {{n}} — {{folder}}",
+    "blocksFailed": "blocks not voiced: {{n}} — {{error}}",
+    "exporting": "exporting…",
+    "speechOpen": "Batch of files",
+    "speechHint": "Each .txt becomes its own project with the settings above: voiced one after another, then \"Save all to a folder\"",
+    "formats": "Formats"
   }
 }
