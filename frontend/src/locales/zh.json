@@ -1111,6 +1111,7 @@
     "native_ja": "母语日语",
     "native_ko": "母语韩语",
     "engineVoices": "模型自带声音",
+    "recentVoices": "最近使用",
     "libraryClone": "声音库 — 克隆",
     "directionIgnored": "{{engine}} 不读取指示：它不会改变声音。",
     "directionPresetsOnly": "{{engine}} 只对模型自带的音色读取提示;用这个音色时提示不会影响声音。"

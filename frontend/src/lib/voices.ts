@@ -5,6 +5,17 @@ import { VOICES_CHANGED, useChanged } from "./mcpBridge";
 /** A voice name as people read it: the pack's `RU_Female_` prefix and the underscores go. */
 export const prettyVoice = (name: string) => name.replace(/^[a-z]{2}_(female|famale|male)_/i, "").replace(/_/g, " ");
 
+const RECENT = "speech.recentVoices";
+
+/** The library voices last picked in this window, newest first. */
+export function recentVoices(): string[] {
+  try { return (JSON.parse(localStorage.getItem(RECENT) ?? "[]") as string[]).slice(0, 5); } catch { return []; }
+}
+
+export function rememberVoice(name: string): void {
+  try { localStorage.setItem(RECENT, JSON.stringify([name, ...recentVoices().filter((v) => v !== name)].slice(0, 5))); } catch { /* the list stays as it was */ }
+}
+
 export const errorText = (e: unknown) => (e instanceof ApiError ? e.detail || e.code : e instanceof Error ? e.message : String(e));
 
 /** The voice library, read again whenever the studio says the voices changed. */

@@ -499,7 +499,7 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "ui_select",
-            description: "Choose an option of a list in the window (a <select>: the subtitles' content, a line's speaker, the voice mode, a font).",
+            description: "Choose an option of a list in the window (a <select>: a block's engine or take, a speaker's engine, a new project's engine, split and language, a Listening line's speaker, the player's speed). A voice field is a combobox: ui_click it, then ui_click its option.",
             schema: || object(json!({ "ref": { "type": "string" }, "text": { "type": "string" }, "value": { "type": "string" } }), &["value"]),
             call: |args| window("select", args, 15),
         },

@@ -171,17 +171,25 @@ function textOf(element: Element): string {
   return parts.join(" ");
 }
 
+/** A <label>'s own words, without the text of the fields it wraps (a list's options, a field's value). */
+function labelText(tag: HTMLLabelElement): string {
+  const copy = tag.cloneNode(true) as HTMLElement;
+  copy.querySelectorAll("select, textarea, input, button, [role='listbox']").forEach((field) => field.remove());
+  return (copy.textContent ?? "").replace(/\s+/g, " ").trim();
+}
+
 export function label(element: Element): string {
   const named = (element.getAttribute("aria-labelledby") ?? "").split(/\s+/).filter(Boolean)
     .map((id) => document.getElementById(id)?.textContent ?? "").join(" ").replace(/\s+/g, " ").trim();
   if (named) return named.slice(0, 80);
-  const own = element.getAttribute("aria-label") || element.getAttribute("title") || "";
+  const own = element.getAttribute("aria-label") || "";
   if (own) return own.slice(0, 80);
+  const title = element.getAttribute("title") || "";
   if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) {
-    const tied = element.labels?.[0]?.textContent?.replace(/\s+/g, " ").trim();
-    return (tied || nearbyText(element) || element.getAttribute("placeholder") || "").slice(0, 80);
+    const tied = element.labels?.[0] ? labelText(element.labels[0]) : "";
+    return (tied || title || nearbyText(element) || element.getAttribute("placeholder") || "").slice(0, 80);
   }
-  return (textOf(element) || iconName(element) || nearbyText(element)).slice(0, 80);
+  return (title || textOf(element) || iconName(element) || nearbyText(element)).slice(0, 80);
 }
 
 let nextRef = 1;

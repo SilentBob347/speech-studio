@@ -1111,6 +1111,7 @@
     "native_ja": "japonês nativo",
     "native_ko": "coreano nativo",
     "engineVoices": "Vozes do modelo",
+    "recentVoices": "Recentes",
     "libraryClone": "Biblioteca — clonagem",
     "directionIgnored": "{{engine}} não lê indicações: elas não mudam o som.",
     "directionPresetsOnly": "{{engine}} só lê a indicação com as vozes próprias do modelo; com esta voz ela não mudará o som."

@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { prettyVoice, useVoices } from "../../lib/voices";
+import { prettyVoice, recentVoices, rememberVoice, useVoices } from "../../lib/voices";
 import { useEngines } from "../../lib/engines";
 import Combobox, { type ComboOption } from "../Combobox";
 
@@ -25,7 +25,14 @@ export default function VoicePicker({ value, onChange, inherit, label, className
   const known = presets.some((p) => p.id === value) || (clones && listing?.voices.some((v) => v.name === value));
   const missing = value && (presets.length || listing) && !known;
   const own = presets.length > 0 ? t("speech.engineVoices") : undefined;
-  const lib = presets.length > 0 && voices.length > 0 ? t("speech.libraryClone") : undefined;
+  const recent = recentVoices().filter((name) => voices.some((v) => v.name === name));
+  const lib = (presets.length > 0 || recent.length > 0) && voices.length > 0 ? t("speech.libraryClone") : undefined;
+  const voiceOption = (v: (typeof voices)[number], group: string | undefined): ComboOption => ({
+    value: v.name,
+    label: `${v.card.favorite ? "★ " : ""}${prettyVoice(v.name)}${v.card.lang ? ` · ${v.card.lang.toUpperCase()}` : ""}`,
+    search: `${v.card.gender} ${(v.card.tags ?? []).join(" ")}`,
+    group,
+  });
   const options: ComboOption[] = [
     ...(inherit ? [{ value: "", label: inherit }]
       : caps?.needs_voice ? [{ value: "", label: t("speech.pickVoice"), disabled: true }]
@@ -37,15 +44,11 @@ export default function VoicePicker({ value, onChange, inherit, label, className
       hint: String(t(`presetVoice.${caps?.id}.${p.id}` as "presetVoice.supertonic.F1", { defaultValue: p.description })),
       group: own,
     })),
-    ...voices.map((v) => ({
-      value: v.name,
-      label: `${v.card.favorite ? "★ " : ""}${prettyVoice(v.name)}${v.card.lang ? ` · ${v.card.lang.toUpperCase()}` : ""}`,
-      search: `${v.card.gender} ${(v.card.tags ?? []).join(" ")}`,
-      group: lib,
-    })),
+    ...recent.flatMap((name) => voices.filter((v) => v.name === name).map((v) => voiceOption(v, t("speech.recentVoices")))),
+    ...voices.filter((v) => !recent.includes(v.name)).map((v) => voiceOption(v, lib)),
   ];
   return (
-    <Combobox value={value ?? ""} options={options} onChange={(v) => onChange(v || null)} label={label} noResults={t("speech.noVoiceFound")}
+    <Combobox value={value ?? ""} options={options} onChange={(v) => { if (v && voices.some((x) => x.name === v)) rememberVoice(v); onChange(v || null); }} label={label} noResults={t("speech.noVoiceFound")}
       className={outer.join(" ")} inputClassName={`w-full text-[var(--color-text)] ${inner.join(" ")} focus:border-[var(--color-accent)] focus:outline-none`} />
   );
 }

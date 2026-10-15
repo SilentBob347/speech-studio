@@ -133,6 +133,11 @@ describe("what the agent reads of the page", () => {
     expect(row).toMatch(/: e\d+ open, e\d+ Play, e\d+ textarea="Привет"$/);
   });
 
+  it("names a list by its label's words, not by the options inside the label", () => {
+    document.body.innerHTML = `<label>Engine <select><option value="higgs">Higgs Audio</option><option value="drama3">Drama 3</option></select></label>`;
+    expect(readPage()).toMatch(/select "Engine" value="higgs"/);
+  });
+
   it("reads a row that is not a control itself as one line without an open entry, under the page's own title", () => {
     document.body.innerHTML = `
       <main data-mcp-page="Speech: Cafe"><h2>Cast</h2>
