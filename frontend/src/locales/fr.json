@@ -2246,5 +2246,22 @@
     "speak": "Doubler",
     "openProject": "Ouvrir comme projet",
     "result": "Résultat du doublage rapide"
+  },
+  "quality": {
+    "title": "Qualité du doublage",
+    "passedOf": "{{passed}} sur {{checked}} ont passé la vérification",
+    "notChecked": "Non vérifié par la reconnaissance",
+    "nothingVoiced": "Rien n’est encore doublé",
+    "notVoiced": "blocs pas encore doublés : {{n}}",
+    "lightHint": "Vert : au moins {{green}} % des prises vérifiées ont passé ; orange : à partir de {{amber}} % ; rouge : moins.",
+    "uncheckedNote": "Prises dont les mots n’ont pas été comparés : {{n}}. La reconnaissance compare ce qui est dit au texte du bloc.",
+    "check": "Vérifier les prises ({{n}})",
+    "allPassed": "Toutes les prises vérifiées ont passé",
+    "worst": "Échecs : {{n}}",
+    "take": "prise {{n}}",
+    "wer": "erreurs de mots {{wer}} %",
+    "otherVoice": "voix différente de celle choisie",
+    "wordsUnchecked": "mots non comparés",
+    "worstFirst": "les pires d’abord"
   }
 }

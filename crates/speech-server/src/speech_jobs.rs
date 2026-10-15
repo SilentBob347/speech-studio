@@ -797,10 +797,11 @@ fn sound_flags(take: &Take, file: &Path, want: &[String], norm: crate::audio_fla
     Ok((features, raised))
 }
 
-fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, progress: &dyn Fn(Value)) -> Result<Vec<String>, String> {
+/// `recognise` checks the text by recognition whatever the project's settings say.
+fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, recognise: bool, progress: &dyn Fn(Value)) -> Result<Vec<String>, String> {
     tts_host::make_room();
     let settings = sp::load(&p.workspace, pid)?.settings;
-    let asr_on = settings.qc.asr_check || settings.qc.takes > 1;
+    let asr_on = recognise || settings.qc.asr_check || settings.qc.takes > 1;
     let sim_on = settings.qc.similarity;
     let want = settings.qc.heuristics.clone();
     crate::ensure_job_components(&p.repo_root, &p.models_root, sim_on, false, &|ev| progress(ev))?;
@@ -1016,7 +1017,7 @@ fn synth_scope(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Valu
     }
     let mut qc_failed = Vec::new();
     if checking && !made.is_empty() {
-        qc_failed = check_takes(p, pid, &made, progress)?;
+        qc_failed = check_takes(p, pid, &made, false, progress)?;
         if random_seed && !qc_failed.is_empty() {
             let mut again: BTreeMap<String, Vec<u32>> = BTreeMap::new();
             for id in &qc_failed {
@@ -1025,7 +1026,7 @@ fn synth_scope(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Valu
                 }
             }
             if !again.is_empty() {
-                qc_failed = check_takes(p, pid, &again, progress)?;
+                qc_failed = check_takes(p, pid, &again, false, progress)?;
             }
         }
         for id in &qc_failed {
@@ -1236,6 +1237,80 @@ pub fn export_check(p: &SpeechPaths, pid: &str, project: &SpeechProject) -> Vec<
             }
         })
         .collect()
+}
+
+/// Share of checked takes that passed for each colour of the project's light: green from the first, amber from the second.
+pub const LIGHT_GREEN: f64 = 0.95;
+pub const LIGHT_AMBER: f64 = 0.8;
+
+/// How the voiced blocks sound by the check of their takes: how many passed, failed and are not checked by recognition,
+/// the light of the project, and the takes that failed, the worst first, with what was expected and what was heard.
+pub fn quality(p: &SpeechPaths, project: &SpeechProject) -> Value {
+    let keys = keys(p, project);
+    let (mut total, mut ready, mut passed) = (0usize, 0usize, 0usize);
+    let mut failed: Vec<(usize, f64, Value)> = Vec::new();
+    let mut unchecked: Vec<String> = Vec::new();
+    for ch in &project.chapters {
+        for b in &ch.blocks {
+            let key = keys.get(&b.id).cloned().unwrap_or_default();
+            let state = sp::status(b, &key);
+            if state == "skipped" {
+                continue;
+            }
+            total += 1;
+            if state != "ready" {
+                continue;
+            }
+            ready += 1;
+            let Some(take) = b.active.and_then(|n| b.takes.iter().find(|t| t.n == n)) else { continue };
+            match &take.qc {
+                Some(c) if c.text_checked && c.ok() => passed += 1,
+                // a defect the sound check found fails the take whether or not its words were checked
+                Some(c) if !c.ok() => {
+                    let item = json!({
+                        "block": b.id, "chapter": ch.title, "speaker": b.speaker, "take": take.n,
+                        "text": if take.text.is_empty() { &b.text } else { &take.text }, "heard": c.heard, "off": c.off, "text_checked": c.text_checked,
+                        "wer": c.wer, "passed": c.passed, "issues": c.issues, "notes": c.notes, "similarity": c.similarity, "similar": c.similar,
+                    });
+                    failed.push((c.issues.len(), c.wer, item));
+                }
+                _ => unchecked.push(b.id.clone()),
+            }
+        }
+    }
+    failed.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal).then(b.0.cmp(&a.0)));
+    let checked = passed + failed.len();
+    let light = match checked {
+        0 => "none",
+        _ if passed as f64 / checked as f64 >= LIGHT_GREEN => "green",
+        _ if passed as f64 / checked as f64 >= LIGHT_AMBER => "amber",
+        _ => "red",
+    };
+    json!({
+        "total": total, "ready": ready, "checked": checked, "passed": passed, "failed": failed.len(),
+        "unchecked": unchecked, "light": light, "green": LIGHT_GREEN, "amber": LIGHT_AMBER,
+        "worst": failed.into_iter().map(|f| f.2).collect::<Vec<_>>(),
+    })
+}
+
+/// The ready blocks' takes checked by recognition after the fact: those of `ids`, or every one not checked yet.
+pub fn check_ready(p: &SpeechPaths, pid: &str, ids: Option<&[String]>, progress: &dyn Fn(Value)) -> Result<Value, String> {
+    let project = sp::load(&p.workspace, pid)?;
+    let keys = keys(p, &project);
+    let made: BTreeMap<String, Vec<u32>> = project
+        .blocks()
+        .filter(|b| sp::status(b, keys.get(&b.id).map(String::as_str).unwrap_or_default()) == "ready")
+        .filter_map(|b| {
+            let take = b.active.and_then(|n| b.takes.iter().find(|t| t.n == n))?;
+            let wanted = match ids {
+                Some(ids) => ids.contains(&b.id),
+                None => !take.qc.as_ref().is_some_and(|c| c.text_checked),
+            };
+            wanted.then(|| (b.id.clone(), vec![take.n]))
+        })
+        .collect();
+    let failed = if made.is_empty() { Vec::new() } else { check_takes(p, pid, &made, true, progress)? };
+    Ok(json!({ "checked": made.len(), "failed": failed }))
 }
 
 /// What would go wrong voicing the project, found before voicing it: block by block, an `error` stops the block from

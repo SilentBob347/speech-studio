@@ -16,6 +16,7 @@ import { named } from "../../lib/a11y";
 import EditorMore from "../EditorMore";
 import StepBar from "./StepBar";
 import LintDialog from "./LintDialog";
+import QualityReport, { QualityButton } from "./QualityReport";
 import OwnParams from "./OwnParams";
 import { useSimpleMode } from "../../lib/simpleMode";
 import { useVoices } from "../../lib/voices";
@@ -96,6 +97,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   };
   const [exported, setExported] = useState(false);
   const [linting, setLinting] = useState(false);
+  const [quality, setQuality] = useState(false);
   const [casting, setCasting] = useState(false);
   const castCharacters = async () => {
     if (!project) return;
@@ -629,6 +631,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
         <input value={project.name} onChange={(e) => edit((p) => ({ ...p, name: e.target.value }))} aria-label={t("speech.name")}
           className="min-w-0 flex-1 md:flex-none md:w-56 xl:w-72 bg-transparent text-[15px] font-semibold focus:outline-none rounded px-1 focus:bg-[var(--color-surface-2)]" />
         <span className="hidden sm:inline text-[11px] text-[var(--color-muted)] tabnum">{t("speech.readyOf", { ready: counts.ready ?? 0, total: blocks.length - (counts.skipped ?? 0) })}{saving ? ` · ${t("speech.saving")}` : ""}</span>
+        <QualityButton pid={pid} version={project} onOpen={() => void flush().then(() => setQuality(true))} />
         <button onClick={undo} disabled={!canUndo} className="hidden sm:grid place-items-center w-8 h-8 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30" {...named(t("speech.undo"))}><Undo2 size={15} /></button>
         <button onClick={redo} disabled={!canRedo} className="hidden sm:grid place-items-center w-8 h-8 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30" {...named(t("speech.redo"))}><Redo2 size={15} /></button>
         <div className="flex items-center gap-1.5 w-full md:w-auto max-md:order-last">
@@ -896,6 +899,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           onClose={() => setRecast(null)} />
       )}
       {settings && <ProjectSettings project={project} onChange={edit} onClose={() => setSettings(false)} />}
+      {quality && <QualityReport pid={pid} blocks={blocks} onClose={() => setQuality(false)} onChanged={reload} onJump={(id) => { setSelected([id]); document.getElementById(`block-${id}`)?.scrollIntoView({ block: "center", behavior: "smooth" }); }} />}
       {linting && <LintDialog pid={pid} blocks={blocks} onClose={() => setLinting(false)} onJump={(id) => { setSelected([id]); document.getElementById(`block-${id}`)?.scrollIntoView({ block: "center", behavior: "smooth" }); }} />}
       {exporting && <ExportDialog pid={pid} project={project} onChange={edit} flush={flush} onClose={() => setExporting(false)} onVoiceMissing={(ids) => { setExporting(false); void runSynth({ ids, force: true }); }} onDone={(file) => { setExported(true); pushActivity(t("speech.exported", { file }), "done"); }} />}
     </main>

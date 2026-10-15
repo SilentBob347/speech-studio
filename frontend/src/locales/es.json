@@ -2246,5 +2246,22 @@
     "speak": "Locutar",
     "openProject": "Abrir como proyecto",
     "result": "Resultado de la locución rápida"
+  },
+  "quality": {
+    "title": "Calidad de la locución",
+    "passedOf": "Pasaron la revisión {{passed}} de {{checked}}",
+    "notChecked": "Sin revisar por reconocimiento",
+    "nothingVoiced": "Aún no hay nada locutado",
+    "notVoiced": "bloques aún sin locutar: {{n}}",
+    "lightHint": "Verde: pasó al menos el {{green}} % de las tomas revisadas; ámbar: desde el {{amber}} %; rojo: menos.",
+    "uncheckedNote": "Tomas sin cotejar con el texto: {{n}}. El reconocimiento compara lo dicho con el texto del bloque.",
+    "check": "Revisar tomas ({{n}})",
+    "allPassed": "Todas las tomas revisadas pasaron",
+    "worst": "No pasaron la revisión: {{n}}",
+    "take": "toma {{n}}",
+    "wer": "errores de palabras {{wer}} %",
+    "otherVoice": "la voz no se parece a la elegida",
+    "wordsUnchecked": "palabras sin cotejar",
+    "worstFirst": "las peores primero"
   }
 }

@@ -2246,5 +2246,22 @@
     "speak": "Voice it",
     "openProject": "Open as a project",
     "result": "Quick voicing result"
+  },
+  "quality": {
+    "title": "Voicing quality",
+    "passedOf": "{{passed}} of {{checked}} passed the check",
+    "notChecked": "Not checked by recognition",
+    "nothingVoiced": "Nothing is voiced yet",
+    "notVoiced": "blocks not voiced yet: {{n}}",
+    "lightHint": "Green: at least {{green}}% of the checked takes passed; amber: from {{amber}}%; red: fewer.",
+    "uncheckedNote": "Takes whose words were not checked: {{n}}. Recognition compares what was said with the block's text.",
+    "check": "Check takes ({{n}})",
+    "allPassed": "Every checked take passed",
+    "worst": "Failed the check: {{n}}",
+    "take": "take {{n}}",
+    "wer": "word errors {{wer}}%",
+    "otherVoice": "voice unlike the chosen one",
+    "wordsUnchecked": "words not checked",
+    "worstFirst": "worst first"
   }
 }

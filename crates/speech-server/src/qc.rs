@@ -35,6 +35,9 @@ pub struct Check {
     /// The words recognition heard with their start and end in the take, seconds: the export's word timings.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub timed: Vec<(String, f64, f64)>,
+    /// The words the check found said otherwise, as it compared them: numbers and the like read out on both sides.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub off: Vec<WordOp>,
 }
 
 impl Check {
@@ -56,7 +59,7 @@ pub fn normalize(text: &str) -> Vec<String> {
 }
 
 pub fn word_ops(expected: &[String], heard: &[String]) -> (usize, usize, usize) {
-    word_diff(expected, heard).iter().fold((0, 0, 0), |(i, d, s), op| match op.op {
+    word_diff(expected, heard).iter().fold((0, 0, 0), |(i, d, s), op| match op.op.as_str() {
         "inserted" => (i + 1, d, s),
         "deleted" => (i, d + 1, s),
         "substituted" => (i, d, s + 1),
@@ -65,9 +68,9 @@ pub fn word_ops(expected: &[String], heard: &[String]) -> (usize, usize, usize) 
 }
 
 /// Шаг выравнивания слов: `same`, `inserted` (лишнее услышанное), `deleted` (пропущенное), `substituted`.
-#[derive(Serialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct WordOp {
-    pub op: &'static str,
+    pub op: String,
     pub expected: Option<String>,
     pub heard: Option<String>,
 }
@@ -93,14 +96,14 @@ pub fn word_diff(expected: &[String], heard: &[String]) -> Vec<WordOp> {
     while i > 0 || j > 0 {
         if i > 0 && j > 0 && d[i][j] == d[i - 1][j - 1] + usize::from(expected[i - 1] != heard[j - 1]) {
             let op = if expected[i - 1] == heard[j - 1] { "same" } else { "substituted" };
-            ops.push(WordOp { op, expected: Some(expected[i - 1].clone()), heard: Some(heard[j - 1].clone()) });
+            ops.push(WordOp { op: op.into(), expected: Some(expected[i - 1].clone()), heard: Some(heard[j - 1].clone()) });
             i -= 1;
             j -= 1;
         } else if i > 0 && d[i][j] == d[i - 1][j] + 1 {
-            ops.push(WordOp { op: "deleted", expected: Some(expected[i - 1].clone()), heard: None });
+            ops.push(WordOp { op: "deleted".into(), expected: Some(expected[i - 1].clone()), heard: None });
             i -= 1;
         } else {
-            ops.push(WordOp { op: "inserted", expected: None, heard: Some(heard[j - 1].clone()) });
+            ops.push(WordOp { op: "inserted".into(), expected: None, heard: Some(heard[j - 1].clone()) });
             j -= 1;
         }
     }
@@ -176,9 +179,10 @@ pub fn threshold(words: usize, strictness: &str) -> f64 {
 pub fn check(expected: &str, heard: &str, strictness: &str) -> Check {
     let e = normalize(expected);
     let h = normalize(heard);
+    let off: Vec<WordOp> = word_diff(&e, &h).into_iter().filter(|o| o.op != "same").collect();
     let (inserted, deleted, substituted) = word_ops(&e, &h);
     let wer = if e.is_empty() { if h.is_empty() { 0.0 } else { 1.0 } } else { (inserted + deleted + substituted) as f64 / e.len() as f64 };
-    Check { text_checked: true, wer, words: e.len(), inserted, deleted, substituted, heard: heard.to_string(), passed: wer <= threshold(e.len(), strictness), similarity: None, similar: None, issues: Vec::new(), timed: Vec::new(), ..Default::default() }
+    Check { text_checked: true, wer, words: e.len(), inserted, deleted, substituted, heard: heard.to_string(), passed: wer <= threshold(e.len(), strictness), similarity: None, similar: None, issues: Vec::new(), timed: Vec::new(), off, ..Default::default() }
 }
 
 #[cfg(test)]

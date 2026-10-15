@@ -324,6 +324,33 @@ pub async fn timeline(State(st): State<AppState>, AxPath(pid): AxPath<String>) -
 }
 
 /// GET /projects/{pid}/export-check — что мешает экспорту.
+pub async fn quality(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Response {
+    let p = paths(&st);
+    match joined(tokio::task::spawn_blocking(move || sp::load(&p.workspace, &pid).map(|project| speech_jobs::quality(&p, &project))).await) {
+        Ok(Ok(report)) => Json(report).into_response(),
+        Ok(Err(e)) => refuse(StatusCode::NOT_FOUND, "no_project", e),
+        Err(r) => r,
+    }
+}
+
+/// The ready takes checked by recognition now: `ids`, or all not checked yet.
+pub async fn check(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<Value>) -> Response {
+    if let Err(e) = sp::load(&st.workspace, &pid) {
+        return refuse(StatusCode::NOT_FOUND, "no_project", e);
+    }
+    let ids: Option<Vec<String>> = body.get("ids").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).map(str::to_string).collect());
+    let p = paths(&st);
+    let pid2 = pid.clone();
+    let job: jobs::JobFn = Box::new(move |progress: jobs::ProgressFn| {
+        let cb = |ev: Value| progress(ev);
+        speech_jobs::check_ready(&p, &pid2, ids.as_deref(), &cb)
+    });
+    match st.jobs.enqueue(jobs::JobMeta::new(jobs::JobKind::Synth, Some(&pid)), job).await {
+        Ok(job_id) => Json(json!({ "job_id": job_id })).into_response(),
+        Err(e) => crate::enqueue_error(e),
+    }
+}
+
 pub async fn export_check(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Response {
     let p = paths(&st);
     let res = joined(tokio::task::spawn_blocking(move || sp::load(&p.workspace, &pid).map(|project| speech_jobs::export_check(&p, &pid, &project))).await);

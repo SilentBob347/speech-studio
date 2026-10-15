@@ -2246,5 +2246,22 @@
     "speak": "配音",
     "openProject": "作为项目打开",
     "result": "快速配音结果"
+  },
+  "quality": {
+    "title": "配音质量",
+    "passedOf": "{{checked}} 条中 {{passed}} 条通过检查",
+    "notChecked": "未经识别检查",
+    "nothingVoiced": "尚未配音",
+    "notVoiced": "尚未配音的块：{{n}}",
+    "lightHint": "绿色：已检查的配音中至少 {{green}}% 通过；黄色：{{amber}}% 起；红色：更少。",
+    "uncheckedNote": "未核对文字的配音：{{n}} 条。识别会将所说内容与块的文本比较。",
+    "check": "检查配音（{{n}}）",
+    "allPassed": "所有已检查的配音均通过",
+    "worst": "未通过检查：{{n}} 条",
+    "take": "第 {{n}} 条配音",
+    "wer": "词错误 {{wer}}%",
+    "otherVoice": "声音与所选不符",
+    "wordsUnchecked": "未核对文字",
+    "worstFirst": "最差的在前"
   }
 }

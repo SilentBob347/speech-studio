@@ -9,9 +9,11 @@ export type Take = {
 };
 export type QcCheck = { text_checked: boolean; wer: number; words: number; inserted: number; deleted: number; substituted: number; heard: string; passed: boolean; similarity: number | null; similar: boolean | null; issues: QcIssue[];
   /** What does not redo the take: loudness off the voice, noise in pauses, `listen`, suspects recognition cleared. */
-  notes?: QcNote[];
+  notes?: QcNote[]; off?: WordOp[];
   /** The words heard, each with its start and end in the take. */
   timed?: [string, number, number][] };
+/** A word the check found said otherwise: missed (`deleted`), extra (`inserted`) or another (`substituted`), as the server compared them. */
+export type WordOp = { op: "same" | "inserted" | "deleted" | "substituted"; expected: string | null; heard: string | null };
 export type QcNote = "loud" | "quiet" | "pause_noise" | "listen" | "too_long" | "too_short" | "edge" | "long_pause" | "little_speech" | "audio_repeat";
 export type QcIssue = "tail" | "stretched" | "gap" | "repeat" | "noise" | "garbled" | "runaway" | "cutoff" | "silence" | "hum" | "clipping" | "whistle" | "click";
 export type QcSettings = { asr_check: boolean; strictness: "strict" | "normal" | "lenient"; takes: number; similarity: boolean; heuristics?: string[] };
@@ -172,6 +174,11 @@ export type TimelineBlock = { block: string; speaker: string; start: number; end
   prev: string | null; take: string | null; take_secs: number | null; cut: [number, number] | null; mix: Mix };
 export type ExportProblem = { block: string; state: BlockState | "missing" | "modified" | "duration" };
 
+/** How the voicing sounds by the check of the active takes; `light` by the share of checked takes that passed. */
+export type QualityLight = "green" | "amber" | "red" | "none";
+export type QualityTake = { block: string; chapter: string; speaker: string; take: number; text: string; heard: string; off?: WordOp[]; text_checked: boolean; wer: number; passed: boolean; issues: QcIssue[]; notes: QcNote[]; similarity: number | null; similar: boolean | null };
+export type QualityReport = { total: number; ready: number; checked: number; passed: number; failed: number; unchecked: string[]; light: QualityLight; green: number; amber: number; worst: QualityTake[] };
+
 export const speechApi = {
   list: () => getCoded<{ projects: ProjectCard[] }>("/projects"),
   podcast: (body: { topic: string; speakers: { name: string; manner: string }[]; minutes: number; lang: string; name?: string }) => postCoded<{ job_id: string }>("/projects/podcast", body),
@@ -192,6 +199,9 @@ export const speechApi = {
   lint: (pid: string) => getCoded<{ issues: LintIssue[] }>(`/projects/${pid}/lint`),
   autoCast: (pid: string) => getCoded<{ picks: { speaker: string; voice: string | null }[] }>(`/projects/${pid}/auto-cast`),
   exportCheck: (pid: string) => getCoded<{ problems: ExportProblem[] }>(`/projects/${pid}/export-check`),
+  quality: (pid: string) => getCoded<QualityReport>(`/projects/${pid}/quality`),
+  /** Recognition checks the ready takes now: `ids`, or every one whose words were not checked. */
+  check: (pid: string, ids?: string[]) => postCoded<{ job_id: string }>(`/projects/${pid}/check`, ids ? { ids } : {}),
   timeline: (pid: string) => getCoded<{ blocks: TimelineBlock[] }>(`/projects/${pid}/timeline`),
   export: (pid: string, format: ExportFormat, chapter?: string, perBlock = false, partMinutes = 0, allowDuration = false, quality: ExportQuality = {}, perChapter = false, stems = false) => postCoded<{ job_id: string }>(`/projects/${pid}/export`, { format, chapter, per_block: perBlock, part_minutes: partMinutes || undefined, per_chapter: perChapter || undefined, stems: stems || undefined, allow_duration: allowDuration || undefined, ...quality }),
   exportsToFolder: (pid: string, files: string[], folder?: string) => postCoded<{ folder: string | null; copied?: number }>(`/projects/${pid}/exports-to-folder`, folder ? { files, folder } : { files }),

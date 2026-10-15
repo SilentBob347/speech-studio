@@ -562,6 +562,8 @@ pub fn build_router(state: AppState) -> Router {
         .route("/books/{id}/chapters/{index}", get(speech_api::book_chapter))
         .route("/projects/from-book", post(speech_api::from_book))
         .route("/projects/{pid}/export-check", get(speech_api::export_check))
+        .route("/projects/{pid}/quality", get(speech_api::quality))
+        .route("/projects/{pid}/check", post(speech_api::check))
         .route("/projects/{pid}/lint", get(speech_api::lint))
         .route("/projects/{pid}/auto-cast", get(speech_api::auto_cast))
         .route("/projects/{pid}/timeline", get(speech_api::timeline))

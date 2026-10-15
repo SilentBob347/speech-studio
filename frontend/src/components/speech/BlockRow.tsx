@@ -15,7 +15,7 @@ import TagPalette, { type TagPlace } from "./TagPalette";
 import { useEngines } from "../../lib/engines";
 import PrepareView from "./PrepareView";
 import RefTrim from "../voices/RefTrim";
-import { wordDiff, words } from "../../lib/wordDiff";
+import HeardDiff from "./HeardDiff";
 import { cues, spans, withoutCue, type Cue } from "../../lib/prosody";
 import { wordAt, wordTimes } from "../../lib/readAlong";
 
@@ -464,19 +464,7 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
             </p>
           )}
           {take?.qc?.notes?.length ? <p className="mt-0.5 text-[11px] text-[var(--color-muted)]">{t("speech.qcNotes", { list: take.qc.notes.map((n) => t(`speech.qcNote_${n}`)).join(", ") })}</p> : null}
-          {take?.qc && take.qc.text_checked !== false && take.qc.heard && (() => {
-            const off = wordDiff(words(take.text || block.text), words(take.qc.heard)).filter((s) => s.op !== "same");
-            return off.length > 0 && (
-              <p className="mt-0.5 flex flex-wrap items-center gap-1 text-[11px]" aria-label={t("speech.heardDiff")}>
-                <span className="text-[var(--color-muted)]">{t("speech.heardDiff")}</span>
-                {off.map((s, k) => (
-                  <span key={k} className="px-1 rounded border border-[var(--color-warn)]/50 text-[var(--color-warn)] whitespace-nowrap">
-                    {s.op === "deleted" ? <s>{s.expected}</s> : s.op === "inserted" ? `+${s.heard}` : `${s.expected} → ${s.heard}`}
-                  </span>
-                ))}
-              </p>
-            );
-          })()}
+          {take?.qc && take.qc.text_checked !== false && <HeardDiff off={take.qc.off} className="mt-0.5" />}
           {(block.word_notes?.length ?? 0) > 0 && (
             <ul aria-label={t("speech.wordNotes")} className="mt-1 flex flex-wrap gap-1 text-[11px]">
               {block.word_notes!.map((w, k) => (

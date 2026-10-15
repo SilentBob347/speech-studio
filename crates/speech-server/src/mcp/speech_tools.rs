@@ -85,6 +85,18 @@ pub(super) fn tools() -> Vec<Tool> {
             call: |args| get(project_path(args, "/export-check")?),
         },
         Tool {
+            name: "project_quality",
+            description: "How a Speech project's voicing sounds by the check of its active takes: total and ready blocks, checked (passed + failed), passed, failed, unchecked (ids of ready blocks whose words were not checked by recognition), light (green when at least `green` of the checked passed, amber from `amber`, red below, none when nothing is checked) and worst: the failed takes, the worst first, each with block, chapter, speaker, take, text (expected), heard, wer, issues, notes and voice similarity. project_check_takes checks the unchecked.",
+            schema: project_only,
+            call: |args| get(project_path(args, "/quality")?),
+        },
+        Tool {
+            name: "project_check_takes",
+            description: "Check the active takes of ready blocks by recognition now, whatever the project's check settings: ids, or every one whose words were not checked yet. A job (studio_wait): its result is how many were checked and the ids that failed; the takes keep the check, project_quality reports it.",
+            schema: || object(json!({ "pid": pid(), "ids": { "type": "array", "items": { "type": "string" } } }), &["pid"]),
+            call: |args| post(project_path(args, "/check")?, body_without(args, &["pid"])),
+        },
+        Tool {
             name: "project_timeline",
             description: "The project on the export's time scale: each block that goes into the export with its speaker, start and end in seconds (by its take, or estimated from the text while it is not voiced) and the overlap with the previous block when a negative pause after that block makes this one interrupt it. A block's cut_previous true cuts the interrupted reply off; a pause after of 0 on the previous block joins them back to back.",
             schema: project_only,

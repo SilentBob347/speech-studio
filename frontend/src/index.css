@@ -18,12 +18,12 @@
 }
 
 /* themes: dark is the default palette above; light replaces the tokens, "system" follows the OS */
-:root { --color-cue-pause: #ff7a8a; --color-cue-rate: #f5c542; --color-cue-pitch: #b58cff; --color-cue-stress: #4fd18b; --color-glow: #122033; --scrim: rgba(5, 8, 13, 0.58); --panel-shadow: 0 24px 70px rgba(0, 0, 0, 0.55); color-scheme: dark; }
+:root { --color-good: #4fd18b; --color-bad: #ff6b6b; --color-cue-pause: #ff7a8a; --color-cue-rate: #f5c542; --color-cue-pitch: #b58cff; --color-cue-stress: #4fd18b; --color-glow: #122033; --scrim: rgba(5, 8, 13, 0.58); --panel-shadow: 0 24px 70px rgba(0, 0, 0, 0.55); color-scheme: dark; }
 :root[data-theme="light"] {
   --color-bg: #f3f5f8; --color-surface: #ffffff; --color-surface-2: #edf0f4; --color-overlay: #ffffff;
   --color-border: #d5dbe3; --color-hairline: #0000000d; --color-text: #151b23; --color-muted: #586272;
   --color-accent: #0273b0; --color-on-accent: #ffffff; --color-accent-2: #3d55c4; --color-warn: #a65300;
-  --color-cue-pause: #c8344a; --color-cue-rate: #a87800; --color-cue-pitch: #7442c8; --color-cue-stress: #1d8a52;
+  --color-good: #1d8a52; --color-bad: #c8344a; --color-cue-pause: #c8344a; --color-cue-rate: #a87800; --color-cue-pitch: #7442c8; --color-cue-stress: #1d8a52;
   --color-glow: #dce8f6; --scrim: rgba(20, 26, 36, 0.32); --panel-shadow: 0 24px 60px rgba(15, 23, 42, 0.18); color-scheme: light;
 }
 @media (prefers-color-scheme: light) {
@@ -31,7 +31,7 @@
     --color-bg: #f3f5f8; --color-surface: #ffffff; --color-surface-2: #edf0f4; --color-overlay: #ffffff;
     --color-border: #d5dbe3; --color-hairline: #0000000d; --color-text: #151b23; --color-muted: #586272;
     --color-accent: #0273b0; --color-on-accent: #ffffff; --color-accent-2: #3d55c4; --color-warn: #a65300;
-    --color-cue-pause: #c8344a; --color-cue-rate: #a87800; --color-cue-pitch: #7442c8; --color-cue-stress: #1d8a52;
+    --color-good: #1d8a52; --color-bad: #c8344a; --color-cue-pause: #c8344a; --color-cue-rate: #a87800; --color-cue-pitch: #7442c8; --color-cue-stress: #1d8a52;
     --color-glow: #dce8f6; --scrim: rgba(20, 26, 36, 0.32); --panel-shadow: 0 24px 60px rgba(15, 23, 42, 0.18); color-scheme: light;
   }
 }
