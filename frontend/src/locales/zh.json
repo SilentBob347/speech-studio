@@ -1271,7 +1271,11 @@
     "characterAge": "年龄：{{speaker}}",
     "genderAny": "未指定性别",
     "ageAny": "未指定年龄",
-    "savePlayer": "带文本的播放器（HTML）：高亮正在朗读的内容"
+    "savePlayer": "带文本的播放器（HTML）：高亮正在朗读的内容",
+    "retakeNote": "录音 #{{n}} 要改什么",
+    "retakeNoteHint": "更柔和更悲伤；结尾快一点",
+    "retakeRun": "重做",
+    "retakeChain": "录音 #{{n}} 的指示：{{text}}"
   },
   "tags": {
     "emotion": "情绪",

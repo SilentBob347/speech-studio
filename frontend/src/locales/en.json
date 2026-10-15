@@ -1271,7 +1271,11 @@
     "characterAge": "Age: {{speaker}}",
     "genderAny": "gender not set",
     "ageAny": "age not set",
-    "savePlayer": "Player with the text (HTML): lights what is being read"
+    "savePlayer": "Player with the text (HTML): lights what is being read",
+    "retakeNote": "What to change in take #{{n}}",
+    "retakeNoteHint": "softer and sadder; faster at the end",
+    "retakeRun": "Redo",
+    "retakeChain": "Take #{{n}} was made with: {{text}}"
   },
   "tags": {
     "emotion": "Emotion",

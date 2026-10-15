@@ -1271,7 +1271,11 @@
     "characterAge": "Idade: {{speaker}}",
     "genderAny": "gênero não indicado",
     "ageAny": "idade não indicada",
-    "savePlayer": "Leitor com o texto (HTML): destaca o que está a ser lido"
+    "savePlayer": "Leitor com o texto (HTML): destaca o que está a ser lido",
+    "retakeNote": "O que mudar na tomada #{{n}}",
+    "retakeNoteHint": "mais suave e mais triste; mais rápido no fim",
+    "retakeRun": "Refazer",
+    "retakeChain": "A tomada #{{n}} foi feita com: {{text}}"
   },
   "tags": {
     "emotion": "Emoção",

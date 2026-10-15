@@ -158,6 +158,25 @@ function CueList({ text, value, locked, onChange }: { text: React.RefObject<HTML
   );
 }
 
+/** A director's turn on a take: what to change, added to the direction the take was made with, makes the next take. */
+function RetakeNote({ take, busy, onRun }: { take: Take; busy: boolean; onRun: (note: string) => void }) {
+  const { t } = useTranslation();
+  const [note, setNote] = useState("");
+  const run = () => { const n = note.trim(); if (!n || busy) return; onRun(n); setNote(""); };
+  return (
+    <div className="text-[11px] text-[var(--color-muted)]">
+      <label className="block">{t("speech.retakeNote", { n: take.n })}
+        <div className="mt-1 flex items-center gap-1">
+          <input value={note} onChange={(e) => setNote(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") run(); }} placeholder={t("speech.retakeNoteHint")}
+            className="flex-1 min-w-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]" />
+          <button onClick={run} disabled={!note.trim() || busy} className="px-2 py-1 rounded-md border border-[var(--color-border)] text-[11px] text-[var(--color-text)] hover:border-[var(--color-accent)] disabled:opacity-40">{t("speech.retakeRun")}</button>
+        </div>
+      </label>
+      {take.direction.trim() && <span className="mt-0.5 block italic">{t("speech.retakeChain", { n: take.n, text: take.direction })}</span>}
+    </div>
+  );
+}
+
 /** Where the sentence holding `cursor` starts: after the last sentence end or line break before it, its tags kept. */
 function sentenceStart(value: string, cursor: number): number {
   let start = 0;
@@ -312,6 +331,7 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
         {caps && block.direction.trim() && !caps.direction && <span className="mt-0.5 block text-[var(--color-warn)]">{t("speech.directionIgnored", { engine: caps.name })}</span>}
         {caps && block.direction.trim() && caps.direction && caps.direction_presets_only && voice !== null && !caps.presets.some((p) => p.id === voice) && <span className="mt-0.5 block text-[var(--color-warn)]">{t("speech.directionPresetsOnly", { engine: caps.name })}</span>}
       </label>
+      {caps?.direction && take && <RetakeNote take={take} busy={rendering} onRun={(note) => { a.patch({ direction: [take.direction.trim(), note].filter(Boolean).join("; ") }); a.synth(true); }} />}
       {!simple && <>
       <div role="radiogroup" aria-label={t("review.title")} className="flex flex-wrap items-center gap-1 text-[11px]">
         <span className="text-[var(--color-muted)] mr-1">{t("review.title")}</span>

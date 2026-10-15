@@ -1271,7 +1271,11 @@
     "characterAge": "Edad: {{speaker}}",
     "genderAny": "género sin indicar",
     "ageAny": "edad sin indicar",
-    "savePlayer": "Reproductor con el texto (HTML): resalta lo que se lee"
+    "savePlayer": "Reproductor con el texto (HTML): resalta lo que se lee",
+    "retakeNote": "Qué cambiar en la toma #{{n}}",
+    "retakeNoteHint": "más suave y triste; más rápido al final",
+    "retakeRun": "Rehacer",
+    "retakeChain": "La toma #{{n}} se hizo con: {{text}}"
   },
   "tags": {
     "emotion": "Emoción",
