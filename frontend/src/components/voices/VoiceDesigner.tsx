@@ -7,6 +7,7 @@ import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
 import { useEscapeLayer } from "../../lib/escape";
 import { LANG_CHOICES } from "../speech/langs";
+import { NO_ATTRS, VOICE_ATTRS, describe, type VoiceAttrs } from "../../lib/voiceAttributes";
 
 type Candidate = { k: number; seconds: number; seed: number };
 
@@ -15,6 +16,7 @@ type Candidate = { k: number; seconds: number; seed: number };
 export default function VoiceDesigner({ onClose, onKept }: { onClose: () => void; onKept: (name: string) => void }) {
   const { t } = useTranslation();
   const [description, setDescription] = useState("");
+  const [attrs, setAttrs] = useState<VoiceAttrs>(NO_ATTRS);
   const [sample, setSample] = useState("");
   const [lang, setLang] = useState("auto");
   const [count, setCount] = useState(3);
@@ -62,6 +64,39 @@ export default function VoiceDesigner({ onClose, onKept }: { onClose: () => void
           <button onClick={onClose} disabled={busy} className="text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30" {...named(t("a11y.close"))}><X size={16} /></button>
         </div>
         <p className="text-[12px] text-[var(--color-muted)] leading-relaxed">{t("voices.designHint")}</p>
+        <details className="rounded-lg border border-[var(--color-border)] px-3 py-2">
+          <summary className="cursor-pointer text-[12px] text-[var(--color-muted)]">{t("voices.attrsTitle")}</summary>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {(["gender", "age", "pitch", "pace"] as const).map((key) => (
+              <label key={key} className="space-y-1 text-[12px] text-[var(--color-muted)]">{t(`voices.attr_${key}`)}
+                <select value={attrs[key]} onChange={(e) => setAttrs((a) => ({ ...a, [key]: e.target.value }))} className={field}>
+                  <option value="">{t("voices.attrAny")}</option>
+                  {Object.keys(VOICE_ATTRS[key]).map((v) => <option key={v} value={v}>{t(`voices.attr_${key}_${v}` as "voices.attr_gender_female")}</option>)}
+                </select>
+              </label>
+            ))}
+          </div>
+          {(["timbre", "manner"] as const).map((key) => (
+            <fieldset key={key} className="mt-2">
+              <legend className="text-[12px] text-[var(--color-muted)] mb-1">{t(`voices.attr_${key}`)}</legend>
+              <div className="flex flex-wrap gap-1">
+                {(Object.keys(VOICE_ATTRS[key]) as (keyof (typeof VOICE_ATTRS)[typeof key])[]).map((v) => {
+                  const on = (attrs[key] as string[]).includes(v);
+                  return (
+                    <button key={v} type="button" aria-pressed={on} onClick={() => setAttrs((a) => ({ ...a, [key]: on ? (a[key] as string[]).filter((x) => x !== v) : [...(a[key] as string[]), v] }))}
+                      className={`px-2 py-0.5 rounded-md border text-[11px] ${on ? "border-[var(--color-accent)] text-[var(--color-text)]" : "border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-text)]"}`}>{t(`voices.attr_${key}_${v}` as "voices.attr_gender_female")}</button>
+                  );
+                })}
+              </div>
+            </fieldset>
+          ))}
+          <label className="mt-2 block space-y-1 text-[12px] text-[var(--color-muted)]">{t("voices.attr_accent")}
+            <input value={attrs.accent} onChange={(e) => setAttrs((a) => ({ ...a, accent: e.target.value }))} placeholder={t("voices.attr_accentHint")} className={field} />
+          </label>
+          <button type="button" onClick={() => setDescription(describe(attrs))} className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-[var(--color-border)] text-[12px] text-[var(--color-accent-2)] hover:border-[var(--color-accent)]">
+            <Wand2 size={12} />{t("voices.attrsBuild")}
+          </button>
+        </details>
         <label className="block space-y-1 text-[12px] text-[var(--color-muted)]">{t("voices.designDescription")}
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder={t("voices.designDescriptionPlaceholder")} className={`${field} resize-y`} />
         </label>
