@@ -106,6 +106,17 @@ const STRETCH_PER_LETTER: f64 = 0.3;
 /// Тишина между словами длиннее этого (сверх пауз, заданных в тексте) — разрыв.
 const GAP_SECS: f64 = 1.5;
 
+/// Модель повторила кусок: два–четыре слова услышаны дважды подряд, а в тексте блока они подряд не повторяются.
+pub fn repeated(expected: &[String], heard: &[String]) -> bool {
+    let doubled = |words: &[String], n: usize| -> Vec<Vec<String>> {
+        (0..words.len().saturating_sub(2 * n - 1)).filter(|&i| words[i..i + n] == words[i + n..i + 2 * n]).map(|i| words[i..i + n].to_vec()).collect()
+    };
+    (2..=4).any(|n| {
+        let written = doubled(expected, n);
+        doubled(heard, n).iter().any(|run| !written.contains(run))
+    })
+}
+
 /// Дефекты дубля по таймингам слов распознавания; `pause_secs` — самая длинная пауза, заданная в тексте блока.
 pub fn timing_issues(words: &[crate::ref_pick::Word], duration: f64, pause_secs: f64) -> Vec<String> {
     let mut issues = Vec::new();
@@ -159,6 +170,10 @@ mod tests {
         assert_eq!(timing_issues(&[w("да", 0.0, 1.5)], 1.6, 0.0), vec!["stretched"]);
         assert_eq!(timing_issues(&[w("да", 0.0, 0.3), w("нет", 2.2, 2.5)], 2.6, 0.0), vec!["gap"]);
         assert!(timing_issues(&[w("да", 0.0, 0.3), w("нет", 2.2, 2.5)], 2.6, 1.0).is_empty(), "a written pause is no gap");
+        let words = |t: &str| normalize(t);
+        assert!(repeated(&words("Он пришёл домой и лёг спать."), &words("Он пришёл домой домой и лёг спать пришёл домой пришёл домой.")));
+        assert!(!repeated(&words("Он пришёл домой и лёг спать."), &words("Он пришёл домой и лёг спать.")));
+        assert!(!repeated(&words("Ну и ну, ну и ну!"), &words("Ну и ну ну и ну")), "a repeat the text has is no defect");
     }
 
     fn w(s: &str) -> Vec<String> {

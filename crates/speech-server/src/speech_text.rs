@@ -240,22 +240,31 @@ pub fn has_stress(text: &str) -> bool {
     STRESS.is_match(text)
 }
 
-/// Тишина между фразами, на которые режется длинный кусок (как в Supertonic `call`).
-pub const PHRASE_GAP_MS: u32 = 300;
+/// Тишина между фразами длинного куска по типу границы: предложение — как в Supertonic `call`, запятая и слово короче.
+pub const SENTENCE_GAP_MS: u32 = 300;
+pub const COMMA_GAP_MS: u32 = 150;
+pub const WORD_GAP_MS: u32 = 60;
 
 /// Кусок текста фразами не длиннее `max` знаков — алгоритм Supertonic `chunk_text`: по предложениям, у слишком
-/// длинного предложения по запятым, у слишком длинной части по словам.
-pub fn phrases(text: &str, max: usize) -> Vec<String> {
+/// длинного предложения по запятым, у слишком длинной части по словам. У каждой фразы — пауза перед ней в мс по типу
+/// границы, на которой резали (у первой 0).
+pub fn phrases(text: &str, max: usize) -> Vec<(String, u32)> {
+    #[derive(Clone, Copy)]
+    enum Cut {
+        Sentence,
+        Comma,
+        Word,
+    }
     let text = text.trim();
     let len = |s: &str| s.chars().count();
     if len(text) <= max {
-        return vec![text.to_string()];
+        return vec![(text.to_string(), 0)];
     }
-    let mut out: Vec<String> = Vec::new();
+    let mut out: Vec<(String, Cut)> = Vec::new();
     let mut current = String::new();
-    let flush = |current: &mut String, out: &mut Vec<String>| {
+    let flush = |current: &mut String, out: &mut Vec<(String, Cut)>, cut: Cut| {
         if !current.trim().is_empty() {
-            out.push(current.trim().to_string());
+            out.push((current.trim().to_string(), cut));
         }
         current.clear();
     };
@@ -265,24 +274,24 @@ pub fn phrases(text: &str, max: usize) -> Vec<String> {
             continue;
         }
         if len(sentence) > max {
-            flush(&mut current, &mut out);
+            flush(&mut current, &mut out, Cut::Sentence);
             for part in sentence.split(',').map(str::trim).filter(|p| !p.is_empty()) {
                 if len(part) > max {
-                    flush(&mut current, &mut out);
+                    flush(&mut current, &mut out, Cut::Comma);
                     let mut words = String::new();
                     for word in part.split_whitespace() {
                         if !words.is_empty() && len(&words) + len(word) + 1 > max {
-                            flush(&mut words, &mut out);
+                            flush(&mut words, &mut out, Cut::Word);
                         }
                         if !words.is_empty() {
                             words.push(' ');
                         }
                         words.push_str(word);
                     }
-                    flush(&mut words, &mut out);
+                    flush(&mut words, &mut out, Cut::Comma);
                 } else {
                     if !current.is_empty() && len(&current) + len(part) + 2 > max {
-                        flush(&mut current, &mut out);
+                        flush(&mut current, &mut out, Cut::Comma);
                     }
                     if !current.is_empty() {
                         current.push_str(", ");
@@ -293,15 +302,20 @@ pub fn phrases(text: &str, max: usize) -> Vec<String> {
             continue;
         }
         if !current.is_empty() && len(&current) + len(sentence) + 1 > max {
-            flush(&mut current, &mut out);
+            flush(&mut current, &mut out, Cut::Sentence);
         }
         if !current.is_empty() {
             current.push(' ');
         }
         current.push_str(sentence);
     }
-    flush(&mut current, &mut out);
-    out
+    flush(&mut current, &mut out, Cut::Sentence);
+    let gap = |cut: Cut| match cut {
+        Cut::Sentence => SENTENCE_GAP_MS,
+        Cut::Comma => COMMA_GAP_MS,
+        Cut::Word => WORD_GAP_MS,
+    };
+    out.iter().enumerate().map(|(k, (s, _))| (s.clone(), if k == 0 { 0 } else { gap(out[k - 1].1) })).collect()
 }
 
 /// Предложения: конец — `.`, `!`, `?` или `…` с пробелом после, кроме сокращений.
@@ -361,14 +375,16 @@ mod tests {
 
     #[test]
     fn long_text_is_cut_into_phrases_by_sentences_then_commas_then_words() {
-        assert_eq!(phrases("Коротко.", 20), vec!["Коротко."]);
-        assert_eq!(phrases("Раз два три. Четыре пять! Шесть семь восемь?", 26), vec!["Раз два три. Четыре пять!", "Шесть семь восемь?"]);
-        assert_eq!(phrases("Он пришёл в т.е. другой дом. Вот так.", 30), vec!["Он пришёл в т.е. другой дом.", "Вот так."]);
-        assert_eq!(phrases("один два три четыре, пять шесть семь восемь", 22), vec!["один два три четыре", "пять шесть семь восемь"]);
+        let texts = |t: &str, max| phrases(t, max).into_iter().map(|(s, _)| s).collect::<Vec<_>>();
+        assert_eq!(phrases("Коротко.", 20), vec![("Коротко.".to_string(), 0)]);
+        assert_eq!(phrases("Раз два три. Четыре пять! Шесть семь восемь?", 26), vec![("Раз два три. Четыре пять!".to_string(), 0), ("Шесть семь восемь?".to_string(), SENTENCE_GAP_MS)]);
+        assert_eq!(texts("Он пришёл в т.е. другой дом. Вот так.", 30), vec!["Он пришёл в т.е. другой дом.", "Вот так."]);
+        assert_eq!(phrases("один два три четыре, пять шесть семь восемь", 22), vec![("один два три четыре".to_string(), 0), ("пять шесть семь восемь".to_string(), COMMA_GAP_MS)]);
         let long = "слово ".repeat(40);
         let cut = phrases(&long, 50);
-        assert!(cut.len() > 1 && cut.iter().all(|p| p.chars().count() <= 50), "{cut:?}");
-        assert_eq!(cut.join(" "), long.trim());
+        assert!(cut.len() > 1 && cut.iter().all(|(p, _)| p.chars().count() <= 50), "{cut:?}");
+        assert!(cut.iter().skip(1).all(|(_, gap)| *gap == WORD_GAP_MS), "{cut:?}");
+        assert_eq!(cut.iter().map(|(s, _)| s.as_str()).collect::<Vec<_>>().join(" "), long.trim());
     }
 
     #[test]

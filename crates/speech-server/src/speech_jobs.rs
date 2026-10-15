@@ -133,6 +133,35 @@ fn resample_to(samples: Vec<f32>, sr: i32) -> Vec<f32> {
         .collect()
 }
 
+/// 10 ms fade-in and fade-out at a piece's edges (Dub's `timeline`): no click where pieces and silences join.
+fn fade_edges(samples: &mut [f32], sr: u32) {
+    let n = ((sr as usize) / 100).min(samples.len() / 2);
+    let len = samples.len();
+    for k in 0..n {
+        let f = k as f32 / n as f32;
+        samples[k] *= f;
+        samples[len - 1 - k] *= f;
+    }
+}
+
+/// A soft breath of 0.18–0.26 s (Dub's `generate_breath_sample`), at `level` RMS of the speech it comes before.
+fn breath(sr: u32, seed: usize, level: f32) -> Vec<f32> {
+    let n = ((0.18 + (seed % 5) as f64 * 0.02) * sr as f64) as usize;
+    let mut state: u32 = (seed as u32).wrapping_add(12345);
+    let (mut lp, mut hp) = (0.0f32, 0.0f32);
+    (0..n)
+        .map(|i| {
+            state = state.wrapping_mul(1664525).wrapping_add(1013904223);
+            let noise = ((state >> 9) as f32 / 8388608.0) - 1.0;
+            lp += 0.35 * (noise - lp);
+            hp += 0.12 * (lp - hp);
+            let at = i as f32 / n as f32;
+            let env = if at < 0.35 { (at / 0.35).powf(1.5) } else { ((1.0 - at) / 0.65).powf(1.2) };
+            (lp - hp) * env * 0.75 * level
+        })
+        .collect()
+}
+
 /// Звук одного блока: фразы синтезом, паузы тишиной. Возвращает сэмплы (SR), что разметки проигнорировано и сводку.
 /// Блок облаком: фраза за фразой, паузы и темп — как у Higgs. OpenRouter — своим клиентом, fal и Runware — через
 /// каталог (`cloud`), с ручкой задачи на диске до ответа и ценой в журнале расходов.
@@ -318,10 +347,10 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
                 if say.is_empty() {
                     continue;
                 }
-                for (j, phrase) in stx::phrases(&say, max_chars).iter().enumerate() {
-                    if j > 0 {
-                        live.pause(stx::PHRASE_GAP_MS, SR);
-                        out.extend(std::iter::repeat_n(0.0, (SR * stx::PHRASE_GAP_MS / 1000) as usize));
+                for (j, (phrase, gap)) in stx::phrases(&say, max_chars).iter().enumerate() {
+                    if *gap > 0 {
+                        live.pause(*gap, SR);
+                        out.extend(std::iter::repeat_n(0.0, (SR * gap / 1000) as usize));
                     }
                     let req = tts_host::Request {
                         text: phrase,
@@ -341,7 +370,8 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
                     }
                     secs += s.seconds;
                     retried.extend(s.defects.iter().map(|d| d.to_string()));
-                    let samples = resample_to(s.samples, s.sr);
+                    let mut samples = resample_to(s.samples, s.sr);
+                    fade_edges(&mut samples, SR);
                     if retimed {
                         let samples = at_rate(&samples, rate)?;
                         live.chunk(&samples, SR);
@@ -646,6 +676,9 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, pr
                 c.heard = heard.text.clone();
                 let pause = stx::pieces(&b.text).iter().filter_map(|x| if let Piece::Pause(ms) = x { Some(*ms as f64 / 1000.0) } else { None }).fold(0.0, f64::max);
                 c.issues = crate::qc::timing_issues(&heard.words, take.duration, pause);
+                if crate::qc::repeated(&crate::qc::normalize(&expected), &crate::qc::normalize(&heard_said)) {
+                    c.issues.push("repeat".to_string());
+                }
                 c.timed = heard.words.iter().map(|w| (w.word.clone(), (w.start * 1000.0).round() / 1000.0, (w.end * 1000.0).round() / 1000.0)).collect();
                 c
             } else {
@@ -883,6 +916,7 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
     let mut timed: Vec<(f64, f64, String, String, Vec<(String, f64, f64)>)> = Vec::new();
     let chapter_of: std::collections::HashMap<&str, usize> = project.chapters.iter().enumerate().flat_map(|(ci, c)| c.blocks.iter().map(move |b| (b.id.as_str(), ci))).collect();
     let mut chapter_starts: Vec<(usize, f64)> = Vec::new();
+    let mut prev_end: Option<usize> = None;
     for (i, b) in blocks.iter().enumerate() {
         progress(json!({ "type": "progress", "stage": "speech_export", "msg": t!("speech-export-block", n = (i + 1) as i64, total = blocks.len() as i64), "pct": (i * 90 / blocks.len()) as i64 }));
         let take = b.active.and_then(|n| b.takes.iter().find(|t| t.n == n)).ok_or_else(|| t!("speech-export-not-ready", count = 1))?;
@@ -912,9 +946,22 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         if mix.len() < at + samples.len() {
             mix.resize(at + samples.len(), 0.0);
         }
+        if let Some(end) = prev_end.filter(|_| project.settings.breaths) {
+            let gap = at.saturating_sub(end) as f64 / SR as f64;
+            if (0.40..=1.80).contains(&gap) {
+                let level = (samples.iter().map(|s| s * s).sum::<f32>() / samples.len().max(1) as f32).sqrt();
+                let b = breath(SR, i, level);
+                let margin = (0.04 * SR as f64) as usize;
+                let b_at = at.saturating_sub(b.len() + margin).max(end + margin);
+                for (k, s) in b.iter().enumerate().take(at.saturating_sub(b_at)) {
+                    mix[b_at + k] += *s;
+                }
+            }
+        }
         for (k, s) in samples.iter().enumerate() {
             mix[at + k] += *s;
         }
+        prev_end = Some(at + samples.len());
         cursor = cursor.max((at + samples.len()) as i64);
         if let Some(own) = b.pause_ms.filter(|_| i + 1 == blocks.len()) {
             mix.resize(mix.len() + (SR as i64 * own.max(0) / 1000) as usize, 0.0);
