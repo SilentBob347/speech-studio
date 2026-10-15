@@ -121,8 +121,11 @@ connected and the address to paste.
   voices), `qwen3-tts` (nine named voices, cloning, the block's direction as its instruction) and `qwen3-tts-ru` (Russian
   stress marks, a library voice of at most 10 s). A speaker's engine (`cast_engines`) and a block's (`engine`) override
   the project's; cloud engines are set for the whole project only. Cloud engines cost money: `openrouter`, `google` (Gemini; the project's
-  `cloud_model` and `cloud_voice`, Batch mode from the studio setting `google_tts_mode` voices the whole job as one
-  half-price batch that can take hours), `fal`, `runware`. Ask the user before a paid run.
+  `cloud_model` and `cloud_voice`; the studio setting `google_tts_mode`: `standard` - direct requests,
+  `or_concurrency` at a time; `batch` - the whole job as one half-price batch that can take hours, safe to restart: a
+  batch already sent is found again, not paid twice; `auto` - direct up to 10 phrases, batch from 11;
+  `project_google_report` shows the batch waiting, the last job's result with each failed phrase and Google's reason,
+  and past batches), `fal`, `runware`. Ask the user before a paid run.
 - **Text**: `text_prepare` shows how a text will be read (dictionary, Russian normalisation, stress marks, the engine's
   text), `text_stress` gives stress marks and ё with unsure homographs, `dictionary_get` / `dictionary_set` /
   `dictionary_import` (Balabolka .dic, .rex, .bxd), `dictionary_try` + `dictionary_try_file` (hear a rule before saving

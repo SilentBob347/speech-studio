@@ -284,6 +284,12 @@ pub(super) fn tools() -> Vec<Tool> {
             call: |args| get(project_path(args, "/queue")?),
         },
         Tool {
+            name: "project_google_report",
+            description: "Google Gemini voicing of a project: the batch waiting at Google now (its state and how many phrases are ready), the last job's result (mode standard or batch, phrases asked, ready, failed with Google's reason, cost estimate, seconds) and every finished or expired batch. The mode is the setting google_tts_mode: standard (direct requests, or_concurrency at a time), batch (half the tariff, Google takes up to a day) or auto (direct up to 10 phrases, batch from 11).",
+            schema: project_only,
+            call: |args| get(project_path(args, "/google")?),
+        },
+        Tool {
             name: "project_queue_clear",
             description: "Take every waiting request of a project off its queue; the voicing that runs goes on.",
             schema: project_only,

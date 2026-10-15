@@ -134,9 +134,12 @@ impl Client {
                 .and_then(Value::as_str)
                 .map(str::to_owned)
             {
+                // a results file of a whole book is hundreds of MB: the client's 180 s is too short for it
+                let long = rust_genai::types::http::HttpOptions { timeout: Some(3_600_000), ..Default::default() };
+                let config = rust_genai::types::files::DownloadFileConfig { http_options: Some(long), ..Default::default() };
                 let bytes = self
                     .runtime
-                    .block_on(self.sdk.files().download(&file))
+                    .block_on(self.sdk.files().download_with_config(&file, config))
                     .map_err(|e| e.to_string().replace(&self.key, "[redacted]"))?;
                 let text = std::str::from_utf8(&bytes).map_err(|e| e.to_string())?;
                 let mut rows = Vec::new();
@@ -174,25 +177,52 @@ impl Client {
         file.name.ok_or("Google uploaded JSONL has no name".into())
     }
 
-    /// `Err((refused, message))`: `refused` when Google answered 4xx, so no batch exists and a new submission is safe.
-    pub(crate) fn batch_create(&self, model: &str, display: &str, file: &str) -> Result<String, (bool, String)> {
-        let src = rust_genai::types::batches::BatchJobSource {
-            file_name: Some(file.into()),
+    /// One attempt only: a retry after a lost answer would create and bill a second batch.
+    pub(crate) fn batch_create(&self, model: &str, display: &str, file: &str) -> Result<Created, String> {
+        validate_model(model)?;
+        let src = rust_genai::types::batches::BatchJobSource { file_name: Some(file.into()), ..Default::default() };
+        let once = rust_genai::types::http::HttpOptions {
+            retry_options: Some(rust_genai::types::http::HttpRetryOptions { attempts: Some(1), ..Default::default() }),
             ..Default::default()
         };
-        let config = rust_genai::types::batches::CreateBatchJobConfig {
-            display_name: Some(display.into()),
-            ..Default::default()
-        };
-        self.runtime
-            .block_on(self.sdk.batches().create(model, src, config))
-            .map_err(|e| {
-                let refused = matches!(e, rust_genai::Error::ApiError { status: 400..=499, .. });
-                (refused, e.to_string().replace(&self.key, "[redacted]"))
-            })?
-            .name
-            .ok_or((false, "Google Batch has no name".into()))
+        let config = rust_genai::types::batches::CreateBatchJobConfig { display_name: Some(display.into()), http_options: Some(once), ..Default::default() };
+        match self.runtime.block_on(self.sdk.batches().create(model, src, config)) {
+            Ok(job) => Ok(Created::Name(job.name.ok_or("Google Batch has no name")?)),
+            // a 4xx other than 408 is a definite refusal: nothing was created
+            Err(e) if e.status().is_some_and(|s| s.is_client_error() && s.as_u16() != 408) => {
+                let code = e.status().map_or(0, |s| s.as_u16());
+                Ok(Created::Rejected(code, e.to_string().replace(&self.key, "[redacted]")))
+            }
+            Err(e) => Err(e.to_string().replace(&self.key, "[redacted]")),
+        }
     }
+
+    /// The batches carrying this display name (each submission gets its own).
+    pub(crate) fn batch_find(&self, display: &str) -> Result<Vec<String>, String> {
+        let mut found = Vec::new();
+        let mut token: Option<String> = None;
+        loop {
+            let config = rust_genai::types::batches::ListBatchJobsConfig { page_size: Some(100), page_token: token.clone(), ..Default::default() };
+            let page = self.runtime.block_on(self.sdk.batches().list_with_config(config)).map_err(|e| e.to_string().replace(&self.key, "[redacted]"))?;
+            for job in page.batch_jobs.unwrap_or_default() {
+                if job.display_name.as_deref() == Some(display) {
+                    found.extend(job.name);
+                }
+            }
+            match page.next_page_token.filter(|t| !t.is_empty()) {
+                Some(t) => token = Some(t),
+                None => break,
+            }
+        }
+        Ok(found)
+    }
+}
+
+/// What creating a batch came to.
+pub(crate) enum Created {
+    Name(String),
+    /// Google refused it (status, message): nothing was created.
+    Rejected(u16, String),
 }
 
 fn validate_model(model: &str) -> Result<(), String> {
@@ -315,7 +345,7 @@ pub fn estimate(model: &str, batch: bool, usage: &Value) -> Value {
         "pricing_url":"https://ai.google.dev/gemini-api/docs/pricing#gemini-3.8-flash-lite-tts"})
 }
 
-fn save(path: &Path, value: &Value) -> Result<(), String> {
+pub(crate) fn save(path: &Path, value: &Value) -> Result<(), String> {
     dub_core::atomic::write(
         path,
         serde_json::to_vec_pretty(value)

@@ -689,8 +689,10 @@
     "mode": "Modo de solicitud",
     "standard": "Estándar — solicitudes inmediatas",
     "batch": "Batch — tarifa API un 50% menor",
+    "auto": "Auto: directo hasta 10 frases, Batch desde 11",
+    "autoHint": "Hasta 10 frases van como solicitudes directas al instante; más van a Google Batch a mitad de tarifa. El coste está en Ajustes, Nube.",
     "batchHint": "Google pone el lote en cola (objetivo: un día). Cancelar la tarea en el estudio solo detiene la consulta: el lote sigue en Google y la siguiente ejecución recoge su resultado sin volver a pagar. Lo gastado está en Ajustes, Nube.",
-    "standardHint": "Frase a frase con solicitudes directas. Lo gastado está en Ajustes, Nube.",
+    "standardHint": "Solicitudes directas, varias frases a la vez (solicitudes paralelas en Ajustes, Nube). El coste está en Ajustes, Nube.",
     "provider_local": "En local · Higgs",
     "provider_openrouter": "Mediante OpenRouter",
     "provider_google": "Google · directo"

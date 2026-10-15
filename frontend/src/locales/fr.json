@@ -689,8 +689,10 @@
     "mode": "Mode de requête",
     "standard": "Standard — requêtes immédiates",
     "batch": "Batch — tarif API réduit de 50 %",
+    "auto": "Auto : direct jusqu’à 10 phrases, Batch dès 11",
+    "autoHint": "Jusqu’à 10 phrases partent en requêtes directes tout de suite, au-delà en Google Batch à moitié prix. Le coût est dans Réglages, Cloud.",
     "batchHint": "Google met le lot en file (objectif : un jour). Annuler la tâche dans le studio arrête seulement l’interrogation : le lot continue chez Google et l’exécution suivante récupère son résultat sans payer à nouveau. Les dépenses sont dans Réglages, Cloud.",
-    "standardHint": "Phrase par phrase par requêtes directes. Les dépenses sont dans Réglages, Cloud.",
+    "standardHint": "Requêtes directes, plusieurs phrases à la fois (requêtes parallèles dans Réglages, Cloud). Le coût est dans Réglages, Cloud.",
     "provider_local": "En local · Higgs",
     "provider_openrouter": "Via OpenRouter",
     "provider_google": "Google · directement"

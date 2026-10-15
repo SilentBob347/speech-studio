@@ -197,7 +197,7 @@ fn synth_block_cloud(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Bl
                     continue;
                 }
                 let samples = if let Some(g) = &google {
-                    let (samples, est) = crate::google_speech::phrase(&p.repo_root, &p.models_root, &p.workspace.join(pid), pid, g, &say, b.direction.trim())?;
+                    let (samples, est) = crate::google_speech::phrase(&p.repo_root, &p.models_root, &p.workspace.join(pid), pid, g, &say, b.direction.trim(), n)?;
                     estimate = match (estimate, est) { (Some(a), Some(b)) => Some(a + b), (a, b) => a.or(b) };
                     samples
                 } else if provider == "openrouter" {
@@ -241,14 +241,12 @@ fn synth_block_cloud(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Bl
     Ok((fitted.samples, serde_json::to_value(&prepared.ignored).unwrap_or(Value::Null), take))
 }
 
-/// Режим Batch Google: фразы всех блоков задачи, которые будут озвучены, одной пачкой заранее — синтез блоков потом
-/// берёт их из кэша. Фразы собираются тем же разбором, что и в `synth_block_cloud`.
-fn google_batch(p: &SpeechPaths, pid: &str, ids: &[String], force: bool, progress: &dyn Fn(Value)) -> Result<(), String> {
+/// Gemini: фразы всех блоков задачи, которые будут озвучены, заранее в кэш — обычными запросами в несколько потоков
+/// или пачкой, по режиму; синтез блоков берёт звук оттуда. Фразы собираются тем же разбором, что и в
+/// `synth_block_cloud`, с номерами дублей, которые получат блоки (`takes` на блок при нескольких дублях).
+fn google_prefetch(p: &SpeechPaths, pid: &str, ids: &[String], force: bool, takes: u32, progress: &dyn Fn(Value)) -> Result<(), String> {
     let project = sp::load(&p.workspace, pid)?;
     let g = crate::google_speech::setup(&p.models_root, &project.settings.cloud_model, &project.settings.cloud_voice)?;
-    if !g.batch {
-        return Ok(());
-    }
     let entries = dictionary(p, &project);
     let mut keys = keys(p, &project);
     let mut phrases = Vec::new();
@@ -259,16 +257,22 @@ fn google_batch(p: &SpeechPaths, pid: &str, ids: &[String], force: bool, progres
         }
         let stress = project.settings.auto_stress && crate::stress::is_russian(&b.text, &project.settings.lang);
         let prepared = crate::prep::prepare(&b.text, &prep_opts(p, &project, project.engine_of(b), Some(g.voice.as_str()), &entries, stress)).map_err(|e| t!("stress-failed", detail = e))?;
+        let first = b.takes.iter().map(|t| t.n).max().unwrap_or(0) + 1;
         for piece in stx::pieces(&prepared.text) {
             if let Piece::Say(text) = piece {
                 let say = stx::visible(&text);
                 if !say.trim().is_empty() {
-                    phrases.push((say, b.direction.trim().to_string()));
+                    for n in first..first + takes.max(1) {
+                        phrases.push(crate::google_speech::Want { text: say.clone(), style: b.direction.trim().to_string(), n });
+                    }
                 }
             }
         }
     }
-    crate::google_speech::batch(&p.repo_root, &p.models_root, &p.workspace.join(pid), pid, &g, &phrases, progress)
+    if phrases.is_empty() {
+        return Ok(());
+    }
+    crate::google_speech::prefetch(&p.repo_root, &p.models_root, &p.workspace.join(pid), pid, &g, &phrases, progress).map(|_| ())
 }
 
 fn synth_block(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Block, n: u32) -> Result<(Vec<f32>, Value, Take), String> {
@@ -859,8 +863,8 @@ fn synth_scope(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Valu
     if project.settings.auto_stress && wanted.iter().any(|id| project.blocks().any(|b| &b.id == id && crate::stress::is_russian(&b.text, &project.settings.lang))) {
         crate::ensure_components(&p.repo_root, &[crate::stress::COMPONENT, "onnxruntime"], &|ev| progress(ev))?;
     }
-    if project.settings.engine == "google" {
-        google_batch(p, pid, &wanted, scope.force, progress)?;
+    if project.blocks().any(|b| wanted.contains(&b.id) && project.engine_of(b) == "google") {
+        google_prefetch(p, pid, &wanted, scope.force, qc.takes, progress)?;
     }
     let checking = qc.asr_check || qc.takes > 1 || qc.similarity;
     let (mut done, mut failed, mut skipped) = (0usize, Vec::new(), 0usize);

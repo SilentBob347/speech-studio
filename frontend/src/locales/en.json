@@ -689,8 +689,10 @@
     "mode": "Request mode",
     "standard": "Standard — immediate requests",
     "batch": "Batch — 50% lower API tariff",
+    "auto": "Auto — direct up to 10 phrases, Batch from 11",
+    "autoHint": "Up to 10 phrases go as direct requests at once, more go to Google Batch at half the tariff. What it has cost is in Settings, Cloud.",
     "batchHint": "Google queues the batch (target: one day). Cancelling the job in the studio only stops the polling: the batch keeps running at Google, and the next run takes its result without paying again. What it has cost is in Settings, Cloud.",
-    "standardHint": "Phrase by phrase with direct requests. What it has cost is in Settings, Cloud.",
+    "standardHint": "Direct requests, several phrases at a time (parallel requests in Settings, Cloud). What it has cost is in Settings, Cloud.",
     "provider_local": "Local · Higgs",
     "provider_openrouter": "OpenRouter",
     "provider_google": "Google · direct"

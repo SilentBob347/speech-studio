@@ -689,8 +689,10 @@
     "mode": "Modo de solicitação",
     "standard": "Padrão — solicitações imediatas",
     "batch": "Batch — tarifa da API 50% menor",
+    "auto": "Auto: direto até 10 frases, Batch a partir de 11",
+    "autoHint": "Até 10 frases vão como pedidos diretos na hora; mais vão para o Google Batch pela metade da tarifa. O custo está em Configurações, Nuvem.",
     "batchHint": "O Google coloca o lote na fila (meta: um dia). Cancelar a tarefa no estúdio só interrompe a consulta: o lote continua no Google e a próxima execução pega o resultado sem pagar de novo. O gasto fica em Configurações, Nuvem.",
-    "standardHint": "Frase a frase com pedidos diretos. O gasto fica em Configurações, Nuvem.",
+    "standardHint": "Pedidos diretos, várias frases ao mesmo tempo (pedidos paralelos em Configurações, Nuvem). O custo está em Configurações, Nuvem.",
     "provider_local": "No computador · Higgs",
     "provider_openrouter": "Pelo OpenRouter",
     "provider_google": "Google · direto"

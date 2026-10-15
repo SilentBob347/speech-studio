@@ -689,8 +689,10 @@
     "mode": "请求模式",
     "standard": "标准 — 即时请求",
     "batch": "批处理 — API 费率降低 50%",
+    "auto": "自动：10 句以内直接请求，11 句起用 Batch",
+    "autoHint": "10 句以内直接请求立即完成，更多的句子半价走 Google Batch。费用见“设置 → 云端”。",
     "batchHint": "Google 将批次排队（目标：一天内）。在工作室中取消任务只会停止轮询：批次在 Google 继续运行，下次运行会取回结果而无需再次付费。花费见“设置 → 云端”。",
-    "standardHint": "逐句直接请求。花费见“设置 → 云端”。",
+    "standardHint": "直接请求，每次并发多句（并发数见“设置 → 云端”）。费用见“设置 → 云端”。",
     "provider_local": "本地 · Higgs",
     "provider_openrouter": "通过 OpenRouter",
     "provider_google": "Google · 直连"

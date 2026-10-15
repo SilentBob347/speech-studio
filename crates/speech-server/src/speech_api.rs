@@ -255,6 +255,14 @@ pub async fn queue(AxPath(pid): AxPath<String>) -> Json<Value> {
     Json(json!({ "queue": speech_jobs::queue_of(&pid) }))
 }
 
+/// GET /projects/{pid}/google — Gemini проекта: идущая пачка, итог последней задачи и история пачек.
+pub async fn google_report(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Response {
+    if !sp::is_pid(&pid) {
+        return refuse(StatusCode::BAD_REQUEST, "bad_request", pid);
+    }
+    Json(crate::google_speech::report(&st.workspace.join(&pid))).into_response()
+}
+
 /// DELETE /projects/{pid}/queue[/{n}] — убрать запрос из очереди или очистить её.
 pub async fn queue_remove(AxPath((pid, n)): AxPath<(String, u64)>) -> Json<Value> {
     Json(json!({ "removed": speech_jobs::unqueue(&pid, Some(n)) }))

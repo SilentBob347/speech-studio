@@ -1,20 +1,45 @@
-//! Google Gemini TTS как движок проекта (`google_tts.rs` Dub): модель и режим — из «Облака», голос — проекта. Фраза
-//! кэшируется в папке проекта по модели, голосу, тексту и указанию. Режим Batch (вдвое дешевле) собирает все фразы
-//! задачи в одну пачку заранее: её имя пишется в журнал до опроса, и после перезапуска пачка опрашивается, а не
-//! отправляется заново; готовые фразы ложатся в кэш, и блоки берут звук оттуда.
+//! Google Gemini TTS как движок проекта (`google_tts.rs` Dub, пачки — `loc-tts` Game Dub): модель и режим — из
+//! «Облака», голос — проекта. Задача озвучки заранее собирает свои фразы и получает их звук в кэш папки проекта:
+//! обычный режим — параллельными запросами, Batch (вдвое дешевле) — одной пачкой, «авто» — пачкой от одиннадцати фраз.
+//! Ключ кэша — модель, голос, текст, указание и номер дубля: перезвучка — новый запрос, повтор после сбоя — уже
+//! оплаченный звук. Журнал пачки пишется до отправки: после сбоя пачка находится в Google по своему имени, а не
+//! отправляется второй раз. Итог каждой задачи — отчёт в папке проекта (`cloud/google-report.json`).
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use serde_json::{json, Value};
 
 const SR: u32 = 24_000;
-const BATCH_POLL: Duration = Duration::from_secs(10);
+const BATCH_POLL_SECS: u64 = 30;
+/// Сколько фраз «авто» отправляет прямыми запросами: больше — пачкой (правило Game Dub для доводки).
+const AUTO_DIRECT_MAX: usize = 10;
+/// Пачка, которой нет в списке Google через столько после отправки, не создалась.
+const UNLISTED_AFTER_SECS: i64 = 30 * 60;
+/// Чтение статуса и результатов повторяется: обрыв сети за часы ожидания не должен ронять задачу.
+const READ_ATTEMPTS: u32 = 20;
+/// Обычный запрос при 429 и 5xx повторяется столько раз.
+const DIRECT_ATTEMPTS: u32 = 3;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Mode {
+    Standard,
+    Batch,
+    Auto,
+}
 
 pub struct Setup {
     pub model: String,
     pub voice: String,
-    pub batch: bool,
+    pub mode: Mode,
+}
+
+/// Фраза задачи: текст, указание и номер дубля блока.
+pub struct Want {
+    pub text: String,
+    pub style: String,
+    pub n: u32,
 }
 
 /// Модель (проекта, иначе студии), голос проекта и режим студии; без модели или голоса — ошибка с тем, что задать.
@@ -30,7 +55,12 @@ pub fn setup(models_root: &Path, model: &str, voice: &str) -> Result<Setup, Stri
     if voice.trim().is_empty() {
         return Err(t!("google-no-voice"));
     }
-    Ok(Setup { model, voice: voice.trim().to_string(), batch: sel.get("google_tts_mode").and_then(Value::as_str) == Some("batch") })
+    let mode = match sel.get("google_tts_mode").and_then(Value::as_str) {
+        Some("batch") => Mode::Batch,
+        Some("auto") => Mode::Auto,
+        _ => Mode::Standard,
+    };
+    Ok(Setup { model, voice: voice.trim().to_string(), mode })
 }
 
 fn client() -> Result<crate::google_tts::Client, String> {
@@ -38,9 +68,33 @@ fn client() -> Result<crate::google_tts::Client, String> {
     crate::google_tts::Client::new(key)
 }
 
-fn cache(dir: &Path, s: &Setup, text: &str, style: &str) -> PathBuf {
-    let tag = blake3::hash(format!("{}|{}|{text}|{style}", s.model, s.voice).as_bytes()).to_hex()[..20].to_string();
-    dir.join("cloud").join("google").join(format!("{tag}.wav"))
+fn key_of(s: &Setup, text: &str, style: &str, n: u32) -> String {
+    blake3::hash(format!("{}|{}|{text}|{style}|{n}", s.model, s.voice).as_bytes()).to_hex()[..20].to_string()
+}
+
+fn cloud_dir(project_dir: &Path) -> PathBuf {
+    project_dir.join("cloud")
+}
+
+fn cache(project_dir: &Path, key: &str) -> PathBuf {
+    cloud_dir(project_dir).join("google").join(format!("{key}.wav"))
+}
+
+/// Фразы, которые задача не получила, с причиной: блок с такой фразой падает с ней, а не идёт другим путём.
+fn failed_path(project_dir: &Path) -> PathBuf {
+    cloud_dir(project_dir).join("google-failed.json")
+}
+
+fn journal_path(project_dir: &Path) -> PathBuf {
+    cloud_dir(project_dir).join("google-batch.json")
+}
+
+fn report_path(project_dir: &Path) -> PathBuf {
+    cloud_dir(project_dir).join("google-report.json")
+}
+
+fn history_dir(project_dir: &Path) -> PathBuf {
+    cloud_dir(project_dir).join("google-batches")
 }
 
 /// Звук ответа Google: PCM L16 24 кГц как есть, другой формат — через ffmpeg.
@@ -72,96 +126,335 @@ fn spend(repo_root: &Path, pid: &str, s: &Setup, usage: &Value, batch: bool) -> 
     cost
 }
 
-/// Фраза Gemini TTS (24 кГц): из кэша, иначе обычным запросом (в кэш и в журнал расходов) с оценкой цены.
-pub fn phrase(repo_root: &Path, models_root: &Path, project_dir: &Path, pid: &str, s: &Setup, text: &str, style: &str) -> Result<(Vec<f32>, Option<f64>), String> {
-    let path = cache(project_dir, s, text, style);
-    if path.is_file() {
-        return crate::wavio::read_mono_f32(&path).map(|(x, _)| (x, None));
-    }
-    crate::cloud::check_limit(repo_root, models_root, None)?;
-    let response = client()?.generate(&s.model, &crate::google_tts::request(text, &s.voice, style)?)?;
-    let (mime, bytes) = crate::google_tts::audio(&response)?;
+/// Ответ с целым клипом — в кэш; иначе ошибка с причиной Google (фильтр, обрыв).
+fn keep(project_dir: &Path, key: &str, response: &Value) -> Result<Vec<f32>, String> {
+    let (mime, bytes) = crate::google_tts::audio(response)?;
     let samples = samples_of(&mime, &bytes)?;
-    let cost = spend(repo_root, pid, s, &response["usageMetadata"], false);
+    let path = cache(project_dir, key);
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     }
     crate::wavio::write_mono_f32(&path, &samples, SR)?;
+    Ok(samples)
+}
+
+fn cancelled() -> bool {
+    crate::jobs::current().is_some_and(|c| c.is_cancelled())
+}
+
+/// Пауза с проверкой отмены каждую секунду.
+fn pause(secs: u64) -> Result<(), String> {
+    for _ in 0..secs {
+        if cancelled() {
+            return Err(crate::jobs::CANCELLED.to_string());
+        }
+        std::thread::sleep(Duration::from_secs(1));
+    }
+    Ok(())
+}
+
+/// Повтор того, что безопасно повторять (статус, скачивание): ждём дольше с каждой неудачей.
+fn retried<T>(what: &str, progress: &dyn Fn(Value), mut f: impl FnMut() -> Result<T, String>) -> Result<T, String> {
+    let mut attempt = 0;
+    loop {
+        attempt += 1;
+        match f() {
+            Ok(v) => return Ok(v),
+            Err(e) if attempt < READ_ATTEMPTS => {
+                let wait = 30 * u64::from(attempt.min(10));
+                progress(json!({ "type": "progress", "stage": "speech_synth", "msg": t!("google-retry", what = what.to_string(), attempt = attempt as i64, of = READ_ATTEMPTS as i64, secs = wait as i64, error = e.chars().take(200).collect::<String>()) }));
+                pause(wait)?;
+            }
+            Err(e) => return Err(t!("google-read-failed", what = what.to_string(), attempts = READ_ATTEMPTS as i64, error = e)),
+        }
+    }
+}
+
+/// Обычный запрос: 429 и 5xx повторяются с паузой, отказ фильтра и прочее — сразу ошибка.
+fn direct(c: &crate::google_tts::Client, s: &Setup, text: &str, style: &str) -> Result<Value, String> {
+    let request = crate::google_tts::request(text, &s.voice, style)?;
+    let mut attempt = 0;
+    loop {
+        attempt += 1;
+        match c.generate(&s.model, &request) {
+            Ok(r) => return Ok(r),
+            Err(e) if attempt < DIRECT_ATTEMPTS && (e.contains(" 429 ") || e.contains(" 500 ") || e.contains(" 502 ") || e.contains(" 503 ") || e.contains(" 504 ")) => {
+                pause(5 * 3u64.pow(attempt - 1))?;
+            }
+            Err(e) => return Err(e),
+        }
+    }
+}
+
+/// Фраза Gemini TTS (24 кГц) для блока: из кэша задачи; фраза, которую задача не получила, — ошибка с причиной;
+/// фраза вне задачи (проба правила) — обычным запросом.
+pub fn phrase(repo_root: &Path, models_root: &Path, project_dir: &Path, pid: &str, s: &Setup, text: &str, style: &str, n: u32) -> Result<(Vec<f32>, Option<f64>), String> {
+    let key = key_of(s, text, style, n);
+    let path = cache(project_dir, &key);
+    if path.is_file() {
+        return crate::wavio::read_mono_f32(&path).map(|(x, _)| (x, None));
+    }
+    let failed: HashMap<String, String> = std::fs::read(failed_path(project_dir)).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default();
+    if let Some(error) = failed.get(&key) {
+        return Err(t!("google-phrase-failed", error = error.clone()));
+    }
+    crate::cloud::check_limit(repo_root, models_root, None)?;
+    let response = direct(&client()?, s, text, style)?;
+    let samples = keep(project_dir, &key, &response)?;
+    let cost = spend(repo_root, pid, s, &response["usageMetadata"], false);
     Ok((samples, cost))
 }
 
-/// Пачка Batch на фразы, которых нет в кэше: создаётся (или находится по журналу) и ждётся; ответы — в кэш.
-pub fn batch(repo_root: &Path, models_root: &Path, project_dir: &Path, pid: &str, s: &Setup, phrases: &[(String, String)], progress: &dyn Fn(Value)) -> Result<(), String> {
-    let missing: Vec<&(String, String)> = phrases.iter().filter(|(t, st)| !cache(project_dir, s, t, st).is_file()).collect();
-    let journal = project_dir.join("cloud").join("google-batch.json");
-    if missing.is_empty() && !journal.is_file() {
-        return Ok(());
-    }
-    let c = client()?;
-    let name = match std::fs::read_to_string(&journal).ok().and_then(|t| serde_json::from_str::<Value>(&t).ok()).and_then(|j| j["name"].as_str().map(str::to_string)) {
-        Some(name) => name,
-        None => {
-            crate::cloud::check_limit(repo_root, models_root, None)?;
-            let rows: Vec<Value> = missing
-                .iter()
-                .map(|(t, st)| -> Result<Value, String> {
-                    let key = cache(project_dir, s, t, st).file_stem().map(|x| x.to_string_lossy().into_owned()).unwrap_or_default();
-                    Ok(json!({ "metadata": { "key": key }, "request": crate::google_tts::request(t, &s.voice, st)? }))
-                })
-                .collect::<Result<_, _>>()?;
-            progress(json!({ "type": "progress", "stage": "speech_synth", "msg": t!("google-batch-sending", n = rows.len() as i64) }));
-            let file = c.upload_requests(&Value::Array(rows))?;
-            let name = c.batch_create(&s.model, &format!("speech-studio-{pid}"), &file).map_err(|(_, e)| e)?;
-            if let Some(dir) = journal.parent() {
-                std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-            }
-            crate::voice_library::write_atomic(&journal, json!({ "name": name, "model": s.model, "voice": s.voice }).to_string().as_bytes())?;
-            name
+/// Звук всех фраз задачи заранее, в кэш: обычными запросами в несколько потоков или пачкой, по режиму. Фразы, которые
+/// не получились, записываются с причиной; отчёт задачи — в `cloud/google-report.json`.
+pub fn prefetch(repo_root: &Path, models_root: &Path, project_dir: &Path, pid: &str, s: &Setup, wants: &[Want], progress: &dyn Fn(Value)) -> Result<Value, String> {
+    let mut keys: Vec<(String, &Want)> = Vec::new();
+    for w in wants {
+        let key = key_of(s, &w.text, &w.style, w.n);
+        if !cache(project_dir, &key).is_file() && !keys.iter().any(|(k, _)| *k == key) {
+            keys.push((key, w));
         }
-    };
+    }
+    let pending = journal_path(project_dir).is_file();
+    if keys.is_empty() && !pending {
+        return Ok(json!({ "phrases": wants.len(), "cached": wants.len() }));
+    }
+    let batch = pending || s.mode == Mode::Batch || (s.mode == Mode::Auto && keys.len() > AUTO_DIRECT_MAX);
+    let started = Instant::now();
+    let c = client()?;
+    let (failed, cost, batch_name) = if batch { batch_run(&c, repo_root, models_root, project_dir, pid, s, &keys, progress)? } else { direct_run(&c, repo_root, models_root, project_dir, pid, s, &keys, progress)? };
+    let path = failed_path(project_dir);
+    let mut all: HashMap<String, String> = std::fs::read(&path).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default();
+    for (key, _) in &keys {
+        all.remove(key);
+    }
+    all.extend(failed.iter().map(|(k, e)| (k.clone(), e.clone())));
+    std::fs::create_dir_all(cloud_dir(project_dir)).map_err(|e| e.to_string())?;
+    crate::google_tts::save(&path, &json!(all))?;
+    let report = json!({
+        "at": chrono::Utc::now().to_rfc3339(),
+        "mode": if batch { "batch" } else { "standard" },
+        "setting": format!("{:?}", s.mode).to_lowercase(),
+        "model": s.model,
+        "voice": s.voice,
+        "phrases": wants.len(),
+        "requested": keys.len(),
+        "cached": wants.len() - keys.len(),
+        "ok": keys.len() - failed.len(),
+        "failed": failed.iter().map(|(k, e)| json!({ "key": k, "text": keys.iter().find(|(kk, _)| kk == k).map(|(_, w)| w.text.clone()), "error": e })).collect::<Vec<_>>(),
+        "cost_estimate_usd": cost,
+        "seconds": started.elapsed().as_secs_f64(),
+        "batch": batch_name,
+    });
+    crate::google_tts::save(&report_path(project_dir), &report)?;
+    Ok(report)
+}
+
+/// Обычные запросы в `or_concurrency` потоков.
+#[allow(clippy::too_many_arguments)]
+fn direct_run(c: &crate::google_tts::Client, repo_root: &Path, models_root: &Path, project_dir: &Path, pid: &str, s: &Setup, keys: &[(String, &Want)], progress: &dyn Fn(Value)) -> Result<(HashMap<String, String>, Option<f64>, Option<String>), String> {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Mutex;
+    crate::cloud::check_limit(repo_root, models_root, None)?;
+    let threads = crate::models::openrouter_concurrency(models_root).min(keys.len()).max(1);
+    let (next, done) = (AtomicUsize::new(0), AtomicUsize::new(0));
+    let failed: Mutex<HashMap<String, String>> = Mutex::new(HashMap::new());
+    let cost: Mutex<Option<f64>> = Mutex::new(None);
     let ctl = crate::jobs::current();
-    let op = loop {
-        if ctl.as_ref().is_some_and(|c| c.is_cancelled()) {
+    let total = keys.len();
+    progress(json!({ "type": "progress", "stage": "speech_synth", "msg": t!("google-direct-sending", n = total as i64, threads = threads as i64) }));
+    let (tell, told) = std::sync::mpsc::channel::<usize>();
+    std::thread::scope(|scope| {
+        for _ in 0..threads {
+            let (next, done, failed, cost, ctl, tell) = (&next, &done, &failed, &cost, ctl.clone(), tell.clone());
+            scope.spawn(move || {
+                let _entered = ctl.map(crate::jobs::enter);
+                loop {
+                    if cancelled() {
+                        break;
+                    }
+                    let i = next.fetch_add(1, Ordering::SeqCst);
+                    let Some((key, w)) = keys.get(i) else { break };
+                    let got = direct(c, s, &w.text, &w.style).and_then(|r| keep(project_dir, key, &r).map(|_| r));
+                    match got {
+                        Ok(r) => {
+                            if let Some(usd) = spend(repo_root, pid, s, &r["usageMetadata"], false) {
+                                let mut sum = cost.lock().unwrap_or_else(|p| p.into_inner());
+                                *sum = Some(sum.unwrap_or(0.0) + usd);
+                            }
+                        }
+                        Err(e) => {
+                            failed.lock().unwrap_or_else(|p| p.into_inner()).insert(key.clone(), e);
+                        }
+                    }
+                    let _ = tell.send(done.fetch_add(1, Ordering::SeqCst) + 1);
+                }
+            });
+        }
+        drop(tell);
+        for k in told {
+            progress(json!({ "type": "progress", "stage": "speech_synth", "msg": t!("google-direct-progress", done = k as i64, total = total as i64), "pct": (k * 100 / total) as i64 }));
+        }
+    });
+    if cancelled() {
+        return Err(crate::jobs::CANCELLED.to_string());
+    }
+    Ok((failed.into_inner().unwrap_or_default(), cost.into_inner().unwrap_or_default(), None))
+}
+
+/// Пачка: журнал до отправки, поиск по имени после потерянного ответа, ожидание с повторами чтения, результаты в кэш.
+#[allow(clippy::too_many_arguments)]
+fn batch_run(c: &crate::google_tts::Client, repo_root: &Path, models_root: &Path, project_dir: &Path, pid: &str, s: &Setup, keys: &[(String, &Want)], progress: &dyn Fn(Value)) -> Result<(HashMap<String, String>, Option<f64>, Option<String>), String> {
+    let path = journal_path(project_dir);
+    std::fs::create_dir_all(cloud_dir(project_dir)).map_err(|e| e.to_string())?;
+    let mut journal: Value = match std::fs::read(&path) {
+        Ok(b) => serde_json::from_slice(&b).map_err(|e| format!("{}: {e}", path.display()))?,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => json!({
+            "state": "new",
+            "model": s.model,
+            "voice": s.voice,
+            "display_name": format!("speech-studio-{pid}-{}", &uuid::Uuid::new_v4().simple().to_string()[..8]),
+            "keys": keys.iter().map(|(k, _)| k.clone()).collect::<Vec<_>>(),
+            "texts": keys.iter().map(|(_, w)| w.text.clone()).collect::<Vec<_>>(),
+            "created_at": chrono::Utc::now().to_rfc3339(),
+        }),
+        Err(e) => return Err(format!("{}: {e}", path.display())),
+    };
+    let display = journal["display_name"].as_str().unwrap_or_default().to_string();
+    if journal["name"].is_null() && journal.get("submitted").is_some() {
+        // отправка ушла, а ответ потерялся: пачка ищется в Google по своему имени
+        match retried("list", progress, || c.batch_find(&display))?.as_slice() {
+            [one] => {
+                journal["name"] = one.clone().into();
+                crate::google_tts::save(&path, &journal)?;
+            }
+            [] if journal["submitted_at"].as_i64().is_some_and(|t| chrono::Utc::now().timestamp() - t >= UNLISTED_AFTER_SECS) => {
+                journal.as_object_mut().map(|o| o.remove("submitted"));
+                crate::google_tts::save(&path, &journal)?;
+            }
+            [] => return Err(t!("google-batch-unknown", name = display.clone(), journal = path.display().to_string())),
+            many => return Err(t!("google-batch-many", name = display.clone(), n = many.len() as i64, journal = path.display().to_string())),
+        }
+    }
+    if journal["name"].is_null() {
+        // ключи задачи берутся из журнала: пачка та же, что начали отправлять
+        let wanted: Vec<String> = journal["keys"].as_array().map(|a| a.iter().filter_map(Value::as_str).map(str::to_string).collect()).unwrap_or_default();
+        let rows: Vec<Value> = keys
+            .iter()
+            .filter(|(k, _)| wanted.contains(k))
+            .map(|(k, w)| -> Result<Value, String> { Ok(json!({ "metadata": { "key": k }, "request": crate::google_tts::request(&w.text, &s.voice, &w.style)? })) })
+            .collect::<Result<_, _>>()?;
+        if rows.is_empty() {
+            let _ = std::fs::remove_file(&path);
+            return Ok((HashMap::new(), None, None));
+        }
+        crate::cloud::check_limit(repo_root, models_root, None)?;
+        if journal["input_file"].is_null() {
+            progress(json!({ "type": "progress", "stage": "speech_synth", "msg": t!("google-batch-sending", n = rows.len() as i64) }));
+            journal["input_file"] = c.upload_requests(&Value::Array(rows))?.into();
+            crate::google_tts::save(&path, &journal)?;
+        }
+        if cancelled() {
             return Err(crate::jobs::CANCELLED.to_string());
         }
-        let op = c.batch_get(&name)?;
+        journal["submitted"] = true.into();
+        journal["submitted_at"] = chrono::Utc::now().timestamp().into();
+        crate::google_tts::save(&path, &journal)?;
+        match c.batch_create(&s.model, &display, journal["input_file"].as_str().unwrap_or_default())? {
+            crate::google_tts::Created::Name(name) => {
+                journal["name"] = name.into();
+                journal["state"] = "BATCH_STATE_PENDING".into();
+                crate::google_tts::save(&path, &journal)?;
+            }
+            crate::google_tts::Created::Rejected(code, e) => {
+                journal.as_object_mut().map(|o| o.remove("submitted"));
+                if code != 429 {
+                    // входной файл живёт в Google 48 ч: после отказа он заливается заново
+                    journal.as_object_mut().map(|o| o.remove("input_file"));
+                }
+                journal["rejected"] = e.clone().into();
+                crate::google_tts::save(&path, &journal)?;
+                return Err(if code == 429 { t!("google-batch-queue-full", error = e) } else { t!("google-batch-rejected", error = e) });
+            }
+        }
+    }
+    let name = journal["name"].as_str().ok_or("the batch journal has no name")?.to_string();
+    let op = loop {
+        if cancelled() {
+            return Err(crate::jobs::CANCELLED.to_string());
+        }
+        let op = retried("status", progress, || c.batch_get(&name))?;
+        let stats = op.pointer("/metadata/batchStats").cloned().unwrap_or(Value::Null);
+        journal["state"] = op.pointer("/metadata/state").cloned().unwrap_or(Value::Null);
+        journal["stats"] = stats.clone();
+        journal["google_create_time"] = op.pointer("/metadata/createTime").cloned().unwrap_or(Value::Null);
+        journal["google_end_time"] = op.pointer("/metadata/endTime").cloned().unwrap_or(Value::Null);
+        crate::google_tts::save(&path, &journal)?;
         if op["done"] == true {
             break op;
         }
-        let state = op.pointer("/metadata/state").and_then(Value::as_str).unwrap_or("BATCH_STATE_PENDING").to_string();
-        progress(json!({ "type": "progress", "stage": "speech_synth", "msg": t!("google-batch-waiting", state = state) }));
-        std::thread::sleep(BATCH_POLL);
+        let count = |k: &str| stats.get(k).and_then(|v| v.as_str().and_then(|t| t.parse::<i64>().ok()).or_else(|| v.as_i64())).unwrap_or(0);
+        progress(json!({ "type": "progress", "stage": "speech_synth", "msg": t!("google-batch-waiting", state = journal["state"].as_str().unwrap_or("BATCH_STATE_PENDING").to_string(), done = count("successfulRequestCount") + count("failedRequestCount"), total = count("requestCount")) }));
+        pause(BATCH_POLL_SECS)?;
     };
-    let _ = std::fs::remove_file(&journal);
-    if let Some(error) = op.get("error").filter(|e| !e.is_null()) {
-        return Err(t!("google-batch-failed", error = error.to_string()));
-    }
-    let rows = op.pointer("/response/inlinedResponses/inlinedResponses").and_then(Value::as_array).cloned().unwrap_or_default();
-    let dir = project_dir.join("cloud").join("google");
-    std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-    let mut failed = Vec::new();
-    for row in rows {
-        let key = row.pointer("/metadata/key").and_then(Value::as_str).unwrap_or_default();
+    let stamp = chrono::Utc::now().format("%Y%m%d-%H%M%S").to_string();
+    std::fs::create_dir_all(history_dir(project_dir)).map_err(|e| e.to_string())?;
+    let rows = op.pointer("/response/inlinedResponses/inlinedResponses").and_then(Value::as_array).cloned();
+    let Some(rows) = rows else {
+        // истекла (48 ч в очереди), отменена или упала без результатов: журнал уходит в историю, следующая задача
+        // отправит те же фразы новой пачкой
+        let state = journal["state"].as_str().unwrap_or("unknown").to_lowercase();
+        journal["error"] = op.get("error").cloned().unwrap_or(Value::Null);
+        crate::google_tts::save(&history_dir(project_dir).join(format!("{stamp}-{state}.json")), &journal)?;
+        let _ = std::fs::remove_file(&path);
+        return Err(t!("google-batch-dead", name = name.clone(), state = state, error = op.get("error").map(Value::to_string).unwrap_or_default()));
+    };
+    let wanted: Vec<String> = journal["keys"].as_array().map(|a| a.iter().filter_map(Value::as_str).map(str::to_string).collect()).unwrap_or_default();
+    let mut failed: HashMap<String, String> = HashMap::new();
+    let mut cost: Option<f64> = None;
+    let mut seen: Vec<String> = Vec::new();
+    for row in &rows {
+        let Some(key) = row.pointer("/metadata/key").and_then(Value::as_str) else { continue };
+        seen.push(key.to_string());
         let response = row.get("response").cloned().unwrap_or(Value::Null);
-        match crate::google_tts::audio(&response) {
-            Ok((mime, bytes)) if !key.is_empty() => {
-                let samples = samples_of(&mime, &bytes)?;
-                crate::wavio::write_mono_f32(&dir.join(format!("{key}.wav")), &samples, SR)?;
-                spend(repo_root, pid, s, &response["usageMetadata"], true);
+        match keep(project_dir, key, &response) {
+            Ok(_) => {
+                if let Some(usd) = spend(repo_root, pid, s, &response["usageMetadata"], true) {
+                    cost = Some(cost.unwrap_or(0.0) + usd);
+                }
             }
-            Ok(_) => failed.push("no metadata.key".to_string()),
-            Err(e) => failed.push(row.get("error").filter(|e| !e.is_null()).map(Value::to_string).unwrap_or(e)),
+            Err(e) => {
+                failed.insert(key.to_string(), row.get("error").filter(|e| !e.is_null()).map(Value::to_string).unwrap_or(e));
+            }
         }
     }
-    if let Some(first) = failed.first() {
-        return Err(t!("google-batch-missing", n = failed.len() as i64, error = first.clone()));
+    for key in wanted.iter().filter(|k| !seen.contains(k)) {
+        failed.insert(key.clone(), t!("google-batch-no-row"));
     }
-    Ok(())
+    journal["state"] = "downloaded".into();
+    journal["ok"] = (seen.len() - failed.len().min(seen.len())).into();
+    journal["failed"] = failed.len().into();
+    journal["cost_estimate_usd"] = json!(cost);
+    crate::google_tts::save(&history_dir(project_dir).join(format!("{stamp}-done.json")), &journal)?;
+    let _ = std::fs::remove_file(&path);
+    Ok((failed, cost, Some(name)))
+}
+
+/// Отчёт проекта: идущая пачка, последние задачи Gemini и история пачек.
+pub fn report(project_dir: &Path) -> Value {
+    let read = |p: &Path| std::fs::read(p).ok().and_then(|b| serde_json::from_slice::<Value>(&b).ok());
+    let mut batches: Vec<Value> = std::fs::read_dir(history_dir(project_dir)).map(|rd| rd.flatten().filter_map(|e| read(&e.path())).collect()).unwrap_or_default();
+    batches.sort_by(|a, b| b["created_at"].as_str().cmp(&a["created_at"].as_str()));
+    json!({ "pending": read(&journal_path(project_dir)), "last": read(&report_path(project_dir)), "batches": batches })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn setup_with(mode: Mode) -> Setup {
+        Setup { model: "m".into(), voice: "Kore".into(), mode }
+    }
 
     #[test]
     fn setup_needs_a_model_and_a_voice_and_prefers_the_project_model() {
@@ -169,23 +462,48 @@ mod tests {
         assert!(setup(root.path(), "", "Kore").is_err());
         assert!(setup(root.path(), "gemini-3.8-flash-lite-tts", " ").is_err());
         let s = setup(root.path(), "gemini-3.8-flash-lite-tts", " Kore ").unwrap();
-        assert_eq!((s.model.as_str(), s.voice.as_str(), s.batch), ("gemini-3.8-flash-lite-tts", "Kore", false));
+        assert_eq!((s.model.as_str(), s.voice.as_str(), s.mode), ("gemini-3.8-flash-lite-tts", "Kore", Mode::Standard));
     }
 
     #[test]
-    fn cache_key_changes_with_voice_text_and_style() {
-        let s = |voice: &str| Setup { model: "m".into(), voice: voice.into(), batch: false };
-        let dir = Path::new("p");
-        let a = cache(dir, &s("Kore"), "Привет", "");
-        assert_eq!(a, cache(dir, &s("Kore"), "Привет", ""));
-        assert_ne!(a, cache(dir, &s("Puck"), "Привет", ""));
-        assert_ne!(a, cache(dir, &s("Kore"), "Привет!", ""));
-        assert_ne!(a, cache(dir, &s("Kore"), "Привет", "шёпотом"));
+    fn cache_key_changes_with_voice_text_style_and_take() {
+        let s = setup_with(Mode::Standard);
+        let a = key_of(&s, "Привет", "", 1);
+        assert_eq!(a, key_of(&s, "Привет", "", 1));
+        assert_ne!(a, key_of(&Setup { voice: "Puck".into(), ..setup_with(Mode::Standard) }, "Привет", "", 1));
+        assert_ne!(a, key_of(&s, "Привет!", "", 1));
+        assert_ne!(a, key_of(&s, "Привет", "шёпотом", 1));
+        assert_ne!(a, key_of(&s, "Привет", "", 2), "a new take is a new request");
     }
 
     #[test]
     fn pcm_from_google_reads_as_samples() {
         let bytes: Vec<u8> = [0i16, 16384, -32768].iter().flat_map(|v| v.to_le_bytes()).collect();
         assert_eq!(samples_of("audio/L16;codec=pcm;rate=24000", &bytes).unwrap(), vec![0.0, 0.5, -1.0]);
+    }
+
+    #[test]
+    fn a_phrase_the_job_did_not_get_fails_with_its_reason_and_costs_nothing() {
+        let dir = tempfile::tempdir().unwrap();
+        let s = setup_with(Mode::Batch);
+        let key = key_of(&s, "Привет", "", 1);
+        std::fs::create_dir_all(cloud_dir(dir.path())).unwrap();
+        crate::google_tts::save(&failed_path(dir.path()), &json!({ key.clone(): "PROHIBITED_CONTENT" })).unwrap();
+        let root = tempfile::tempdir().unwrap();
+        let error = phrase(root.path(), root.path(), dir.path(), "p", &s, "Привет", "", 1).unwrap_err();
+        assert!(error.contains("PROHIBITED_CONTENT"), "{error}");
+    }
+
+    #[test]
+    fn the_report_lists_the_pending_batch_the_last_job_and_the_history() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(history_dir(dir.path())).unwrap();
+        crate::google_tts::save(&journal_path(dir.path()), &json!({ "name": "batches/a", "state": "BATCH_STATE_RUNNING" })).unwrap();
+        crate::google_tts::save(&report_path(dir.path()), &json!({ "mode": "batch", "ok": 3 })).unwrap();
+        crate::google_tts::save(&history_dir(dir.path()).join("1-done.json"), &json!({ "created_at": "2026-10-15", "state": "downloaded" })).unwrap();
+        let r = report(dir.path());
+        assert_eq!(r["pending"]["name"], "batches/a");
+        assert_eq!(r["last"]["ok"], 3);
+        assert_eq!(r["batches"][0]["state"], "downloaded");
     }
 }

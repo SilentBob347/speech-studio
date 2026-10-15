@@ -236,7 +236,7 @@ pub fn is_selection_value(key: &str, value: &str) -> bool {
     match key {
         "llm_provider" | "vision_provider" => LlmBackend::parse(value).is_some(),
         "tts_provider" => matches!(value, "local" | "openrouter" | "google"),
-        "google_tts_mode" => matches!(value, "standard" | "batch"),
+        "google_tts_mode" => matches!(value, "standard" | "batch" | "auto"),
         "assistant" => matches!(value, "openrouter" | "agent"),
         "cloud_ok_speech" | "cloud_ok_listening" | "cloud_ok_director" | "cloud_ok_assistant" => matches!(value, "0" | "1"),
         "tts_idle_unload_min" => matches!(value, "0" | "5" | "15" | "30" | "60"),
@@ -498,11 +498,6 @@ pub fn tts_model(mroot: &Path) -> String {
     } else {
         openrouter_model(mroot, "tts")
     }
-}
-
-pub fn google_tts_batch(mroot: &Path) -> bool {
-    tts_provider(mroot) == "google"
-        && pick(&load_selection(mroot), "google_tts_mode") == Some("batch")
 }
 
 /// id облачной модели для стадии: "llm" -> or_llm; "vision" -> or_vision, пусто -> or_llm;

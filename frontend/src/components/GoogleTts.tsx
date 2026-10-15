@@ -55,9 +55,10 @@ export default function GoogleTts({model,mode,onChange}: {model:string;mode:stri
       <select value={mode || "standard"} onChange={e=>onChange("google_tts_mode",e.target.value)} className="block w-full mt-1 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md p-1">
         <option value="standard">{t("google.standard")}</option>
         <option value="batch" disabled={!!choice && !supportsBatch}>{t("google.batch")}</option>
+        <option value="auto" disabled={!!choice && !supportsBatch}>{t("google.auto")}</option>
       </select>
     </label>
-    <p className="text-[11px] text-[var(--color-muted)]">{t(mode === "batch" ? "google.batchHint" : "google.standardHint")}</p>
+    <p className="text-[11px] text-[var(--color-muted)]">{t(mode === "batch" ? "google.batchHint" : mode === "auto" ? "google.autoHint" : "google.standardHint")}</p>
     {error && <div role="alert" className="text-[11px] text-[var(--color-warn)]">{t("google.error",{detail:error})}</div>}
   </div>;
 }
