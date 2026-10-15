@@ -4,6 +4,16 @@ What changed, newest first. Dates are release dates; the app is versioned by its
 build. Every change a user can see is written here in the commit that makes it, and the
 release notes on GitHub are taken from the release's section.
 
+## Unreleased
+
+- **Drama 3 from 6 GB cards.** When the model does not fit the card, its experts (18 GB) live in RAM (32 GB needed)
+  and the card keeps a cache of the ones in use; the sound is the same. Settings → Models → *VRAM for Drama 3*: Auto
+  (the whole model when it fits the free VRAM) or 5 to 24 GB by hand. Measured on an RTX 4090: whole model about 8×
+  faster than real time, 12 GB 4.7×, 8 GB 3×, 6 GB 2.2×. Engine drama-rs engine-0.1.3.
+- **Voice-pack voices clone in Drama 3.** A reference longer than the engine's limit and without word timings got cut
+  without its text, and Drama 3 refused it; the timings are now recognized once, before voicing, and saved beside the
+  voice. The typed transcript is kept.
+
 ## 0.1.0 — 2026-10-15
 
 The first release.

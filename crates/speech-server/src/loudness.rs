@@ -167,7 +167,7 @@ mod tests {
             .map(|i| {
                 let t = i as f32 / sr as f32;
                 let env = if (t * 3.0) as u32 % 2 == 0 { 1.0 } else { 0.15 };
-                amp * env * ((t * 220.0 * 6.283).sin() * 0.6 + (t * 1330.0 * 6.283).sin() * 0.3 + if i % 97 == 0 { 0.9 } else { 0.0 })
+                amp * env * ((t * 220.0 * std::f32::consts::TAU).sin() * 0.6 + (t * 1330.0 * std::f32::consts::TAU).sin() * 0.3 + if i % 97 == 0 { 0.9 } else { 0.0 })
             })
             .collect()
     }

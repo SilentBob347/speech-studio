@@ -118,7 +118,7 @@ const NAMES = {
   ytdlp: "yt-dlp + deno",
   "cuda-runtime": "CUDA runtime (cudart, cuBLAS, cuFFT)",
   cudnn: "cuDNN 9",
-  drama3: "Fish Audio Drama 3 Q4 + drama_engine (24 GB+ GPU)",
+  drama3: "Fish Audio Drama 3 Q4 + drama_engine (6 GB+ GPU, 32 GB RAM under 24 GB)",
   supertonic3: "Supertonic 3 int8",
   "qwen3-tts-engine": "Qwen3-TTS engine (qwen.dll) and codec",
   "qwen3-tts": "Qwen3-TTS 1.7B Q4_K_M (CustomVoice + Base)",

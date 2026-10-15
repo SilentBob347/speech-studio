@@ -59,7 +59,7 @@ pub async fn upload(State(st): State<AppState>, mut multipart: axum::extract::Mu
     let pid = sp::new_id();
     let dir = lp::dir(&st.workspace, &pid);
     let mut got: Option<(String, String)> = None;
-    while let Ok(Some(mut field)) = multipart.next_field().await {
+    if let Ok(Some(mut field)) = multipart.next_field().await {
         let original = field.file_name().unwrap_or("record.wav").to_string();
         if !lp::is_media(&original) {
             return refuse(StatusCode::BAD_REQUEST, "not_media", t!("listen-not-media", file = original));
@@ -90,7 +90,6 @@ pub async fn upload(State(st): State<AppState>, mut multipart: axum::extract::Mu
             }
         }
         got = Some((original, source));
-        break;
     }
     let Some((original, source)) = got else { return refuse(StatusCode::BAD_REQUEST, "bad_request", "no file") };
     let ws = st.workspace.clone();

@@ -64,7 +64,7 @@ connected and the address to paste.
   block's `cut_previous` cuts the reply it interrupts, a previous block's `pause_ms` of 0 joins them), `project_delete`.
   A block's `pause_ms` is the pause after it; a negative one makes the next block interrupt.
 - **Engines**: `engines_list` says what each engine understands (languages, sampling, tags, cloning, `needs_voice`) and
-  why one is not available here (Drama 3 needs a 24 GB card). Local engines: `higgs`, `drama3`, `supertonic` (its own ten
+  why one is not available here (Drama 3 needs a 6 GB card, and 32 GB of RAM when the card is under 24 GB or the studio setting `drama_vram_gb` is below the whole model). Local engines: `higgs`, `drama3`, `supertonic` (its own ten
   voices), `qwen3-tts` (nine named voices, cloning, the block's direction as its instruction) and `qwen3-tts-ru` (Russian
   stress marks, a library voice of at most 10 s). A speaker's engine (`cast_engines`) and a block's (`engine`) override
   the project's; cloud engines are set for the whole project only. Cloud engines cost money: `openrouter`, `google` (Gemini; the project's
