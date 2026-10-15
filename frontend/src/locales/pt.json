@@ -1250,7 +1250,10 @@
     "qualityMode_best": "Ótimo",
     "qualityMode_draftHint": "Rápido: uma tomada sem conferência de ouvido",
     "qualityMode_normalHint": "Cada tomada é reconhecida e comparada ao texto",
-    "qualityMode_bestHint": "Três tomadas por bloco, verificação estrita do texto e da voz com a referência: fica a melhor"
+    "qualityMode_bestHint": "Três tomadas por bloco, verificação estrita do texto e da voz com a referência: fica a melhor",
+    "emotionSelected": "Emoção para os selecionados…",
+    "emotionNone": "sem emoção",
+    "emotionApplied": "Emoção em {{n}} blocos; motor sem emoções: {{skipped}}"
   },
   "tags": {
     "emotion": "Emoção",

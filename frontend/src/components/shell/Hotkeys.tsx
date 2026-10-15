@@ -6,14 +6,11 @@ import { openHelp, openSettings } from "../../lib/settingsNav";
 import { useStore } from "../../store";
 import { useCommands } from "../../lib/commands";
 import CommandPalette from "./CommandPalette";
-import { matches, useShortcuts } from "../../lib/shortcuts";
+import { matches, typingIn, useShortcuts } from "../../lib/shortcuts";
 
 // Фокус в поле ввода или открытая модалка -> горячие клавиши окна не перехватываем.
 function typing(e: KeyboardEvent): boolean {
-  const el = e.target as HTMLElement | null;
-  if (!el) return false;
-  const tag = el.tagName;
-  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el.isContentEditable;
+  return typingIn(e.target) || e.target instanceof HTMLSelectElement;
 }
 
 const modalOpen = () => document.querySelector('[aria-modal="true"]') !== null;

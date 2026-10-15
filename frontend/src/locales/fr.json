@@ -1250,7 +1250,10 @@
     "qualityMode_best": "Optimal",
     "qualityMode_draftHint": "Rapide : une prise sans vérification à l'oreille",
     "qualityMode_normalHint": "Chaque prise est reconnue et comparée au texte",
-    "qualityMode_bestHint": "Trois prises par bloc, vérification stricte du texte et de la voix avec sa référence : la meilleure reste"
+    "qualityMode_bestHint": "Trois prises par bloc, vérification stricte du texte et de la voix avec sa référence : la meilleure reste",
+    "emotionSelected": "Émotion pour la sélection…",
+    "emotionNone": "sans émotion",
+    "emotionApplied": "Émotion mise dans {{n}} blocs ; moteur sans émotions : {{skipped}}"
   },
   "tags": {
     "emotion": "Émotion",

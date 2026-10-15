@@ -15,7 +15,7 @@ import StepBar from "./StepBar";
 import LintDialog from "./LintDialog";
 import { useSimpleMode } from "../../lib/simpleMode";
 import { useVoices } from "../../lib/voices";
-import { comboOf, matches, useShortcuts } from "../../lib/shortcuts";
+import { comboOf, matches, typingIn, useShortcuts } from "../../lib/shortcuts";
 import EnrichDialog, { type EnrichChange } from "./EnrichDialog";
 import { cloudApi } from "../../lib/cloud";
 import Transport, { RATES, type TransportBlock } from "./Transport";
@@ -137,9 +137,8 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      const el = e.target as HTMLElement | null;
       if (matches(e, "search")) { e.preventDefault(); setSearching(true); return; }
-      if (el && (el.tagName === "TEXTAREA" || el.tagName === "INPUT")) return;
+      if (typingIn(e.target)) return;
       if (matches(e, "undo")) { e.preventDefault(); undo(); }
       else if (matches(e, "redo") || comboOf(e) === "Ctrl+Y") { e.preventDefault(); redo(); }
     };
@@ -150,6 +149,26 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   useLivePlayback(pid);
   const setSpeechEngine = useStore((s) => s.setSpeechEngine);
   const engines = useEngines();
+  // the emotion tags the selected blocks' engines read, and one put at the start of each of those blocks
+  const emotionsOf = (id: string) => engines?.find((e) => e.id === id)?.tags.find(([c]) => c === "emotion")?.[1] ?? [];
+  const emotions = project ? [...new Set(blockList(project).filter((b) => selected.includes(b.id)).flatMap((b) => emotionsOf(engineOf(project, b))))] : [];
+  const setEmotion = (value: string) => {
+    if (!value || !project) return;
+    let done = 0, skipped = 0;
+    edit((p) => {
+      for (const b of blockList(p).filter((x) => selected.includes(x.id))) {
+        const caps = engines?.find((e) => e.id === engineOf(p, b));
+        if (!caps || !emotionsOf(caps.id).length) { skipped++; continue; }
+        const [head, tail] = caps.tag_format.replace("{category}", "emotion").split("{value}");
+        const escape = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const bare = b.text.replace(new RegExp(`^\\s*${escape(head)}[^\\s]+?${escape(tail ?? "")}`), "");
+        b.text = value === "-" ? bare : `${head}${value}${tail ?? ""}${bare}`;
+        done++;
+      }
+      return p;
+    });
+    pushActivity(t("speech.emotionApplied", { n: done, skipped }), "done");
+  };
   const projectEngine = project ? engines?.find((e) => e.id === project.settings.engine)?.name ?? project.settings.engine : null;
   useEffect(() => {
     setSpeechEngine(projectEngine);
@@ -585,6 +604,13 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
       {selected.length > 0 && (
         <div role="toolbar" aria-label={t("speech.selection")} className="flex flex-wrap items-center gap-2 px-5 py-2 border-b border-[var(--color-border)] bg-[color-mix(in_oklab,var(--color-accent)_8%,var(--color-surface))]">
           <span className="text-[12px] font-medium tabnum">{t("speech.selectedCount", { n: selected.length })}</span>
+          {emotions.length > 0 && (
+            <select value="" onChange={(e) => setEmotion(e.target.value)} aria-label={t("speech.emotionSelected")} className="bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-1.5 py-1 text-[12px]">
+              <option value="">{t("speech.emotionSelected")}</option>
+              <option value="-">{t("speech.emotionNone")}</option>
+              {emotions.map((v) => <option key={v} value={v}>{t(`tags.${v}` as "tags.anger", { defaultValue: v })}</option>)}
+            </select>
+          )}
           <button onClick={() => edit((p) => { for (const b of blockList(p)) if (selected.includes(b.id)) b.review = "approved"; return p; })} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)]">{t("review.approveSelected")}</button>
           <button onClick={() => void runSynth({ ids: selected, force: true })} disabled={!!job} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[12px] font-medium disabled:opacity-40"><Sparkles size={12} />{t("speech.voiceSelected")}</button>
           <button onClick={() => void stressBlocks(selected)} className="px-2.5 py-1 rounded-md border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)]">{t("speech.stressBlock")}</button>

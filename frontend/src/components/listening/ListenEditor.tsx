@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ArrowLeft, AudioLines, ChevronDown, ChevronUp, Download, Eye, EyeOff, FileCheck2, Loader2, Pause, Play, Redo2, RotateCcw, RotateCw, Scissors, Search, Settings2, Undo2, UserPlus, UserSearch, Fingerprint, Users, Wand2, X } from "lucide-react";
 import { useListenProject } from "../../lib/useSpeechProject";
 import { askCloneTerms } from "../../lib/cloudConsent";
-import { comboOf, matches } from "../../lib/shortcuts";
+import { comboOf, matches, typingIn } from "../../lib/shortcuts";
 import {
   activeToken, clock, cutSeconds, listenApi, mergeNext, newSpeaker, restoreAll, setLineText, speakerColor, splitLine, toggleCut, tokensOf, type ListenLine, type SpeakerMatch,
 } from "../../lib/listen";
@@ -218,7 +218,7 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const typing = e.target instanceof HTMLElement && (e.target.closest("input, textarea, select, [contenteditable]") != null);
+      const typing = typingIn(e.target) || (e.target instanceof HTMLSelectElement);
       if (matches(e, "search")) { e.preventDefault(); setSearching(true); setTimeout(() => searchBox.current?.focus(), 0); }
       else if (typing) return;
       else if (matches(e, "undo")) { e.preventDefault(); undo(); }

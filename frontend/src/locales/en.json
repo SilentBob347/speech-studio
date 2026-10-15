@@ -1250,7 +1250,10 @@
     "qualityMode_best": "Best",
     "qualityMode_draftHint": "Fast: one take, not checked by ear",
     "qualityMode_normalHint": "Each take is recognised and checked against the text",
-    "qualityMode_bestHint": "Three takes a block, a strict text check and the voice checked against its reference: the best one stays"
+    "qualityMode_bestHint": "Three takes a block, a strict text check and the voice checked against its reference: the best one stays",
+    "emotionSelected": "Emotion for the selected…",
+    "emotionNone": "no emotion",
+    "emotionApplied": "Emotion set in {{n}} blocks; engine without emotions: {{skipped}}"
   },
   "tags": {
     "emotion": "Emotion",

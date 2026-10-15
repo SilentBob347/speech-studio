@@ -1250,7 +1250,10 @@
     "qualityMode_best": "最佳",
     "qualityMode_draftHint": "快速：每块一个版本，不做试听检查",
     "qualityMode_normalHint": "每个版本都会被识别并与文本核对",
-    "qualityMode_bestHint": "每块三个版本，严格核对文本并比对参考声音，保留最佳版本"
+    "qualityMode_bestHint": "每块三个版本，严格核对文本并比对参考声音，保留最佳版本",
+    "emotionSelected": "为所选块设置情绪…",
+    "emotionNone": "无情绪",
+    "emotionApplied": "已为 {{n}} 个块设置情绪；引擎不支持情绪：{{skipped}}"
   },
   "tags": {
     "emotion": "情绪",

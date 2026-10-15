@@ -61,6 +61,15 @@ export function comboOf(e: KeyboardEvent): string | null {
   return parts.join("+");
 }
 
+const NOT_TEXT = new Set(["checkbox", "radio", "range", "button", "submit", "reset", "color", "file", "image"]);
+
+/** Whether the keys go into text being typed: a text field, a text area or editable text, not a checkbox or a slider. */
+export function typingIn(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable || target instanceof HTMLTextAreaElement) return true;
+  return target instanceof HTMLInputElement && !NOT_TEXT.has(target.type);
+}
+
 export function matches(e: KeyboardEvent, id: ShortcutId): boolean {
   return comboOf(e) === binding(id);
 }
