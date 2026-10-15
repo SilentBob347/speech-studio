@@ -140,6 +140,11 @@ describe("what the agent reads of the page", () => {
     expect(page).toMatch(/button "Play"/);
   });
 
+  it("keeps a label's title and its hint apart", () => {
+    document.body.innerHTML = `<label><input type="checkbox"><span>Even pauses<span class="block">The mix takes the takes</span></span></label>`;
+    expect(readPage()).toMatch(/input checkbox "Even pauses The mix takes the takes"/);
+  });
+
   it("names a list by its label's words, not by the options inside the label", () => {
     document.body.innerHTML = `<label>Engine <select><option value="higgs">Higgs Audio</option><option value="drama3">Drama 3</option></select></label>`;
     expect(readPage()).toMatch(/select "Engine" value="higgs"/);

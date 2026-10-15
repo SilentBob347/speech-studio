@@ -878,6 +878,7 @@
     "ownRefText": "片段中说的内容",
     "ownRefClear": "移除",
     "ownRefHint": "这句台词用该片段的声音代替段落的声音配音；片段文本会自动识别，可以修改。",
+    "heardDiff": "听到的不同：",
     "markupHint": "停顿：[pause 500ms] 或 sil<[300]>。每个引擎都有自己的情感和语气标签，标签面板在段落设置中。",
     "recent": "最近的项目",
     "noProjects": "还没有项目。",

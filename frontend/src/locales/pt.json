@@ -878,6 +878,7 @@
     "ownRefText": "O que o clipe diz",
     "ownRefClear": "Remover",
     "ownRefHint": "A fala é locutada com a voz deste clipe em vez da voz do bloco; o texto do clipe é reconhecido e pode ser corrigido.",
+    "heardDiff": "Ouvido diferente:",
     "markupHint": "Pausas: [pause 500ms] ou sil<[300]>. Cada motor tem suas próprias tags de emoção e estilo: a paleta fica nos ajustes do bloco.",
     "recent": "Projetos recentes",
     "noProjects": "Ainda não há projetos.",

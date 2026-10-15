@@ -878,6 +878,7 @@
     "ownRefText": "What the clip says",
     "ownRefClear": "Remove",
     "ownRefHint": "The line is voiced in this clip's voice instead of the block's voice; the clip's text is recognised and can be corrected.",
+    "heardDiff": "Heard differently:",
     "markupHint": "Pauses: [pause 500ms] or sil<[300]>. Each engine has its own emotion and manner tags — their palette is in the block settings.",
     "recent": "Recent projects",
     "noProjects": "No projects yet.",

@@ -878,6 +878,7 @@
     "ownRefText": "Ce que dit l’extrait",
     "ownRefClear": "Retirer",
     "ownRefHint": "La réplique est dite avec la voix de cet extrait au lieu de celle du bloc ; le texte de l’extrait est reconnu et peut être corrigé.",
+    "heardDiff": "Entendu autrement :",
     "markupHint": "Pauses : [pause 500ms] ou sil<[300]>. Chaque moteur a ses propres balises d'émotion et de ton : leur palette est dans les réglages du bloc.",
     "recent": "Projets récents",
     "noProjects": "Aucun projet pour l’instant.",

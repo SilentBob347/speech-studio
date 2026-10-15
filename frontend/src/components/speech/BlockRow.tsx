@@ -11,6 +11,7 @@ import EngineSelect from "./EngineSelect";
 import TagPalette, { type TagPlace } from "./TagPalette";
 import { useEngines } from "../../lib/engines";
 import PrepareView from "./PrepareView";
+import { wordDiff, words } from "../../lib/wordDiff";
 
 const STATE_DOT: Record<BlockState | "rendering", string> = {
   pending: "bg-[var(--color-muted)]",
@@ -281,6 +282,19 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
                 take.qc.similarity != null && t("speech.qcSimilarity", { s: take.qc.similarity.toFixed(2) }), ...(take.qc.issues ?? []).map((i) => t(`speech.qcIssue_${i}`))].filter(Boolean).join(" · ")}
             </p>
           )}
+          {take?.qc && take.qc.text_checked !== false && take.qc.heard && (() => {
+            const off = wordDiff(words(take.text || block.text), words(take.qc.heard)).filter((s) => s.op !== "same");
+            return off.length > 0 && (
+              <p className="mt-0.5 flex flex-wrap items-center gap-1 text-[11px]" aria-label={t("speech.heardDiff")}>
+                <span className="text-[var(--color-muted)]">{t("speech.heardDiff")}</span>
+                {off.map((s, k) => (
+                  <span key={k} className="px-1 rounded border border-[var(--color-warn)]/50 text-[var(--color-warn)]">
+                    {s.op === "deleted" ? <s>{s.expected}</s> : s.op === "inserted" ? `+${s.heard}` : `${s.expected} → ${s.heard}`}
+                  </span>
+                ))}
+              </p>
+            );
+          })()}
           {block.error && state === "failed" && <p role="alert" className="mt-1 text-[11px] text-[#ff8f8f] break-words">{block.error.text}</p>}
           {block.direction && !open && <p className="mt-0.5 text-[11px] text-[var(--color-muted)] italic truncate">{t("speech.directionShort", { text: block.direction })}</p>}
         </div>
