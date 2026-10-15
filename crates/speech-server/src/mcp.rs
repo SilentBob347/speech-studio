@@ -524,6 +524,8 @@ const JOURNAL: &[(&str, &str, &str)] = &[
     ("voice_transcribe", "transcribe", "voice"),
     ("voice_clean", "clean", "voice"),
     ("voice_denoise", "clean", "voice"),
+    ("voice_design", "create", "voice"),
+    ("voice_design_keep", "create", "voice"),
     ("voice_restore", "restore", "voice"),
     ("voice_ref_apply", "update", "voice"),
     ("voice_import", "import", "voice"),
@@ -718,7 +720,7 @@ fn tools() -> &'static [Tool] {
             Tool {
                 name: "studio_wait",
                 description: "Wait for work to finish instead of polling: a job (job_id, as project_synth, project_export, project_cast_characters, podcast_write, listen_transcribe, listen_cut, voice_transcribe, voice_clean, voices_download_pack or a one-call tool answering done false returned it, or the fetch.id of a download by link), or until one kind of work is over - synth, export, analyze (recognition), remix (cut by text), write (podcast script), cast (characters), voice_transcript, voice_clean, separate, download, voices_pack - or everything (until: idle, the default). Returns when it is done or after seconds (30 by default, at most 55, under the minute clients allow a call) with how far it got; call it again to keep waiting.",
-                schema: || object(json!({ "job_id": { "type": "string" }, "until": { "type": "string", "enum": ["idle", "synth", "export", "analyze", "remix", "write", "cast", "voice_transcript", "voice_clean", "separate", "download", "voices_pack"] }, "seconds": { "type": "integer" } }), &[]),
+                schema: || object(json!({ "job_id": { "type": "string" }, "until": { "type": "string", "enum": ["idle", "synth", "export", "analyze", "remix", "write", "cast", "voice_transcript", "voice_clean", "voice_design", "separate", "download", "voices_pack"] }, "seconds": { "type": "integer" } }), &[]),
                 call: |_| composite("wait"),
             },
             Tool {
@@ -1155,6 +1157,18 @@ fn tools() -> &'static [Tool] {
                 description: "Remove noise from a voice's reference (DPDFNet) before cloning: a job, follow it with studio_wait. db limits how far the noise is pushed down (18 keeps speech natural; 0 or none removes as much as it can). The original is kept and voice_restore brings it back.",
                 schema: || object(json!({ "name": { "type": "string", "description": "voice name from voices_list" }, "db": { "type": "number", "minimum": 0 } }), &["name"]),
                 call: |args| post("/voices/denoise".into(), json!({ "name": text(args, "name")?, "db": args.get("db").cloned().unwrap_or(Value::Null) })),
+            },
+            Tool {
+                name: "voice_design",
+                description: "Make a voice from a description (Qwen3-TTS VoiceDesign): gender, age, timbre and manner in a sentence or two, best in English or Chinese, and a sample text in the language the voice will speak. A job, follow it with studio_wait: its result has the batch id and candidates (k, seconds); each sounds at /voices/design/sample?id=&k=. Keep one with voice_design_keep. Downloads the model (about 1.2 GB) the first time.",
+                schema: || object(json!({ "description": { "type": "string" }, "sample": { "type": "string" }, "lang": { "type": "string" }, "count": { "type": "integer", "minimum": 1, "maximum": 6 } }), &["description", "sample"]),
+                call: |args| post("/voices/design".into(), args.clone()),
+            },
+            Tool {
+                name: "voice_design_keep",
+                description: "Keep a candidate of voice_design as a library voice: the sample text becomes its reference transcript and the description its source.",
+                schema: || object(json!({ "id": { "type": "string" }, "k": { "type": "integer" }, "name": { "type": "string" }, "description": { "type": "string" }, "sample": { "type": "string" }, "lang": { "type": "string" } }), &["id", "k", "name", "description", "sample"]),
+                call: |args| post("/voices/design/keep".into(), args.clone()),
             },
             Tool {
                 name: "voice_restore",

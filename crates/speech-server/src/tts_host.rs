@@ -237,16 +237,44 @@ pub fn qwen(models_root: &Path, clone: bool, stress: bool) -> Result<Tts, String
             (false, false) => t!("render-qwen-missing"),
         });
     }
-    let gpu = crate::hw::gpu_report();
-    if !gpu.cuda13_ok {
-        let card = gpu.summary().unwrap_or_else(|| "-".to_string());
-        return Err(match gpu.reason {
-            Some("gpu_old") => t!("render-higgs-gpu-old", card = card, min = gpu.min_compute.clone()),
-            Some("driver_old") => t!("render-higgs-driver-old", card = card, min = gpu.min_driver),
-            _ => t!("render-higgs-no-gpu", card = card),
-        });
-    }
+    cuda13_ready()?;
     let e = Arc::new(crate::qwen_tts::Engine::load(models_root, &quant, clone || stress, stress).map_err(|e| t!("render-qwen-load-failed", error = e))?);
+    *slot = Some((key, Tts::Qwen(e.clone())));
+    touch();
+    Ok(Tts::Qwen(e))
+}
+
+/// Видеокарта и драйвер тянут CUDA 13 (сборка движков ggml); нет — ошибка с причиной.
+fn cuda13_ready() -> Result<(), String> {
+    let gpu = crate::hw::gpu_report();
+    if gpu.cuda13_ok {
+        return Ok(());
+    }
+    let card = gpu.summary().unwrap_or_else(|| "-".to_string());
+    Err(match gpu.reason {
+        Some("gpu_old") => t!("render-higgs-gpu-old", card = card, min = gpu.min_compute.clone()),
+        Some("driver_old") => t!("render-higgs-driver-old", card = card, min = gpu.min_driver),
+        _ => t!("render-higgs-no-gpu", card = card),
+    })
+}
+
+/// Qwen3-TTS VoiceDesign: голос по описанию, одна модель на процесс вместо прочих.
+pub fn qwen_design(models_root: &Path) -> Result<Tts, String> {
+    let quant = crate::models::qwen_quant(models_root);
+    let key = format!("{}:design:{quant}", crate::qwen_tts::ENGINE);
+    let mut slot = host();
+    if let Some((k, Tts::Qwen(e))) = slot.as_ref() {
+        if *k == key {
+            touch();
+            return Ok(Tts::Qwen(e.clone()));
+        }
+    }
+    *slot = None;
+    if !crate::qwen_tts::design_installed(models_root, &quant) {
+        return Err(t!("voice-design-missing"));
+    }
+    cuda13_ready()?;
+    let e = Arc::new(crate::qwen_tts::Engine::load_design(models_root, &quant).map_err(|e| t!("render-qwen-load-failed", error = e))?);
     *slot = Some((key, Tts::Qwen(e.clone())));
     touch();
     Ok(Tts::Qwen(e))
@@ -515,26 +543,30 @@ fn run_guarded(engine: &Tts, call: Call, timeout: Duration, live: Option<Arc<cra
                 Some(voice) => e.speak(&t, &lang, voice, steps, speed, seed).map(|a| (a, e.sample_rate() as i32)),
                 None => Err(t!("speech-voice-preset-needed")),
             },
-            (Tts::Qwen(e), rw) => match qwen_reference(preset.as_deref(), rw.as_deref()) {
-                Ok(reference) => {
-                    let say = crate::qwen_tts::Say {
-                        text: &t,
-                        lang: &lang,
-                        speaker: preset.as_deref(),
-                        reference: reference.as_ref().map(|a| (a.as_slice(), rt.as_deref())),
-                        instruct: instruct.as_deref().filter(|_| preset.is_some()),
-                        seed,
-                        temperature: dp.temperature,
-                        top_k: dp.top_k,
-                        top_p: dp.top_p,
-                        max_new_tokens: max_tokens as i32,
-                    };
-                    streamed = live.is_some();
-                    let sink = live.clone().map(|phrase| move |a: &[f32]| phrase.chunk(a, crate::qwen_tts::SAMPLE_RATE));
-                    e.speak(&say, sink.as_ref().map(|f| f as &(dyn Fn(&[f32]) + Sync))).map(|a| (a, crate::qwen_tts::SAMPLE_RATE as i32))
+            (Tts::Qwen(e), rw) => {
+                // the VoiceDesign talker makes the voice from the description alone
+                let designed = preset.is_none() && rw.is_none() && instruct.as_deref().is_some_and(|d| !d.trim().is_empty());
+                match if designed { Ok(None) } else { qwen_reference(preset.as_deref(), rw.as_deref()) } {
+                    Ok(reference) => {
+                        let say = crate::qwen_tts::Say {
+                            text: &t,
+                            lang: &lang,
+                            speaker: preset.as_deref(),
+                            reference: reference.as_ref().map(|a| (a.as_slice(), rt.as_deref())),
+                            instruct: instruct.as_deref().filter(|_| preset.is_some() || designed),
+                            seed,
+                            temperature: dp.temperature,
+                            top_k: dp.top_k,
+                            top_p: dp.top_p,
+                            max_new_tokens: max_tokens as i32,
+                        };
+                        streamed = live.is_some();
+                        let sink = live.clone().map(|phrase| move |a: &[f32]| phrase.chunk(a, crate::qwen_tts::SAMPLE_RATE));
+                        e.speak(&say, sink.as_ref().map(|f| f as &(dyn Fn(&[f32]) + Sync))).map(|a| (a, crate::qwen_tts::SAMPLE_RATE as i32))
+                    }
+                    Err(err) => Err(err),
                 }
-                Err(err) => Err(err),
-            },
+            }
         };
         if let (Some(phrase), Ok((samples, sr)), false) = (&live, &r, streamed) {
             phrase.chunk(samples, *sr as u32);

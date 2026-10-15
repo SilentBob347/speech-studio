@@ -76,6 +76,8 @@ pub enum JobKind {
     Glossary,
     VoiceTranscript,
     VoiceClean,
+    /// Голос по описанию: кандидаты VoiceDesign.
+    VoiceDesign,
     Synth,
     Export,
     /// Сценарий подкаста режиссёром-LLM.
@@ -85,7 +87,7 @@ pub enum JobKind {
 }
 
 impl JobKind {
-    const ALL: [JobKind; 20] = [
+    const ALL: [JobKind; 21] = [
         JobKind::Analyze,
         JobKind::Retranslate,
         JobKind::Remix,
@@ -102,6 +104,7 @@ impl JobKind {
         JobKind::Glossary,
         JobKind::VoiceTranscript,
         JobKind::VoiceClean,
+        JobKind::VoiceDesign,
         JobKind::Synth,
         JobKind::Export,
         JobKind::Write,
@@ -126,6 +129,7 @@ impl JobKind {
             JobKind::Glossary => "glossary",
             JobKind::VoiceTranscript => "voice_transcript",
             JobKind::VoiceClean => "voice_clean",
+            JobKind::VoiceDesign => "voice_design",
             JobKind::Synth => "synth",
             JobKind::Export => "export",
             JobKind::Write => "write",
@@ -146,7 +150,7 @@ impl JobKind {
             JobKind::DubAudio | JobKind::Render | JobKind::ExportLang => Some("audio"),
             JobKind::Separate => Some("separate"),
             JobKind::DetectText => Some("detect_text"),
-            JobKind::VoiceTranscript | JobKind::VoiceClean => Some("voice"),
+            JobKind::VoiceTranscript | JobKind::VoiceClean | JobKind::VoiceDesign => Some("voice"),
             JobKind::Synth | JobKind::Export => Some("speech"),
             JobKind::Download | JobKind::VoicesPack | JobKind::Frame | JobKind::Write => None,
         }

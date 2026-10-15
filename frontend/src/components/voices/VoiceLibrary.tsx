@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Archive, Check, Cloud, FileAudio, FolderInput, Loader2, Mic, Package, Pause, Play, ScanText, Sparkles, Star, X } from "lucide-react";
+import { Archive, Check, Cloud, FileAudio, FolderInput, Loader2, Mic, Package, Pause, Play, ScanText, Sparkles, Star, Wand2, X } from "lucide-react";
 import { api, ApiError, slot, type Selection, type VoiceEntry } from "../../lib/api";
 import { named } from "../../lib/a11y";
 import { useEscapeLayer } from "../../lib/escape";
@@ -13,6 +13,7 @@ import VoiceAvatar from "./VoiceAvatar";
 import VoiceEditor from "./VoiceEditor";
 import VoiceRecorder from "./VoiceRecorder";
 import VoiceCatalog from "./VoiceCatalog";
+import VoiceDesigner from "./VoiceDesigner";
 
 const AUDIO_ACCEPT = "audio/*,.wav,.mp3,.flac,.m4a,.ogg";
 const chip = "inline-flex items-center px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wide bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-muted)]";
@@ -31,6 +32,7 @@ export default function VoiceLibrary({ onClose, onPick }: { onClose: () => void;
   const [editing, setEditing] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
   const [catalog, setCatalog] = useState(false);
+  const [designing, setDesigning] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cleanBlocked, setCleanBlocked] = useState<File[] | null>(null);
@@ -45,7 +47,7 @@ export default function VoiceLibrary({ onClose, onPick }: { onClose: () => void;
   useEffect(loadSel, []);
   useChanged(SETTINGS_CHANGED, loadSel);
   useEffect(() => () => { audio.current?.pause(); }, []);
-  useEscapeLayer(onClose, !editing && !recording && !catalog && !cleanBlocked);
+  useEscapeLayer(onClose, !editing && !recording && !catalog && !designing && !cleanBlocked);
   const cleanOn = (slot(sel ?? undefined, "voice_clean") ?? "1") !== "0";
   const setCleanOn = (on: boolean) => { api.setSelection("voice_clean", on ? "1" : "0").then(setSel, (e: unknown) => setError(errorText(e))); };
 
@@ -146,6 +148,7 @@ export default function VoiceLibrary({ onClose, onPick }: { onClose: () => void;
             <button onClick={() => setRecording(true)} className={tool}><Mic size={13} />{t("voices.record")}</button>
             <button onClick={() => fileInput.current?.click()} disabled={!!busy} className={tool}>{busy === "import" ? <Loader2 size={13} className="animate-spin" /> : <FileAudio size={13} />}{t("voices.importFiles")}</button>
             <button onClick={() => setCatalog(true)} className={tool}><Cloud size={13} />{t("voices.catalog")}</button>
+            <button onClick={() => setDesigning(true)} className={tool} title={t("voices.designHint")}><Wand2 size={13} />{t("voices.design")}</button>
             <button onClick={pack} disabled={!!busy} className={tool}>{busy === "pack" ? <Loader2 size={13} className="animate-spin" /> : <Package size={13} />}{t("voices.pack")}</button>
             <button onClick={() => zipInput.current?.click()} disabled={!!busy} className={tool}>{busy === "zip" ? <Loader2 size={13} className="animate-spin" /> : <FolderInput size={13} />}{t("voices.importZip")}</button>
             <button onClick={exportZip} disabled={!selected.size || !!busy} className={tool}>{busy === "export" ? <Loader2 size={13} className="animate-spin" /> : <Archive size={13} />}{t("voices.exportPicked", { n: selected.size })}</button>
@@ -257,6 +260,7 @@ export default function VoiceLibrary({ onClose, onPick }: { onClose: () => void;
       )}
       {recording && <VoiceRecorder clean={cleanOn} onClose={() => setRecording(false)} onRecorded={() => reload()} />}
       {catalog && <VoiceCatalog have={names} onClose={() => setCatalog(false)} onGot={reload} />}
+      {designing && <VoiceDesigner onClose={() => setDesigning(false)} onKept={(name) => { setDesigning(false); reload(); setEditing(name); }} />}
     </div>
   );
 }

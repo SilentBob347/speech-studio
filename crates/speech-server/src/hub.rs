@@ -113,6 +113,7 @@ pub fn job_ended(kind: JobKind, status: JobStatus, error: Option<&str>) {
                 JobKind::Render => &["tts", "sep"],
                 JobKind::VoiceTranscript => &["asr"],
                 JobKind::VoiceClean => &["sep"],
+                JobKind::VoiceDesign => &["tts"],
                 JobKind::Synth => &["tts"],
                 _ => &[],
             };

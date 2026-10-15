@@ -73,6 +73,65 @@ pub fn denoise(p: &VoicePaths, name: &str, limit_db: Option<f32>, progress: &dyn
     Ok(json!({ "name": name, "denoised": true }))
 }
 
+/// Сколько кандидатов голоса по описанию за раз.
+pub const DESIGN_MAX: u32 = 6;
+
+/// Папка пачки кандидатов дизайна голоса.
+pub fn design_dir(voices: &Path, id: &str) -> PathBuf {
+    voices.join(".design").join(id)
+}
+
+/// Кандидаты голоса по описанию (Qwen3-TTS VoiceDesign): образец текста озвучен `count` раз разными сидами в
+/// `.design/<ид>/<k>.wav`; ответ — ид пачки и длительность каждого кандидата.
+pub fn design(p: &VoicePaths, description: &str, sample: &str, lang: &str, count: u32, progress: &dyn Fn(Value)) -> Result<Value, String> {
+    let quant = crate::models::qwen_quant(&p.models_root);
+    let model = if quant == "Q8_0" { "qwen3-tts-design-q8_0" } else { "qwen3-tts-design" };
+    crate::ensure_components(&p.repo_root, &["qwen3-tts-engine", model], &|ev| progress(ev))?;
+    crate::tts_host::make_room();
+    let engine = crate::tts_host::qwen_design(&p.models_root)?;
+    let id = uuid::Uuid::new_v4().simple().to_string()[..12].to_string();
+    let dir = design_dir(&p.voices_dir, &id);
+    std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    let lang = if lang == "auto" { "" } else { lang };
+    let mut params = crate::tts_host::Params { seed_mode: "random".into(), ..Default::default() };
+    params.temperature = 0.9;
+    let mut out = Vec::new();
+    for k in 0..count.clamp(1, DESIGN_MAX) {
+        progress(json!({ "type": "progress", "stage": "voice_design", "msg": t!("voice-designing", n = (k + 1) as i64, total = count as i64), "pct": (k * 100 / count.max(1)) as i64 }));
+        let req = crate::tts_host::Request {
+            text: sample,
+            lang,
+            ref_wav: None,
+            ref_text: None,
+            preset: None,
+            instruct: Some(description),
+            params: &params,
+            fresh_seed: u64::from_str_radix(&id, 16).unwrap_or(0).wrapping_add(k as u64),
+            live: None,
+        };
+        let s = crate::tts_host::synth(&engine, &req)?;
+        let file = dir.join(format!("{k}.wav"));
+        crate::wavio::write_mono_f32(&file, &s.samples, s.sr as u32)?;
+        out.push(json!({ "k": k, "seconds": s.samples.len() as f64 / s.sr.max(1) as f64, "seed": s.seed }));
+    }
+    Ok(json!({ "id": id, "candidates": out }))
+}
+
+/// Кандидат дизайна — голос библиотеки: звук с громкостью рефа, текст образца — его транскрипт, описание — источник.
+pub fn design_keep(p: &VoicePaths, id: &str, k: u32, name: &str, description: &str, sample: &str, lang: &str) -> Result<String, String> {
+    if !id.chars().all(|c| c.is_ascii_hexdigit()) || id.is_empty() {
+        return Err(t!("voice-design-gone"));
+    }
+    let file = design_dir(&p.voices_dir, id).join(format!("{k}.wav"));
+    if !file.is_file() {
+        return Err(t!("voice-design-gone"));
+    }
+    let card = lib::VoiceCard { kind: "design".into(), source: description.trim().to_string(), lang: if lang == "auto" { String::new() } else { lang.to_string() }, ..Default::default() };
+    let made = lib::import_audio(&p.voices_dir, &lib::sanitize(name), &file, card)?;
+    lib::write_transcript(&p.voices_dir, &made, sample.trim())?;
+    Ok(made)
+}
+
 /// Можно ли чистить голос сейчас: движок и модель Roformer на месте.
 pub fn clean_ready(p: &VoicePaths) -> bool {
     let sel = crate::models::load_selection(&p.models_root);

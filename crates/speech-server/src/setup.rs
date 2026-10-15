@@ -564,6 +564,8 @@ const QWEN_Q8_0: FileSpec = FileSpec { url: "https://huggingface.co/Serveurperso
 
 const QWEN_BASE_Q4_K_M: FileSpec = FileSpec { url: "https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF/resolve/b7ee2e8c7459c3bea99da23e3d178125a7d1713c/qwen-talker-1.7b-base-Q4_K_M.gguf", dest_rel: "models/qwen3-tts/qwen-talker-1.7b-base-Q4_K_M.gguf", size: 1_219_245_248, sha256: "ea393ebaf2167ea23ce9fc18b093822851358a950d7075cd47ab4f6ce23e887d", extract: Extract::None };
 const QWEN_RU_STRESS: FileSpec = FileSpec { url: "https://huggingface.co/siriusfreak/qwen3-tts-12hz-1.7b-ru-stress-cf/resolve/c16b3af3db3095120efc1ebb73f6522442bcb3b1/lora/adapter.safetensors", dest_rel: "models/qwen3-tts/qwen-talker-1.7b-base-ru-stress-lora.safetensors", size: 34_908_456, sha256: "88a94c0fbe85800d309f94bb9c28d698bf9c86d9494617b6cf4dd996cc13648b", extract: Extract::None };
+const QWEN_DESIGN_Q4_K_M: FileSpec = FileSpec { url: "https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF/resolve/b7ee2e8c7459c3bea99da23e3d178125a7d1713c/qwen-talker-1.7b-voicedesign-Q4_K_M.gguf", dest_rel: "models/qwen3-tts/qwen-talker-1.7b-voicedesign-Q4_K_M.gguf", size: 1_182_630_816, sha256: "7605ed0cc5e72059f27468c27f70c070e05d1cc0c7b1c76bfb9cba717a59eee3", extract: Extract::None };
+const QWEN_DESIGN_Q8_0: FileSpec = FileSpec { url: "https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF/resolve/b7ee2e8c7459c3bea99da23e3d178125a7d1713c/qwen-talker-1.7b-voicedesign-Q8_0.gguf", dest_rel: "models/qwen3-tts/qwen-talker-1.7b-voicedesign-Q8_0.gguf", size: 2_042_833_824, sha256: "575610ab1ddcca4dca6bd9a64bcd859d93bbad8764f9cab24e1dbc0c51f62276", extract: Extract::None };
 const QWEN_BASE_Q8_0: FileSpec = FileSpec { url: "https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF/resolve/b7ee2e8c7459c3bea99da23e3d178125a7d1713c/qwen-talker-1.7b-base-Q8_0.gguf", dest_rel: "models/qwen3-tts/qwen-talker-1.7b-base-Q8_0.gguf", size: 2_079_448_256, sha256: "4b9a33a236908dd9435a42f7a396e38038329d053b704342a6413c08544c4fda", extract: Extract::None };
 const SUPERTONIC3_MARKERS: &[Marker] = &[
     Marker { rel: "models/supertonic3/onnx/vector_estimator.onnx", expect: 65_769_855 },
@@ -783,6 +785,28 @@ pub fn manifest() -> Vec<Component> {
             size: QWEN_Q8_0.size + QWEN_BASE_Q8_0.size,
             files: &[QWEN_Q8_0, QWEN_BASE_Q8_0],
             markers: &[Marker { rel: QWEN_Q8_0.dest_rel, expect: QWEN_Q8_0.size }, Marker { rel: QWEN_BASE_Q8_0.dest_rel, expect: QWEN_BASE_Q8_0.size }],
+            external_url: None,
+        },
+        Component {
+            id: "qwen3-tts-design",
+            name: t!("setup-comp-qwen3-tts-design-name"),
+            purpose: t!("setup-comp-qwen3-tts-design-purpose"),
+            requirement: Requirement::Optional,
+            delivery: Delivery::Download,
+            size: QWEN_DESIGN_Q4_K_M.size,
+            files: &[QWEN_DESIGN_Q4_K_M],
+            markers: &[Marker { rel: QWEN_DESIGN_Q4_K_M.dest_rel, expect: QWEN_DESIGN_Q4_K_M.size }],
+            external_url: None,
+        },
+        Component {
+            id: "qwen3-tts-design-q8_0",
+            name: t!("setup-comp-qwen3-tts-design-name"),
+            purpose: t!("setup-comp-qwen3-tts-design-purpose"),
+            requirement: Requirement::Optional,
+            delivery: Delivery::Download,
+            size: QWEN_DESIGN_Q8_0.size,
+            files: &[QWEN_DESIGN_Q8_0],
+            markers: &[Marker { rel: QWEN_DESIGN_Q8_0.dest_rel, expect: QWEN_DESIGN_Q8_0.size }],
             external_url: None,
         },
         Component {

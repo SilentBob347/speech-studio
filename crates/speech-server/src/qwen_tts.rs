@@ -208,6 +208,17 @@ pub fn talker(models_root: &Path, quant: &str, clone: bool) -> Option<PathBuf> {
 
 /// The library, the codec and the talker of `quant` for named speakers (`clone` false) or for cloning, with the
 /// stress adapter when `stress`.
+/// The VoiceDesign talker of a quantisation.
+pub fn design_talker(models_root: &Path, quant: &str) -> PathBuf {
+    dir(models_root).join(format!("qwen-talker-1.7b-voicedesign-{quant}.gguf"))
+}
+
+/// The engine, its codec and the VoiceDesign talker of the quantisation are on disk.
+pub fn design_installed(models_root: &Path, quant: &str) -> bool {
+    let d = dir(models_root);
+    d.join(LIBRARY).is_file() && d.join(CODEC).is_file() && design_talker(models_root, quant).is_file()
+}
+
 pub fn installed(models_root: &Path, quant: &str, clone: bool, stress: bool) -> bool {
     let d = dir(models_root);
     d.join(LIBRARY).is_file()
@@ -256,6 +267,16 @@ impl Engine {
         if stress && !clone {
             return Err("qwen3-tts: the stress adapter is trained on the Base talker".into());
         }
+        let talker = talker(models_root, quant, clone).ok_or_else(|| format!("qwen3-tts: no quantisation {quant}"))?;
+        Engine::open(models_root, &talker, stress, if clone { "base" } else { "custom_voice" })
+    }
+
+    /// The VoiceDesign talker: a voice made from the description in `Say::instruct`, no speaker, no reference.
+    pub fn load_design(models_root: &Path, quant: &str) -> Result<Engine, String> {
+        Engine::open(models_root, &design_talker(models_root, quant), false, "voice_design")
+    }
+
+    fn open(models_root: &Path, talker: &Path, stress: bool, expected: &str) -> Result<Engine, String> {
         let d = dir(models_root);
         // its ggml libraries sit beside it under names other engines' libraries could share: this folder comes first
         let path = std::env::var("PATH").unwrap_or_default();
@@ -264,7 +285,6 @@ impl Engine {
             std::env::set_var("PATH", joined);
         }
         let api = library(&d)?;
-        let talker = talker(models_root, quant, clone).ok_or_else(|| format!("qwen3-tts: no quantisation {quant}"))?;
         let (t, c) = (cstring(&talker.to_string_lossy(), "talker path")?, cstring(&d.join(CODEC).to_string_lossy(), "codec path")?);
         let lora = if stress { Some(cstring(&d.join(STRESS_LORA).to_string_lossy(), "adapter path")?) } else { None };
         let mut p: InitParams = unsafe { std::mem::zeroed() };
@@ -282,7 +302,6 @@ impl Engine {
         }
         let engine = Engine { api, raw, stop: AtomicBool::new(false), voice: std::sync::Mutex::new(None) };
         let kind = unsafe { CStr::from_ptr((engine.api.model_type)(engine.raw)) }.to_string_lossy().into_owned();
-        let expected = if clone { "base" } else { "custom_voice" };
         if kind != expected {
             return Err(format!("qwen3-tts: {} is a {kind} checkpoint, not {expected}", talker.display()));
         }

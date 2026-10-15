@@ -80,6 +80,60 @@ pub async fn sample(
     }
 }
 
+/// POST /voices/design {description, sample, lang?, count?} — кандидаты голоса по описанию задачей (VoiceDesign).
+pub async fn design(State(st): State<AppState>, Json(body): Json<Value>) -> Response {
+    let text = |k: &str| body.get(k).and_then(Value::as_str).unwrap_or_default().trim().to_string();
+    let (description, sample, lang) = (text("description"), text("sample"), text("lang"));
+    if description.is_empty() || sample.is_empty() {
+        return refuse(StatusCode::BAD_REQUEST, "design_empty", t!("voice-design-empty"));
+    }
+    let count = body.get("count").and_then(Value::as_u64).unwrap_or(3).clamp(1, voice_jobs::DESIGN_MAX as u64) as u32;
+    let p = paths(&st);
+    let job: jobs::JobFn = Box::new(move |progress: jobs::ProgressFn| {
+        let cb = |ev: Value| progress(ev);
+        voice_jobs::design(&p, &description, &sample, if lang.is_empty() { "auto" } else { &lang }, count, &cb)
+    });
+    match st.jobs.enqueue(jobs::JobMeta::new(jobs::JobKind::VoiceDesign, Some("voice:design")), job).await {
+        Ok(job_id) => Json(json!({ "job_id": job_id })).into_response(),
+        Err(e) => crate::enqueue_error(e),
+    }
+}
+
+/// GET /voices/design/sample?id=&k= — звук кандидата дизайна.
+pub async fn design_sample(
+    State(st): State<AppState>,
+    Query(q): Query<std::collections::HashMap<String, String>>,
+    req: axum::http::Request<axum::body::Body>,
+) -> Response {
+    let id = q.get("id").map(String::as_str).unwrap_or("");
+    let k = q.get("k").and_then(|v| v.parse::<u32>().ok());
+    match (id.chars().all(|c| c.is_ascii_hexdigit()) && !id.is_empty(), k) {
+        (true, Some(k)) => {
+            let file = voice_jobs::design_dir(&st.voices_dir, id).join(format!("{k}.wav"));
+            if file.is_file() { crate::serve_file_range(&file, req, None).await } else { refuse(StatusCode::NOT_FOUND, "design_gone", t!("voice-design-gone")) }
+        }
+        _ => refuse(StatusCode::NOT_FOUND, "design_gone", t!("voice-design-gone")),
+    }
+}
+
+/// POST /voices/design/keep {id, k, name, description, sample, lang?} — кандидат становится голосом библиотеки.
+pub async fn design_keep(State(st): State<AppState>, Json(body): Json<Value>) -> Response {
+    let text = |k: &str| body.get(k).and_then(Value::as_str).unwrap_or_default().to_string();
+    let k = body.get("k").and_then(Value::as_u64).unwrap_or(0) as u32;
+    let p = paths(&st);
+    let dir = st.voices_dir.clone();
+    let (id, name, description, sample, lang) = (text("id"), text("name"), text("description"), text("sample"), text("lang"));
+    let name = if name.trim().is_empty() { t!("voice-design-name") } else { name };
+    match joined(tokio::task::spawn_blocking(move || voice_jobs::design_keep(&p, &id, k, &name, &description, &sample, if lang.is_empty() { "auto" } else { &lang }).and_then(|made| lib::get(&dir, &made))).await) {
+        Ok(Ok(v)) => {
+            crate::mcp::tell_windows(json!({ "changed": "voices" }));
+            Json(json!({ "voice": v })).into_response()
+        }
+        Ok(Err(e)) => bad(e),
+        Err(r) => r,
+    }
+}
+
 /// GET /voices/photo?name= — фото персоны.
 pub async fn photo(
     State(st): State<AppState>,
