@@ -53,6 +53,10 @@ pub struct Engine {
     pub presets: Vec<Preset>,
     /// Без голоса из библиотеки не говорит: своих голосов нет, базового голоса тоже.
     pub needs_voice: bool,
+    /// Клонирует только по рефу с его текстом: без текста рефа голос не повторит.
+    pub ref_text_required: bool,
+    /// Свой предел длины рефа, секунды, ниже общей настройки `higgs_ref_secs`; None — общая настройка.
+    pub ref_max_secs: Option<f64>,
     /// Почему движок на этой машине не пойдёт (видеокарта, файлы); None — доступен.
     pub unavailable: Option<String>,
 }
@@ -105,6 +109,8 @@ pub fn higgs() -> Engine {
         direction_presets_only: false,
         presets: Vec::new(),
         needs_voice: false,
+        ref_text_required: false,
+        ref_max_secs: None,
         unavailable: None,
     }
 }
@@ -131,6 +137,8 @@ pub fn openrouter() -> Engine {
         direction_presets_only: false,
         presets: Vec::new(),
         needs_voice: false,
+        ref_text_required: false,
+        ref_max_secs: None,
         unavailable: None,
     }
 }
@@ -165,6 +173,8 @@ pub fn drama() -> Engine {
         direction_presets_only: false,
         presets: Vec::new(),
         needs_voice: true,
+        ref_text_required: true,
+        ref_max_secs: None,
         unavailable: None,
     }
 }
@@ -197,6 +207,8 @@ pub fn supertonic() -> Engine {
         direction_presets_only: false,
         presets: crate::supertonic::VOICE_DESCRIPTIONS.iter().map(preset).collect(),
         needs_voice: false,
+        ref_text_required: false,
+        ref_max_secs: None,
         unavailable: None,
     }
 }
@@ -230,6 +242,8 @@ pub fn qwen() -> Engine {
         direction_presets_only: true,
         presets: crate::qwen_tts::SPEAKERS.iter().map(|(id, name, gender, native, description)| Preset { id, name, gender, native, description }).collect(),
         needs_voice: false,
+        ref_text_required: false,
+        ref_max_secs: None,
         unavailable: None,
     }
 }
@@ -245,6 +259,8 @@ pub fn qwen_stress() -> Engine {
         reads: Reads { stress: true, yo: true, phonemes: false, accent: false },
         direction: false,
         needs_voice: true,
+        ref_text_required: false,
+        ref_max_secs: Some(crate::qwen_tts::STRESS_REF_SECS),
         ..qwen()
     }
 }

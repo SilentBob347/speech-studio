@@ -36,7 +36,7 @@ export default function VoicePicker({ value, onChange, inherit, label, className
   const lib = (presets.length > 0 || recent.length > 0) && voices.length > 0 ? t("speech.libraryClone") : undefined;
   const voiceOption = (v: (typeof voices)[number], group: string | undefined): ComboOption => ({
     value: v.name,
-    label: `${v.card.favorite ? "★ " : ""}${prettyVoice(v.name)}${v.card.lang ? ` · ${v.card.lang.toUpperCase()}` : ""}`,
+    label: `${v.card.favorite ? "★ " : ""}${prettyVoice(v.name)}${v.card.lang ? ` · ${v.card.lang.toUpperCase()}` : ""}${caps?.ref_text_required && !v.transcript?.trim() ? ` · ${t("speech.noRefText")}` : ""}`,
     search: `${v.card.gender} ${(v.card.tags ?? []).join(" ")}`,
     group,
   });
@@ -60,9 +60,13 @@ export default function VoicePicker({ value, onChange, inherit, label, className
     <Combobox value={value ?? ""} options={options} onChange={(v) => { if (v === RECORD) { record(); return; } if (v && voices.some((x) => x.name === v)) rememberVoice(v); onChange(v || null); }} label={label} noResults={t("speech.noVoiceFound")}
       className={outer.join(" ")} inputClassName={`w-full text-[var(--color-text)] ${inner.join(" ")} focus:border-[var(--color-accent)] focus:outline-none`} />
   );
-  return recording === null ? picker : (
+  const chosen = voices.find((v) => v.name === value);
+  const warn = caps?.ref_text_required && chosen && !chosen.transcript?.trim()
+    ? <span role="alert" className="block mt-0.5 text-[11px] leading-snug text-[var(--color-warn)]">{t("speech.refTextNeeded", { engine: caps.name, button: t("voices.transcribe") })}</span>
+    : null;
+  return recording === null ? <>{picker}{warn}</> : (
     <>
-      {picker}
+      {picker}{warn}
       {createPortal(<VoiceRecorder clean={recording} onClose={() => setRecording(null)} onRecorded={(name) => { setRecording(null); reload(); rememberVoice(name); onChange(name); }} />, document.body)}
     </>
   );

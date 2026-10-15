@@ -221,7 +221,7 @@ export default function VoiceLibrary({ onClose, onPick }: { onClose: () => void;
           {listing && voices.length > 0 && shown.length === 0 && <p className="text-center text-[13px] text-[var(--color-muted)] py-12">{t("voices.nothingFound")}</p>}
           <ul className="grid gap-2.5 [grid-template-columns:repeat(auto-fill,minmax(240px,1fr))]">
             {shown.map((v) => (
-              <li key={v.name} className={`group relative rounded-xl border p-3 transition-colors ${selected.has(v.name) ? "border-[var(--color-accent)] bg-[color-mix(in_oklab,var(--color-accent)_7%,var(--color-surface))]" : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[color-mix(in_oklab,var(--color-accent)_45%,var(--color-border))]"}`}>
+              <li key={v.name} data-mcp-row={`voice ${prettyVoice(v.name)}${v.transcript ? "" : " (no reference text)"}`} className={`group relative rounded-xl border p-3 transition-colors ${selected.has(v.name) ? "border-[var(--color-accent)] bg-[color-mix(in_oklab,var(--color-accent)_7%,var(--color-surface))]" : "border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[color-mix(in_oklab,var(--color-accent)_45%,var(--color-border))]"}`}>
                 <div className="flex items-start gap-2.5">
                   <button onClick={() => setEditing(v.name)} className="rounded-full" {...named(t("voices.edit"))}><VoiceAvatar voice={v} /></button>
                   <div className="min-w-0 flex-1">

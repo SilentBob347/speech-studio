@@ -8,6 +8,7 @@ import { errorText, prettyVoice } from "../../lib/voices";
 import { followJob } from "../../lib/followJob";
 import ConfirmDialog from "../ConfirmDialog";
 import VoiceAvatar from "./VoiceAvatar";
+import RefNeeds from "./RefNeeds";
 import { DENOISE_LEVELS } from "../../lib/listen";
 
 const GENDERS: VoiceGender[] = ["", "female", "male"];
@@ -168,6 +169,7 @@ export default function VoiceEditor({ voice, onClose, onChanged, onRenamed, onDe
             {busy === "transcribe" ? <Loader2 size={12} className="animate-spin" /> : <ScanText size={12} />}{t("voices.transcribe")}
           </button>
         </div>
+        <RefNeeds hasText={!!voice.transcript?.trim()} />
         <div>
           <div className="flex items-center justify-between mb-1">
             <span className={label + " mb-0"}>{t("voices.pieces")}</span>

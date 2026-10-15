@@ -45,6 +45,10 @@ export type EngineCaps = {
   reads: { stress: boolean; yo: boolean; phonemes: boolean; accent: boolean };
   presets: EnginePreset[];
   needs_voice: boolean;
+  /** Clones only from a reference with its text. */
+  ref_text_required: boolean;
+  /** Its own longest reference, below the studio's setting; null — the setting. */
+  ref_max_secs: number | null;
   unavailable: string | null;
 };
 export type Loudness = "off" | "video" | "podcast" | "acx";

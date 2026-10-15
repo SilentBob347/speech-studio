@@ -853,7 +853,14 @@
     "issue_long_pause": "Long pause inside",
     "issue_noisy": "Noisy",
     "issue_clipped": "Clipped",
-    "issue_short": "Short"
+    "issue_short": "Short",
+    "refNeeds": "What the engines need from the reference",
+    "refLength": "Engines take up to {{s}} s of the reference ({{setting}} in {{models}}): 5–{{s}} s of one person's clean speech without music works best. From a long recording, {{pick}} chooses the best part.",
+    "refTextMust": "needs the reference's text: without it the voice is not cloned",
+    "refTextHelps": "the reference's text is optional: with it the clone is closer",
+    "refTextHave": "the reference's text is there",
+    "refNoClone": "{{engines}} do not clone: they have voices of their own.",
+    "refUpTo": "reference up to {{s}} s"
   },
   "speech": {
     "projectSettings": "Project settings",
@@ -1157,7 +1164,9 @@
     "abWith": "Compare with",
     "ab": "A/B",
     "abHint": "Switch between take #{{a}} and #{{b}} from the same moment",
-    "saveRecipe": "How it was made (JSON)"
+    "saveRecipe": "How it was made (JSON)",
+    "noRefText": "no reference text",
+    "refTextNeeded": "{{engine}} does not clone a voice without its reference text: open the voice in the library and press {{button}}."
   },
   "tags": {
     "emotion": "Emotion",

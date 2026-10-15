@@ -853,7 +853,14 @@
     "issue_long_pause": "Pausa longa dentro",
     "issue_noisy": "Com ruído",
     "issue_clipped": "Saturado",
-    "issue_short": "Curto"
+    "issue_short": "Curto",
+    "refNeeds": "O que os motores precisam da referência",
+    "refLength": "Os motores usam até {{s}} s da referência ({{setting}} em {{models}}): o melhor são 5–{{s}} s de fala limpa de uma pessoa sem música. De uma gravação longa, {{pick}} escolhe a melhor parte.",
+    "refTextMust": "precisa do texto da referência: sem ele a voz não é clonada",
+    "refTextHelps": "o texto da referência é opcional: com ele o clone fica mais fiel",
+    "refTextHave": "o texto da referência existe",
+    "refNoClone": "{{engines}} não clonam: têm vozes próprias.",
+    "refUpTo": "referência até {{s}} s"
   },
   "speech": {
     "projectSettings": "Configurações do projeto",
@@ -1157,7 +1164,9 @@
     "abWith": "Comparar com",
     "ab": "A/B",
     "abHint": "Alternar entre a tomada #{{a}} e a #{{b}} do mesmo ponto",
-    "saveRecipe": "Como foi feito (JSON)"
+    "saveRecipe": "Como foi feito (JSON)",
+    "noRefText": "sem texto de referência",
+    "refTextNeeded": "{{engine}} não clona uma voz sem o texto da referência: abra a voz na biblioteca e pressione {{button}}."
   },
   "tags": {
     "emotion": "Emoção",

@@ -853,7 +853,14 @@
     "issue_long_pause": "内部有长停顿",
     "issue_noisy": "噪声大",
     "issue_clipped": "有削波",
-    "issue_short": "太短"
+    "issue_short": "太短",
+    "refNeeds": "各引擎对参考音频的要求",
+    "refLength": "引擎最多使用参考音频的 {{s}} 秒（{{models}} 中的“{{setting}}”）：最好是 5–{{s}} 秒单人、无音乐的清晰语音。长录音可用“{{pick}}”选出最佳段落。",
+    "refTextMust": "需要参考文本：没有它无法克隆声音",
+    "refTextHelps": "参考文本可选：有它克隆更像",
+    "refTextHave": "已有参考文本",
+    "refNoClone": "{{engines}} 不克隆：它们有自带声音。",
+    "refUpTo": "参考最长 {{s}} 秒"
   },
   "speech": {
     "projectSettings": "项目设置",
@@ -1157,7 +1164,9 @@
     "abWith": "对比",
     "ab": "A/B",
     "abHint": "在第 #{{a}} 条和第 #{{b}} 条之间从同一时刻切换",
-    "saveRecipe": "制作方式（JSON）"
+    "saveRecipe": "制作方式（JSON）",
+    "noRefText": "无参考文本",
+    "refTextNeeded": "{{engine}} 没有参考文本无法克隆声音：在声音库中打开该声音并点击“{{button}}”。"
   },
   "tags": {
     "emotion": "情绪",
