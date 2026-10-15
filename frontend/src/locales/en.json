@@ -1270,7 +1270,8 @@
     "characterGender": "Gender: {{speaker}}",
     "characterAge": "Age: {{speaker}}",
     "genderAny": "gender not set",
-    "ageAny": "age not set"
+    "ageAny": "age not set",
+    "savePlayer": "Player with the text (HTML): lights what is being read"
   },
   "tags": {
     "emotion": "Emotion",

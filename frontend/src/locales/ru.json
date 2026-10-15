@@ -1270,7 +1270,8 @@
     "characterGender": "Пол: {{speaker}}",
     "characterAge": "Возраст: {{speaker}}",
     "genderAny": "пол не указан",
-    "ageAny": "возраст не указан"
+    "ageAny": "возраст не указан",
+    "savePlayer": "Плеер с текстом (HTML): подсвечивает читаемое"
   },
   "tags": {
     "emotion": "Эмоция",

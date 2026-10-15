@@ -41,6 +41,7 @@ mod models;
 mod openrouter;
 mod presets;
 mod qc;
+mod read_along;
 pub mod process_group;
 mod record;
 mod ref_pick;

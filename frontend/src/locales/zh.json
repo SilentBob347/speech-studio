@@ -1270,7 +1270,8 @@
     "characterGender": "性别：{{speaker}}",
     "characterAge": "年龄：{{speaker}}",
     "genderAny": "未指定性别",
-    "ageAny": "未指定年龄"
+    "ageAny": "未指定年龄",
+    "savePlayer": "带文本的播放器（HTML）：高亮正在朗读的内容"
   },
   "tags": {
     "emotion": "情绪",

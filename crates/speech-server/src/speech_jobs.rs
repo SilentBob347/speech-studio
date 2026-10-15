@@ -1410,12 +1410,15 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         });
         std::fs::write(exports.join(&recipe), serde_json::to_vec_pretty(&body).map_err(|e| e.to_string())?).map_err(|e| format!("{recipe}: {e}"))?;
         let timings = format!("{name}.timings.json");
-        let body = json!({ "file": file, "blocks": part_timed.iter().map(|(s, e, who, text, words)| json!({ "start": s, "end": e, "speaker": who, "text": text, "words": words.iter().map(|(w, ws, we)| json!({ "word": w, "start": ws, "end": we })).collect::<Vec<_>>() })).collect::<Vec<_>>() });
+        let timed_blocks = json!(part_timed.iter().map(|(s, e, who, text, words)| json!({ "start": s, "end": e, "speaker": who, "text": text, "words": words.iter().map(|(w, ws, we)| json!({ "word": w, "start": ws, "end": we })).collect::<Vec<_>>() })).collect::<Vec<_>>());
+        let body = json!({ "file": file, "blocks": timed_blocks });
         std::fs::write(exports.join(&timings), serde_json::to_vec_pretty(&body).map_err(|e| e.to_string())?).map_err(|e| format!("{timings}: {e}"))?;
-        outputs.push(json!({ "file": file, "subtitles": subtitles, "subtitle_files": subtitle_files, "timings": timings, "recipe": recipe, "chapters": chapter_list, "path": target.to_string_lossy(), "duration": z - a }));
+        let player = format!("{name}.player.html");
+        std::fs::write(exports.join(&player), crate::read_along::player_html(&project.name, &file, &timed_blocks)).map_err(|e| format!("{player}: {e}"))?;
+        outputs.push(json!({ "file": file, "subtitles": subtitles, "subtitle_files": subtitle_files, "timings": timings, "player": player, "recipe": recipe, "chapters": chapter_list, "path": target.to_string_lossy(), "duration": z - a }));
     }
     let first = outputs.first().cloned().unwrap_or(Value::Null);
-    Ok(json!({ "file": first["file"], "subtitles": first["subtitles"], "subtitle_files": first["subtitle_files"], "timings": first["timings"], "recipe": first["recipe"], "chapters": first["chapters"], "path": first["path"], "parts": if outputs.len() > 1 { Value::Array(outputs) } else { Value::Null }, "tag_problems": tag_problems, "acx": acx_report, "duration": total, "marks": marks, "lufs_before": levelled.map(|l| l.before), "lufs": levelled.map(|l| l.after) }))
+    Ok(json!({ "file": first["file"], "subtitles": first["subtitles"], "subtitle_files": first["subtitle_files"], "timings": first["timings"], "player": first["player"], "recipe": first["recipe"], "chapters": first["chapters"], "path": first["path"], "parts": if outputs.len() > 1 { Value::Array(outputs) } else { Value::Null }, "tag_problems": tag_problems, "acx": acx_report, "duration": total, "marks": marks, "lufs_before": levelled.map(|l| l.before), "lufs": levelled.map(|l| l.after) }))
 }
 
 /// How a block was voiced: the take in the file and what made it, to make it again.

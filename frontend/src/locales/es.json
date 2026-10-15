@@ -1270,7 +1270,8 @@
     "characterGender": "Género: {{speaker}}",
     "characterAge": "Edad: {{speaker}}",
     "genderAny": "género sin indicar",
-    "ageAny": "edad sin indicar"
+    "ageAny": "edad sin indicar",
+    "savePlayer": "Reproductor con el texto (HTML): resalta lo que se lee"
   },
   "tags": {
     "emotion": "Emoción",

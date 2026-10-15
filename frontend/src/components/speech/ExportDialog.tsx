@@ -34,6 +34,7 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
   type Part = { file: string; subtitles: string; timings: string; chapters: string | null; duration: number };
   const [parts, setParts] = useState<Part[] | null>(null);
   const [timings, setTimings] = useState<string | null>(null);
+  const [player, setPlayer] = useState<string | null>(null);
   const [recipe, setRecipe] = useState<string | null>(null);
   const [clips, setClips] = useState<string[] | null>(null);
   const [clipsSaved, setClipsSaved] = useState<string | null>(null);
@@ -58,13 +59,14 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
     setError(null);
     try {
       const { job_id } = await speechApi.export(pid, format, undefined, perBlock, perBlock ? 0 : partMinutes, allowDuration, { sample_rate: rate || undefined, bits: bits || undefined, kbps: kbps || undefined });
-      const r = (await followJob(job_id, "export")) as { file: string; files?: string[]; subtitles?: string; subtitle_files?: string[]; timings?: string; recipe?: string; chapters?: string | null; parts?: Part[] | null; acx?: AcxReport | null };
+      const r = (await followJob(job_id, "export")) as { file: string; files?: string[]; subtitles?: string; subtitle_files?: string[]; timings?: string; player?: string; recipe?: string; chapters?: string | null; parts?: Part[] | null; acx?: AcxReport | null };
       if (r.files) { setClips(r.files); setRecipe(r.recipe ?? null); return; }
       setAcx(r.acx ?? null);
       setFile(r.file);
       setSubs(r.subtitle_files ?? (r.subtitles ? [r.subtitles] : []));
       setChapterList(r.chapters ?? null);
       setTimings(r.timings ?? null);
+      setPlayer(r.player ?? null);
       setRecipe(r.recipe ?? null);
       setParts(r.parts ?? null);
       onDone(r.file);
@@ -158,6 +160,7 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
                 )) : <FileActions pid={pid} file={file} primary />}
                 {!parts && chapterList && <FileActions pid={pid} file={chapterList} label={t("speech.saveChapters")} />}
                 {!parts && subs.map((f) => <FileActions key={f} pid={pid} file={f} label={t("speech.saveSubs", { ext: f.slice(f.lastIndexOf(".")) })} />)}
+                {!parts && player && <FileActions pid={pid} file={player} label={t("speech.savePlayer")} />}
                 {!parts && timings && <FileActions pid={pid} file={timings} label={t("speech.saveTimings")} />}
                 {!parts && recipe && <FileActions pid={pid} file={recipe} label={t("speech.saveRecipe")} />}
               </div>
