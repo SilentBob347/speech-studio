@@ -10,7 +10,7 @@ if [ "${1:-}" = "--inside" ]; then
   export CARGO_HOME=/cache/cargo RUSTUP_HOME=/cache/rustup npm_config_cache=/cache/npm PATH=/cache/cargo/bin:/cache/node/bin:$PATH
   echo "[..] packages"
   apt-get update -q >/dev/null
-  apt-get install -y -q --no-install-recommends build-essential pkg-config curl ca-certificates git unzip xz-utils \
+  apt-get install -y -q --no-install-recommends build-essential cmake pkg-config curl ca-certificates git unzip xz-utils \
     libssl-dev libasound2-dev libwayland-dev libxkbcommon-dev libgtk-3-dev \
     libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libdbus-1-dev libxdo-dev patchelf file libfuse2 gstreamer1.0-plugins-base gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-libav >/dev/null
   if [ ! -x /cache/node/bin/node ]; then
