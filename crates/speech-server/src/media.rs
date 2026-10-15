@@ -167,6 +167,15 @@ fn run_ff(args: &[&std::ffi::OsStr]) -> Result<(), String> {
     Ok(())
 }
 
+/// Mono samples through an ffmpeg audio filter chain, at the same rate.
+pub fn filter_samples(samples: &[f32], sr: u32, af: &str) -> Result<Vec<f32>, String> {
+    let tmp = tempfile::Builder::new().prefix("fx-").tempdir().map_err(|e| e.to_string())?;
+    let (src, dst) = (tmp.path().join("in.wav"), tmp.path().join("out.wav"));
+    crate::wavio::write_mono_f32(&src, samples, sr)?;
+    run_ff(&[OsStr::new("-y"), OsStr::new("-i"), src.as_os_str(), OsStr::new("-af"), OsStr::new(af), OsStr::new("-ar"), OsStr::new(&sr.to_string()), OsStr::new("-ac"), OsStr::new("1"), OsStr::new("-c:a"), OsStr::new("pcm_f32le"), dst.as_os_str()])?;
+    Ok(crate::wavio::read_mono_f32(&dst)?.0)
+}
+
 /// run_ff с ЖЁСТКИМ таймаутом — для дорогих графов (mix_env volume:eval=frame на длинном файле мог
 /// зависнуть навечно и заблокировать единственный воркер джоб, как burn #105). Drain-потоки с дедлайном
 /// (паттерн dub-captions::burn::output_with_timeout).

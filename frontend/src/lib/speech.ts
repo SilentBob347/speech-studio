@@ -32,6 +32,8 @@ export type Block = {
   lang?: string;
   /** The block's own sampling, over its speaker's and the project's. */
   params?: SpeechParams | null;
+  /** The block's voice effect: one of VOICE_FX, `none` to take its speaker's off, empty for its speaker's. */
+  fx?: string;
 };
 export type Review = "" | "approved" | "fix";
 export type WordNote = { quote: string; note: string; marker: Marker | "" };
@@ -100,6 +102,8 @@ export type SpeechProject = {
   cast_params?: Record<string, SpeechParams>; chapters: Chapter[]; dictionary: DictEntry[];
   /** What is known of each character for picking its voice. */
   characters?: Record<string, { gender?: VoiceGender; age?: VoiceAge }>;
+  /** Each character's voice effect, when it has one. */
+  cast_fx?: Record<string, string>;
   /** A project made from a book: its title, author and cover file. */
   book?: { title: string; author: string; cover: string | null } | null;
   status?: Record<string, { state: BlockState; key: string; fit?: "fits" | "tight" | "impossible" }>;
@@ -129,6 +133,13 @@ export type HistoryTake = {
 };
 export type QueuedSynth = { n: number; added: number; scope: { ids: string[] | null; from: string | null; force: boolean; seed: number | null } };
 /** The engine that voices a block: its own, its speaker's, the project's. */
+/** The voice effects carried over from Game Dub. */
+export const VOICE_FX = ["radio", "phone", "loudspeaker"] as const;
+/** The effect a block sounds through: its own, else its speaker's; null — none. */
+export const fxOf = (p: SpeechProject, b: Block): string | null => {
+  const fx = b.fx || p.cast_fx?.[b.speaker] || "";
+  return fx && fx !== "none" ? fx : null;
+};
 export const engineOf = (p: SpeechProject, b: Block) => (p.settings.one_voice ? p.settings.engine : b.engine || p.cast_engines?.[b.speaker] || p.settings.engine);
 /** What rebuilding a book project from its edited source keeps, adds and drops. */
 export type RebuildStats = { kept: number; added: number; dropped: number; dropped_voiced: number };
@@ -214,7 +225,7 @@ export const speechApi = {
   unknownWords: (pid: string) => getCoded<{ words: UnknownWord[]; stress_checked: boolean }>(`/projects/${pid}/unknown-words`),
   tryRule: (pid: string, body: { phrase: string; rule: DictEntry; voice: string | null }) => postCoded<{ job_id: string }>(`/projects/${pid}/dictionary/try`, body),
   tryUrl: (pid: string, file: string) => `${BASE}/projects/${pid}/tries/${encodeURIComponent(file)}`,
-  takeUrl: (pid: string, file: string) => `${BASE}/projects/${pid}/takes/${encodeURIComponent(file)}`,
+  takeUrl: (pid: string, file: string, fx?: string | null) => `${BASE}/projects/${pid}/takes/${encodeURIComponent(file)}${fx ? `?fx=${fx}` : ""}`,
   exportUrl: (pid: string, file: string) => `${BASE}/projects/${pid}/exports/${encodeURIComponent(file)}`,
 };
 

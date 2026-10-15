@@ -132,6 +132,9 @@ pub struct Block {
     /// Свои параметры синтеза блока; нет — персонажа или проекта.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub params: Option<crate::tts_host::Params>,
+    /// The voice effect of the block (`voice_fx::KINDS`): `none` takes its speaker's off, empty — its speaker's.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub fx: String,
     /// Время реплики субтитров, с: в проекте по таймкодам блок звучит в нём.
     pub start: Option<f64>,
     pub end: Option<f64>,
@@ -237,6 +240,9 @@ pub struct SpeechProject {
     /// What is known of each character for picking its voice: gender and age, from the director's registry or the user.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub characters: BTreeMap<String, Character>,
+    /// The voice effect of each character that has one (`voice_fx::KINDS`): every line of theirs sounds through it.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub cast_fx: BTreeMap<String, String>,
     pub chapters: Vec<Chapter>,
     /// Словарь произношения проекта: срабатывает раньше глобального.
     pub dictionary: Vec<crate::pron_dict::Entry>,
@@ -267,7 +273,7 @@ pub struct BookMeta {
 
 impl Default for SpeechProject {
     fn default() -> Self {
-        SpeechProject { kind: KIND.into(), version: 1, name: String::new(), created: 0, settings: Settings::default(), cast: BTreeMap::new(), cast_engines: BTreeMap::new(), cast_params: BTreeMap::new(), characters: BTreeMap::new(), chapters: Vec::new(), dictionary: Vec::new(), book: None, key: String::new() }
+        SpeechProject { kind: KIND.into(), version: 1, name: String::new(), created: 0, settings: Settings::default(), cast: BTreeMap::new(), cast_engines: BTreeMap::new(), cast_params: BTreeMap::new(), characters: BTreeMap::new(), cast_fx: BTreeMap::new(), chapters: Vec::new(), dictionary: Vec::new(), book: None, key: String::new() }
     }
 }
 
@@ -341,6 +347,12 @@ impl SpeechProject {
         b.params.as_ref().or_else(|| self.cast_params.get(&b.speaker)).unwrap_or(&self.settings.params)
     }
 
+    /// The voice effect the block sounds through: its own, else its speaker's; `None` — none.
+    pub fn fx_of<'a>(&'a self, b: &'a Block) -> Option<&'a str> {
+        let own = Some(b.fx.as_str()).filter(|f| !f.is_empty());
+        own.or_else(|| self.cast_fx.get(&b.speaker).map(String::as_str)).filter(|f| *f != "none")
+    }
+
     /// The block's language: its own when it has one, else the project's (`auto` included).
     pub fn lang_of<'a>(&'a self, b: &'a Block) -> &'a str {
         if b.lang.is_empty() { &self.settings.lang } else { &b.lang }
@@ -354,6 +366,12 @@ impl SpeechProject {
         self.settings.params.checked()?;
         for (speaker, params) in &self.cast_params {
             params.checked().map_err(|e| format!("speaker {speaker}: {e}"))?;
+        }
+        if let Some((who, fx)) = self.cast_fx.iter().find(|(_, f)| !crate::voice_fx::KINDS.contains(&f.as_str())) {
+            return Err(format!("speaker {who}: voice effect {fx} is not one of {:?}", crate::voice_fx::KINDS));
+        }
+        if let Some(b) = self.blocks().find(|b| !b.fx.is_empty() && b.fx != "none" && !crate::voice_fx::KINDS.contains(&b.fx.as_str())) {
+            return Err(format!("block {}: voice effect {} is not one of {:?} or none", b.id, b.fx, crate::voice_fx::KINDS));
         }
         for (name, c) in &self.characters {
             if !crate::voice_library::GENDERS.contains(&c.gender.as_str()) || !crate::voice_library::AGES.contains(&c.age.as_str()) {

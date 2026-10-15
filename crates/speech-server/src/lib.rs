@@ -87,6 +87,7 @@ mod tts_host;
 mod url_import;
 mod vad;
 mod voice_api;
+mod voice_fx;
 mod voice_jobs;
 mod voice_library;
 mod wavio;

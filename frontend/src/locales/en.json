@@ -1310,7 +1310,14 @@
     "qcNote_long_pause": "pause inside, the text is there",
     "qcNote_little_speech": "little speech, the text is there",
     "qcNote_audio_repeat": "looked like a repeat, not confirmed",
-    "qcIssue_click": "a click at the end"
+    "qcIssue_click": "a click at the end",
+    "voiceFx": "Voice effect",
+    "voiceFxAsSpeaker": "as the character's",
+    "voiceFxFor": "Voice effect: {{speaker}}",
+    "voiceFx_none": "no effect",
+    "voiceFx_radio": "radio",
+    "voiceFx_phone": "phone",
+    "voiceFx_loudspeaker": "loudspeaker"
   },
   "tags": {
     "emotion": "Emotion",

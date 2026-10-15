@@ -1310,7 +1310,14 @@
     "qcNote_long_pause": "пауза внутри, текст на месте",
     "qcNote_little_speech": "мало речи, текст на месте",
     "qcNote_audio_repeat": "похоже на повтор, не подтвердилось",
-    "qcIssue_click": "щелчок в конце"
+    "qcIssue_click": "щелчок в конце",
+    "voiceFx": "Эффект голоса",
+    "voiceFxAsSpeaker": "как у персонажа",
+    "voiceFxFor": "Эффект голоса: {{speaker}}",
+    "voiceFx_none": "без эффекта",
+    "voiceFx_radio": "рация",
+    "voiceFx_phone": "телефон",
+    "voiceFx_loudspeaker": "громкоговоритель"
   },
   "tags": {
     "emotion": "Эмоция",

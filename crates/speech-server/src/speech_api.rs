@@ -463,8 +463,9 @@ pub(crate) fn safe_file(name: &str) -> bool {
     !name.is_empty() && !name.contains(['/', '\\']) && !name.contains("..")
 }
 
-/// GET /projects/{pid}/takes/{file} — звук дубля с Range.
-pub async fn take_file(State(st): State<AppState>, AxPath((pid, file)): AxPath<(String, String)>, req: axum::http::Request<axum::body::Body>) -> Response {
+/// GET /projects/{pid}/takes/{file}?fx= — звук дубля с Range; с `fx` — через этот эффект голоса (`voice_fx`), копия
+/// рядом в `takes/.fx/`, сам дубль не меняется.
+pub async fn take_file(State(st): State<AppState>, AxPath((pid, file)): AxPath<(String, String)>, axum::extract::Query(q): axum::extract::Query<std::collections::HashMap<String, String>>, req: axum::http::Request<axum::body::Body>) -> Response {
     if !sp::is_pid(&pid) || !safe_file(&file) {
         return refuse(StatusCode::BAD_REQUEST, "bad_request", file);
     }
@@ -472,7 +473,38 @@ pub async fn take_file(State(st): State<AppState>, AxPath((pid, file)): AxPath<(
     if !path.is_file() {
         return refuse(StatusCode::NOT_FOUND, "no_file", file);
     }
-    crate::serve_file_range(&path, req, None).await
+    let Some(fx) = q.get("fx").filter(|f| !f.is_empty()).cloned() else {
+        return crate::serve_file_range(&path, req, None).await;
+    };
+    if !crate::voice_fx::KINDS.contains(&fx.as_str()) {
+        return refuse(StatusCode::BAD_REQUEST, "bad_request", format!("fx {fx}"));
+    }
+    let rendered = joined(
+        tokio::task::spawn_blocking(move || -> Result<std::path::PathBuf, String> {
+            let dir = path.parent().unwrap_or(Path::new(".")).join(".fx");
+            let out = dir.join(format!("{file}.{fx}.wav"));
+            let fresh = |o: &Path| std::fs::metadata(o).and_then(|m| m.modified()).ok() >= std::fs::metadata(&path).and_then(|m| m.modified()).ok();
+            if out.is_file() && fresh(&out) {
+                return Ok(out);
+            }
+            std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+            let tmp = tempfile::Builder::new().prefix("take-fx-").tempdir().map_err(|e| e.to_string())?;
+            let wav = tmp.path().join("take.wav");
+            crate::media::extract_audio(&path, &wav, crate::speech_jobs::SR, 1)?;
+            let (samples, sr) = crate::wavio::read_mono_f32(&wav)?;
+            let done = crate::voice_fx::apply(&samples, sr, &fx)?;
+            let part = out.with_extension("wav.part");
+            crate::wavio::write_mono_f32(&part, &done, sr)?;
+            std::fs::rename(&part, &out).map_err(|e| format!("{}: {e}", out.display()))?;
+            Ok(out)
+        })
+        .await,
+    );
+    match rendered {
+        Ok(Ok(out)) => crate::serve_file_range(&out, req, None).await,
+        Ok(Err(e)) => refuse(StatusCode::INTERNAL_SERVER_ERROR, "fx_failed", e),
+        Err(r) => r,
+    }
 }
 
 /// POST /projects/{pid}/dictionary/try {phrase, rule, voice?} — правило словаря на слух: фраза как написана и с этим

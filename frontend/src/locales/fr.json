@@ -1310,7 +1310,14 @@
     "qcNote_long_pause": "pause interne, le texte y est",
     "qcNote_little_speech": "peu de parole, le texte y est",
     "qcNote_audio_repeat": "semblait une répétition, non confirmée",
-    "qcIssue_click": "un clic à la fin"
+    "qcIssue_click": "un clic à la fin",
+    "voiceFx": "Effet de voix",
+    "voiceFxAsSpeaker": "comme celui du personnage",
+    "voiceFxFor": "Effet de voix : {{speaker}}",
+    "voiceFx_none": "aucun effet",
+    "voiceFx_radio": "talkie-walkie",
+    "voiceFx_phone": "téléphone",
+    "voiceFx_loudspeaker": "haut-parleur"
   },
   "tags": {
     "emotion": "Émotion",

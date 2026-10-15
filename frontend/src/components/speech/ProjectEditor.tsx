@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ArrowLeft, BookOpen, BookUp, ChartGantt, Download, Drama, History, ListOrdered, Loader2, MessagesSquare, Redo2, Search, Settings2, Sparkles, SpellCheck, Square, Undo2, Users, Wand2, X, ListChecks } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import type { VoiceAge, VoiceGender } from "../../lib/api";
-import { activeTake, engineOf, newId, spliceChars, SPEAKER_TINTS, speechApi, stressDoubts, voiceOf, type Block, type BlockState, type SpeechProject, type QueuedSynth, type StressWord, type BookPreview } from "../../lib/speech";
+import { activeTake, engineOf, fxOf, newId, VOICE_FX, spliceChars, SPEAKER_TINTS, speechApi, stressDoubts, voiceOf, type Block, type BlockState, type SpeechProject, type QueuedSynth, type StressWord, type BookPreview } from "../../lib/speech";
 import { openSettings } from "../../lib/settingsNav";
 import { useSpeechProject } from "../../lib/useSpeechProject";
 import BookImport from "./BookImport";
@@ -281,7 +281,8 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
     const take = (n == null ? null : b.takes.find((tk) => tk.n === n)) ?? activeTake(b);
     if (!take) return;
     audio.current?.pause();
-    const a = new Audio(`${speechApi.takeUrl(pid, take.file)}?n=${take.n}`);
+    const fx = latestProject.current ? fxOf(latestProject.current, b) : null;
+    const a = new Audio(`${speechApi.takeUrl(pid, take.file, fx)}${fx ? "&" : "?"}n=${take.n}`);
     a.volume = volume.current;
     a.playbackRate = rate.current;
     const [from, to] = take.cut ?? [0, Infinity];
@@ -751,6 +752,11 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
                 <OwnParams engine={project.cast_engines?.[s] || project.settings.engine} value={project.cast_params?.[s]} inherited={project.settings.params} label={t("speech.ownParamsSpeaker")}
                   onChange={(v) => edit((p) => { const all = { ...(p.cast_params ?? {}) }; if (v) all[s] = v; else delete all[s]; p.cast_params = all; return p; })} />
               </div>
+              <select value={project.cast_fx?.[s] ?? ""} onChange={(e) => edit((p) => { const all = { ...(p.cast_fx ?? {}) }; if (e.target.value) all[s] = e.target.value; else delete all[s]; p.cast_fx = all; return p; })} aria-label={t("speech.voiceFxFor", { speaker: s })}
+                className="mt-1 w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-1.5 py-1 text-[11px] text-[var(--color-muted)]">
+                <option value="">{t("speech.voiceFx_none")}</option>
+                {VOICE_FX.map((f) => <option key={f} value={f}>{t(`speech.voiceFx_${f}`)}</option>)}
+              </select>
               <div className="mt-1 grid grid-cols-2 gap-1">
                 <select value={project.characters?.[s]?.gender ?? ""} onChange={(e) => setCharacter(s, { gender: e.target.value as VoiceGender })} aria-label={t("speech.characterGender", { speaker: s })}
                   className="min-w-0 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-1.5 py-1 text-[11px] text-[var(--color-muted)]">

@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, ChevronDown, Combine, Eye, EyeOff, GripVertical, Loader2, Pause, Pin, Play, Plus, RefreshCw, Scissors, SlidersHorizontal, SpellCheck, Trash2, X } from "lucide-react";
-import { activeTake, cueTime, MARKERS, speechApi, withCase, type Block, type BlockState, type Marker, type SpeechParams, type StressWord, type Take } from "../../lib/speech";
+import { activeTake, cueTime, MARKERS, speechApi, VOICE_FX, withCase, type Block, type BlockState, type Marker, type SpeechParams, type StressWord, type Take } from "../../lib/speech";
 import { askCloneTerms } from "../../lib/cloudConsent";
 import { named } from "../../lib/a11y";
 import { useSortable } from "@dnd-kit/sortable";
@@ -276,6 +276,14 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
             className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]">
             <option value="">{t("speech.blockLangProject")}</option>
             {LANG_CHOICES.filter((l) => l !== "auto").map((l) => <option key={l} value={l}>{l.toUpperCase()}</option>)}
+          </select>
+        </label>
+        <label className="text-[11px] text-[var(--color-muted)]">{t("speech.voiceFx")}
+          <select value={block.fx ?? ""} onChange={(e) => a.patch({ fx: e.target.value })} aria-label={t("speech.voiceFx")}
+            className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]">
+            <option value="">{t("speech.voiceFxAsSpeaker")}</option>
+            <option value="none">{t("speech.voiceFx_none")}</option>
+            {VOICE_FX.map((f) => <option key={f} value={f}>{t(`speech.voiceFx_${f}`)}</option>)}
           </select>
         </label>
         <label className="text-[11px] text-[var(--color-muted)]">{t("speech.pauseAfter")}

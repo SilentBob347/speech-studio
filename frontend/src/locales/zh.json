@@ -1310,7 +1310,14 @@
     "qcNote_long_pause": "内部停顿，文本完整",
     "qcNote_little_speech": "语音少，文本完整",
     "qcNote_audio_repeat": "疑似重复，未确认",
-    "qcIssue_click": "结尾有咔哒声"
+    "qcIssue_click": "结尾有咔哒声",
+    "voiceFx": "声音效果",
+    "voiceFxAsSpeaker": "同角色设置",
+    "voiceFxFor": "声音效果：{{speaker}}",
+    "voiceFx_none": "无效果",
+    "voiceFx_radio": "对讲机",
+    "voiceFx_phone": "电话",
+    "voiceFx_loudspeaker": "扩音器"
   },
   "tags": {
     "emotion": "情绪",
