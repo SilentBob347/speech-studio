@@ -4,6 +4,7 @@ import { Ear, FileAudio, Loader2, Mic, Sparkles, Square, Trash2 } from "lucide-r
 import { api } from "../../lib/api";
 import { listenApi, clock, MEDIA, prepare, TRANSCRIPT_FORMATS, type ListenCard, type ListenEngine, type ListenProject, type Start, type TranscriptFormat } from "../../lib/listen";
 import QuickListen from "./QuickListen";
+import WatchFolder from "./WatchFolder";
 import BatchList, { type BatchItem } from "../BatchList";
 import { ENGINES } from "./ListenSettings";
 import { LANG_CHOICES } from "../speech/langs";
@@ -152,6 +153,7 @@ export default function ListeningHome({ onOpen }: { onOpen: (pid: string) => voi
           )}
           <UrlImport onReady={(f) => onOpen(f.pid)} />
           <MicRecorder lang={start.lang} onDone={(pid, project) => { void prepare(pid, project, start).then(() => onOpen(pid), (e: unknown) => setError(errorText(e))); }} onError={setError} />
+          <WatchFolder start={start} onOpen={onOpen} />
           {error && <p role="alert" className="text-[12px] text-[var(--color-warn)] break-words">{error}</p>}
         </section>
         <section aria-labelledby="listen-list" className="space-y-3">

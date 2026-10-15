@@ -205,6 +205,24 @@ pub(super) fn tools() -> Vec<Tool> {
             call: |args| post(listen_path(args, "/cut")?, json!({})),
         },
         Tool {
+            name: "listen_watch_start",
+            description: "Recognise a folder of recordings in the background: every sound or video file in folder becomes a Listening recording, is recognised (engine and lang for new ones, the studio's and auto by default) and written as formats (srt, vtt, ass, txt, json; rules and digits as listen_export takes them) into out (the folder itself by default). keep goes on watching the folder for new files. What is done survives a restart: the work goes on where it stopped, and a file done before is not done again unless it changed. Answers listen_watch_status.",
+            schema: || object(json!({ "folder": { "type": "string" }, "out": { "type": "string" }, "formats": { "type": "array", "items": { "type": "string", "enum": ["srt", "vtt", "ass", "txt", "json"] } }, "keep": { "type": "boolean" }, "engine": { "type": "string" }, "lang": { "type": "string" }, "rules": { "type": "string" }, "digits": { "type": "boolean" } }), &["folder", "formats"]),
+            call: |args| post("/listen/watch".into(), body_without(args, &[])),
+        },
+        Tool {
+            name: "listen_watch_status",
+            description: "The folder of recordings recognised in the background: its settings, whether it runs, and each file with its recording (pid), state (queued, working, done, error), error and the files written.",
+            schema: || object(json!({}), &[]),
+            call: |_| get("/listen/watch".into()),
+        },
+        Tool {
+            name: "listen_watch_stop",
+            description: "Stop the folder's background recognition after the recording being recognised now; listen_watch_start goes on with the rest.",
+            schema: || object(json!({}), &[]),
+            call: |_| post("/listen/watch/stop".into(), json!({})),
+        },
+        Tool {
             name: "listen_stats",
             description: "Who speaks how much in a Listening recording, over the lines shown: per speaker its talk seconds and share of all talk (%), lines, words, pace (words a minute) and longest stretch without another speaker, the most talkative first.",
             schema: || object(json!({ "pid": listen_pid() }), &["pid"]),

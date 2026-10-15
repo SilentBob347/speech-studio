@@ -88,6 +88,9 @@ export const listenApi = {
   export: (pid: string, format: TranscriptFormat, speakers: boolean, times: boolean, rules = "", digits = false) => postCoded<{ file: string; text: string; too_fast: number | null; digits_unknown: number | null }>(`/listen/${pid}/export`, { format, speakers, times, rules: rules || undefined, digits: digits || undefined }),
   subtitleRules: () => getCoded<{ rules: SubtitleRules[] }>("/listen/subtitle-rules"),
   stats: (pid: string) => getCoded<SpeakerStats>(`/listen/${pid}/stats`),
+  watchStatus: () => getCoded<WatchStatus>("/listen/watch"),
+  watchStart: (config: WatchConfig) => postCoded<WatchStatus>("/listen/watch", config),
+  watchStop: () => postCoded<WatchStatus>("/listen/watch/stop", {}),
   check: (pid: string, reference: string) => postCoded<ReferenceCheck>(`/listen/${pid}/check`, { reference }),
   toSpeech: (pid: string) => postCoded<{ pid: string }>(`/listen/${pid}/to-speech`, {}),
   speakersMatch: (pid: string) => postCoded<{ speakers: SpeakerMatch[]; threshold: number }>(`/listen/${pid}/speakers/match`, {}),
@@ -172,6 +175,11 @@ export const speakerColor = (key: string) => SPEAKER_COLORS[(Number.parseInt(key
 
 /** A broadcaster's subtitle rules: characters per line, lines per screen, fastest reading, shortest and longest showing. */
 export type SubtitleRules = { name: string; max_line_len: number; max_lines: number; max_cps: number; min_display_ms: number; max_display_ms: number };
+/** A folder recognised in the background: every recording in it written as `formats` into `out` (empty — the folder
+ * itself), `keep` watching it for new files; the work survives a restart. */
+export type WatchConfig = { folder: string; out: string; formats: TranscriptFormat[]; keep: boolean; engine: string; lang: string; rules: string; digits: boolean };
+export type WatchItem = { file: string; pid: string | null; state: "queued" | "working" | "done" | "error"; error: string | null; outputs: string[] };
+export type WatchStatus = { config: WatchConfig; on: boolean; running: boolean; items: WatchItem[]; done: number; errors: number; queued: number };
 /** Who speaks how much: per speaker talk seconds, share of all talk (%), lines, words, words a minute, longest stretch. */
 export type SpeakerStats = { talk_seconds: number; duration: number; speakers: { speaker: string; name: string; seconds: number; share: number; lines: number; words: number; wpm: number; longest: number }[] };
 

@@ -89,6 +89,7 @@ mod vad;
 mod voice_api;
 mod voice_fx;
 mod tracks;
+mod listen_watch;
 mod listen_live;
 mod itn;
 mod music_studios;
@@ -269,6 +270,7 @@ pub async fn serve(state: AppState, listener: std::net::TcpListener) -> anyhow::
     service::record_port(listener.local_addr()?.port());
     let listener = tokio::net::TcpListener::from_std(listener)?;
     hub::start(&state.repo_root);
+    listen_watch::resume(&state);
     // models another program already has are linked in at start; only what is missing everywhere is downloaded
     let root = state.repo_root.clone();
     tokio::task::spawn_blocking(move || {
@@ -522,6 +524,8 @@ pub fn build_router(state: AppState) -> Router {
         .route("/listen/record/start", post(listen_api::record_start))
         .route("/listen/record/stop", post(listen_api::record_stop))
         .route("/listen/record/live", get(listen_api::record_live))
+        .route("/listen/watch", get(listen_api::watch_status).post(listen_api::watch_start))
+        .route("/listen/watch/stop", post(listen_api::watch_stop))
         .route("/listen/{pid}", get(listen_api::get).put(listen_api::put))
         .route("/listen/{pid}/audio", get(listen_api::audio))
         .route("/listen/{pid}/transcribe", post(listen_api::transcribe))

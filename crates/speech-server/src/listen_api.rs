@@ -169,6 +169,32 @@ pub async fn record_stop(State(st): State<AppState>) -> Response {
     saved(res, StatusCode::INTERNAL_SERVER_ERROR)
 }
 
+/// GET /listen/watch — the folder of recordings recognised in the background: its settings, files and how far it got.
+pub async fn watch_status() -> Json<Value> {
+    Json(crate::listen_watch::status())
+}
+
+/// POST /listen/watch {folder, out?, formats, keep?, engine?, lang?, rules?, digits?} — go through a folder of
+/// recordings in the background (and keep watching it with `keep`).
+pub async fn watch_start(State(st): State<AppState>, Json(body): Json<Value>) -> Response {
+    let config: crate::listen_watch::WatchConfig = match serde_json::from_value(body) {
+        Ok(c) => c,
+        Err(e) => return refuse(StatusCode::BAD_REQUEST, "bad_request", e.to_string()),
+    };
+    match crate::listen_watch::start(&st, config) {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => refuse(StatusCode::BAD_REQUEST, "bad_watch", e),
+    }
+}
+
+/// POST /listen/watch/stop — stop after the recording being recognised now.
+pub async fn watch_stop(State(st): State<AppState>) -> Response {
+    match crate::listen_watch::stop(&st.repo_root) {
+        Ok(v) => Json(v).into_response(),
+        Err(e) => refuse(StatusCode::INTERNAL_SERVER_ERROR, "watch_failed", e),
+    }
+}
+
 /// GET /listen/record/live — what live recognition of the recording under way has heard: phrases with their times.
 pub async fn record_live() -> Json<Value> {
     Json(crate::listen_live::state())
@@ -443,41 +469,48 @@ pub fn file_key(path: &Path, tool: &str) -> Result<String, String> {
     Ok(blake3::hash(format!("{tool}|{}|{}|{stamp}", path.display(), meta.len()).as_bytes()).to_hex()[..16].to_string())
 }
 
+/// The Listening recording of a file of this computer: the same file with the same size and time finds the one made
+/// before (`existing`), another is copied into a new recording.
+pub(crate) fn project_of_file(ws: &Path, path: &Path) -> Result<(String, bool), String> {
+    if !path.is_file() || !lp::is_media(&path.to_string_lossy()) {
+        return Err(t!("listen-not-media", file = path.display().to_string()));
+    }
+    let key = file_key(path, "listen")?;
+    let found = std::fs::read_dir(ws).map_err(|e| e.to_string())?.flatten().find_map(|e| {
+        let pid = e.file_name().to_string_lossy().into_owned();
+        lp::load(ws, &pid).ok().filter(|p| p.key == key).map(|_| pid)
+    });
+    if let Some(pid) = found {
+        return Ok((pid, true));
+    }
+    let pid = sp::new_id();
+    let dir = lp::dir(ws, &pid);
+    std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("wav").to_ascii_lowercase();
+    let source = format!("source.{ext}");
+    if let Err(e) = std::fs::copy(path, dir.join(&source)) {
+        let _ = std::fs::remove_dir_all(&dir);
+        return Err(format!("{}: {e}", path.display()));
+    }
+    let made = make(ws, &pid, &stem(&path.to_string_lossy()), &source, &path.to_string_lossy());
+    if made.is_err() {
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+    made?;
+    let mut project = lp::load(ws, &pid)?;
+    project.key = key;
+    lp::save(ws, &pid, &project)?;
+    Ok((pid, false))
+}
+
 /// POST /listen/from-path {path} — проект Listening файла этого компьютера (для агента): тот же файл с теми же
 /// размером и временем находит прежний проект.
 pub async fn from_path(State(st): State<AppState>, Json(body): Json<Value>) -> Response {
     let path = std::path::PathBuf::from(body.get("path").and_then(Value::as_str).unwrap_or_default());
     let ws = st.workspace.clone();
     let res = joined(tokio::task::spawn_blocking(crate::mcp::carry(move || -> Result<Value, String> {
-        if !path.is_file() || !lp::is_media(&path.to_string_lossy()) {
-            return Err(t!("listen-not-media", file = path.display().to_string()));
-        }
-        let key = file_key(&path, "listen")?;
-        let found = std::fs::read_dir(&ws).map_err(|e| e.to_string())?.flatten().find_map(|e| {
-            let pid = e.file_name().to_string_lossy().into_owned();
-            lp::load(&ws, &pid).ok().filter(|p| p.key == key).map(|_| pid)
-        });
-        if let Some(pid) = found {
-            return Ok(json!({ "pid": pid, "existing": true }));
-        }
-        let pid = sp::new_id();
-        let dir = lp::dir(&ws, &pid);
-        std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("wav").to_ascii_lowercase();
-        let source = format!("source.{ext}");
-        if let Err(e) = std::fs::copy(&path, dir.join(&source)) {
-            let _ = std::fs::remove_dir_all(&dir);
-            return Err(format!("{}: {e}", path.display()));
-        }
-        let made = make(&ws, &pid, &stem(&path.to_string_lossy()), &source, &path.to_string_lossy());
-        if made.is_err() {
-            let _ = std::fs::remove_dir_all(&dir);
-        }
-        made?;
-        let mut project = lp::load(&ws, &pid)?;
-        project.key = key;
-        lp::save(&ws, &pid, &project)?;
-        Ok(json!({ "pid": pid, "existing": false }))
+        let (pid, existing) = project_of_file(&ws, &path)?;
+        Ok(json!({ "pid": pid, "existing": existing }))
     }))
     .await);
     saved(res, StatusCode::BAD_REQUEST)
