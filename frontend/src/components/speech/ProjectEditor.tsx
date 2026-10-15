@@ -495,7 +495,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
         </div>
       )}
       {timelineOpen && (
-        <ProjectTimeline pid={pid} speakers={speakers} tintOf={tintOf} refresh={saving ? undefined : project} onClose={() => setTimelineOpen(false)}
+        <ProjectTimeline pid={pid} speakers={speakers} tintOf={tintOf} textOf={(id) => blocks.find((b) => b.id === id)?.text ?? ""} refresh={saving ? undefined : project} onClose={() => setTimelineOpen(false)}
           onJump={(id) => document.getElementById(`block-${id}`)?.scrollIntoView({ block: "center", behavior: "smooth" })}
           onChoose={(id, previous, choice: OverlapChoice) => edit((p) => {
             const at = locate(p, id);

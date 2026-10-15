@@ -13,8 +13,10 @@ const LANE = 28;
 /** The project on one time scale, as the export lays it out: a lane per speaker, takes as bars (an estimate while a block
  * is not voiced), an interruption striped where it covers the previous reply, with the choice to cut that reply off, join
  * the two back to back or keep both. */
-export default function ProjectTimeline({ pid, speakers, tintOf, refresh, onChoose, onJump, onClose }: {
+export default function ProjectTimeline({ pid, speakers, tintOf, textOf, refresh, onChoose, onJump, onClose }: {
   pid: string;
+  /** A block's text, shown inside its clip as far as it fits. */
+  textOf: (block: string) => string;
   speakers: string[];
   tintOf: (speaker: string) => string;
   /** Changes when the saved project changes; `undefined` while a save is on its way. */
@@ -76,7 +78,9 @@ export default function ProjectTimeline({ pid, speakers, tintOf, refresh, onChoo
                     <button onClick={() => onJump(r.block)} title={`${r.speaker} · ${clock(r.start)}–${clock(r.end)}${r.voiced ? "" : ` · ${t("timeline.estimate")}`}`}
                       className={`absolute rounded-[4px] border ${r.voiced ? "" : "border-dashed"} hover:brightness-125`}
                       style={{ left: r.start * pps, width: Math.max(2, (r.end - r.start) * pps), top, height: LANE - 8, borderColor: tintOf(r.speaker), background: r.voiced ? `color-mix(in oklab, ${tintOf(r.speaker)} 35%, transparent)` : "transparent" }}
-                      aria-label={t("timeline.block", { speaker: r.speaker, at: clock(r.start) })} />
+                      aria-label={t("timeline.block", { speaker: r.speaker, at: clock(r.start) })}>
+                      <span aria-hidden className="block px-1 text-[10px] leading-[20px] text-left text-[var(--color-text)] truncate pointer-events-none">{textOf(r.block)}</span>
+                    </button>
                     {r.overlap && (
                       <button onClick={() => setOpen(open === r.block ? null : r.block)} aria-expanded={open === r.block} aria-controls="timeline-overlap"
                           className={`absolute rounded-[4px] border z-10 ${open === r.block ? "border-[var(--color-text)]" : "border-[var(--color-warn)]"}`}
