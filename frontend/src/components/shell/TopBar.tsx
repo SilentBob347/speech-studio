@@ -115,7 +115,7 @@ function StatusBar() {
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div role="log" aria-label={t("status.log")} className="absolute top-full mt-1 left-1/2 -translate-x-1/2 z-50 w-[min(560px,92vw)] max-h-[60vh] overflow-y-auto rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl p-1.5">
+          <div role="log" aria-label={t("status.log")} className="fixed inset-x-2 top-14 sm:absolute sm:inset-x-auto sm:top-full sm:mt-1 sm:left-1/2 sm:-translate-x-1/2 z-50 sm:w-[min(560px,92vw)] max-h-[60vh] overflow-y-auto rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl p-1.5">
             <div className="flex items-center justify-between px-2 py-1 mb-1 border-b border-[var(--color-border)]">
               <span className="text-[11px] uppercase tracking-wide text-[var(--color-muted)] inline-flex items-center gap-1.5"><ScrollText size={13} />{t("status.log")}</span>
               {activities.length > 0 && <button onClick={() => { useStore.getState().clearJournal().catch((problem: unknown) => useStore.setState((s) => ({ activities: [...s.activities, { t: Date.now(), text: errorText(problem), kind: "error" }] }))); }} className="text-[11px] text-[var(--color-muted)] hover:text-[var(--color-text)] transition-colors">{t("status.clear")}</button>}
