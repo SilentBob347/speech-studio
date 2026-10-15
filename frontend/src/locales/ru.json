@@ -869,7 +869,13 @@
     "trimLength": "Выделено {{s}} с",
     "trimTooLong": "движки возьмут только {{s}} с",
     "trimTooShort": "короче 3 с — клон выйдет неточным",
-    "trimApply": "Оставить выделенное"
+    "trimApply": "Оставить выделенное",
+    "variantOf": "Вариант голоса",
+    "variantNone": "нет — свой голос",
+    "variantName": "Название варианта",
+    "variantHint": "злой, шёпот, крик",
+    "variantDefault": "вариант",
+    "variantBadge": "«{{variant}}» · {{of}}"
   },
   "speech": {
     "projectSettings": "Настройки проекта",
@@ -1175,7 +1181,9 @@
     "abHint": "По очереди: дубль #{{a}} и #{{b}} с того же места",
     "saveRecipe": "Как сделано (JSON)",
     "noRefText": "нет текста рефа",
-    "refTextNeeded": "{{engine}} не клонирует голос без текста рефа: откройте голос в библиотеке и нажмите «{{button}}»."
+    "refTextNeeded": "{{engine}} не клонирует голос без текста рефа: откройте голос в библиотеке и нажмите «{{button}}».",
+    "voiceVariant": "Вариант голоса",
+    "variantBase": "основной"
   },
   "tags": {
     "emotion": "Эмоция",

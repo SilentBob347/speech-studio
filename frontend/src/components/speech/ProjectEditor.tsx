@@ -13,6 +13,7 @@ import { named } from "../../lib/a11y";
 import EditorMore from "../EditorMore";
 import StepBar from "./StepBar";
 import { useSimpleMode } from "../../lib/simpleMode";
+import { useVoices } from "../../lib/voices";
 import { comboOf, matches, useShortcuts } from "../../lib/shortcuts";
 import EnrichDialog, { type EnrichChange } from "./EnrichDialog";
 import { cloudApi } from "../../lib/cloud";
@@ -75,6 +76,17 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   const [castOpen, setCastOpen] = useState(false);
   const simple = useSimpleMode();
   const keys = useShortcuts();
+  const { listing: library } = useVoices();
+  // the character's variants (angry, whispering) a block can speak with, from the voice it gets from its speaker
+  const variantsFor = (b: Block): { base: string; inherited: string | null; list: { name: string; variant: string }[] } | null => {
+    if (!project) return null;
+    const inherited = project.cast[b.speaker] || project.settings.voice || null;
+    const own = voiceOf(project, b);
+    if (!own) return null;
+    const base = library?.voices.find((v) => v.name === own)?.card.variant_of || own;
+    const list = (library?.voices ?? []).filter((v) => v.card.variant_of === base).map((v) => ({ name: v.name, variant: v.card.variant }));
+    return list.length ? { base, inherited, list } : null;
+  };
   const [exported, setExported] = useState(false);
   const [casting, setCasting] = useState(false);
   const castCharacters = async () => {
@@ -644,7 +656,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
                   const index = blocks.indexOf(b);
                   const rendering = !!job && (job.ids === null ? ["pending", "stale", "failed"].includes(stateOf(b)) : job.ids.includes(b.id));
                   const note = notes[b.id];
-                  return <BlockRow key={b.id} pid={pid} engine={engineOf(project, b)} projectEngine={project.settings.engine} speakerEngine={project.cast_engines?.[b.speaker] || null} voice={voiceOf(project, b)} block={b} index={index} state={stateOf(b)} fit={project.status?.[b.id]?.fit} rendering={rendering} playing={playing === b.id} playingTake={playing === b.id ? playingTake : null} simple={simple} tint={tintOf(b.speaker)}
+                  return <BlockRow key={b.id} pid={pid} engine={engineOf(project, b)} projectEngine={project.settings.engine} speakerEngine={project.cast_engines?.[b.speaker] || null} voice={voiceOf(project, b)} block={b} index={index} state={stateOf(b)} fit={project.status?.[b.id]?.fit} rendering={rendering} playing={playing === b.id} playingTake={playing === b.id ? playingTake : null} simple={simple} variants={variantsFor(b)} tint={tintOf(b.speaker)}
                     stressing={!!stressing?.includes(b.id)} doubts={note && note.text === b.text ? note.words : []}
                     selected={selected.includes(b.id)} selecting={selected.length > 0} open={panel === b.id} side={wide ? side : null} a={actions(b)} />;
                 })}

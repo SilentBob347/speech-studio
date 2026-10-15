@@ -20,8 +20,10 @@ const field = "w-full bg-[var(--color-surface-2)] border border-[var(--color-bor
 const label = "block text-[11px] uppercase tracking-[0.12em] text-[var(--color-muted)] mb-1";
 
 /** One voice's card: name, photo, who it is, where it comes from and the text of its reference. */
-export default function VoiceEditor({ voice, onClose, onChanged, onRenamed, onDeleted }: {
+export default function VoiceEditor({ voice, all, onClose, onChanged, onRenamed, onDeleted }: {
   voice: VoiceEntry;
+  /** The library, for the voices this one can be a variant of. */
+  all: VoiceEntry[];
   onClose: () => void;
   onChanged: (v: VoiceEntry) => void;
   onRenamed: (to: string) => void;
@@ -32,6 +34,8 @@ export default function VoiceEditor({ voice, onClose, onChanged, onRenamed, onDe
   const [tags, setTags] = useState(voice.card.tags.join(", "));
   const [source, setSource] = useState(voice.card.source);
   const [lang, setLang] = useState(voice.card.lang);
+  const [variant, setVariant] = useState(voice.card.variant);
+  useEffect(() => { setVariant(voice.card.variant); }, [voice.card.variant]);
   const [transcript, setTranscript] = useState(voice.transcript ?? "");
   const [busy, setBusy] = useState<string | null>(null);
   const [denoiseDb, setDenoiseDb] = useState(18);
@@ -169,6 +173,23 @@ export default function VoiceEditor({ voice, onClose, onChanged, onRenamed, onDe
             </select>
           </div>
         </div>
+        {!all.some((v) => v.card.variant_of === voice.name) && (
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className={label} htmlFor="ve-variant-of">{t("voices.variantOf")}</label>
+              <select id="ve-variant-of" value={voice.card.variant_of} onChange={(e) => setCard(e.target.value ? { variant_of: e.target.value, variant: variant.trim() || t("voices.variantDefault") } : { variant_of: "", variant: "" })} className={field}>
+                <option value="">{t("voices.variantNone")}</option>
+                {all.filter((v) => v.name !== voice.name && !v.card.variant_of).map((v) => <option key={v.name} value={v.name}>{prettyVoice(v.name)}</option>)}
+              </select>
+            </div>
+            {voice.card.variant_of && (
+              <div>
+                <label className={label} htmlFor="ve-variant">{t("voices.variantName")}</label>
+                <input id="ve-variant" value={variant} onChange={(e) => setVariant(e.target.value)} onBlur={() => { if (variant.trim() && variant.trim() !== voice.card.variant) void setCard({ variant: variant.trim() }); }} placeholder={t("voices.variantHint")} className={field} />
+              </div>
+            )}
+          </div>
+        )}
         <div>
           <div className="flex items-center justify-between mb-1">
             <label className={label + " mb-0"} htmlFor="ve-text">{t("voices.transcript")}</label>

@@ -869,7 +869,13 @@
     "trimLength": "Seleccionado {{s}} s",
     "trimTooLong": "los motores toman solo {{s}} s",
     "trimTooShort": "menos de 3 s: el clon saldrá impreciso",
-    "trimApply": "Quedarse con la selección"
+    "trimApply": "Quedarse con la selección",
+    "variantOf": "Variante de",
+    "variantNone": "ninguna — voz propia",
+    "variantName": "Nombre de la variante",
+    "variantHint": "enfadado, susurro, grito",
+    "variantDefault": "variante",
+    "variantBadge": "«{{variant}}» · {{of}}"
   },
   "speech": {
     "projectSettings": "Ajustes del proyecto",
@@ -1175,7 +1181,9 @@
     "abHint": "Alternar entre la toma #{{a}} y la #{{b}} desde el mismo momento",
     "saveRecipe": "Cómo se hizo (JSON)",
     "noRefText": "sin texto de referencia",
-    "refTextNeeded": "{{engine}} no clona una voz sin el texto de su referencia: abre la voz en la biblioteca y pulsa {{button}}."
+    "refTextNeeded": "{{engine}} no clona una voz sin el texto de su referencia: abre la voz en la biblioteca y pulsa {{button}}.",
+    "voiceVariant": "Variante de voz",
+    "variantBase": "principal"
   },
   "tags": {
     "emotion": "Emoción",

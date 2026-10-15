@@ -235,6 +235,8 @@ export type VoiceConsent = "" | "own" | "permitted" | "public";
 export type VoiceCard = {
   gender: VoiceGender; age: VoiceAge; lang: string; tags: string[]; source: string; consent: VoiceConsent;
   favorite: boolean; kind: "clone" | "preset" | "design"; transcript_auto: boolean; cleaned: boolean;
+  /** The voice this one is a variant of (the same character angry or whispering) and the variant's name; empty — its own. */
+  variant_of: string; variant: string;
 };
 export type VoiceEntry = { name: string; audio: string; size: number; transcript: string | null; photo: string | null; original: boolean; card: VoiceCard };
 export type RefIssue = "long_pause" | "noisy" | "clipped" | "short";

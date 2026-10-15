@@ -38,6 +38,10 @@ pub struct VoiceCard {
     pub kind: String,
     pub transcript_auto: bool,
     pub cleaned: bool,
+    /// The voice this one is a variant of (a performance of the same character: angry, whispering); empty — its own.
+    pub variant_of: String,
+    /// The variant's name, shown where a block picks it.
+    pub variant: String,
 }
 
 impl Default for VoiceCard {
@@ -53,6 +57,8 @@ impl Default for VoiceCard {
             kind: "clone".into(),
             transcript_auto: false,
             cleaned: false,
+            variant_of: String::new(),
+            variant: String::new(),
         }
     }
 }
@@ -171,6 +177,8 @@ pub fn apply_patch(card: &mut VoiceCard, patch: &Value) -> Result<(), String> {
             }
             "source" => card.source = v.as_str().ok_or("source must be a string")?.trim().chars().take(200).collect(),
             "favorite" => card.favorite = v.as_bool().ok_or("favorite must be true or false")?,
+            "variant_of" => card.variant_of = v.as_str().ok_or("variant_of must be a voice name")?.trim().chars().take(200).collect(),
+            "variant" => card.variant = v.as_str().ok_or("variant must be a string")?.trim().chars().take(32).collect(),
             "tags" => {
                 let arr = v.as_array().ok_or("tags must be a list")?;
                 let mut tags: Vec<String> = Vec::new();
@@ -277,6 +285,42 @@ pub fn rename(dir: &Path, from: &str, to: &str) -> Result<(), String> {
         let target = p.with_file_name(format!("{to}{suffix}"));
         std::fs::rename(&p, &target).map_err(|e| format!("{} -> {}: {e}", p.display(), target.display()))?;
     }
+    relink_variants(dir, from, Some(to))
+}
+
+/// The variants of `parent` follow it to its new name, or become voices of their own when it is gone.
+fn relink_variants(dir: &Path, parent: &str, to: Option<&str>) -> Result<(), String> {
+    let (voices, _) = list(dir);
+    for v in voices.iter().filter(|v| v.card.variant_of == parent) {
+        let mut card = v.card.clone();
+        card.variant_of = to.unwrap_or_default().to_string();
+        if to.is_none() {
+            card.variant.clear();
+        }
+        write_card(dir, &v.name, &card)?;
+    }
+    Ok(())
+}
+
+/// A variant points at a voice of its own that exists, and a voice with variants is not one itself.
+pub fn check_variant(dir: &Path, name: &str, card: &VoiceCard) -> Result<(), String> {
+    if card.variant_of.is_empty() {
+        return Ok(());
+    }
+    if card.variant_of == name {
+        return Err("a voice cannot be a variant of itself".into());
+    }
+    audio_path(dir, &card.variant_of).ok_or_else(|| format!("no voice named {}", card.variant_of))?;
+    if !read_card(dir, &card.variant_of)?.variant_of.is_empty() {
+        return Err(format!("{} is itself a variant: name the voice it belongs to", card.variant_of));
+    }
+    let (voices, _) = list(dir);
+    if voices.iter().any(|v| v.card.variant_of == name) {
+        return Err(format!("{name} has variants of its own, so it cannot be one"));
+    }
+    if card.variant.is_empty() {
+        return Err("a variant needs a name, such as angry or whisper".into());
+    }
     Ok(())
 }
 
@@ -285,7 +329,7 @@ pub fn delete(dir: &Path, name: &str) -> Result<(), String> {
     for (p, _) in sidecars(dir, name) {
         std::fs::remove_file(&p).map_err(|e| format!("{}: {e}", p.display()))?;
     }
-    Ok(())
+    relink_variants(dir, name, None)
 }
 
 pub fn set_photo(dir: &Path, name: &str, bytes: &[u8], ext: &str) -> Result<(), String> {
@@ -504,6 +548,27 @@ mod tests {
         let c = get(d.path(), "C").unwrap();
         assert!(c.card.favorite && c.transcript.is_some() && c.original);
         assert!(get(d.path(), "A").is_err());
+    }
+
+    #[test]
+    fn a_variant_belongs_to_a_voice_of_its_own_and_follows_it() {
+        let d = tempfile::tempdir().unwrap();
+        for n in ["Oleg", "Oleg angry", "Anna"] {
+            voice(d.path(), n, "wav");
+        }
+        let variant = |of: &str, name: &str| VoiceCard { variant_of: of.into(), variant: name.into(), ..Default::default() };
+        assert!(check_variant(d.path(), "Oleg angry", &variant("Nobody", "angry")).is_err());
+        assert!(check_variant(d.path(), "Oleg", &variant("Oleg", "angry")).is_err());
+        assert!(check_variant(d.path(), "Oleg angry", &variant("Oleg", "")).is_err());
+        check_variant(d.path(), "Oleg angry", &variant("Oleg", "angry")).unwrap();
+        write_card(d.path(), "Oleg angry", &variant("Oleg", "angry")).unwrap();
+        assert!(check_variant(d.path(), "Anna", &variant("Oleg angry", "x")).unwrap_err().contains("itself a variant"));
+        assert!(check_variant(d.path(), "Oleg", &variant("Anna", "x")).unwrap_err().contains("has variants"));
+        rename(d.path(), "Oleg", "Oleg K").unwrap();
+        assert_eq!(read_card(d.path(), "Oleg angry").unwrap().variant_of, "Oleg K");
+        delete(d.path(), "Oleg K").unwrap();
+        let left = read_card(d.path(), "Oleg angry").unwrap();
+        assert!(left.variant_of.is_empty() && left.variant.is_empty());
     }
 
     #[test]

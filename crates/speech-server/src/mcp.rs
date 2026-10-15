@@ -1165,7 +1165,7 @@ fn tools() -> &'static [Tool] {
             },
             Tool {
                 name: "voice_card_set",
-                description: "Change a voice's card: gender (female, male or empty), age (child, teen, adult, senior or empty), lang (a code such as ru), tags (the whole list), source (where the voice comes from), consent (own, permitted, public or empty), favorite, kind (clone, preset, design). Only the fields given change; an unknown field or value is refused.",
+                description: "Change a voice's card: gender (female, male or empty), age (child, teen, adult, senior or empty), lang (a code such as ru), tags (the whole list), source (where the voice comes from), consent (own, permitted, public or empty), favorite, kind (clone, preset, design), variant_of with variant (this voice is a variant of another voice, the same character angry or whispering: the other voice's name and the variant's name; empty variant_of makes it a voice of its own). Only the fields given change; an unknown field or value is refused.",
                 schema: || object(json!({ "name": { "type": "string" }, "card": { "type": "object" } }), &["name", "card"]),
                 call: |args| post("/voices/card".into(), json!({ "name": text(args, "name")?, "card": args.get("card").cloned().unwrap_or(Value::Null) })),
             },

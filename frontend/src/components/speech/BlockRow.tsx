@@ -100,7 +100,7 @@ function sentenceStart(value: string, cursor: number): number {
   return start;
 }
 
-export default function BlockRow({ pid, engine, projectEngine, speakerEngine, voice, block, index, state, fit, rendering, playing, playingTake, simple, tint, stressing, doubts, selected, selecting, open, side, a }: {
+export default function BlockRow({ pid, engine, projectEngine, speakerEngine, voice, block, index, state, fit, rendering, playing, playingTake, simple, variants, tint, stressing, doubts, selected, selecting, open, side, a }: {
   pid: string;
   /** The engine that voices this block (its own, its speaker's or the project's). */
   engine: string;
@@ -126,6 +126,8 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
   playingTake: number | null;
   /** The beginner's mode: the panel keeps what voicing a block needs and leaves out notes, review, tags and own refs. */
   simple: boolean;
+  /** The character's variants this block can speak with: its base voice, the voice it gets from its speaker, and each variant. */
+  variants: { base: string; inherited: string | null; list: { name: string; variant: string }[] } | null;
   tint: string;
   a: BlockActions;
 }) {
@@ -189,6 +191,18 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
               className={`p-1 rounded-md ${block.pinned != null && block.pinned === block.active ? "text-[var(--color-accent)]" : "text-[var(--color-muted)]"} hover:text-[var(--color-text)] disabled:opacity-30`} {...named(t("speech.pinTake"))}><Pin size={13} /></button>
           </div>
         </label>
+        {variants && (
+          <div role="radiogroup" aria-label={t("speech.voiceVariant")} className="col-span-full flex flex-wrap items-center gap-1 text-[11px]">
+            <span className="text-[var(--color-muted)] mr-1">{t("speech.voiceVariant")}</span>
+            {[{ name: variants.base, variant: t("speech.variantBase") }, ...variants.list].map((v) => {
+              const on = voice === v.name;
+              return (
+                <button key={v.name} role="radio" aria-checked={on} onClick={() => a.patch({ voice: v.name === variants.inherited ? null : v.name })}
+                  className={`px-2 py-0.5 rounded-md border ${on ? "border-[var(--color-accent)] text-[var(--color-text)]" : "border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-text)]"}`}>{v.variant}</button>
+              );
+            })}
+          </div>
+        )}
         {block.takes.length > 1 && take && <TakeCompare block={block} active={take.n} playingTake={playingTake} onAB={a.ab} />}
       </div>
       {!simple && <div className="flex flex-wrap items-end gap-2">

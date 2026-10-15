@@ -57,6 +57,10 @@ connected and the address to paste.
   `voice_ref_apply`. A voice from a description: `voice_design` (description best in English or Chinese, a sample text,
   1-6 candidates; a job), `voice_design_sample` (a candidate as a file), then `voice_design_keep` (one candidate into the
   library). `voice_sample` gives a voice's reference as a file (`original` - before cleaning), `voice_photo_get` its photo.
+  A character's variants (angry, whispering): another library voice whose card has `variant_of` (the main voice) and
+  `variant` (its name), set with `voice_card_set`; a block speaks a variant when its `voice` is that variant's name.
+  Drama 3 clones only a reference with its text; the others take the text as a help. `engines_list` says it per
+  engine (`ref_text_required`, `ref_max_secs`).
 - **By link**: `url_probe` (title, length, qualities, the site's subtitles; `url_probe_cookies_text` with a cookies.txt
   given as text), `project_create_from_url` (downloads into a new Listening recording in the background),
   `url_fetches_list`, `url_fetch_get`, `url_fetch_cancel`, `url_fetch_resume`, `url_fetch_delete`, `url_tool_status`,

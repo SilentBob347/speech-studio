@@ -188,6 +188,7 @@ pub async fn set_card(State(st): State<AppState>, Json(body): Json<Value>) -> Re
         lib::audio_path(&dir, &name).ok_or_else(|| t!("voice-missing", name = name.clone()))?;
         let mut card = lib::read_card(&dir, &name)?;
         lib::apply_patch(&mut card, &patch)?;
+        lib::check_variant(&dir, &name, &card)?;
         lib::write_card(&dir, &name, &card)?;
         lib::get(&dir, &name)
     })

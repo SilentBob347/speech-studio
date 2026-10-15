@@ -231,6 +231,7 @@ export default function VoiceLibrary({ onClose, onPick }: { onClose: () => void;
                       {v.card.age && <span className={chip}>{t(`voices.age_${v.card.age}`)}</span>}
                       {v.card.lang && <span className={chip}>{v.card.lang}</span>}
                       {v.card.cleaned && <span className={`${chip} text-[var(--color-accent)]`}>{t("voices.cleanedBadge")}</span>}
+                      {v.card.variant_of && <span className={chip}>{t("voices.variantBadge", { variant: v.card.variant, of: prettyVoice(v.card.variant_of) })}</span>}
                     </div>
                   </div>
                   <input type="checkbox" checked={selected.has(v.name)} onChange={() => toggle(v.name)} aria-label={t("voices.select", { name: prettyVoice(v.name) })}
@@ -255,7 +256,7 @@ export default function VoiceLibrary({ onClose, onPick }: { onClose: () => void;
       </div>
 
       {editingVoice && (
-        <VoiceEditor key={editingVoice.name} voice={editingVoice} onClose={() => setEditing(null)} onChanged={patch}
+        <VoiceEditor key={editingVoice.name} voice={editingVoice} all={voices} onClose={() => setEditing(null)} onChanged={patch}
           onRenamed={(to) => { setEditing(to); reload(); }} onDeleted={() => { setEditing(null); reload(); }} />
       )}
       {recording && <VoiceRecorder clean={cleanOn} onClose={() => setRecording(false)} onRecorded={() => reload()} />}

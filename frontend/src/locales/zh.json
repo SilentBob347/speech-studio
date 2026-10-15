@@ -869,7 +869,13 @@
     "trimLength": "已选 {{s}} 秒",
     "trimTooLong": "引擎只取 {{s}} 秒",
     "trimTooShort": "不足 3 秒，克隆会不准",
-    "trimApply": "保留所选"
+    "trimApply": "保留所选",
+    "variantOf": "变体所属声音",
+    "variantNone": "无 — 独立声音",
+    "variantName": "变体名称",
+    "variantHint": "生气、耳语、喊叫",
+    "variantDefault": "变体",
+    "variantBadge": "“{{variant}}” · {{of}}"
   },
   "speech": {
     "projectSettings": "项目设置",
@@ -1175,7 +1181,9 @@
     "abHint": "在第 #{{a}} 条和第 #{{b}} 条之间从同一时刻切换",
     "saveRecipe": "制作方式（JSON）",
     "noRefText": "无参考文本",
-    "refTextNeeded": "{{engine}} 没有参考文本无法克隆声音：在声音库中打开该声音并点击“{{button}}”。"
+    "refTextNeeded": "{{engine}} 没有参考文本无法克隆声音：在声音库中打开该声音并点击“{{button}}”。",
+    "voiceVariant": "声音变体",
+    "variantBase": "主声音"
   },
   "tags": {
     "emotion": "情绪",
