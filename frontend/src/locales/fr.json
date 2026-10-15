@@ -2265,5 +2265,25 @@
     "otherVoice": "voix différente de celle choisie",
     "wordsUnchecked": "mots non comparés",
     "worstFirst": "les pires d’abord"
+  },
+  "ab": {
+    "open": "Comparer les moteurs à l’aveugle",
+    "title": "Comparaison de moteurs à l’aveugle",
+    "hint": "Chacun des deux moteurs double ce bloc. Les variantes passent sans nom et dans un ordre aléatoire : choisissez la meilleure à l’oreille et le bloc passe à ce moteur et cette voix. Les noms s’affichent après le choix.",
+    "engineN": "Moteur {{n}}",
+    "voiceN": "Voix du moteur {{n}}",
+    "voiceAsBlock": "comme le bloc",
+    "same": "Le même moteur et la même voix sont choisis deux fois : rien à comparer.",
+    "make": "Doubler les deux variantes",
+    "variant": "Variante {{n}}",
+    "better": "La variante {{n}} est meilleure",
+    "tie": "Aucune différence",
+    "reveal": "Variante {{n}} : {{engine}}, voix « {{voice}} »",
+    "kept": "Le bloc est maintenant doublé par {{engine}}.",
+    "keptTie": "Le bloc reste tel quel.",
+    "again": "Comparer à nouveau",
+    "tally": "Score du projet :",
+    "ties": "sans différence : {{n}}",
+    "needsVoice": "{{engine}} ne parle qu’avec des voix de la bibliothèque : choisissez-lui une voix."
   }
 }

@@ -1288,6 +1288,47 @@ fn voiced<'a>(b: &'a sp::Block, state: &str, key: &str) -> Option<&'a sp::Take> 
     }
 }
 
+/// A take of block `id` by each side of a blind comparison: the engine and voice set on a copy of the block, the take
+/// kept beside the others and the active one left as it was; the answer is the take of each side in order.
+pub fn ab_takes(p: &SpeechPaths, pid: &str, id: &str, sides: &[sp::AbSide], progress: &dyn Fn(Value)) -> Result<Value, String> {
+    if sides.len() != 2 {
+        return Err(t!("speech-ab-two"));
+    }
+    let mut made = Vec::new();
+    for (i, side) in sides.iter().enumerate() {
+        if crate::engines::is_cloud(&side.engine) || crate::engines::get(&side.engine).is_none() {
+            return Err(t!("speech-ab-engine", engine = side.engine.clone()));
+        }
+        if crate::jobs::current().is_some_and(|c| c.is_cancelled()) {
+            return Err(crate::jobs::CANCELLED.to_string());
+        }
+        progress(json!({ "type": "progress", "stage": "speech_ab", "msg": t!("speech-ab-side", n = (i + 1) as i64), "pct": (i * 50) as i64 }));
+        let mut project = sp::load(&p.workspace, pid)?;
+        let block = project.block_mut(id).ok_or_else(|| t!("speech-no-block", id = id.to_string()))?;
+        block.engine = Some(side.engine.clone());
+        if side.voice.is_some() {
+            block.voice = side.voice.clone();
+        }
+        let b = block.clone();
+        let key = keys(p, &project).remove(id).unwrap_or_default();
+        let n = b.takes.iter().map(|t| t.n).max().unwrap_or(0) + 1;
+        let (samples, _, mut take) = synth_block(p, pid, &project, &b, n)?;
+        let file = format!("{}-{n}.flac", b.id);
+        let path = takes_dir(p, pid).join(&file);
+        write_flac(&samples, &path)?;
+        take.bytes = std::fs::metadata(&path).map_err(|e| e.to_string())?.len();
+        take.file = file;
+        take.key = key;
+        take.source = "ab".into();
+        let mut fresh = sp::load(&p.workspace, pid)?;
+        let Some(block) = fresh.block_mut(id) else { return Err(t!("speech-no-block", id = id.to_string())) };
+        block.takes.push(take);
+        sp::save(&p.workspace, pid, &fresh)?;
+        made.push(n);
+    }
+    Ok(json!({ "takes": made }))
+}
+
 /// The blocks of `checked` whose take failed the check (`failed`) stand as failed with its reason; the others lose
 /// a failure an earlier check gave them.
 fn mark_checked(p: &SpeechPaths, pid: &str, checked: &[String], failed: &[String]) -> Result<(), String> {

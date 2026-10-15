@@ -85,6 +85,15 @@ pub(super) fn tools() -> Vec<Tool> {
             call: |args| get(project_path(args, "/export-check")?),
         },
         Tool {
+            name: "block_ab",
+            description: "A blind comparison of two local engines on a block: a job (studio_wait) that makes a take with each side's engine and voice (voice omitted: the block's own), keeping the block's active take. Its result is the take of each side. To pick one, project_update the block: its engine and voice set to that side's, active to its take, and the vote appended to the block's ab list ({sides: [{engine, voice, take}, ...], picked: the index of the side, or null for no difference heard}); the window plays the takes unnamed for the user to choose.",
+            schema: || object(json!({ "pid": pid(), "bid": { "type": "string" }, "sides": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "object", "properties": { "engine": { "type": "string", "enum": crate::engines::all().iter().filter(|e| !crate::engines::is_cloud(e.id)).map(|e| e.id).collect::<Vec<_>>() }, "voice": { "type": "string" } }, "required": ["engine"] } } }), &["pid", "bid", "sides"]),
+            call: |args| {
+                let bid = args.get("bid").and_then(Value::as_str).ok_or("bid is required")?;
+                post(project_path(args, &format!("/blocks/{bid}/ab"))?, body_without(args, &["pid", "bid"]))
+            },
+        },
+        Tool {
             name: "project_quality",
             description: "How a Speech project's voicing sounds by the check of its active takes: total and ready blocks, checked (passed + failed), passed, failed, unchecked (ids of ready blocks whose words were not checked by recognition), light (green when at least `green` of the checked passed, amber from `amber`, red below, none when nothing is checked) and worst: the failed takes, the worst first, each with block, chapter, speaker, take, text (expected), heard, wer, issues, notes and voice similarity. project_check_takes checks the unchecked.",
             schema: project_only,

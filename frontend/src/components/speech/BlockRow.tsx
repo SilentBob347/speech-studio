@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { ArrowDown, ArrowUp, ChevronDown, Combine, Eye, EyeOff, GripVertical, Loader2, Pause, Pin, Play, Plus, RefreshCw, Scissors, SlidersHorizontal, SpellCheck, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, Combine, Eye, EyeOff, GripVertical, Loader2, Pause, Pin, Play, Plus, RefreshCw, Scale, Scissors, SlidersHorizontal, SpellCheck, Trash2, X } from "lucide-react";
 import { activeTake, cueTime, MARKERS, speechApi, VOICE_FX, withCase, type Block, type BlockState, type Marker, type SpeechParams, type StressWord, type Take } from "../../lib/speech";
 import { askCloneTerms } from "../../lib/cloudConsent";
 import { named } from "../../lib/a11y";
@@ -50,6 +50,8 @@ export type BlockActions = {
   focus: () => void;
   /** Uploads a clip as this block's own reference; its text is recognised. */
   ownRef: (file: File, whole: boolean) => Promise<void>;
+  /** Opens the blind comparison of two engines on this block. */
+  compare: () => void;
 };
 
 /** A/B of two takes: the button switches between the active take and the chosen one from the same moment. */
@@ -320,6 +322,11 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
           </div>
         )}
         {block.takes.length > 1 && take && <TakeCompare block={block} active={take.n} playingTake={playingTake} onAB={a.ab} />}
+        {!simple && (
+          <div className="col-span-full">
+            <button onClick={a.compare} disabled={!block.text.trim()} title={t("ab.hint")} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)] disabled:opacity-40"><Scale size={13} />{t("ab.open")}</button>
+          </div>
+        )}
       </div>
       {!simple && <div className="flex flex-wrap items-end gap-2">
         <label className="flex-1 min-w-48 text-[11px] text-[var(--color-muted)]">{t("speech.note")}

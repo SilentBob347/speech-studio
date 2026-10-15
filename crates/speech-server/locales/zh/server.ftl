@@ -971,3 +971,6 @@ qc-issue-silence = 静音
 qc-issue-stretched = 拖长的词
 qc-issue-tail = 最后一个词之后还有声音
 qc-issue-whistle = 哨声
+speech-ab-two = 盲测比较需要正好两个引擎。
+speech-ab-engine = 引擎 { $engine } 无法比较：需要已知的本地引擎（云端引擎需要付费）。
+speech-ab-side = 正在配音第 { $n } 个版本（共 2 个）…

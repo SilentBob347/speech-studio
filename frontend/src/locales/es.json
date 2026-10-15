@@ -2265,5 +2265,25 @@
     "otherVoice": "la voz no se parece a la elegida",
     "wordsUnchecked": "palabras sin cotejar",
     "worstFirst": "las peores primero"
+  },
+  "ab": {
+    "open": "Comparar motores a ciegas",
+    "title": "Comparación de motores a ciegas",
+    "hint": "Cada uno de los dos motores locuta este bloque. Las variantes suenan sin nombre y en orden aleatorio: elija la mejor de oído y el bloque pasará a ese motor y voz. Los nombres se muestran tras elegir.",
+    "engineN": "Motor {{n}}",
+    "voiceN": "Voz para el motor {{n}}",
+    "voiceAsBlock": "como el bloque",
+    "same": "Se eligió el mismo motor y voz dos veces: no hay nada que comparar.",
+    "make": "Locutar ambas variantes",
+    "variant": "Variante {{n}}",
+    "better": "Mejor la variante {{n}}",
+    "tie": "No oigo diferencia",
+    "reveal": "Variante {{n}}: {{engine}}, voz «{{voice}}»",
+    "kept": "Ahora el bloque lo locuta {{engine}}.",
+    "keptTie": "El bloque queda como estaba.",
+    "again": "Comparar otra vez",
+    "tally": "Marcador del proyecto:",
+    "ties": "sin diferencia: {{n}}",
+    "needsVoice": "{{engine}} solo habla con voces de la biblioteca: elija una voz para él."
   }
 }

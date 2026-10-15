@@ -1169,3 +1169,6 @@ qc-issue-silence = silencio
 qc-issue-stretched = una palabra alargada
 qc-issue-tail = sonido tras la última palabra
 qc-issue-whistle = silbido
+speech-ab-two = Una comparación a ciegas necesita exactamente dos motores.
+speech-ab-engine = El motor { $engine } no sirve para comparar: hace falta un motor local conocido (los de la nube cuestan dinero).
+speech-ab-side = Locutando la variante { $n } de 2…

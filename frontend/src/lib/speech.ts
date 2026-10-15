@@ -24,6 +24,8 @@ export type Block = {
   id: string; speaker: string; voice: string | null; text: string; direction: string; pause_ms: number | null; cut_previous?: boolean; engine?: string | null;
   hidden: boolean; takes: Take[]; active: number | null; pinned: number | null; error: { key: string; text: string } | null;
   note: string; marker: Marker | ""; start: number | null; end: number | null;
+  /** Blind comparisons of engines on this block. */
+  ab?: AbVote[];
   /** The block's own reference clip in the project's refs instead of a voice; whole continues the clip's speech. */
   own_ref?: OwnRef | null;
   /** Notes on words of the block: the quoted words, the note and a marker colour; never read aloud. */
@@ -175,6 +177,10 @@ export type TimelineBlock = { block: string; speaker: string; start: number; end
 export type ExportProblem = { block: string; state: BlockState | "missing" | "modified" | "duration" };
 
 /** How the voicing sounds by the check of the active takes; `light` by the share of checked takes that passed. */
+/** A side of a blind comparison: an engine, a voice (null — the block's) and the take it made. */
+export type AbSide = { engine: string; voice: string | null; take: number };
+/** `picked` is the index of the side chosen, null when no difference was heard. */
+export type AbVote = { sides: AbSide[]; picked: number | null };
 export type QualityLight = "green" | "amber" | "red" | "none";
 export type QualityTake = { block: string; chapter: string; speaker: string; take: number; text: string; heard: string; off?: WordOp[]; text_checked: boolean; wer: number; passed: boolean; issues: QcIssue[]; notes: QcNote[]; similarity: number | null; similar: boolean | null };
 export type QualityReport = { total: number; ready: number; checked: number; passed: number; failed: number; unchecked: string[]; light: QualityLight; green: number; amber: number; worst: QualityTake[] };
@@ -199,6 +205,8 @@ export const speechApi = {
   lint: (pid: string) => getCoded<{ issues: LintIssue[] }>(`/projects/${pid}/lint`),
   autoCast: (pid: string) => getCoded<{ picks: { speaker: string; voice: string | null }[] }>(`/projects/${pid}/auto-cast`),
   exportCheck: (pid: string) => getCoded<{ problems: ExportProblem[] }>(`/projects/${pid}/export-check`),
+  /** A take of the block by each side's engine and voice, the active take kept; the job's result names the takes. */
+  ab: (pid: string, bid: string, sides: { engine: string; voice: string | null }[]) => postCoded<{ job_id: string }>(`/projects/${pid}/blocks/${bid}/ab`, { sides: sides.map((s) => (s.voice ? s : { engine: s.engine })) }),
   quality: (pid: string) => getCoded<QualityReport>(`/projects/${pid}/quality`),
   /** Recognition checks the ready takes now: `ids`, or every one whose words were not checked. */
   check: (pid: string, ids?: string[]) => postCoded<{ job_id: string }>(`/projects/${pid}/check`, ids ? { ids } : {}),

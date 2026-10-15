@@ -158,6 +158,9 @@ pub struct Block {
     pub note: String,
     /// Цвет маркера (`red`, `amber`, `green`, `blue`, `violet`) или пусто.
     pub marker: String,
+    /// Blind comparisons of engines on this block: the two sides heard and which one was picked.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub ab: Vec<AbVote>,
     /// Ревью блока: `approved` — утверждён (текст закрыт, «озвучить всё» его не трогает), `fix` — на исправление.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub review: String,
@@ -179,6 +182,24 @@ pub struct Block {
     /// Время реплики субтитров, с: в проекте по таймкодам блок звучит в нём.
     pub start: Option<f64>,
     pub end: Option<f64>,
+}
+
+/// A side of a blind comparison: an engine and a voice (none — the block's own).
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+#[serde(default)]
+pub struct AbSide {
+    pub engine: String,
+    pub voice: Option<String>,
+    /// The take it made on the block.
+    pub take: u32,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+#[serde(default)]
+pub struct AbVote {
+    pub sides: Vec<AbSide>,
+    /// The side picked, by its place in `sides`; none — no difference heard.
+    pub picked: Option<usize>,
 }
 
 pub const MARKERS: [&str; 5] = ["red", "amber", "green", "blue", "violet"];

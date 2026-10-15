@@ -16,6 +16,7 @@ import { named } from "../../lib/a11y";
 import EditorMore from "../EditorMore";
 import StepBar from "./StepBar";
 import LintDialog from "./LintDialog";
+import EngineAB from "./EngineAB";
 import QualityReport, { QualityButton } from "./QualityReport";
 import OwnParams from "./OwnParams";
 import { useSimpleMode } from "../../lib/simpleMode";
@@ -98,6 +99,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   const [exported, setExported] = useState(false);
   const [linting, setLinting] = useState(false);
   const [quality, setQuality] = useState(false);
+  const [comparing, setComparing] = useState<string | null>(null);
   const [casting, setCasting] = useState(false);
   const castCharacters = async () => {
     if (!project) return;
@@ -564,6 +566,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
     ownRef: async (file, whole) => { await flush(); await speechApi.setOwnRef(pid, b.id, file, whole).catch((e: unknown) => { throw new Error(errorText(e)); }); reload(); },
     setText: (text) => edit((p) => { const at = locate(p, b.id); if (at) p.chapters[at[0]].blocks[at[1]].text = text; return p; }),
     patch: (change) => edit((p) => { const at = locate(p, b.id); if (at) Object.assign(p.chapters[at[0]].blocks[at[1]], change); return p; }),
+    compare: () => void flush().then(() => setComparing(b.id)),
     split: (pos) => edit((p) => {
       const at = locate(p, b.id);
       if (!at) return p;
@@ -899,6 +902,10 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           onClose={() => setRecast(null)} />
       )}
       {settings && <ProjectSettings project={project} onChange={edit} onClose={() => setSettings(false)} />}
+      {comparing && blockList(project).some((b) => b.id === comparing) && (
+        <EngineAB pid={pid} project={project} block={blockList(project).find((b) => b.id === comparing)!} onClose={() => setComparing(null)} onReload={reload}
+          onPick={(change) => edit((p) => { const at = locate(p, comparing); if (at) Object.assign(p.chapters[at[0]].blocks[at[1]], change); return p; })} />
+      )}
       {quality && <QualityReport pid={pid} blocks={blocks} onClose={() => setQuality(false)} onChanged={reload} onJump={(id) => { setSelected([id]); document.getElementById(`block-${id}`)?.scrollIntoView({ block: "center", behavior: "smooth" }); }} />}
       {linting && <LintDialog pid={pid} blocks={blocks} onClose={() => setLinting(false)} onJump={(id) => { setSelected([id]); document.getElementById(`block-${id}`)?.scrollIntoView({ block: "center", behavior: "smooth" }); }} />}
       {exporting && <ExportDialog pid={pid} project={project} onChange={edit} flush={flush} onClose={() => setExporting(false)} onVoiceMissing={(ids) => { setExporting(false); void runSynth({ ids, force: true }); }} onDone={(file) => { setExported(true); pushActivity(t("speech.exported", { file }), "done"); }} />}

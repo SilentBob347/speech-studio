@@ -1169,3 +1169,6 @@ qc-issue-silence = aucun son
 qc-issue-stretched = un mot étiré
 qc-issue-tail = du son après le dernier mot
 qc-issue-whistle = sifflement
+speech-ab-two = Une comparaison à l’aveugle demande exactement deux moteurs.
+speech-ab-engine = Le moteur { $engine } ne peut pas être comparé : il faut un moteur local connu (ceux du cloud sont payants).
+speech-ab-side = Doublage de la variante { $n } sur 2…

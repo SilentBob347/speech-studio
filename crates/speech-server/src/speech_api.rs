@@ -340,6 +340,27 @@ pub async fn quality(State(st): State<AppState>, AxPath(pid): AxPath<String>) ->
     }
 }
 
+/// A blind comparison: a take of the block by each of two engines (and voices), for the window to play unnamed.
+pub async fn ab(State(st): State<AppState>, AxPath((pid, bid)): AxPath<(String, String)>, Json(body): Json<Value>) -> Response {
+    if let Err(e) = sp::load(&st.workspace, &pid) {
+        return refuse(StatusCode::NOT_FOUND, "no_project", e);
+    }
+    let sides: Vec<sp::AbSide> = match serde_json::from_value(body.get("sides").cloned().unwrap_or(Value::Null)) {
+        Ok(s) => s,
+        Err(e) => return refuse(StatusCode::BAD_REQUEST, "bad_ab", e.to_string()),
+    };
+    let p = paths(&st);
+    let pid2 = pid.clone();
+    let job: jobs::JobFn = Box::new(move |progress: jobs::ProgressFn| {
+        let cb = |ev: Value| progress(ev);
+        speech_jobs::ab_takes(&p, &pid2, &bid, &sides, &cb)
+    });
+    match st.jobs.enqueue(jobs::JobMeta::new(jobs::JobKind::Synth, Some(&pid)), job).await {
+        Ok(job_id) => Json(json!({ "job_id": job_id })).into_response(),
+        Err(e) => crate::enqueue_error(e),
+    }
+}
+
 /// The ready takes checked by recognition now: `ids`, or all not checked yet.
 pub async fn check(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<Value>) -> Response {
     if let Err(e) = sp::load(&st.workspace, &pid) {

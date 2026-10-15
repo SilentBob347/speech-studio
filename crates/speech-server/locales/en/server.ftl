@@ -1175,3 +1175,6 @@ qc-issue-silence = silence
 qc-issue-stretched = a stretched word
 qc-issue-tail = sound after the last word
 qc-issue-whistle = whistle
+speech-ab-two = A blind comparison takes exactly two engines.
+speech-ab-engine = Engine { $engine } cannot be compared: it takes a known local engine (cloud ones cost money).
+speech-ab-side = Voicing variant { $n } of 2…

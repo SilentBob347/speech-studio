@@ -2265,5 +2265,25 @@
     "otherVoice": "voice unlike the chosen one",
     "wordsUnchecked": "words not checked",
     "worstFirst": "worst first"
+  },
+  "ab": {
+    "open": "Compare engines blind",
+    "title": "Blind engine comparison",
+    "hint": "Each of two engines voices this block. The variants play unnamed in a random order: pick the better one by ear and the block switches to that engine and voice. The names show after your choice.",
+    "engineN": "Engine {{n}}",
+    "voiceN": "Voice for engine {{n}}",
+    "voiceAsBlock": "as the block",
+    "same": "The same engine and voice are chosen twice: there is nothing to compare.",
+    "make": "Voice both variants",
+    "variant": "Variant {{n}}",
+    "better": "Variant {{n}} is better",
+    "tie": "No difference heard",
+    "reveal": "Variant {{n}}: {{engine}}, voice “{{voice}}”",
+    "kept": "The block is now voiced by {{engine}}.",
+    "keptTie": "The block stays as it was.",
+    "again": "Compare again",
+    "tally": "Score in this project:",
+    "ties": "no difference: {{n}}",
+    "needsVoice": "{{engine}} speaks only library voices: choose a voice for it."
   }
 }
