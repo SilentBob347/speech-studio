@@ -12,7 +12,7 @@ pub struct Studio {
     pub id: &'static str,
     pub name: &'static str,
     port: u16,
-    /// The studio's page, where it is downloaded (as VideoSOS's family list links them).
+    /// The studio's site: what it does and how it is installed, read before anything is downloaded.
     page: &'static str,
 }
 

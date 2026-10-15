@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Download, Loader2, Music, RefreshCw, X } from "lucide-react";
+import { ExternalLink, Loader2, Music, RefreshCw, X } from "lucide-react";
 import { speechApi, type MusicStudio, type Track } from "../../lib/speech";
 import { followJob } from "../../lib/followJob";
 import { errorText } from "../../lib/voices";
@@ -62,29 +62,20 @@ export default function MusicDialog({ pid, tracks, flush, onClose, onDone }: {
         {!studios && !error && <Loader2 size={14} className="animate-spin text-[var(--color-muted)]" />}
         {studios && (
           <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={t("tracks.studio")}>
-            {studios.map((s) => (
-              <button key={s.id} role="radio" aria-checked={studio === s.id} disabled={!s.running || busy} onClick={() => { setStudio(s.id); setValues({}); }}
-                title={s.running ? s.name : t("tracks.notRunning", { name: s.name })}
+            {studios.map((s) => s.running ? (
+              <button key={s.id} role="radio" aria-checked={studio === s.id} disabled={busy} onClick={() => { setStudio(s.id); setValues({}); }}
                 className={`px-2.5 py-1 rounded-md border text-[12px] disabled:opacity-40 ${studio === s.id ? "border-[var(--color-accent)] text-[var(--color-accent)]" : "border-[var(--color-border)] hover:border-[var(--color-accent)]"}`}>
                 {s.name}
               </button>
+            ) : (
+              <a key={s.id} href={s.page} target="_blank" rel="noreferrer" title={t("tracks.downloadHint", { name: s.name })}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-[var(--color-border)] text-[12px] text-[var(--color-text)] hover:border-[var(--color-accent)]">
+                <ExternalLink size={12} className="text-[var(--color-accent)]" />{s.name}<span className="text-[var(--color-muted)]">· {t("tracks.download")}</span>
+              </a>
             ))}
           </div>
         )}
-        {studios && !studios.some((s) => s.running) && <p className="text-[12px] text-[var(--color-warn)]">{t("tracks.noneRunning")}</p>}
-        {studios?.some((s) => !s.running) && (
-          <div className="space-y-1">
-            <p className="text-[11px] text-[var(--color-muted)]">{t("tracks.getStudios")}</p>
-            <div className="flex flex-wrap gap-1.5">
-              {studios.filter((s) => !s.running).map((s) => (
-                <a key={s.id} href={s.page} target="_blank" rel="noreferrer" title={t("tracks.downloadHint", { name: s.name })}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-[var(--color-border)] text-[12px] text-[var(--color-text)] hover:border-[var(--color-accent)]">
-                  <Download size={12} />{t("tracks.download", { name: s.name })}
-                </a>
-              ))}
-            </div>
-          </div>
-        )}
+        {studios && !studios.some((s) => s.running) && <p className="text-[11px] text-[var(--color-muted)]">{t("tracks.noneRunning")}</p>}
         {chosen && (
           <div className="space-y-2">
             <FormFields fields={chosen.fields} values={values} onChange={setValues} />
