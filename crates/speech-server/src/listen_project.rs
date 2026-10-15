@@ -58,13 +58,21 @@ pub struct Settings {
     /// Подсказка распознавателю: тема и термины записи. Уходит только в Whisper (`--initial_prompt`), вместе с
     /// написаниями из исправлений.
     pub prompt: String,
+    /// Убрать шум (DPDFNet) перед распознаванием; `denoise_db` — предел подавления, 0 — без предела.
+    pub denoise: bool,
+    pub denoise_db: f64,
+    /// Разметка речи Silero VAD: по ней длинная запись режется на куски для локального распознавателя.
+    pub vad: crate::vad::VadConfig,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { engine: String::new(), cloud_model: String::new(), lang: "auto".into(), speakers: 0, separate: false, filter: true, prompt: String::new() }
+        Settings { engine: String::new(), cloud_model: String::new(), lang: "auto".into(), speakers: 0, separate: false, filter: true, prompt: String::new(), denoise: false, denoise_db: DENOISE_DB, vad: crate::vad::VadConfig::default() }
     }
 }
+
+/// Предел шумоподавления по умолчанию: речь остаётся живой, фон уходит заметно.
+pub const DENOISE_DB: f64 = 18.0;
 
 /// Подсказка Whisper: текст из настроек и, через запятую, верные написания из исправлений (без повторов).
 pub fn whisper_prompt(project: &ListenProject) -> Option<String> {

@@ -11,6 +11,7 @@ pub mod i18n;
 mod asr_util;
 mod bench;
 mod credentials;
+mod denoise;
 pub mod diagnostics;
 #[cfg(windows)]
 mod dll_imports;
@@ -77,6 +78,7 @@ mod listen_project;
 mod transcript_out;
 mod tts_host;
 mod url_import;
+mod vad;
 mod voice_api;
 mod voice_jobs;
 mod voice_library;
@@ -441,6 +443,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/voices/transcript", post(voice_api::set_transcript))
         .route("/voices/transcribe", post(voice_api::transcribe))
         .route("/voices/clean", post(voice_api::clean))
+        .route("/voices/denoise", post(voice_api::denoise))
         .route("/voices/restore", post(voice_api::restore))
         .route("/voices/import", post(voice_api::import))
         .route("/voices/import-zip", post(voice_api::import_zip_route))

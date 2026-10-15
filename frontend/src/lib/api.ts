@@ -455,6 +455,7 @@ export const api = {
   voiceSetTranscript: (name: string, text: string) => postCoded<{ voice: VoiceEntry }>("/voices/transcript", { name, text }),
   voiceTranscribe: (name: string) => postCoded<{ job_id: string }>("/voices/transcribe", { name }),
   voiceClean: (name: string) => postCoded<{ job_id: string }>("/voices/clean", { name }),
+  voiceDenoise: (name: string, db: number) => postCoded<{ job_id: string }>("/voices/denoise", { name, db }),
   voiceRestore: (name: string) => postCoded<{ voice: VoiceEntry }>("/voices/restore", { name }),
   voiceRefCandidates: (name: string) => postCoded<{ name: string; max_len: number; duration: number; candidates: RefCandidate[] }>("/voices/ref-candidates", { name }),
   voiceRefApply: (name: string, start: number, end: number) => postCoded<{ voice: VoiceEntry }>("/voices/ref-apply", { name, start, end }),

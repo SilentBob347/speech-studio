@@ -523,6 +523,7 @@ const JOURNAL: &[(&str, &str, &str)] = &[
     ("voice_transcript_set", "update", "voice"),
     ("voice_transcribe", "transcribe", "voice"),
     ("voice_clean", "clean", "voice"),
+    ("voice_denoise", "clean", "voice"),
     ("voice_restore", "restore", "voice"),
     ("voice_ref_apply", "update", "voice"),
     ("voice_import", "import", "voice"),
@@ -1150,8 +1151,14 @@ fn tools() -> &'static [Tool] {
                 call: |args| post("/voices/clean".into(), json!({ "name": text(args, "name")? })),
             },
             Tool {
+                name: "voice_denoise",
+                description: "Remove noise from a voice's reference (DPDFNet) before cloning: a job, follow it with studio_wait. db limits how far the noise is pushed down (18 keeps speech natural; 0 or none removes as much as it can). The original is kept and voice_restore brings it back.",
+                schema: || object(json!({ "name": { "type": "string", "description": "voice name from voices_list" }, "db": { "type": "number", "minimum": 0 } }), &["name"]),
+                call: |args| post("/voices/denoise".into(), json!({ "name": text(args, "name")?, "db": args.get("db").cloned().unwrap_or(Value::Null) })),
+            },
+            Tool {
                 name: "voice_restore",
-                description: "Bring back a voice's sound as it was before voice_clean.",
+                description: "Bring back a voice's sound as it was before voice_clean or voice_denoise.",
                 schema: || id_only("name", "voice name from voices_list"),
                 call: |args| post("/voices/restore".into(), json!({ "name": text(args, "name")? })),
             },

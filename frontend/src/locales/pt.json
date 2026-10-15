@@ -773,6 +773,8 @@
     "restore": "Recuperar o original",
     "clean": "Limpar",
     "cleanAgain": "Limpar de novo",
+    "denoise": "Remover ruído",
+    "denoiseHint": "Remover o ruído da referência (DPDFNet) com a intensidade escolhida. O original é guardado e pode ser restaurado.",
     "cleanedBadge": "limpa",
     "notCleaned": "não limpa",
     "favorite": "Favorita",
@@ -1333,6 +1335,16 @@
     "prompt": "Dica para o reconhecedor",
     "promptPlaceholder": "Por exemplo: um podcast sobre redes neurais, Qwen, GitHub",
     "promptHint": "O Whisper considera o tema e a grafia dos termos; as grafias das correções abaixo entram sozinhas. Os outros reconhecedores não aceitam dicas.",
+    "denoise": "Remover o ruído antes do reconhecimento",
+    "denoiseHint": "DPDFNet: ruído de rua, zumbido, chiado. A intensidade é quanto abaixo do original o ruído pode ir; 18 dB mantém a fala natural.",
+    "vad": "Corte nas pausas",
+    "vadHint": "O Silero VAD encontra a fala e o reconhecedor local recebe a gravação em trechos de até 90 segundos cortados nas pausas, não no meio da palavra. O silêncio entre os trechos não é reconhecido.",
+    "vad_threshold": "Limiar de fala",
+    "vad_hysteresis": "Histerese",
+    "vad_min_speech_ms": "Fala mín., ms",
+    "vad_min_silence_ms": "Silêncio mín., ms",
+    "vad_pad_ms": "Margem, ms",
+    "vadReset": "Voltar ao padrão",
     "fixes": "Correções",
     "fixesHint": "Como o reconhecedor ouve errado uma palavra → como ela se escreve. Aplicado a cada reconhecimento desta gravação.",
     "fixHeard": "Ouve como",
@@ -1590,5 +1602,10 @@
     "keep": "As tomadas anteriores ficam no histórico de cada bloco e dá para voltar a elas escolhendo a tomada; Ctrl+Z desfaz a troca de voz.",
     "apply": "Trocar",
     "applyRevoice": "Trocar e narrar {{n}} de novo"
+  },
+  "denoise": {
+    "strength": "Intensidade da supressão de ruído",
+    "db": "até −{{db}} dB",
+    "full": "ao máximo"
   }
 }

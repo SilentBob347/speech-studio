@@ -225,12 +225,48 @@ fn diarize(p: &ListenPaths, wav: &Path, speakers: u8) -> Result<Vec<dub_asr::Tur
     Ok(turns.turns)
 }
 
-fn recognise(p: &ListenPaths, engine: &Engine, wav: &Path, work: &Path, lang: &str, turns: &[dub_asr::Turn], prompt: Option<String>) -> Result<Vec<Line>, String> {
-    let lang = if lang.is_empty() { "auto" } else { lang };
+/// Распознать по кускам, на которые запись режут паузы (Silero VAD): тишина не идёт в распознаватель, а длинная
+/// запись не грузится в него целиком.
+#[allow(clippy::too_many_arguments)]
+fn recognise_by_pauses(p: &ListenPaths, choice: &crate::models::AsrChoice, wav: &Path, work: &Path, lang: &str, vad: &crate::vad::VadConfig, prompt: Option<String>, progress: &dyn Fn(Value)) -> Result<Vec<dub_asr::Segment>, String> {
+    let model = crate::vad::model_path(&p.models_root);
+    if !model.is_file() {
+        return Err(t!("vad-missing"));
+    }
+    let (samples, sr) = crate::wavio::read_mono_f32(wav)?;
+    if sr as usize != crate::vad::SR {
+        return Err(format!("{}: {sr} Hz, the speech finder takes {} Hz", wav.display(), crate::vad::SR));
+    }
+    let probs = crate::vad::probabilities(&model, &samples)?;
+    let spans = crate::vad::speech(&probs, samples.len(), vad);
+    let windows = crate::vad::windows(&spans, &probs, crate::vad::MAX_WINDOW_SECS);
+    let mut asr = crate::models::build_engine(choice, prompt);
+    let mut all = Vec::new();
+    for (k, &(a, b)) in windows.iter().enumerate() {
+        step(progress, t!("listen-step-asr-piece", n = (k + 1) as i64, total = windows.len() as i64), 45 + (k * 40 / windows.len().max(1)) as i64);
+        let piece = work.join("piece.wav");
+        let (from, to) = ((a * sr as f64) as usize, ((b * sr as f64) as usize).min(samples.len()));
+        crate::wavio::write_mono_f32(&piece, &samples[from..to], sr)?;
+        for mut s in asr.transcribe(&piece, lang).map_err(|e| e.localize())? {
+            s.start += a;
+            s.end += a;
+            for w in &mut s.words {
+                w.start += a;
+                w.end += a;
+            }
+            all.push(s);
+        }
+    }
+    Ok(all)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn recognise(p: &ListenPaths, engine: &Engine, wav: &Path, work: &Path, s: &lp::Settings, turns: &[dub_asr::Turn], prompt: Option<String>, progress: &dyn Fn(Value)) -> Result<Vec<Line>, String> {
+    let lang = if s.lang.is_empty() { "auto" } else { s.lang.as_str() };
     let lines = match engine {
         Engine::Local(choice, _) => {
             std::env::set_var("DUB_ASR_BACKEND", crate::models::stage_backend(&p.models_root, "asr_backend"));
-            let segments = crate::models::build_engine(choice, prompt).transcribe(wav, lang).map_err(|e| e.localize())?;
+            let segments = recognise_by_pauses(p, choice, wav, work, lang, &s.vad, prompt, progress)?;
             dub_asr::split_at_speaker_turns(segments, turns)
                 .into_iter()
                 .map(|(s, spk)| {
@@ -291,12 +327,29 @@ pub fn transcribe(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Resul
     let engine = engine_for(p, &project)?;
     let diar = s.speakers != 1;
     crate::ensure_job_components(&p.repo_root, &p.models_root, s.speakers > 1, diar, &|ev| progress(ev))?;
+    let mut extra = Vec::new();
+    if matches!(engine, Engine::Local(..)) {
+        extra.push("silero-vad");
+    }
+    if s.denoise {
+        extra.push("dpdfnet");
+    }
+    crate::ensure_components(&p.repo_root, &extra, &|ev| progress(ev))?;
     if diar && !p.sortformer_onnx.is_file() {
         return Err(t!("listen-diar-missing"));
     }
     let work = lp::dir(&p.workspace, pid).join("work");
     std::fs::create_dir_all(&work).map_err(|e| format!("{}: {e}", work.display()))?;
     step(progress, t!("listen-step-audio"), 2);
+    let src = if s.denoise {
+        step(progress, t!("listen-step-denoise"), 4);
+        let out = work.join("denoised48.wav");
+        let limit = (s.denoise_db > 0.0).then_some(s.denoise_db as f32);
+        crate::denoise::denoise_file(&p.models_root, &src, &out, limit, &|f| step(progress, t!("listen-step-denoise"), 4 + (f * 4.0) as i64))?;
+        out
+    } else {
+        src
+    };
     let mix = work.join("audio16.wav");
     crate::media::to_16k_mono(&src, &mix)?;
     let clean = if s.separate {
@@ -313,7 +366,7 @@ pub fn transcribe(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Resul
         Vec::new()
     };
     step(progress, t!("listen-step-asr"), 45);
-    let mut lines = recognise(p, &engine, &wav, &work, &s.lang, &turns, lp::whisper_prompt(&project))?;
+    let mut lines = recognise(p, &engine, &wav, &work, &s, &turns, lp::whisper_prompt(&project), progress)?;
     let mut hidden = 0;
     if s.filter {
         step(progress, t!("listen-step-filter"), 85);

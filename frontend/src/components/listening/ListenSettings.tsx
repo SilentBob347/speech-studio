@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus, Trash2, X } from "lucide-react";
-import type { ListenEngine, ListenProject } from "../../lib/listen";
+import { DENOISE_LEVELS, VAD_DEFAULTS, type ListenEngine, type ListenProject, type VadConfig } from "../../lib/listen";
 import { named } from "../../lib/a11y";
 import { useEscapeLayer } from "../../lib/escape";
 import OpenRouterModelSelect from "../OpenRouterModelSelect";
@@ -12,16 +12,29 @@ import { api, slot } from "../../lib/api";
 const ENGINES: ListenEngine[] = ["", "parakeet", "whisper", "openrouter", "fal"];
 const SPEAKERS = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 
-/** How the recording is recognised: engine, language, speakers, voice separation, hallucination filter, a hint for Whisper
- * (the only engine that takes one), corrections. */
+/** How the recording is recognised: engine, language, speakers, noise removal, voice separation, hallucination filter, a
+ * hint for Whisper (the only engine that takes one), how a local recogniser's pieces are cut at pauses, corrections. */
 export default function ListenSettings({ project, onChange, onClose }: { project: ListenProject; onChange: (p: ListenProject) => void; onClose: () => void }) {
   const { t } = useTranslation();
   useEscapeLayer(onClose);
   const s = project.settings;
   const set = (patch: Partial<ListenProject["settings"]>) => onChange({ ...project, settings: { ...s, ...patch } });
   const [studioAsr, setStudioAsr] = useState<string | undefined>();
-  useEffect(() => { api.capabilities().then((c) => setStudioAsr(slot(c.selection, "asr_engine")), () => undefined); }, []);
-  const whisper = s.engine === "whisper" || (s.engine === "" && studioAsr === "whisper");
+  useEffect(() => {
+    api.capabilities().then((c) => setStudioAsr(slot(c.selection, "or_asr_on") === "1" ? "openrouter" : slot(c.selection, "asr_engine") ?? "parakeet"), () => undefined);
+  }, []);
+  const effective = s.engine || studioAsr;
+  const whisper = effective === "whisper";
+  const local = effective === "parakeet" || effective === "whisper";
+  const vad = { ...VAD_DEFAULTS, ...s.vad };
+  const setVad = (patch: Partial<VadConfig>) => set({ vad: { ...vad, ...patch } });
+  const vadFields: { key: keyof VadConfig; step: number; min: number; max: number }[] = [
+    { key: "threshold", step: 0.05, min: 0.05, max: 0.95 },
+    { key: "hysteresis", step: 0.05, min: 0, max: 0.5 },
+    { key: "min_speech_ms", step: 50, min: 0, max: 5000 },
+    { key: "min_silence_ms", step: 50, min: 0, max: 5000 },
+    { key: "pad_ms", step: 10, min: 0, max: 1000 },
+  ];
   const fixes = project.fixes;
   const setFixes = (next: ListenProject["fixes"]) => onChange({ ...project, fixes: next });
   const field = "w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md px-2 py-1.5 text-[13px] focus:border-[var(--color-accent)] focus:outline-none";
@@ -62,6 +75,17 @@ export default function ListenSettings({ project, onChange, onClose }: { project
             <span className="block text-[11px] leading-relaxed">{t("listen.promptHint")}</span>
           </label>
         )}
+        <div className="flex items-start gap-2">
+          <label className={`${check} flex-1`}>
+            <input type="checkbox" checked={!!s.denoise} onChange={(e) => set({ denoise: e.target.checked })} className="mt-0.5 w-4 h-4 accent-[var(--color-accent)]" />
+            <span>{t("listen.denoise")}<span className="block text-[11px] text-[var(--color-muted)]">{t("listen.denoiseHint")}</span></span>
+          </label>
+          {s.denoise && (
+            <select value={s.denoise_db ?? 18} onChange={(e) => set({ denoise_db: Number(e.target.value) })} aria-label={t("denoise.strength")} className="shrink-0 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px] focus:border-[var(--color-accent)] focus:outline-none">
+              {DENOISE_LEVELS.map((db) => <option key={db} value={db}>{db ? t("denoise.db", { db }) : t("denoise.full")}</option>)}
+            </select>
+          )}
+        </div>
         <label className={check}>
           <input type="checkbox" checked={s.separate} onChange={(e) => set({ separate: e.target.checked })} className="mt-0.5 w-4 h-4 accent-[var(--color-accent)]" />
           <span>{t("listen.separate")}<span className="block text-[11px] text-[var(--color-muted)]">{t("listen.separateHint")}</span></span>
@@ -70,6 +94,21 @@ export default function ListenSettings({ project, onChange, onClose }: { project
           <input type="checkbox" checked={s.filter} onChange={(e) => set({ filter: e.target.checked })} className="mt-0.5 w-4 h-4 accent-[var(--color-accent)]" />
           <span>{t("listen.filter")}<span className="block text-[11px] text-[var(--color-muted)]">{t("listen.filterHint")}</span></span>
         </label>
+        {local && (
+          <details className="rounded-lg border border-[var(--color-border)] px-3 py-2">
+            <summary className="cursor-pointer text-[12px] font-semibold">{t("listen.vad")}</summary>
+            <p className="mt-1.5 text-[11px] text-[var(--color-muted)] leading-relaxed">{t("listen.vadHint")}</p>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {vadFields.map((f) => (
+                <label key={f.key} className={label}>{t(`listen.vad_${f.key}`)}
+                  <input type="number" value={vad[f.key]} step={f.step} min={f.min} max={f.max}
+                    onChange={(e) => { const v = Number(e.target.value); if (Number.isFinite(v)) setVad({ [f.key]: Math.min(f.max, Math.max(f.min, v)) }); }} className={field} />
+                </label>
+              ))}
+            </div>
+            <button onClick={() => set({ vad: VAD_DEFAULTS })} className="mt-2 text-[11px] text-[var(--color-muted)] hover:text-[var(--color-accent)]">{t("listen.vadReset")}</button>
+          </details>
+        )}
         <fieldset className="space-y-2">
           <legend className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)] mb-1">{t("listen.fixes")}</legend>
           <p className="text-[11px] text-[var(--color-muted)] leading-relaxed">{t("listen.fixesHint")}</p>

@@ -366,6 +366,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
             </div>
           </>
         )}
+        {rowOf("silero-vad")}
       </>)}
       {group(t("settings.roleMt"), <>
         {/* Перевод и vision — каждый своим провайдером: своя Gemma, локальный сервер или OpenRouter. */}
@@ -382,6 +383,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
         {backendTabs("sep_backend")}
         {variantPicker("Mel-Band Roformer voc_fv6", ["roformer", "roformer-q5", "roformer-q4"])}
         {selv("sep_backend") === "cpu" ? rowOf("bsroformer-engine-cpu") : rowOf("bsroformer-engine")}
+        {rowOf("dpdfnet")}
       </>)}
       {group(t("settings.roleDiar"), <>
         {/* На чём считать диаризацию — свои табы (Nemotron 3 Diarization onnx: CUDA-EP / CPU-провайдер). */}

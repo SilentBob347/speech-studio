@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Camera, Crop, Loader2, Pause, Play, RotateCcw, ScanText, Sparkles, Star, Trash2, X } from "lucide-react";
+import { AudioLines, Camera, Crop, Loader2, Pause, Play, RotateCcw, ScanText, Sparkles, Star, Trash2, X } from "lucide-react";
 import { api, type RefCandidate, type VoiceAge, type VoiceCard, type VoiceConsent, type VoiceEntry, type VoiceGender } from "../../lib/api";
 import { named } from "../../lib/a11y";
 import { useEscapeLayer } from "../../lib/escape";
@@ -8,6 +8,7 @@ import { errorText, prettyVoice } from "../../lib/voices";
 import { followJob } from "../../lib/followJob";
 import ConfirmDialog from "../ConfirmDialog";
 import VoiceAvatar from "./VoiceAvatar";
+import { DENOISE_LEVELS } from "../../lib/listen";
 
 const GENDERS: VoiceGender[] = ["", "female", "male"];
 const AGES: VoiceAge[] = ["", "child", "teen", "adult", "senior"];
@@ -31,6 +32,7 @@ export default function VoiceEditor({ voice, onClose, onChanged, onRenamed, onDe
   const [lang, setLang] = useState(voice.card.lang);
   const [transcript, setTranscript] = useState(voice.transcript ?? "");
   const [busy, setBusy] = useState<string | null>(null);
+  const [denoiseDb, setDenoiseDb] = useState(18);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [photoRev, setPhotoRev] = useState(0);
@@ -67,6 +69,10 @@ export default function VoiceEditor({ voice, onClose, onChanged, onRenamed, onDe
   });
   const clean = () => run("clean", async () => {
     const { job_id } = await api.voiceClean(voice.name);
+    await followJob(job_id, "voice_clean");
+  });
+  const denoise = () => run("denoise", async () => {
+    const { job_id } = await api.voiceDenoise(voice.name, denoiseDb);
     await followJob(job_id, "voice_clean");
   });
   const findPieces = () => run("pieces", async () => { setPieces((await api.voiceRefCandidates(voice.name)).candidates); });
@@ -199,6 +205,14 @@ export default function VoiceEditor({ voice, onClose, onChanged, onRenamed, onDe
           <button onClick={clean} disabled={!!busy} title={t("voices.cleanHint")} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)] disabled:opacity-40">
             {busy === "clean" ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}{voice.card.cleaned ? t("voices.cleanAgain") : t("voices.clean")}
           </button>
+          <span className="inline-flex items-stretch rounded-lg border border-[var(--color-border)] focus-within:border-[var(--color-accent)]">
+            <button onClick={denoise} disabled={!!busy} title={t("voices.denoiseHint")} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] hover:text-[var(--color-accent)] disabled:opacity-40">
+              {busy === "denoise" ? <Loader2 size={12} className="animate-spin" /> : <AudioLines size={12} />}{t("voices.denoise")}
+            </button>
+            <select value={denoiseDb} onChange={(e) => setDenoiseDb(Number(e.target.value))} disabled={!!busy} aria-label={t("denoise.strength")} className="bg-transparent border-l border-[var(--color-border)] px-1.5 text-[11px] text-[var(--color-muted)] focus:outline-none">
+              {DENOISE_LEVELS.map((db) => <option key={db} value={db}>{db ? t("denoise.db", { db }) : t("denoise.full")}</option>)}
+            </select>
+          </span>
           <button onClick={() => setConfirmDelete(true)} disabled={!!busy} className="ml-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] text-[var(--color-muted)] hover:text-[var(--color-warn)] hover:border-[var(--color-warn)] disabled:opacity-40">
             <Trash2 size={12} />{t("voices.delete")}
           </button>

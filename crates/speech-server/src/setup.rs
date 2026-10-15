@@ -1058,6 +1058,28 @@ pub fn manifest() -> Vec<Component> {
             markers: &[Marker { rel: "models/ruaccent/nn/nn_omograph/big_poetry/model.onnx", expect: 181_553_054 }],
             external_url: None,
         },
+        Component {
+            id: "silero-vad",
+            name: t!("setup-comp-silero-vad-name"),
+            purpose: t!("setup-comp-silero-vad-purpose"),
+            requirement: Requirement::Recommended,
+            delivery: Delivery::Download,
+            size: 2_327_524,
+            files: &[FileSpec { url: "https://huggingface.co/istupakov/silero-vad-onnx/resolve/b3e3ee3cce4c11ceb63b1a0b229d916069c1ddf6/silero_vad.onnx", dest_rel: "models/silero-vad/silero_vad.onnx", size: 2_327_524, sha256: "1a153a22f4509e292a94e67d6f9b85e8deb25b4988682b7e174c65279d8788e3", extract: Extract::None }],
+            markers: &[Marker { rel: "models/silero-vad/silero_vad.onnx", expect: 2_327_524 }],
+            external_url: None,
+        },
+        Component {
+            id: "dpdfnet",
+            name: t!("setup-comp-dpdfnet-name"),
+            purpose: t!("setup-comp-dpdfnet-purpose"),
+            requirement: Requirement::Recommended,
+            delivery: Delivery::Download,
+            size: 10_493_337,
+            files: &[FileSpec { url: "https://huggingface.co/Ceva-IP/DPDFNet/resolve/dd6818d00f50c836fed43a6243ebe49116de5964/onnx/dpdfnet2_48khz_hr.onnx", dest_rel: "models/dpdfnet/dpdfnet2_48khz_hr.onnx", size: 10_493_337, sha256: "7f0575a5cec0ba4ffd8f8bd657e06d007e4ccdd955d76faab922b9d3291dc14b", extract: Extract::None }],
+            markers: &[Marker { rel: "models/dpdfnet/dpdfnet2_48khz_hr.onnx", expect: 10_493_337 }],
+            external_url: None,
+        },
         // ── СAЙДКАРЫ / ДВИЖКИ ───────────────────────────────────────────────
         Component {
             id: "bsroformer-engine",

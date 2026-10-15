@@ -4631,6 +4631,7 @@ dependencies = [
  "percent-encoding",
  "pulldown-cmark",
  "rbook",
+ "realfft",
  "regex",
  "reqwest 0.13.5",
  "rfd",

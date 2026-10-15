@@ -773,6 +773,8 @@
     "restore": "Bring back the original",
     "clean": "Clean",
     "cleanAgain": "Clean again",
+    "denoise": "Remove noise",
+    "denoiseHint": "Remove noise from the reference (DPDFNet) at the chosen strength. The original is kept and can be brought back.",
     "cleanedBadge": "cleaned",
     "notCleaned": "not cleaned",
     "favorite": "Favourite",
@@ -1333,6 +1335,16 @@
     "prompt": "Hint for the recogniser",
     "promptPlaceholder": "For example: a podcast about neural networks, Qwen, GitHub",
     "promptHint": "Whisper takes the topic and how terms are spelled; the spellings from the corrections below are added on their own. Other recognisers take no hints.",
+    "denoise": "Remove noise before recognition",
+    "denoiseHint": "DPDFNet: street noise, hum, hiss. Strength is how far below the original the noise may go; 18 dB keeps speech natural.",
+    "vad": "Cutting at pauses",
+    "vadHint": "Silero VAD finds the speech, and a local recogniser gets the recording in pieces of up to 90 seconds cut at pauses, not mid-word. Silence between pieces is not recognised.",
+    "vad_threshold": "Speech threshold",
+    "vad_hysteresis": "Hysteresis",
+    "vad_min_speech_ms": "Min. speech, ms",
+    "vad_min_silence_ms": "Min. silence, ms",
+    "vad_pad_ms": "Padding, ms",
+    "vadReset": "Back to defaults",
     "fixes": "Corrections",
     "fixesHint": "How the recogniser mishears a word → how it is written. Applied to every recognition of this recording.",
     "fixHeard": "Heard as",
@@ -1590,5 +1602,10 @@
     "keep": "The earlier takes stay in each block’s history, so you can go back by choosing a take; Ctrl+Z takes the voice change back.",
     "apply": "Change",
     "applyRevoice": "Change and voice {{n}} again"
+  },
+  "denoise": {
+    "strength": "Noise suppression strength",
+    "db": "down to −{{db}} dB",
+    "full": "all the way"
   }
 }

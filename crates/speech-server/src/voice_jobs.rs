@@ -61,6 +61,18 @@ pub fn clean(p: &VoicePaths, name: &str, progress: &dyn Fn(Value)) -> Result<Val
     Ok(json!({ "name": name, "cleaned": true }))
 }
 
+/// Голос без шума (DPDFNet): `limit_db` — предел подавления, `None` — без предела. Исходник остаётся в `.originals`.
+pub fn denoise(p: &VoicePaths, name: &str, limit_db: Option<f32>, progress: &dyn Fn(Value)) -> Result<Value, String> {
+    let audio = lib::audio_path(&p.voices_dir, name).ok_or_else(|| t!("voice-missing", name = name.to_string()))?;
+    crate::ensure_components(&p.repo_root, &["dpdfnet"], &|ev| progress(ev))?;
+    let work = work_dir(&p.voices_dir, name, "denoise")?;
+    let out = work.path().join("denoised.wav");
+    let msg = t!("voice-denoising", name = name.to_string());
+    crate::denoise::denoise_file(&p.models_root, &audio, &out, limit_db, &|f| progress(json!({ "type": "progress", "stage": "voice_clean", "msg": msg, "pct": (f * 100.0) as i64 })))?;
+    lib::replace_with_cleaned(&p.voices_dir, name, &out)?;
+    Ok(json!({ "name": name, "denoised": true }))
+}
+
 /// Можно ли чистить голос сейчас: движок и модель Roformer на месте.
 pub fn clean_ready(p: &VoicePaths) -> bool {
     let sel = crate::models::load_selection(&p.models_root);

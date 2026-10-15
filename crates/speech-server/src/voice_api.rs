@@ -202,6 +202,28 @@ pub async fn clean(State(st): State<AppState>, Json(body): Json<Value>) -> Respo
     enqueue(&st, jobs::JobKind::VoiceClean, body_name(&body, "name"), false).await
 }
 
+/// POST /voices/denoise {name, db?} — убрать шум из голоса задачей (DPDFNet); `db` — предел подавления, 0 или нет — без
+/// предела.
+pub async fn denoise(State(st): State<AppState>, Json(body): Json<Value>) -> Response {
+    let p = paths(&st);
+    let name = body_name(&body, "name");
+    if lib::audio_path(&p.voices_dir, &name).is_none() {
+        return missing(&name);
+    }
+    let limit = body.get("db").and_then(Value::as_f64).filter(|d| *d > 0.0).map(|d| d.min(100.0) as f32);
+    let key = format!("voice:{name}");
+    let job: jobs::JobFn = Box::new(move |progress: jobs::ProgressFn| {
+        let cb = |ev: Value| progress(ev);
+        let res = voice_jobs::denoise(&p, &name, limit, &cb);
+        crate::mcp::tell_windows(json!({ "changed": "voices" }));
+        res
+    });
+    match st.jobs.enqueue(jobs::JobMeta::new(jobs::JobKind::VoiceClean, Some(&key)), job).await {
+        Ok(job_id) => Json(json!({ "job_id": job_id })).into_response(),
+        Err(e) => crate::enqueue_error(e),
+    }
+}
+
 /// POST /voices/restore {name} — вернуть звук до очистки.
 pub async fn restore(State(st): State<AppState>, Json(body): Json<Value>) -> Response {
     let name = body_name(&body, "name");

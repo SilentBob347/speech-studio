@@ -7,7 +7,14 @@ export type ListenLine = {
   approx: boolean; flag: HallucinationFlag | null; evidence: string | null; hidden: boolean;
 };
 export type ListenEngine = "" | "parakeet" | "whisper" | "openrouter" | "fal";
-export type ListenSettings = { engine: ListenEngine; cloud_model: string; lang: string; speakers: number; separate: boolean; filter: boolean; prompt: string };
+export type VadConfig = { threshold: number; hysteresis: number; min_speech_ms: number; min_silence_ms: number; pad_ms: number };
+export type ListenSettings = {
+  engine: ListenEngine; cloud_model: string; lang: string; speakers: number; separate: boolean; filter: boolean; prompt: string;
+  denoise: boolean; denoise_db: number; vad: VadConfig;
+};
+/** Noise suppression limits in dB (0 removes as much as the model can); 18 keeps speech natural. */
+export const DENOISE_LEVELS = [6, 12, 18, 24, 0] as const;
+export const VAD_DEFAULTS: VadConfig = { threshold: 0.5, hysteresis: 0.15, min_speech_ms: 250, min_silence_ms: 100, pad_ms: 30 };
 export type ListenFix = { heard: string; say: string };
 export type ListenMade = { by: string; at: number; lang: string; separated: boolean; hidden: number };
 export type ListenProject = {

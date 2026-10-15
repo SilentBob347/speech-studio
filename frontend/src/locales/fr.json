@@ -773,6 +773,8 @@
     "restore": "Rétablir l’original",
     "clean": "Nettoyer",
     "cleanAgain": "Nettoyer à nouveau",
+    "denoise": "Réduire le bruit",
+    "denoiseHint": "Retirer le bruit de la référence (DPDFNet) avec l’intensité choisie. L’original est conservé et peut être rétabli.",
     "cleanedBadge": "nettoyée",
     "notCleaned": "non nettoyée",
     "favorite": "Favori",
@@ -1333,6 +1335,16 @@
     "prompt": "Indice pour la reconnaissance",
     "promptPlaceholder": "Par exemple : un podcast sur les réseaux de neurones, Qwen, GitHub",
     "promptHint": "Whisper tient compte du sujet et de l’orthographe des termes ; les orthographes des corrections ci-dessous sont ajoutées d’elles-mêmes. Les autres moteurs n’acceptent pas d’indice.",
+    "denoise": "Réduire le bruit avant la reconnaissance",
+    "denoiseHint": "DPDFNet : bruit de rue, ronflement, souffle. L’intensité indique jusqu’où le bruit peut descendre sous l’original ; 18 dB garde une voix naturelle.",
+    "vad": "Découpe aux pauses",
+    "vadHint": "Silero VAD repère la parole, et le moteur local reçoit l’enregistrement en morceaux de 90 secondes au plus, coupés aux pauses et non au milieu d’un mot. Le silence entre les morceaux n’est pas reconnu.",
+    "vad_threshold": "Seuil de parole",
+    "vad_hysteresis": "Hystérésis",
+    "vad_min_speech_ms": "Parole min., ms",
+    "vad_min_silence_ms": "Silence min., ms",
+    "vad_pad_ms": "Marge, ms",
+    "vadReset": "Revenir aux valeurs par défaut",
     "fixes": "Corrections",
     "fixesHint": "Comment le reconnaisseur entend mal un mot → comment il s’écrit. Appliqué à chaque reconnaissance de cet enregistrement.",
     "fixHeard": "Entendu comme",
@@ -1590,5 +1602,10 @@
     "keep": "Les prises précédentes restent dans l’historique de chaque bloc : on y revient en choisissant la prise ; Ctrl+Z annule le changement de voix.",
     "apply": "Changer",
     "applyRevoice": "Changer et refaire {{n}} voix"
+  },
+  "denoise": {
+    "strength": "Intensité de la réduction de bruit",
+    "db": "jusqu’à −{{db}} dB",
+    "full": "au maximum"
   }
 }

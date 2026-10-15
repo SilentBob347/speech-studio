@@ -38,6 +38,7 @@ percent-encoding = "2.3"
 # MCP: картинки кадров в ответе инструмента, заголовки =?base64?…?= и границы since/until в часовом поясе компьютера.
 base64 = "0.23"
 rubato = "5.0.1"
+realfft = "3.5"
 audioadapter = "5.0.0"
 audioadapter-buffers = "5.2.0"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }

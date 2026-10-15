@@ -773,6 +773,8 @@
     "restore": "恢复原始音频",
     "clean": "净化",
     "cleanAgain": "再次净化",
+    "denoise": "降噪",
+    "denoiseHint": "以所选强度去除参考音频中的噪声（DPDFNet）。原始文件会保留，可以恢复。",
     "cleanedBadge": "已净化",
     "notCleaned": "未净化",
     "favorite": "收藏",
@@ -1333,6 +1335,16 @@
     "prompt": "识别提示",
     "promptPlaceholder": "例如：关于神经网络的播客，Qwen，GitHub",
     "promptHint": "Whisper 会参考主题和术语写法；下方更正中的写法会自动加入。其他识别引擎不接受提示。",
+    "denoise": "识别前先降噪",
+    "denoiseHint": "DPDFNet：街道噪声、嗡嗡声、嘶嘶声。强度表示噪声最多比原声低多少；18 dB 能保持语音自然。",
+    "vad": "按停顿切分",
+    "vadHint": "Silero VAD 找出语音，本地识别引擎按停顿把录音切成最长 90 秒的片段，不会切在词中间。片段之间的静音不参与识别。",
+    "vad_threshold": "语音阈值",
+    "vad_hysteresis": "迟滞",
+    "vad_min_speech_ms": "最短语音（毫秒）",
+    "vad_min_silence_ms": "最短静音（毫秒）",
+    "vad_pad_ms": "边距（毫秒）",
+    "vadReset": "恢复默认",
     "fixes": "更正",
     "fixesHint": "识别器把词听成什么 → 正确写法。每次识别此录音时都会应用。",
     "fixHeard": "听成",
@@ -1590,5 +1602,10 @@
     "keep": "之前的配音版本会保留在每个文本块的历史中，可通过选择版本回到它们；Ctrl+Z 可撤销换声音。",
     "apply": "更换",
     "applyRevoice": "更换并重新配音 {{n}} 个"
+  },
+  "denoise": {
+    "strength": "降噪强度",
+    "db": "最多 −{{db}} dB",
+    "full": "完全"
   }
 }
