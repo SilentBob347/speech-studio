@@ -37,7 +37,7 @@ import ProjectSettings from "./ProjectSettings";
 import ExportDialog from "./ExportDialog";
 import DictionaryDialog from "./DictionaryDialog";
 import SearchReplace from "./SearchReplace";
-import ProjectTimeline, { type OverlapChoice } from "./ProjectTimeline";
+import ProjectTimeline, { type Montage, type OverlapChoice } from "./ProjectTimeline";
 import EngineSelect from "./EngineSelect";
 import HistoryDialog from "./HistoryDialog";
 
@@ -282,7 +282,8 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
     if (!take) return;
     audio.current?.pause();
     const fx = latestProject.current ? fxOf(latestProject.current, b) : null;
-    const a = new Audio(`${speechApi.takeUrl(pid, take.file, fx)}${fx ? "&" : "?"}n=${take.n}`);
+    const url = speechApi.takeUrl(pid, take.file, fx, b.mix, take.cut);
+    const a = new Audio(`${url}${url.includes("?") ? "&" : "?"}n=${take.n}`);
     a.volume = volume.current;
     a.playbackRate = rate.current;
     const [from, to] = take.cut ?? [0, Infinity];
@@ -709,6 +710,27 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
       )}
       {timelineOpen && (
         <ProjectTimeline pid={pid} speakers={speakers} tintOf={tintOf} textOf={(id) => blocks.find((b) => b.id === id)?.text ?? ""} refresh={saving ? undefined : project} onClose={() => setTimelineOpen(false)}
+          cueTimed={project.settings.timeline}
+          onPlay={(id) => { const b = blocks.find((x) => x.id === id); if (b) playBlock(b, []); }}
+          onMontage={(id, change: Montage) => edit((p) => {
+            const at = locate(p, id);
+            if (!at) return p;
+            const b = p.chapters[at[0]].blocks[at[1]];
+            if (change.mix) b.mix = change.mix;
+            if (change.cut !== undefined) {
+              const take = activeTake(b);
+              if (take) take.cut = change.cut;
+            }
+            if (change.pause) {
+              const before = locate(p, change.pause.prev);
+              if (before) p.chapters[before[0]].blocks[before[1]].pause_ms = change.pause.ms;
+            }
+            if (change.shift !== undefined && b.start != null && b.end != null) {
+              b.start = Math.max(0, b.start + change.shift);
+              b.end = Math.max(b.start, b.end + change.shift);
+            }
+            return p;
+          })}
           onJump={(id) => document.getElementById(`block-${id}`)?.scrollIntoView({ block: "center", behavior: "smooth" })}
           onChoose={(id, previous, choice: OverlapChoice) => edit((p) => {
             const at = locate(p, id);

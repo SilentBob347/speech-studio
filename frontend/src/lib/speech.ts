@@ -34,7 +34,14 @@ export type Block = {
   params?: SpeechParams | null;
   /** The block's voice effect: one of VOICE_FX, `none` to take its speaker's off, empty for its speaker's. */
   fx?: string;
+  /** The clip's montage from the track editor; the take file stays as it is. */
+  mix?: Mix;
 };
+/** Gain in dB and fades in seconds over the part of the take the clip keeps. */
+export type Mix = { gain_db: number; fade_in: number; fade_out: number };
+export const FLAT_MIX: Mix = { gain_db: 0, fade_in: 0, fade_out: 0 };
+export const MIX_GAIN_DB = [-40, 24] as const;
+export const isFlat = (m: Mix | undefined) => !m || (m.gain_db === 0 && m.fade_in === 0 && m.fade_out === 0);
 export type Review = "" | "approved" | "fix";
 export type WordNote = { quote: string; note: string; marker: Marker | "" };
 export type OwnRef = { file: string; text: string; whole: boolean };
@@ -154,7 +161,9 @@ export type LintIssue = { block: string; level: "error" | "warn"; kind: string; 
 /** The voice a block speaks with: its own, its language's, its speaker's, the project's; with one voice the project's. */
 export const voiceOf = (p: SpeechProject, b: Block) => p.settings.one_voice ? p.settings.voice || null :
   b.voice || (b.lang && b.lang !== p.settings.lang ? p.settings.lang_voices?.[b.lang] : null) || p.cast[b.speaker] || p.settings.voice || null;
-export type TimelineBlock = { block: string; speaker: string; start: number; end: number; voiced: boolean; overlap: { with: string; secs: number } | null; cut_previous: boolean };
+export type TimelineBlock = { block: string; speaker: string; start: number; end: number; voiced: boolean; overlap: { with: string; secs: number } | null; cut_previous: boolean;
+  /** The block before it in the export, its take file, the take's whole length, the part kept and the clip's montage. */
+  prev: string | null; take: string | null; take_secs: number | null; cut: [number, number] | null; mix: Mix };
 export type ExportProblem = { block: string; state: BlockState | "missing" | "modified" | "duration" };
 
 export const speechApi = {
@@ -225,7 +234,18 @@ export const speechApi = {
   unknownWords: (pid: string) => getCoded<{ words: UnknownWord[]; stress_checked: boolean }>(`/projects/${pid}/unknown-words`),
   tryRule: (pid: string, body: { phrase: string; rule: DictEntry; voice: string | null }) => postCoded<{ job_id: string }>(`/projects/${pid}/dictionary/try`, body),
   tryUrl: (pid: string, file: string) => `${BASE}/projects/${pid}/tries/${encodeURIComponent(file)}`,
-  takeUrl: (pid: string, file: string, fx?: string | null) => `${BASE}/projects/${pid}/takes/${encodeURIComponent(file)}${fx ? `?fx=${fx}` : ""}`,
+  /** A take as it sounds in the project: with its voice effect, and with the clip's gain and fades over the kept part. */
+  takeUrl: (pid: string, file: string, fx?: string | null, mix?: Mix, cut?: [number, number] | null) => {
+    const q = new URLSearchParams();
+    if (fx) q.set("fx", fx);
+    if (mix && !isFlat(mix)) {
+      q.set("gain", String(mix.gain_db)); q.set("fin", String(mix.fade_in)); q.set("fout", String(mix.fade_out));
+      if (cut) { q.set("a", String(cut[0])); q.set("z", String(cut[1])); }
+    }
+    const query = q.toString();
+    return `${BASE}/projects/${pid}/takes/${encodeURIComponent(file)}${query ? `?${query}` : ""}`;
+  },
+  takePeaks: (pid: string, file: string) => getCoded<{ secs: number; per_second: number; peaks: number[] }>(`/projects/${pid}/takes/${encodeURIComponent(file)}/peaks`),
   exportUrl: (pid: string, file: string) => `${BASE}/projects/${pid}/exports/${encodeURIComponent(file)}`,
 };
 
