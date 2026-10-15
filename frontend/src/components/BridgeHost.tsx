@@ -135,10 +135,11 @@ export default function BridgeHost() {
   });
 
   useBridgeCommand("player_play", async (args) => {
-    takeArgs("player_play", args, ["id", "on", "from", "voice"]);
+    takeArgs("player_play", args, ["id", "on", "from", "voice", "take"]);
     const voice = textArg("player_play", args, "voice");
     const id = textArg("player_play", args, "id");
     const from = numberArg("player_play", args, "from");
+    const take = numberArg("player_play", args, "take");
     if (args.on !== undefined && typeof args.on !== "boolean") throw bridgeError("bad_value", { command: "player_play", field: "on", expected: "true or false" });
     const editor = openEditor();
     if (voice) {
@@ -158,7 +159,7 @@ export default function BridgeHost() {
     }
     if (!editor) throw bridgeError("no_screen", { command: "player_play" });
     stopVoiceSample();
-    editor.player.play({ id, on: args.on as boolean | undefined, from });
+    editor.player.play({ id, on: args.on as boolean | undefined, from, take });
     await settle();
     return { playing: editor.player.state() };
   });

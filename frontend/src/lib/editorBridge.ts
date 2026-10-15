@@ -13,7 +13,7 @@ export type OpenEditor = {
 };
 
 /** What the agent asks the open editor's player to play: a block or a line, from it on, or from a moment. */
-export type PlayRequest = { id?: string; on?: boolean; from?: number };
+export type PlayRequest = { id?: string; on?: boolean; from?: number; take?: number };
 
 /** Each throws the bridge's error the agent reads when it cannot do what was asked. */
 export type EditorPlayer = {

@@ -61,6 +61,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   const [job, setJob] = useState<{ id: string; ids: string[] | null } | null>(null);
   const [jobError, setJobError] = useState<string | null>(null);
   const [playing, setPlaying] = useState<string | null>(null);
+  const [playingTake, setPlayingTake] = useState<number | null>(null);
   const [queue, setQueue] = useState<string[]>([]);
   const [settings, setSettings] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -170,7 +171,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
     pid,
     state: () => ({
       name: project?.name ?? null,
-      blocks: blocks.map((b) => ({ id: b.id, speaker: b.speaker, text: b.text.slice(0, 160), state: stateOf(b), hidden: b.hidden })),
+      blocks: blocks.map((b) => ({ id: b.id, speaker: b.speaker, text: b.text.slice(0, 160), state: stateOf(b), hidden: b.hidden, takes: b.takes.map((tk) => tk.n), active: activeTake(b)?.n ?? null })),
       selected,
       playing,
       voicing: !!job,
@@ -187,9 +188,9 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
     player: {
       state: () => {
         const a = playing ? audio.current : null;
-        return { playing, paused, queued: queue, position: a?.currentTime ?? null, duration: a && Number.isFinite(a.duration) ? a.duration : null, volume: volume.current, rate: rate.current };
+        return { playing, take: playing ? playingTake : null, paused, queued: queue, position: a?.currentTime ?? null, duration: a && Number.isFinite(a.duration) ? a.duration : null, volume: volume.current, rate: rate.current };
       },
-      play: ({ id, on, from }) => {
+      play: ({ id, on, from, take }) => {
         if (from !== undefined) throw bridgeError("speech_from");
         if (!id && playing && paused) return resumeAudio();
         if (!id) throw bridgeError("missing", { command: "player_play", field: "id" });
@@ -197,7 +198,9 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
         if (!b) throw bridgeError("no_line", { id });
         if (on) return listenFrom(b.id);
         if (!activeTake(b)) throw bridgeError("no_take", { id });
-        playBlock(b, []);
+        if (take === undefined) { playBlock(b, []); return; }
+        if (!b.takes.some((tk) => tk.n === take)) throw bridgeError("no_such_take", { id, take });
+        playBlock(b, [], take, playing === b.id ? audio.current?.currentTime ?? 0 : 0);
       },
       pause: () => pauseAudio(),
       seek: (seconds) => {
@@ -219,15 +222,17 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   const pauseAudio = () => { if (!playing) return; audio.current?.pause(); setPaused(true); };
   const resumeAudio = () => { if (!playing || !audio.current) return; setPaused(false); audio.current.play().catch((e: unknown) => { setPlaying(null); setJobError(errorText(e)); }); };
   const changeRate = (r: number) => { rate.current = r; setSpeed(r); if (audio.current) audio.current.playbackRate = r; };
-  const playBlock = useCallback((b: Block, rest: string[]) => {
-    const take = activeTake(b);
+  const playBlock = useCallback((b: Block, rest: string[], n?: number, at = 0) => {
+    const take = (n == null ? null : b.takes.find((tk) => tk.n === n)) ?? activeTake(b);
     if (!take) return;
     audio.current?.pause();
     const a = new Audio(`${speechApi.takeUrl(pid, take.file)}?n=${take.n}`);
     a.volume = volume.current;
     a.playbackRate = rate.current;
+    if (at > 0) a.addEventListener("loadedmetadata", () => { a.currentTime = Math.min(at, Math.max(0, a.duration - 0.05)); }, { once: true });
     audio.current = a;
     setPlaying(b.id);
+    setPlayingTake(take.n);
     setPaused(false);
     setQueue(rest);
     a.onended = () => setPlaying(null);
@@ -467,6 +472,10 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
     remove: () => edit((p) => { const at = locate(p, b.id); if (at && blockList(p).length > 1) p.chapters[at[0]].blocks.splice(at[1], 1); return p; }),
     synth: (force) => void runSynth({ ids: [b.id], force }),
     play: () => (playing === b.id ? stopAudio() : playBlock(b, [])),
+    ab: (n) => {
+      if (playing !== b.id) { playBlock(b, [], n); return; }
+      playBlock(b, [], playingTake === n ? activeTake(b)?.n : n, audio.current?.currentTime ?? 0);
+    },
     playFrom: () => listenFrom(b.id),
     stress: () => void stressBlocks([b.id]),
     pick: (w, value) => pickVariant(b, w, value),
@@ -619,7 +628,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
                   const index = blocks.indexOf(b);
                   const rendering = !!job && (job.ids === null ? ["pending", "stale", "failed"].includes(stateOf(b)) : job.ids.includes(b.id));
                   const note = notes[b.id];
-                  return <BlockRow key={b.id} pid={pid} engine={engineOf(project, b)} projectEngine={project.settings.engine} speakerEngine={project.cast_engines?.[b.speaker] || null} voice={voiceOf(project, b)} block={b} index={index} state={stateOf(b)} fit={project.status?.[b.id]?.fit} rendering={rendering} playing={playing === b.id} tint={tintOf(b.speaker)}
+                  return <BlockRow key={b.id} pid={pid} engine={engineOf(project, b)} projectEngine={project.settings.engine} speakerEngine={project.cast_engines?.[b.speaker] || null} voice={voiceOf(project, b)} block={b} index={index} state={stateOf(b)} fit={project.status?.[b.id]?.fit} rendering={rendering} playing={playing === b.id} playingTake={playing === b.id ? playingTake : null} tint={tintOf(b.speaker)}
                     stressing={!!stressing?.includes(b.id)} doubts={note && note.text === b.text ? note.words : []}
                     selected={selected.includes(b.id)} selecting={selected.length > 0} open={panel === b.id} side={wide ? side : null} a={actions(b)} />;
                 })}

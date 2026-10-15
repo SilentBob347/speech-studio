@@ -32,6 +32,8 @@ export type BlockActions = {
   remove: () => void;
   synth: (force: boolean) => void;
   play: () => void;
+  /** Plays take n, or switches between it and the active take from the same moment while this block plays. */
+  ab: (n: number) => void;
   playFrom: () => void;
   select: (range: boolean) => void;
   stress: () => void;
@@ -43,6 +45,27 @@ export type BlockActions = {
   /** Uploads a clip as this block's own reference; its text is recognised. */
   ownRef: (file: File, whole: boolean) => Promise<void>;
 };
+
+/** A/B of two takes: the button switches between the active take and the chosen one from the same moment. */
+function TakeCompare({ block, active, playingTake, onAB }: { block: Block; active: number; playingTake: number | null; onAB: (n: number) => void }) {
+  const { t } = useTranslation();
+  const others = block.takes.filter((tk) => tk.n !== active).reverse();
+  const [chosen, setChosen] = useState<number | null>(null);
+  const other = others.find((tk) => tk.n === chosen)?.n ?? others[0].n;
+  return (
+    <label className="text-[11px] text-[var(--color-muted)]">{t("speech.abWith")}
+      <div className="mt-1 flex items-center gap-1">
+        <select value={other} onChange={(e) => setChosen(Number(e.target.value))} aria-label={t("speech.abWith")}
+          className="flex-1 min-w-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]">
+          {others.map((tk) => <option key={tk.n} value={tk.n}>#{tk.n} · {tk.duration.toFixed(1)}{t("settings.sec")}{tk.qc ? ` · ${t("speech.takeWer", { wer: Math.round(tk.qc.wer * 100) })}` : ""}</option>)}
+        </select>
+        <button onClick={() => onAB(other)} aria-pressed={playingTake != null}
+          className={`px-2 py-1 rounded-md border text-[11px] font-semibold tabnum ${playingTake != null ? "border-[var(--color-accent)] text-[var(--color-accent)]" : "border-[var(--color-border)] text-[var(--color-text)] hover:border-[var(--color-accent)]"}`}
+          {...named(t("speech.abHint", { a: active, b: other }))}>{playingTake == null ? t("speech.ab") : `#${playingTake}`}</button>
+      </div>
+    </label>
+  );
+}
 
 function AutoText({ value, onCommit, label, inputRef, stale, locked }: { value: string; onCommit: (v: string) => void; label: string; inputRef: React.RefObject<HTMLTextAreaElement | null>; stale: boolean; locked: boolean }) {
   const [draft, setDraft] = useState(value);
@@ -77,7 +100,7 @@ function sentenceStart(value: string, cursor: number): number {
   return start;
 }
 
-export default function BlockRow({ pid, engine, projectEngine, speakerEngine, voice, block, index, state, fit, rendering, playing, tint, stressing, doubts, selected, selecting, open, side, a }: {
+export default function BlockRow({ pid, engine, projectEngine, speakerEngine, voice, block, index, state, fit, rendering, playing, playingTake, tint, stressing, doubts, selected, selecting, open, side, a }: {
   pid: string;
   /** The engine that voices this block (its own, its speaker's or the project's). */
   engine: string;
@@ -99,6 +122,8 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
   state: BlockState;
   rendering: boolean;
   playing: boolean;
+  /** The take sounding now while this block plays. */
+  playingTake: number | null;
   tint: string;
   a: BlockActions;
 }) {
@@ -162,6 +187,7 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
               className={`p-1 rounded-md ${block.pinned != null && block.pinned === block.active ? "text-[var(--color-accent)]" : "text-[var(--color-muted)]"} hover:text-[var(--color-text)] disabled:opacity-30`} {...named(t("speech.pinTake"))}><Pin size={13} /></button>
           </div>
         </label>
+        {block.takes.length > 1 && take && <TakeCompare block={block} active={take.n} playingTake={playingTake} onAB={a.ab} />}
       </div>
       <div className="flex flex-wrap items-end gap-2">
         <label className="flex-1 min-w-48 text-[11px] text-[var(--color-muted)]">{t("speech.note")}

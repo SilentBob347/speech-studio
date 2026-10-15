@@ -1145,7 +1145,10 @@
     "recentVoices": "Recent",
     "libraryClone": "Library — clone",
     "directionIgnored": "{{engine}} does not read directions: it will not change the sound.",
-    "directionPresetsOnly": "{{engine}} reads the direction only with the model's own voices; with this voice it will not change the sound."
+    "directionPresetsOnly": "{{engine}} reads the direction only with the model's own voices; with this voice it will not change the sound.",
+    "abWith": "Compare with",
+    "ab": "A/B",
+    "abHint": "Switch between take #{{a}} and #{{b}} from the same moment"
   },
   "tags": {
     "emotion": "Emotion",

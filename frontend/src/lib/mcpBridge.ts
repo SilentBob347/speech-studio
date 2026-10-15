@@ -54,6 +54,8 @@ const MESSAGES = {
   no_take: (a: BridgeArgs) => `Block ${a.id} has no take yet: voice it first (project_synth), or play it with on true to voice it and play from it.`,
   nothing_plays: () => "Nothing plays in this project: player_play a block first.",
   not_loaded: () => "The recording's sound is not loaded yet; call the tool again.",
+  no_such_take: (a: BridgeArgs) => `Block ${a.id} has no take ${a.take}: editor_state lists its takes.`,
+  listening_take: () => "take is a take of a Speech project's block; a Listening recording has none.",
   speech_from: () => "from is a moment of a Listening recording; in a Speech project name the block by id.",
   listening_on: () => "on plays a Speech project from a block on; in a recording play a line (id) or from a moment (from).",
 } as const;

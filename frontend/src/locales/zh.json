@@ -1145,7 +1145,10 @@
     "recentVoices": "最近使用",
     "libraryClone": "声音库 — 克隆",
     "directionIgnored": "{{engine}} 不读取指示：它不会改变声音。",
-    "directionPresetsOnly": "{{engine}} 只对模型自带的音色读取提示;用这个音色时提示不会影响声音。"
+    "directionPresetsOnly": "{{engine}} 只对模型自带的音色读取提示;用这个音色时提示不会影响声音。",
+    "abWith": "对比",
+    "ab": "A/B",
+    "abHint": "在第 #{{a}} 条和第 #{{b}} 条之间从同一时刻切换"
   },
   "tags": {
     "emotion": "情绪",

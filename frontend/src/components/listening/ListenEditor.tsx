@@ -72,7 +72,8 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
     },
     player: {
       state: () => ({ playing, position: time, duration: duration || project?.duration || null, rate, volume: audio.current?.volume ?? 1 }),
-      play: ({ id, on, from }) => {
+      play: ({ id, on, from, take }) => {
+        if (take !== undefined) throw bridgeError("listening_take");
         const a = audio.current;
         if (!a) throw bridgeError("not_loaded");
         if (on) throw bridgeError("listening_on");

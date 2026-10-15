@@ -1145,7 +1145,10 @@
     "recentVoices": "Recientes",
     "libraryClone": "Biblioteca — clonación",
     "directionIgnored": "{{engine}} no lee las indicaciones: no cambiará el sonido.",
-    "directionPresetsOnly": "{{engine}} solo lee la indicación con las voces propias del modelo; con esta voz no cambiará el sonido."
+    "directionPresetsOnly": "{{engine}} solo lee la indicación con las voces propias del modelo; con esta voz no cambiará el sonido.",
+    "abWith": "Comparar con",
+    "ab": "A/B",
+    "abHint": "Alternar entre la toma #{{a}} y la #{{b}} desde el mismo momento"
   },
   "tags": {
     "emotion": "Emoción",

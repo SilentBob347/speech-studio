@@ -542,14 +542,14 @@ pub(super) fn tools() -> Vec<Tool> {
         // ---------------------------------------------------------------- the player, for the user to hear
         Tool {
             name: "player_state",
-            description: "What the studio's player plays now: in an open Speech project the block playing, whether it is paused and the blocks queued after it, in an open Listening recording the moment and length; the position, length, volume and speed, and a library voice's sample when one plays. Nothing plays: playing false.",
+            description: "What the studio's player plays now: in an open Speech project the block playing and its take, whether it is paused and the blocks queued after it, in an open Listening recording the moment and length; the position, length, volume and speed, and a library voice's sample when one plays. Nothing plays: playing false.",
             schema: nothing,
             call: |args| window("player_state", args, 15),
         },
         Tool {
             name: "player_play",
-            description: "Play for the user to hear, in the window. In an open Speech project: a block's active take (id), or with on true everything from that block to the end, voicing first the blocks that are not voiced yet (as Listen from here does), or on from where it was paused (neither). In an open Listening recording: a line from its start to its end (id), or from a moment (from, seconds), or on from where it stopped (neither). voice plays a library voice's sample instead, on any screen.",
-            schema: || object(json!({ "id": { "type": "string", "description": "block or line id from editor_state" }, "on": { "type": "boolean" }, "from": { "type": "number", "minimum": 0 }, "voice": { "type": "string", "description": "voice name from voices_list" } }), &[]),
+            description: "Play for the user to hear, in the window. In an open Speech project: a block's active take (id), or with on true everything from that block to the end, voicing first the blocks that are not voiced yet (as Listen from here does), or on from where it was paused (neither); take plays that take of the block instead of its active one, and while the block plays it switches to it from the same moment (A/B of two takes). In an open Listening recording: a line from its start to its end (id), or from a moment (from, seconds), or on from where it stopped (neither). voice plays a library voice's sample instead, on any screen.",
+            schema: || object(json!({ "id": { "type": "string", "description": "block or line id from editor_state" }, "on": { "type": "boolean" }, "from": { "type": "number", "minimum": 0 }, "voice": { "type": "string", "description": "voice name from voices_list" }, "take": { "type": "integer", "minimum": 1, "description": "a take number of the block (editor_state)" } }), &[]),
             call: |args| window("player_play", args, 20),
         },
         Tool {
