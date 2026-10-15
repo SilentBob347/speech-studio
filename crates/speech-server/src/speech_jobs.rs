@@ -1315,10 +1315,13 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         let tidied = project.settings.tidy_pauses.then(|| crate::tts_trim::tidy(&samples, SR));
         let place = |secs: f64| tidied.as_ref().map_or(secs, |t| t.at(secs));
         let samples = match &tidied { Some(t) => t.samples.clone(), None => samples };
-        let samples = match project.fx_of(b) {
+        let mut samples = match project.fx_of(b) {
             Some(fx) => crate::voice_fx::apply(&samples, SR, fx)?,
             None => samples,
         };
+        if project.settings.level_pieces {
+            crate::loudness::level_piece(&mut samples, SR);
+        }
         let at = placer.place(b, take.fit_lead, samples.len());
         if let Some((prev_at, prev)) = prev_audio.as_ref().filter(|(pa, pv)| b.cut_previous && at < pa + pv.len()) {
             cut_tail(&mut mix, *prev_at, prev, at);

@@ -201,6 +201,8 @@ pub struct Settings {
     pub continuation: bool,
     /// Склейка берёт дубли без тишины по краям и без аномальных пауз внутри (дубль на диске остаётся как есть).
     pub tidy_pauses: bool,
+    /// Склейка выравнивает каждый кусок к общей громкости до громкости программы (Dub `normalize_voice`).
+    pub level_pieces: bool,
     /// Движок `openrouter`: модель и голос (пусто — из «Облака»).
     pub cloud_model: String,
     pub cloud_voice: String,
@@ -218,7 +220,7 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { lang: "auto".into(), engine: "higgs".into(), params: Params::default(), voice: None, pause_same_ms: 300, pause_switch_ms: 600, loudness: "video".into(), qc: QcSettings::default(), auto_stress: true, normalize: true, normalize_off: Vec::new(), timeline: false, max_stretch: 1.25, lead_into_silence: true, room_tone: false, breaths: false, continuation: false, tidy_pauses: true, cloud_model: String::new(), cloud_voice: String::new(), cloud_values: serde_json::Map::new(), lang_voices: BTreeMap::new(), one_voice: false }
+        Settings { lang: "auto".into(), engine: "higgs".into(), params: Params::default(), voice: None, pause_same_ms: 300, pause_switch_ms: 600, loudness: "video".into(), qc: QcSettings::default(), auto_stress: true, normalize: true, normalize_off: Vec::new(), timeline: false, max_stretch: 1.25, lead_into_silence: true, room_tone: false, breaths: false, continuation: false, tidy_pauses: true, level_pieces: true, cloud_model: String::new(), cloud_voice: String::new(), cloud_values: serde_json::Map::new(), lang_voices: BTreeMap::new(), one_voice: false }
     }
 }
 

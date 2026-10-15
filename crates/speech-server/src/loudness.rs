@@ -124,6 +124,34 @@ pub fn true_peak_db(x: &[f32], sr: u32) -> Result<f64, String> {
     Ok(if peak <= 0.0 { -120.0 } else { 20.0 * peak.log10() })
 }
 
+/// Потолок фразы после выравнивания (Dub `VOICE_CEILING`).
+const PIECE_CEILING: f32 = 0.985;
+
+/// Одна фраза к общей громкости перед склейкой, чтобы куски и голоса звучали ровно (Dub `normalize_voice`):
+/// интегральная громкость BS.1770 к −14 LUFS, короткая или почти беззвучная по замеру — RMS громких отсчётов к
+/// −16 dBFS; усиление не больше +40 дБ, пики к полке держит речевой лимитер. Громкость программы потом ставит
+/// пресет экспорта.
+pub fn level_piece(x: &mut [f32], sr: u32) {
+    let peak = x.iter().fold(0.0f32, |m, &v| m.max(v.abs()));
+    if peak < 1e-4 {
+        return;
+    }
+    let by_lufs = (x.len() >= (0.4 * sr as f64) as usize)
+        .then(|| integrated_lufs(x, sr))
+        .flatten()
+        .filter(|l| l.is_finite() && *l > -60.0)
+        .map(|l| 10f64.powf((-14.0 - l) / 20.0));
+    let gain = by_lufs.unwrap_or_else(|| {
+        let loud: Vec<f64> = x.iter().filter(|v| v.abs() > peak * 0.05).map(|&v| v as f64 * v as f64).collect();
+        let rms = if loud.is_empty() { x.iter().map(|&v| v as f64 * v as f64).sum::<f64>() / x.len() as f64 } else { loud.iter().sum::<f64>() / loud.len() as f64 }.sqrt().max(1e-9);
+        10f64.powf(-16.0 / 20.0) / rms
+    });
+    let gain = gain.min(10f64.powf(40.0 / 20.0));
+    x.iter_mut().for_each(|v| *v = (*v as f64 * gain) as f32);
+    limiter::limit_mono(x, sr, PIECE_CEILING as f64, &limiter::SPEECH);
+    x.iter_mut().for_each(|v| *v = v.clamp(-PIECE_CEILING, PIECE_CEILING));
+}
+
 /// Моно, которое играют обе колонки, звучит на 3,01 дБ громче замера одного канала (`ffmpeg-normalize --dual-mono`).
 pub const DUAL_MONO_DB: f64 = 3.0103;
 
@@ -197,5 +225,19 @@ mod tests {
     fn silence_is_refused() {
         let mut x = vec![0.0f32; 48_000];
         assert!(level(&mut x, 24_000, -16.0, -1.0, false).is_err());
+    }
+
+    #[test]
+    fn a_quiet_and_a_loud_piece_come_to_one_level_under_the_ceiling() {
+        let sr = 24_000;
+        let (mut quiet, mut loud) = (speechlike(3.0, sr, 0.03), speechlike(3.0, sr, 0.9));
+        level_piece(&mut quiet, sr);
+        level_piece(&mut loud, sr);
+        let (q, l) = (integrated_lufs(&quiet, sr).unwrap(), integrated_lufs(&loud, sr).unwrap());
+        assert!((q - l).abs() < 1.0, "{q} {l}");
+        assert!(quiet.iter().chain(&loud).all(|v| v.abs() <= PIECE_CEILING));
+        let mut silence = vec![0.0f32; 24_000];
+        level_piece(&mut silence, sr);
+        assert!(silence.iter().all(|v| *v == 0.0));
     }
 }
