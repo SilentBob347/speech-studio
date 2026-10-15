@@ -84,6 +84,14 @@ pub struct OwnRef {
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 #[serde(default)]
+pub struct WordNote {
+    pub quote: String,
+    pub note: String,
+    pub marker: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+#[serde(default)]
 pub struct Block {
     pub id: String,
     pub speaker: String,
@@ -108,6 +116,9 @@ pub struct Block {
     pub note: String,
     /// Цвет маркера (`red`, `amber`, `green`, `blue`, `violet`) или пусто.
     pub marker: String,
+    /// Заметки к словам блока: цитата, заметка и цвет маркера (вслух не читаются).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub word_notes: Vec<WordNote>,
     /// Время реплики субтитров, с: в проекте по таймкодам блок звучит в нём.
     pub start: Option<f64>,
     pub end: Option<f64>,
@@ -298,6 +309,9 @@ impl SpeechProject {
                 }
                 if !b.marker.is_empty() && !MARKERS.contains(&b.marker.as_str()) {
                     return Err(format!("block {} marker {:?} is not one of {MARKERS:?}", b.id, b.marker));
+                }
+                if let Some(w) = b.word_notes.iter().find(|w| w.quote.trim().is_empty() || (!w.marker.is_empty() && !MARKERS.contains(&w.marker.as_str()))) {
+                    return Err(format!("block {} word note {:?}: a quote and a marker of {MARKERS:?} or none", b.id, w.quote));
                 }
                 if let Some(e) = b.engine.as_deref().filter(|e| !e.is_empty()) {
                     own_engine_ok(e, &self.settings.engine).map_err(|why| format!("block {}: {why}", b.id))?;

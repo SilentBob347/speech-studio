@@ -182,6 +182,7 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
         {caps && block.direction.trim() && !caps.direction && <span className="mt-0.5 block text-[var(--color-warn)]">{t("speech.directionIgnored", { engine: caps.name })}</span>}
         {caps && block.direction.trim() && caps.direction && caps.direction_presets_only && voice !== null && !caps.presets.some((p) => p.id === voice) && <span className="mt-0.5 block text-[var(--color-warn)]">{t("speech.directionPresetsOnly", { engine: caps.name })}</span>}
       </label>
+      <WordNoteField block={block} a={a} text={text} />
       <OwnRefField block={block} a={a} />
       <details open={howRead} onToggle={(e) => setHowRead(e.currentTarget.open)} className="rounded-md border border-[var(--color-border)] px-2 py-1.5">
         <summary className="cursor-pointer text-[11px] text-[var(--color-muted)]">{t("speech.howRead")}</summary>
@@ -295,6 +296,18 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
               </p>
             );
           })()}
+          {(block.word_notes?.length ?? 0) > 0 && (
+            <ul aria-label={t("speech.wordNotes")} className="mt-1 flex flex-wrap gap-1 text-[11px]">
+              {block.word_notes!.map((w, k) => (
+                <li key={k} className="inline-flex items-center gap-1 rounded-md border border-[var(--color-border)] pl-1.5 pr-0.5 py-0.5">
+                  {w.marker && <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: MARKERS[w.marker] }} />}
+                  <button onClick={() => { const el = text.current; const at = el ? el.value.indexOf(w.quote) : -1; if (el && at >= 0) { el.focus(); el.setSelectionRange(at, at + w.quote.length); } }}
+                    className="text-left hover:text-[var(--color-accent)]">«{w.quote}» {w.note}</button>
+                  <button onClick={() => a.patch({ word_notes: block.word_notes!.filter((_, i) => i !== k) })} className="p-0.5 rounded text-[var(--color-muted)] hover:text-[var(--color-warn)]" {...named(t("speech.wordNoteRemove"))}><X size={11} /></button>
+                </li>
+              ))}
+            </ul>
+          )}
           {block.error && state === "failed" && <p role="alert" className="mt-1 text-[11px] text-[#ff8f8f] break-words">{block.error.text}</p>}
           {block.direction && !open && <p className="mt-0.5 text-[11px] text-[var(--color-muted)] italic truncate">{t("speech.directionShort", { text: block.direction })}</p>}
         </div>
@@ -355,6 +368,43 @@ function OwnRefField({ block, a }: { block: Block; a: BlockActions }) {
       )}
       <p className="text-[10px] text-[var(--color-muted)]">{t("speech.ownRefHint")}</p>
       {error && <p role="alert" className="text-[11px] text-[var(--color-warn)] break-words">{error}</p>}
+    </fieldset>
+  );
+}
+
+/** A note on the words selected in the block's text, with a marker colour. */
+function WordNoteField({ block, a, text }: { block: Block; a: BlockActions; text: React.RefObject<HTMLTextAreaElement | null> }) {
+  const { t } = useTranslation();
+  const [quote, setQuote] = useState("");
+  const [note, setNote] = useState("");
+  const [marker, setMarker] = useState<Marker | "">("");
+  const take = () => { const el = text.current; if (el) setQuote(el.value.slice(el.selectionStart, el.selectionEnd).trim()); };
+  const add = () => {
+    if (!quote) return;
+    a.patch({ word_notes: [...(block.word_notes ?? []), { quote, note: note.trim(), marker }] });
+    setQuote("");
+    setNote("");
+    setMarker("");
+  };
+  const field = "bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]";
+  return (
+    <fieldset className="rounded-md border border-[var(--color-border)] px-2 py-1.5 space-y-1.5">
+      <legend className="px-1 text-[11px] text-[var(--color-muted)]">{t("speech.wordNotes")}</legend>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <button onMouseDown={(e) => e.preventDefault()} onClick={take} className="px-2 py-1 rounded-md border border-[var(--color-border)] text-[11px] hover:border-[var(--color-accent)]">{t("speech.wordNoteTake")}</button>
+        <input value={quote} onChange={(e) => setQuote(e.target.value)} placeholder={t("speech.wordNoteNone")} aria-label={t("speech.wordNoteQuote")} className={`${field} flex-1 min-w-40`} />
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("speech.wordNotePlaceholder")} aria-label={t("speech.wordNotes")} className={`${field} flex-1 min-w-40`} />
+        <div role="radiogroup" aria-label={t("speech.wordNoteMarker")} className="flex items-center gap-1">
+          <button role="radio" aria-checked={!marker} onClick={() => setMarker("")} className={`w-4 h-4 rounded-sm border ${!marker ? "border-[var(--color-text)]" : "border-[var(--color-border)]"}`} {...named(`${t("speech.wordNoteMarker")}: ${t("speech.markerNone")}`)} />
+          {(Object.keys(MARKERS) as Marker[]).map((m) => (
+            <button key={m} role="radio" aria-checked={marker === m} onClick={() => setMarker(m)} {...named(`${t("speech.wordNoteMarker")}: ${t(`speech.marker_${m}`)}`)}
+              className={`w-4 h-4 rounded-sm border-2 ${marker === m ? "border-[var(--color-text)]" : "border-transparent"}`} style={{ background: MARKERS[m] }} />
+          ))}
+        </div>
+        <button onClick={add} disabled={!quote} className="px-2 py-1 rounded-md bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[11px] font-semibold disabled:opacity-40">{t("speech.wordNoteAdd")}</button>
+      </div>
     </fieldset>
   );
 }

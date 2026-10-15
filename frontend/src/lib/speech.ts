@@ -14,7 +14,10 @@ export type Block = {
   note: string; marker: Marker | ""; start: number | null; end: number | null;
   /** The block's own reference clip in the project's refs instead of a voice; whole continues the clip's speech. */
   own_ref?: OwnRef | null;
+  /** Notes on words of the block: the quoted words, the note and a marker colour; never read aloud. */
+  word_notes?: WordNote[];
 };
+export type WordNote = { quote: string; note: string; marker: Marker | "" };
 export type OwnRef = { file: string; text: string; whole: boolean };
 export type Marker = "red" | "amber" | "green" | "blue" | "violet";
 export const MARKERS: Record<Marker, string> = { red: "#ff6b6b", amber: "#ffc46b", green: "#7ee0c3", blue: "#4cc2ff", violet: "#b8a4ff" };
