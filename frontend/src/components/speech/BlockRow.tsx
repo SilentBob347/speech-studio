@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import { ArrowDown, ArrowUp, ChevronDown, Combine, Eye, EyeOff, GripVertical, Loader2, Pause, Pin, Play, Plus, RefreshCw, Scissors, SlidersHorizontal, SpellCheck, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, Combine, Eye, EyeOff, GripVertical, Loader2, Pause, Pin, Play, Plus, RefreshCw, Scissors, SlidersHorizontal, SpellCheck, Trash2, X } from "lucide-react";
 import { activeTake, cueTime, MARKERS, withCase, type Block, type BlockState, type Marker, type StressWord } from "../../lib/speech";
 import { named } from "../../lib/a11y";
 import { useSortable } from "@dnd-kit/sortable";
@@ -34,6 +35,10 @@ export type BlockActions = {
   select: (range: boolean) => void;
   stress: () => void;
   pick: (w: StressWord, value: string) => void;
+  /** Opens or closes this block's panel; only one is open at a time. */
+  panel: (open: boolean) => void;
+  /** The user is in this block: an open side panel moves to it. */
+  focus: () => void;
 };
 
 function AutoText({ value, onCommit, label, inputRef, stale }: { value: string; onCommit: (v: string) => void; label: string; inputRef: React.RefObject<HTMLTextAreaElement | null>; stale: boolean }) {
@@ -69,7 +74,7 @@ function sentenceStart(value: string, cursor: number): number {
   return start;
 }
 
-export default function BlockRow({ pid, engine, projectEngine, speakerEngine, voice, block, index, state, fit, rendering, playing, tint, stressing, doubts, selected, selecting, a }: {
+export default function BlockRow({ pid, engine, projectEngine, speakerEngine, voice, block, index, state, fit, rendering, playing, tint, stressing, doubts, selected, selecting, open, side, a }: {
   pid: string;
   /** The engine that voices this block (its own, its speaker's or the project's). */
   engine: string;
@@ -79,6 +84,10 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
   voice: string | null;
   selected: boolean;
   selecting: boolean;
+  /** Whether this block's panel (voice, engine, takes, tags) is open. */
+  open: boolean;
+  /** Where the open panel goes on a wide screen; null keeps it under the block. */
+  side: HTMLElement | null;
   fit?: "fits" | "tight" | "impossible";
   block: Block;
   stressing: boolean;
@@ -92,7 +101,6 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
 }) {
   const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({ id: block.id });
-  const [open, setOpen] = useState(false);
   const [howRead, setHowRead] = useState(false);
   const text = useRef<HTMLTextAreaElement>(null);
   const take = activeTake(block);
@@ -116,8 +124,86 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
   const caps = useEngines()?.find((e) => e.id === engine);
   const shown: BlockState | "rendering" = rendering ? "rendering" : state;
   const icon = "p-1.5 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)] disabled:opacity-30";
+  const panel = (
+    <div data-mcp-row={side ? `panel of block ${index + 1} ${block.speaker || "-"}` : undefined} className={`@container space-y-2 ${side ? "p-3" : "mx-2 mb-2 sm:ml-[8.25rem] rounded-lg bg-[var(--color-surface-2)]/60 border border-[var(--color-border)] p-2.5"}`}>
+      {side && (
+        <div className="flex items-center gap-2 pb-1 border-b border-[var(--color-border)]">
+          <span className="text-[12px] tabnum text-[var(--color-muted)]">{t("speech.blockN", { n: index + 1 })}</span>
+          <span className="text-[12px] font-semibold truncate" style={{ color: tint }}>{block.speaker}</span>
+          <button onClick={() => a.panel(false)} className={`${icon} ml-auto`} {...named(t("a11y.close"))}><X size={14} /></button>
+        </div>
+      )}
+      <div className="grid gap-2 @md:grid-cols-2 @2xl:grid-cols-4">
+        <label className="text-[11px] text-[var(--color-muted)]">{t("speech.blockVoice")}
+          <VoicePicker engine={engine} value={block.voice} onChange={(v) => a.patch({ voice: v })} inherit={t("speech.voiceAsCast")} label={t("speech.blockVoice")}
+            className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]" />
+        </label>
+        <label className="text-[11px] text-[var(--color-muted)]">{t("speech.blockEngine")}
+          <EngineSelect value={block.engine ?? null} projectEngine={projectEngine} inheritEngine={speakerEngine ?? projectEngine} voice={voice} onChange={(e, v) => a.patch(v === undefined ? { engine: e } : { engine: e, voice: v })}
+            inherit={speakerEngine ? t("speech.engineAsSpeaker") : t("speech.engineAsProject")} label={t("speech.blockEngine")}
+            className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]" />
+        </label>
+        <label className="text-[11px] text-[var(--color-muted)]">{t("speech.pauseAfter")}
+          <input type="number" step={50} min={-2000} max={10000} value={block.pause_ms ?? ""} placeholder={t("speech.pauseAuto")}
+            onChange={(e) => a.patch({ pause_ms: e.target.value === "" ? null : Math.max(-2000, Math.min(10000, Number(e.target.value))) })}
+            className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px] mono" />
+        </label>
+        <label className="text-[11px] text-[var(--color-muted)]">{t("speech.takes")}
+          <div className="mt-1 flex items-center gap-1">
+            <select value={block.active ?? ""} onChange={(e) => a.patch({ active: e.target.value ? Number(e.target.value) : null })} disabled={!block.takes.length} aria-label={t("speech.takes")}
+              className="flex-1 min-w-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]">
+              {!block.takes.length && <option value="">—</option>}
+              {[...block.takes].reverse().map((tk) => <option key={tk.n} value={tk.n}>#{tk.n} · {tk.duration.toFixed(1)}{t("settings.sec")}{tk.qc ? ` · ${t("speech.takeWer", { wer: Math.round(tk.qc.wer * 100) })}` : ""}{tk.n === block.pinned ? ` · ${t("speech.pinned")}` : ""}</option>)}
+            </select>
+            <button onClick={() => a.patch({ pinned: block.pinned === block.active ? null : block.active })} disabled={block.active == null} aria-pressed={block.pinned != null && block.pinned === block.active}
+              className={`p-1 rounded-md ${block.pinned != null && block.pinned === block.active ? "text-[var(--color-accent)]" : "text-[var(--color-muted)]"} hover:text-[var(--color-text)] disabled:opacity-30`} {...named(t("speech.pinTake"))}><Pin size={13} /></button>
+          </div>
+        </label>
+      </div>
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="flex-1 min-w-48 text-[11px] text-[var(--color-muted)]">{t("speech.note")}
+          <input value={block.note} onChange={(e) => a.patch({ note: e.target.value })} placeholder={t("speech.noteHint")}
+            className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]" />
+        </label>
+        <div role="radiogroup" aria-label={t("speech.marker")} className="flex items-center gap-1 pb-1">
+          <button role="radio" aria-checked={!block.marker} onClick={() => a.patch({ marker: "" })} className={`w-4 h-4 rounded-sm border ${!block.marker ? "border-[var(--color-text)]" : "border-[var(--color-border)]"}`} {...named(t("speech.markerNone"))} />
+          {(Object.keys(MARKERS) as Marker[]).map((m) => (
+            <button key={m} role="radio" aria-checked={block.marker === m} onClick={() => a.patch({ marker: m })} {...named(t(`speech.marker_${m}`))}
+              className={`w-4 h-4 rounded-sm border-2 ${block.marker === m ? "border-[var(--color-text)]" : "border-transparent"}`} style={{ background: MARKERS[m] }} />
+          ))}
+        </div>
+      </div>
+      <label className="block text-[11px] text-[var(--color-muted)]">{t("speech.direction")}
+        <input value={block.direction} onChange={(e) => a.patch({ direction: e.target.value })} placeholder={t("speech.directionHint")}
+          className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]" />
+        {caps && block.direction.trim() && !caps.direction && <span className="mt-0.5 block text-[var(--color-warn)]">{t("speech.directionIgnored", { engine: caps.name })}</span>}
+        {caps && block.direction.trim() && caps.direction && caps.direction_presets_only && voice !== null && !caps.presets.some((p) => p.id === voice) && <span className="mt-0.5 block text-[var(--color-warn)]">{t("speech.directionPresetsOnly", { engine: caps.name })}</span>}
+      </label>
+      <details open={howRead} onToggle={(e) => setHowRead(e.currentTarget.open)} className="rounded-md border border-[var(--color-border)] px-2 py-1.5">
+        <summary className="cursor-pointer text-[11px] text-[var(--color-muted)]">{t("speech.howRead")}</summary>
+        {howRead && <div className="mt-2"><PrepareView pid={pid} block={block.id} text={block.text} /></div>}
+      </details>
+      <details className="rounded-md border border-[var(--color-border)] px-2 py-1.5">
+        <summary className="cursor-pointer text-[11px] text-[var(--color-muted)]">{t("speech.tagsTitle")}</summary>
+        <div className="mt-2"><TagPalette engine={engine} onInsert={insertTag} onWrap={wrapTag} /></div>
+      </details>
+      <div className="flex flex-wrap gap-1">
+        <button onClick={() => a.split(text.current?.selectionStart ?? block.text.length)} className={icon + " inline-flex items-center gap-1 text-[11px]"}><Scissors size={12} />{t("speech.split")}</button>
+        <button onClick={a.mergeNext} className={icon + " inline-flex items-center gap-1 text-[11px]"}><Combine size={12} />{t("speech.mergeNext")}</button>
+        <button onClick={a.insertAfter} className={icon + " inline-flex items-center gap-1 text-[11px]"}><Plus size={12} />{t("speech.insertAfter")}</button>
+        <button onClick={a.stress} disabled={stressing} className={icon + " inline-flex items-center gap-1 text-[11px]"} title={t("speech.stressAllHint")}>
+          {stressing ? <Loader2 size={12} className="animate-spin" /> : <SpellCheck size={12} />}{t("speech.stressBlock")}
+        </button>
+        <button onClick={() => a.move(-1)} className={icon} {...named(t("speech.moveUp"))}><ArrowUp size={12} /></button>
+        <button onClick={() => a.move(1)} className={icon} {...named(t("speech.moveDown"))}><ArrowDown size={12} /></button>
+        <button onClick={() => a.patch({ hidden: !block.hidden })} className={icon + " inline-flex items-center gap-1 text-[11px]"}>{block.hidden ? <Eye size={12} /> : <EyeOff size={12} />}{block.hidden ? t("speech.show") : t("speech.hide")}</button>
+        <button onClick={a.playFrom} disabled={!take} className={icon + " inline-flex items-center gap-1 text-[11px]"}><Play size={12} />{t("speech.playFromHere")}</button>
+        <button onClick={a.remove} className={icon + " ml-auto inline-flex items-center gap-1 text-[11px] hover:text-[var(--color-warn)]"}><Trash2 size={12} />{t("speech.deleteBlock")}</button>
+      </div>
+    </div>
+  );
   return (
-    <li id={`block-${block.id}`} ref={setNodeRef} data-mcp-row={`block ${index + 1} ${block.speaker || "-"} ${shown}${take ? ` ${take.duration.toFixed(1)}s` : ""}${block.hidden ? " hidden" : ""}: ${block.text.slice(0, 60)}`} style={{ transform: CSS.Transform.toString(transform), transition }}
+    <li id={`block-${block.id}`} ref={setNodeRef} onFocus={a.focus} onClick={a.focus} data-mcp-row={`block ${index + 1} ${block.speaker || "-"} ${shown}${take ? ` ${take.duration.toFixed(1)}s` : ""}${block.hidden ? " hidden" : ""}: ${block.text.slice(0, 60)}`} style={{ transform: CSS.Transform.toString(transform), transition }}
       className={`group rounded-xl border transition-colors ${playing ? "border-[var(--color-accent)]" : selected ? "border-[var(--color-accent)]/60 bg-[color-mix(in_oklab,var(--color-accent)_6%,transparent)]" : "border-transparent hover:border-[var(--color-border)]"} ${block.hidden ? "opacity-50" : ""} ${isDragging ? "relative z-10 bg-[var(--color-surface)] shadow-lg" : ""}`}>
       <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-x-3 gap-y-1 px-2 py-2 sm:flex sm:gap-3">
         <div className="flex flex-col items-center gap-1 pt-1 -mr-1">
@@ -200,80 +286,11 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
           <button onClick={() => a.synth(state === "ready")} disabled={rendering || state === "skipped"} className={icon} {...named(state === "ready" ? t("speech.newTake") : t("speech.voiceBlock"))}>
             {rendering ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
           </button>
-          <button onClick={() => setOpen((o) => !o)} aria-expanded={open} className={icon} {...named(t("speech.blockMore"))}>{open ? <ChevronDown size={14} className="rotate-180" /> : <SlidersHorizontal size={14} />}</button>
+          <button onClick={() => a.panel(!open)} aria-expanded={open} className={icon} {...named(t("speech.blockPanel"))}>{open ? <ChevronDown size={14} className="rotate-180" /> : <SlidersHorizontal size={14} />}</button>
         </div>
       </div>
-      {open && (
-        <div className="mx-2 mb-2 sm:ml-[8.25rem] rounded-lg bg-[var(--color-surface-2)]/60 border border-[var(--color-border)] p-2.5 space-y-2">
-          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-            <label className="text-[11px] text-[var(--color-muted)]">{t("speech.blockVoice")}
-              <VoicePicker engine={engine} value={block.voice} onChange={(v) => a.patch({ voice: v })} inherit={t("speech.voiceAsCast")} label={t("speech.blockVoice")}
-                className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]" />
-            </label>
-            <label className="text-[11px] text-[var(--color-muted)]">{t("speech.blockEngine")}
-              <EngineSelect value={block.engine ?? null} projectEngine={projectEngine} inheritEngine={speakerEngine ?? projectEngine} voice={voice} onChange={(e, v) => a.patch(v === undefined ? { engine: e } : { engine: e, voice: v })}
-                inherit={speakerEngine ? t("speech.engineAsSpeaker") : t("speech.engineAsProject")} label={t("speech.blockEngine")}
-                className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]" />
-            </label>
-            <label className="text-[11px] text-[var(--color-muted)]">{t("speech.pauseAfter")}
-              <input type="number" step={50} min={-2000} max={10000} value={block.pause_ms ?? ""} placeholder={t("speech.pauseAuto")}
-                onChange={(e) => a.patch({ pause_ms: e.target.value === "" ? null : Math.max(-2000, Math.min(10000, Number(e.target.value))) })}
-                className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px] mono" />
-            </label>
-            <label className="text-[11px] text-[var(--color-muted)]">{t("speech.takes")}
-              <div className="mt-1 flex items-center gap-1">
-                <select value={block.active ?? ""} onChange={(e) => a.patch({ active: e.target.value ? Number(e.target.value) : null })} disabled={!block.takes.length}
-                  className="flex-1 min-w-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]">
-                  {!block.takes.length && <option value="">—</option>}
-                  {[...block.takes].reverse().map((tk) => <option key={tk.n} value={tk.n}>#{tk.n} · {tk.duration.toFixed(1)}{t("settings.sec")}{tk.qc ? ` · ${t("speech.takeWer", { wer: Math.round(tk.qc.wer * 100) })}` : ""}{tk.n === block.pinned ? ` · ${t("speech.pinned")}` : ""}</option>)}
-                </select>
-                <button onClick={() => a.patch({ pinned: block.pinned === block.active ? null : block.active })} disabled={block.active == null} aria-pressed={block.pinned != null && block.pinned === block.active}
-                  className={`p-1 rounded-md ${block.pinned != null && block.pinned === block.active ? "text-[var(--color-accent)]" : "text-[var(--color-muted)]"} hover:text-[var(--color-text)] disabled:opacity-30`} {...named(t("speech.pinTake"))}><Pin size={13} /></button>
-              </div>
-            </label>
-          </div>
-          <div className="flex flex-wrap items-end gap-2">
-            <label className="flex-1 min-w-48 text-[11px] text-[var(--color-muted)]">{t("speech.note")}
-              <input value={block.note} onChange={(e) => a.patch({ note: e.target.value })} placeholder={t("speech.noteHint")}
-                className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]" />
-            </label>
-            <div role="radiogroup" aria-label={t("speech.marker")} className="flex items-center gap-1 pb-1">
-              <button role="radio" aria-checked={!block.marker} onClick={() => a.patch({ marker: "" })} className={`w-4 h-4 rounded-sm border ${!block.marker ? "border-[var(--color-text)]" : "border-[var(--color-border)]"}`} {...named(t("speech.markerNone"))} />
-              {(Object.keys(MARKERS) as Marker[]).map((m) => (
-                <button key={m} role="radio" aria-checked={block.marker === m} onClick={() => a.patch({ marker: m })} {...named(t(`speech.marker_${m}`))}
-                  className={`w-4 h-4 rounded-sm border-2 ${block.marker === m ? "border-[var(--color-text)]" : "border-transparent"}`} style={{ background: MARKERS[m] }} />
-              ))}
-            </div>
-          </div>
-          <label className="block text-[11px] text-[var(--color-muted)]">{t("speech.direction")}
-            <input value={block.direction} onChange={(e) => a.patch({ direction: e.target.value })} placeholder={t("speech.directionHint")}
-              className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]" />
-            {caps && block.direction.trim() && !caps.direction && <span className="mt-0.5 block text-[var(--color-warn)]">{t("speech.directionIgnored", { engine: caps.name })}</span>}
-            {caps && block.direction.trim() && caps.direction && caps.direction_presets_only && voice !== null && !caps.presets.some((p) => p.id === voice) && <span className="mt-0.5 block text-[var(--color-warn)]">{t("speech.directionPresetsOnly", { engine: caps.name })}</span>}
-          </label>
-          <details open={howRead} onToggle={(e) => setHowRead(e.currentTarget.open)} className="rounded-md border border-[var(--color-border)] px-2 py-1.5">
-            <summary className="cursor-pointer text-[11px] text-[var(--color-muted)]">{t("speech.howRead")}</summary>
-            {howRead && <div className="mt-2"><PrepareView pid={pid} block={block.id} text={block.text} /></div>}
-          </details>
-          <details className="rounded-md border border-[var(--color-border)] px-2 py-1.5">
-            <summary className="cursor-pointer text-[11px] text-[var(--color-muted)]">{t("speech.tagsTitle")}</summary>
-            <div className="mt-2"><TagPalette engine={engine} onInsert={insertTag} onWrap={wrapTag} /></div>
-          </details>
-          <div className="flex flex-wrap gap-1">
-            <button onClick={() => a.split(text.current?.selectionStart ?? block.text.length)} className={icon + " inline-flex items-center gap-1 text-[11px]"}><Scissors size={12} />{t("speech.split")}</button>
-            <button onClick={a.mergeNext} className={icon + " inline-flex items-center gap-1 text-[11px]"}><Combine size={12} />{t("speech.mergeNext")}</button>
-            <button onClick={a.insertAfter} className={icon + " inline-flex items-center gap-1 text-[11px]"}><Plus size={12} />{t("speech.insertAfter")}</button>
-            <button onClick={a.stress} disabled={stressing} className={icon + " inline-flex items-center gap-1 text-[11px]"} title={t("speech.stressAllHint")}>
-              {stressing ? <Loader2 size={12} className="animate-spin" /> : <SpellCheck size={12} />}{t("speech.stressBlock")}
-            </button>
-            <button onClick={() => a.move(-1)} className={icon} {...named(t("speech.moveUp"))}><ArrowUp size={12} /></button>
-            <button onClick={() => a.move(1)} className={icon} {...named(t("speech.moveDown"))}><ArrowDown size={12} /></button>
-            <button onClick={() => a.patch({ hidden: !block.hidden })} className={icon + " inline-flex items-center gap-1 text-[11px]"}>{block.hidden ? <Eye size={12} /> : <EyeOff size={12} />}{block.hidden ? t("speech.show") : t("speech.hide")}</button>
-            <button onClick={a.playFrom} disabled={!take} className={icon + " inline-flex items-center gap-1 text-[11px]"}><Play size={12} />{t("speech.playFromHere")}</button>
-            <button onClick={a.remove} className={icon + " ml-auto inline-flex items-center gap-1 text-[11px] hover:text-[var(--color-warn)]"}><Trash2 size={12} />{t("speech.deleteBlock")}</button>
-          </div>
-        </div>
-      )}
+      {open && !side && panel}
+      {open && side && createPortal(panel, side)}
     </li>
   );
 }

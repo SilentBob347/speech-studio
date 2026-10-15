@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, BookOpen, ChartGantt, Download, Drama, History, ListOrdered, Loader2, Redo2, Search, Settings2, Sparkles, SpellCheck, Square, Undo2, Users, X } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
@@ -43,6 +43,16 @@ function locate(p: SpeechProject, id: string): [number, number] | null {
   return null;
 }
 
+const WIDE = "(min-width: 1280px)";
+/** Whether the window is wide enough for the block panel to stand beside the list. */
+function useWide(): boolean {
+  return useSyncExternalStore((change) => {
+    const query = window.matchMedia(WIDE);
+    query.addEventListener("change", change);
+    return () => query.removeEventListener("change", change);
+  }, () => window.matchMedia(WIDE).matches);
+}
+
 export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: () => void }) {
   const { t } = useTranslation();
   const { project, error, saving, edit, undo, redo, canUndo, canRedo, flush } = useSpeechProject(pid);
@@ -84,6 +94,9 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   const rate = useRef(1);
   const [speed, setSpeed] = useState(1);
   const [paused, setPaused] = useState(false);
+  const [panel, setPanel] = useState<string | null>(null);
+  const [side, setSide] = useState<HTMLElement | null>(null);
+  const wide = useWide();
   const pushActivity = useStore((s) => s.pushActivity);
 
   useEffect(() => {
@@ -356,6 +369,8 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
 
   const actions = (b: Block): BlockActions => ({
     select: (range) => selectBlock(b.id, range),
+    panel: (open) => setPanel(open ? b.id : null),
+    focus: () => { if (wide && panel && panel !== b.id) setPanel(b.id); },
     setText: (text) => edit((p) => { const at = locate(p, b.id); if (at) p.chapters[at[0]].blocks[at[1]].text = text; return p; }),
     patch: (change) => edit((p) => { const at = locate(p, b.id); if (at) Object.assign(p.chapters[at[0]].blocks[at[1]], change); return p; }),
     split: (pos) => edit((p) => {
@@ -529,7 +544,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
                   const note = notes[b.id];
                   return <BlockRow key={b.id} pid={pid} engine={engineOf(project, b)} projectEngine={project.settings.engine} speakerEngine={project.cast_engines?.[b.speaker] || null} voice={voiceOf(project, b)} block={b} index={index} state={stateOf(b)} fit={project.status?.[b.id]?.fit} rendering={rendering} playing={playing === b.id} tint={tintOf(b.speaker)}
                     stressing={!!stressing?.includes(b.id)} doubts={note && note.text === b.text ? note.words : []}
-                    selected={selected.includes(b.id)} selecting={selected.length > 0} a={actions(b)} />;
+                    selected={selected.includes(b.id)} selecting={selected.length > 0} open={panel === b.id} side={wide ? side : null} a={actions(b)} />;
                 })}
               </ol>
             </section>
@@ -537,6 +552,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           ))}
           </DndContext>
         </div>
+        <aside ref={setSide} aria-label={t("speech.blockPanel")} className={`${wide && panel ? "block" : "hidden"} w-80 shrink-0 border-l border-[var(--color-border)] bg-[var(--color-surface)]/60 overflow-y-auto`} />
       </div>
       <Transport blocks={transportBlocks} audio={audio} playing={playing} paused={paused} rate={speed} start={selected[0] ?? blocks[0]?.id ?? null} tint={tintOf}
         onPlay={listenFrom} onPause={pauseAudio} onResume={resumeAudio} onStop={stopAudio} onSkip={skip} onRate={changeRate} onShow={showBlock} />
