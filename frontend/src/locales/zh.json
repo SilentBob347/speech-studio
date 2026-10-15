@@ -1376,6 +1376,8 @@
     "reference": "参考文本",
     "referencePlaceholder": "应当说出的文本…",
     "compare": "比较",
+    "align": "采用参考文本",
+    "alignHint": "录音的各行改用参考文本，每个词放在它被听到的时间。说话人保持不变；可像其他修改一样撤销。",
     "checkSummary": "错误 {{wer}}%，共 {{words}} 词：遗漏 {{missed}}，多余 {{extra}}，替换 {{replaced}}",
     "opMissed": "遗漏",
     "opExtra": "多余",

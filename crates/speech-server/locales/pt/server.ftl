@@ -1020,6 +1020,7 @@ listen-mic-name = Gravação { $time }
 listen-mic-origin = microfone
 listen-empty = a transcrição não tem linhas
 listen-transcribe-first = reconheça a gravação primeiro
+listen-align-no-text = Cole o texto que a gravação deveria dizer.
 drama-needs-cuda = A voz Drama 3 precisa de uma placa NVIDIA com CUDA, e nenhuma foi encontrada ({ $card }). Escolha Higgs.
 drama-needs-24gb = Drama 3 é só para placas de vídeo de 24 GB ou mais, e esta tem { $gb } GB ({ $card }). Escolha Higgs.
 render-drama-missing = Drama 3 está escolhida mas não foi baixada por completo: baixe-a em Modelos (voz) ou escolha Higgs.

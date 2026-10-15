@@ -309,7 +309,7 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
 
       {dialog === "settings" && <ListenSettings project={project} onChange={(p) => edit(() => p)} onClose={() => setDialog(null)} />}
       {dialog === "export" && <ListenExport pid={pid} onClose={() => setDialog(null)} />}
-      {dialog === "check" && <ReferenceCheck pid={pid} reference={project.reference} onReference={(reference) => edit((p) => ({ ...p, reference }))} onClose={() => setDialog(null)} />}
+      {dialog === "check" && <ReferenceCheck pid={pid} reference={project.reference} onReference={(reference) => edit((p) => ({ ...p, reference }))} onAlign={(lines) => edit((p) => ({ ...p, lines }))} onClose={() => setDialog(null)} />}
     </main>
   );
 }

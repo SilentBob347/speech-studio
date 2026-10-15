@@ -1376,6 +1376,8 @@
     "reference": "Texto de referencia",
     "referencePlaceholder": "El texto que debe sonar…",
     "compare": "Comparar",
+    "align": "Usar el texto de referencia",
+    "alignHint": "Las líneas de la grabación toman el texto de referencia, cada palabra en el momento en que se oyó. Los hablantes se mantienen; se deshace como cualquier cambio.",
     "checkSummary": "Errores {{wer}}% de {{words}} palabras: omitidas {{missed}}, sobrantes {{extra}}, sustituidas {{replaced}}",
     "opMissed": "Omitida",
     "opExtra": "Sobrante",

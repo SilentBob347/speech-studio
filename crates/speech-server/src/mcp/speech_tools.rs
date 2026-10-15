@@ -187,6 +187,12 @@ pub(super) fn tools() -> Vec<Tool> {
             call: |args| post(listen_path(args, "/check")?, json!({ "reference": text(args, "reference")? })),
         },
         Tool {
+            name: "listen_align",
+            description: "Lay a known text over a recognised recording (forced alignment): the answer is the recording's lines with the reference text, each word at the time it was heard, a line per sentence with the speaker heard there. Nothing is saved: put the lines into the recording with listen_update to keep them.",
+            schema: || object(json!({ "pid": listen_pid(), "reference": { "type": "string" } }), &["pid", "reference"]),
+            call: |args| post(listen_path(args, "/aligned")?, body_without(args, &["pid"])),
+        },
+        Tool {
             name: "listen_to_speech",
             description: "A Speech project of the transcript: the lines as blocks with the same speakers on the recording's times; speakers with a voice of that name in the library get it.",
             schema: listen_only,

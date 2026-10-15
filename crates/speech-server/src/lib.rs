@@ -494,6 +494,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/listen/{pid}/cut", post(listen_api::cut))
         .route("/listen/{pid}/export", post(listen_api::export))
         .route("/listen/{pid}/check", post(listen_api::check))
+        .route("/listen/{pid}/aligned", post(listen_api::aligned))
         .route("/listen/{pid}/to-speech", post(listen_api::to_speech))
         .route("/listen/{pid}/voices", post(listen_api::voices))
         .route("/projects/from_url", post(url_import::create_from_url))

@@ -229,6 +229,20 @@ pub async fn export(State(st): State<AppState>, AxPath(pid): AxPath<String>, Jso
     saved(res, StatusCode::BAD_REQUEST)
 }
 
+/// POST /listen/{pid}/aligned {reference} — строки записи с текстом эталона по времени распознанных слов; окно
+/// применяет их правкой проекта (её можно отменить).
+pub async fn aligned(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<Value>) -> Response {
+    let reference = body.get("reference").and_then(Value::as_str).unwrap_or_default().to_string();
+    if reference.trim().is_empty() {
+        return refuse(StatusCode::BAD_REQUEST, "no_reference", t!("listen-align-no-text"));
+    }
+    match lp::load(&st.workspace, &pid) {
+        Ok(p) if p.lines.is_empty() => refuse(StatusCode::CONFLICT, "not_transcribed", t!("listen-transcribe-first")),
+        Ok(p) => Json(json!({ "lines": listen_jobs::align_to_text(&p, &reference) })).into_response(),
+        Err(e) => refuse(StatusCode::NOT_FOUND, "no_project", e),
+    }
+}
+
 /// POST /listen/{pid}/check {reference} — распознанное против эталонного текста по словам.
 pub async fn check(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<Value>) -> Response {
     let reference = body.get("reference").and_then(Value::as_str).unwrap_or_default();

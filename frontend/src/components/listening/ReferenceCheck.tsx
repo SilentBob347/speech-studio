@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FileCheck2, Loader2, X } from "lucide-react";
-import { listenApi, type ReferenceCheck as Check } from "../../lib/listen";
+import { FileCheck2, Loader2, TextCursorInput, X } from "lucide-react";
+import { listenApi, type ListenLine, type ReferenceCheck as Check } from "../../lib/listen";
 import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
 import { useEscapeLayer } from "../../lib/escape";
 
-/** The recording against the text it should say: missed, extra and replaced words, and the word error rate. */
-export default function ReferenceCheck({ pid, reference, onReference, onClose }: { pid: string; reference: string; onReference: (text: string) => void; onClose: () => void }) {
+/** The recording against the text it should say: missed, extra and replaced words, and the word error rate; or the text
+ * itself laid over the recording, each word at the time it was heard (forced alignment). */
+export default function ReferenceCheck({ pid, reference, onReference, onAlign, onClose }: { pid: string; reference: string; onReference: (text: string) => void; onAlign: (lines: ListenLine[]) => void; onClose: () => void }) {
   const { t } = useTranslation();
   useEscapeLayer(onClose);
   const [text, setText] = useState(reference);
@@ -20,6 +21,15 @@ export default function ReferenceCheck({ pid, reference, onReference, onClose }:
     try {
       if (text !== reference) onReference(text);
       setResult(await listenApi.check(pid, text));
+    } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
+  };
+  const align = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      if (text !== reference) onReference(text);
+      onAlign((await listenApi.aligned(pid, text)).lines);
+      onClose();
     } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
   };
   const counts = result ? { deleted: 0, inserted: 0, substituted: 0, ...Object.fromEntries(["deleted", "inserted", "substituted"].map((k) => [k, result.ops.filter((o) => o.op === k).length])) } : null;
@@ -36,6 +46,9 @@ export default function ReferenceCheck({ pid, reference, onReference, onClose }:
         <div className="flex items-center gap-3">
           <button onClick={() => void compare()} disabled={busy || !text.trim()} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[13px] font-semibold disabled:opacity-40">
             {busy && <Loader2 size={14} className="animate-spin" />}{t("listen.compare")}
+          </button>
+          <button onClick={() => void align()} disabled={busy || !text.trim()} title={t("listen.alignHint")} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--color-border)] text-[13px] hover:border-[var(--color-accent)] disabled:opacity-40">
+            <TextCursorInput size={14} />{t("listen.align")}
           </button>
           {result && counts && (
             <span className="text-[12px] tabnum">

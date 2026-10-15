@@ -1020,6 +1020,7 @@ listen-mic-name = Enregistrement { $time }
 listen-mic-origin = microphone
 listen-empty = la transcription n’a aucune ligne
 listen-transcribe-first = reconnaissez d’abord l’enregistrement
+listen-align-no-text = Collez le texte que l’enregistrement doit dire.
 drama-needs-cuda = La voix Drama 3 nécessite une carte NVIDIA avec CUDA, et aucune n'a été trouvée ({ $card }). Choisissez Higgs.
 drama-needs-24gb = Drama 3 est réservé aux cartes graphiques de 24 Go ou plus, et celle-ci a { $gb } Go ({ $card }). Choisissez Higgs.
 render-drama-missing = Drama 3 est choisi mais pas entièrement téléchargé : téléchargez-le dans Modèles (voix), ou choisissez Higgs.

@@ -1376,6 +1376,8 @@
     "reference": "Texte de référence",
     "referencePlaceholder": "Le texte qui doit sonner…",
     "compare": "Comparer",
+    "align": "Prendre le texte de référence",
+    "alignHint": "Les lignes de l’enregistrement prennent le texte de référence, chaque mot au moment où il a été entendu. Les locuteurs restent ; cela s’annule comme toute modification.",
     "checkSummary": "Erreurs {{wer}} % sur {{words}} mots : manqués {{missed}}, en trop {{extra}}, remplacés {{replaced}}",
     "opMissed": "Manqué",
     "opExtra": "En trop",

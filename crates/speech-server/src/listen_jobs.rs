@@ -524,6 +524,36 @@ fn snap_cut(samples: &[f32], sr: u32, a: f64, b: f64) -> (f64, f64) {
 }
 
 /// Проверка озвучки по эталонному тексту: что распознано против того, что задумано, по словам.
+/// Выравнивание по известному тексту: слова эталона берут время услышанных слов (`word_align` Dub), строки — по
+/// предложениям эталона, спикер строки — тот, чьи строки распознавания больше всего с ней пересекаются.
+pub fn align_to_text(project: &ListenProject, reference: &str) -> Vec<Line> {
+    let heard: Vec<(String, f64, f64)> = project.shown().flat_map(|l| l.words.iter().filter(|w| !w.cut).map(|w| (w.text.clone(), w.start, w.end))).collect();
+    let written: Vec<&str> = reference.split_whitespace().collect();
+    let end = project.duration.max(heard.last().map_or(0.0, |w| w.2));
+    let times = dub_captions::word_align::align_words(&written, &heard, heard.first().map_or(0.0, |w| w.1), end);
+    let mut lines: Vec<Line> = Vec::new();
+    let mut words: Vec<Word> = Vec::new();
+    for (k, (w, (a, z))) in written.iter().zip(times).enumerate() {
+        words.push(Word { text: w.to_string(), start: a, end: z, cut: false });
+        let closes = w.ends_with(['.', '!', '?', '…']) || w.ends_with(".»") || w.ends_with("!»") || w.ends_with("?»") || k + 1 == written.len();
+        if closes {
+            let (start, stop) = (words[0].start, words.last().map_or(a, |x| x.end));
+            let speaker = project
+                .shown()
+                .map(|l| (l.speaker.as_str(), (l.end.min(stop) - l.start.max(start)).max(0.0)))
+                .fold(std::collections::BTreeMap::<&str, f64>::new(), |mut m, (s, o)| {
+                    *m.entry(s).or_default() += o;
+                    m
+                })
+                .into_iter()
+                .max_by(|x, y| x.1.total_cmp(&y.1))
+                .map_or_else(|| "0".to_string(), |(s, _)| s.to_string());
+            lines.push(Line { id: format!("l{}", lines.len()), start, end: stop, speaker, text: join_words(&words), words: std::mem::take(&mut words), ..Default::default() });
+        }
+    }
+    lines
+}
+
 pub fn check_reference(project: &ListenProject, reference: &str) -> Value {
     let heard: String = project.shown().map(|l| l.text.as_str()).collect::<Vec<_>>().join(" ");
     let e = crate::qc::normalize(reference);
@@ -537,6 +567,28 @@ pub fn check_reference(project: &ListenProject, reference: &str) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_known_text_takes_the_times_of_the_heard_words_sentence_by_sentence() {
+        let line = |speaker: &str, words: &[(&str, f64, f64)]| Line {
+            start: words[0].1,
+            end: words.last().unwrap().2,
+            speaker: speaker.into(),
+            text: words.iter().map(|w| w.0).collect::<Vec<_>>().join(" "),
+            words: words.iter().map(|w| Word { text: w.0.into(), start: w.1, end: w.2, cut: false }).collect(),
+            ..Default::default()
+        };
+        let project = ListenProject {
+            duration: 6.0,
+            lines: vec![line("0", &[("привет", 0.5, 0.9), ("гит", 1.0, 1.2), ("хаб", 1.2, 1.5)]), line("1", &[("как", 3.0, 3.3), ("дела", 3.4, 3.9)])],
+            ..Default::default()
+        };
+        let lines = align_to_text(&project, "Привет, GitHub! Как дела?");
+        assert_eq!(lines.len(), 2);
+        assert_eq!((lines[0].text.as_str(), lines[0].speaker.as_str()), ("Привет, GitHub!", "0"));
+        assert_eq!((lines[1].text.as_str(), lines[1].speaker.as_str()), ("Как дела?", "1"));
+        assert!((lines[0].start - 0.5).abs() < 1e-6 && (lines[1].words[0].start - 3.0).abs() < 1e-6, "{lines:?}");
+    }
 
     fn word(text: &str, start: f64, end: f64) -> Word {
         Word { text: text.into(), start, end, cut: false }

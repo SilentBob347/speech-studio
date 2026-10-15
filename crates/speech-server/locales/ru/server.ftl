@@ -1046,6 +1046,7 @@ listen-mic-name = Запись { $time }
 listen-mic-origin = микрофон
 listen-empty = в транскрипте нет строк
 listen-transcribe-first = сначала распознайте запись
+listen-align-no-text = Вставьте текст, который должен звучать в записи.
 drama-needs-cuda = Голосу Drama 3 нужна видеокарта NVIDIA с CUDA, а её не нашлось ({ $card }). Выберите Higgs.
 drama-needs-24gb = Drama 3 — только для видеокарт 24 ГБ+, а у этой { $gb } ГБ ({ $card }). Выберите Higgs.
 render-drama-missing = Drama 3 выбрана, но не скачана целиком: скачайте её в «Модели» (озвучка) или выберите Higgs.

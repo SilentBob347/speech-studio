@@ -1376,6 +1376,8 @@
     "reference": "Reference text",
     "referencePlaceholder": "The text that should sound…",
     "compare": "Compare",
+    "align": "Use the reference text",
+    "alignHint": "The recording's lines take the reference text, each word at the time it was heard. Speakers stay; it undoes like any edit.",
     "checkSummary": "Errors {{wer}}% of {{words}} words: missed {{missed}}, extra {{extra}}, replaced {{replaced}}",
     "opMissed": "Missed",
     "opExtra": "Extra",

@@ -76,6 +76,7 @@ export const listenApi = {
   get: (pid: string) => getCoded<ListenProject>(`/listen/${pid}`),
   put: (pid: string, project: ListenProject) => sendCoded<ListenProject>("PUT", `/listen/${pid}`, project),
   audioUrl: (pid: string) => `${BASE}/listen/${pid}/audio`,
+  aligned: (pid: string, reference: string) => postCoded<{ lines: ListenLine[] }>(`/listen/${pid}/aligned`, { reference }),
   transcribe: (pid: string) => postCoded<{ job_id: string }>(`/listen/${pid}/transcribe`, {}),
   cut: (pid: string) => postCoded<{ job_id: string }>(`/listen/${pid}/cut`, {}),
   export: (pid: string, format: TranscriptFormat, speakers: boolean, times: boolean) => postCoded<{ file: string; text: string }>(`/listen/${pid}/export`, { format, speakers, times }),

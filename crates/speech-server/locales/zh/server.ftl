@@ -822,6 +822,7 @@ listen-mic-name = 录音 { $time }
 listen-mic-origin = 麦克风
 listen-empty = 转录中没有内容
 listen-transcribe-first = 请先识别录音
+listen-align-no-text = 请粘贴录音应当说出的文本。
 drama-needs-cuda = Drama 3 配音需要支持 CUDA 的 NVIDIA 显卡，但未找到（{ $card }）。请选择 Higgs。
 drama-needs-24gb = Drama 3 仅适用于 24 GB 及以上显存的显卡，这张显卡只有 { $gb } GB（{ $card }）。请选择 Higgs。
 render-drama-missing = 已选择 Drama 3，但尚未完整下载：请在“模型”（配音）中下载，或选择 Higgs。
