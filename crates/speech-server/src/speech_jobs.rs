@@ -745,11 +745,64 @@ fn non_speech(p: &SpeechPaths, file: &Path) -> Result<bool, String> {
     Ok(crate::qc::non_speech(&samples, &probs, crate::vad::FRAME))
 }
 
+/// What a voice sounds like elsewhere in the project, from the takes already checked: seconds per syllable (the
+/// project's when the voice has too few takes) and loudness (the voice's only).
+fn voice_norm(project: &SpeechProject, voice: Option<&str>) -> crate::audio_flags::Norm {
+    let (mut rate_v, mut rate_all, mut lufs_v) = (Vec::new(), Vec::new(), Vec::new());
+    for b in project.blocks() {
+        let same = project.voice_of(b).as_deref() == voice;
+        for q in b.takes.iter().filter_map(|t| t.qc.as_ref().map(|q| (q, crate::audio_flags::syllables(&t.text)))) {
+            let (q, syl) = q;
+            if let Some(s) = q.speech_secs.filter(|_| syl >= 6) {
+                rate_all.push(s / syl as f64);
+                if same {
+                    rate_v.push(s / syl as f64);
+                }
+            }
+            if let (Some(l), true) = (q.lufs, same) {
+                lufs_v.push(l);
+            }
+        }
+    }
+    crate::audio_flags::Norm {
+        secs_per_syllable: crate::audio_flags::median(rate_v, 5).or_else(|| crate::audio_flags::median(rate_all, 5)),
+        lufs: crate::audio_flags::median(lufs_v, 5),
+    }
+}
+
+/// The take's sound measured and the flags of `want` it raises (Dub Studio's synthesis defect first), over the part of
+/// the take the project uses.
+fn sound_flags(take: &Take, file: &Path, want: &[String], norm: crate::audio_flags::Norm) -> Result<(crate::audio_flags::Features, Vec<String>), String> {
+    const SR: u32 = 24_000;
+    let tmp = tempfile::Builder::new().prefix("flags-").tempdir().map_err(|e| e.to_string())?;
+    let wav = tmp.path().join("take.wav");
+    crate::media::extract_audio(file, &wav, SR, 1)?;
+    let (all, _) = crate::wavio::read_mono_f32(&wav)?;
+    let samples = match take.cut {
+        Some([a, z]) => {
+            let a = ((a * SR as f64) as usize).min(all.len());
+            all[a..((z * SR as f64) as usize).clamp(a, all.len())].to_vec()
+        }
+        None => all,
+    };
+    let on = |k: &str| want.iter().any(|w| w == k);
+    let features = crate::audio_flags::measure(&samples, SR, on("whistle"), on("audio_repeat"));
+    let mut raised = crate::audio_flags::flags(&features, want, &take.text, norm);
+    if on("defect") {
+        let chars = stx::visible(&take.text).chars().filter(|c| c.is_alphanumeric()).count();
+        if let Some(d) = tts_host::defect(&samples, SR as i32, chars) {
+            raised.insert(0, d.to_string());
+        }
+    }
+    Ok((features, raised))
+}
+
 fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, progress: &dyn Fn(Value)) -> Result<Vec<String>, String> {
     tts_host::make_room();
     let settings = sp::load(&p.workspace, pid)?.settings;
     let asr_on = settings.qc.asr_check || settings.qc.takes > 1;
     let sim_on = settings.qc.similarity;
+    let want = settings.qc.heuristics.clone();
     crate::ensure_job_components(&p.repo_root, &p.models_root, sim_on, false, &|ev| progress(ev))?;
     if asr_on {
         crate::ensure_components(&p.repo_root, &["silero-vad"], &|ev| progress(ev))?;
@@ -769,6 +822,7 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, pr
         let lang = project.lang_of(&b).to_string();
         let strictness = project.settings.qc.strictness.clone();
         let voice = project.voice_of(&b).filter(|v| preset_of(project.engine_of(&b), Some(v)).is_none());
+        let norm = voice_norm(&project, project.voice_of(&b).as_deref());
         let reference = match (&mut embedder, voice.as_deref()) {
             (Some(emb), Some(v)) => match refs.get(v) {
                 Some(e) => Some(e.clone()),
@@ -805,6 +859,37 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, pr
             } else {
                 crate::qc::Check { passed: true, ..Default::default() }
             };
+            if !want.is_empty() {
+                let (features, raised) = sound_flags(take, &file, &want, norm)?;
+                check.speech_secs = Some(features.trimmed_s);
+                check.lufs = features.lufs;
+                let mut suspects = Vec::new();
+                for flag in raised {
+                    match crate::audio_flags::role(&flag) {
+                        crate::audio_flags::Role::Defect => check.issues.push(flag),
+                        crate::audio_flags::Role::Note => check.notes.push(flag),
+                        crate::audio_flags::Role::Suspect => suspects.push(flag),
+                    }
+                }
+                if !suspects.is_empty() {
+                    // a suspect is recognised by the pair, as in Game Dub: the studio's model and the other one when it is here
+                    let first = if asr_on {
+                        check.heard.clone()
+                    } else {
+                        let heard = crate::asr_util::transcribe(&p.repo_root, &p.models_root, &file, &lang, &b.id)?;
+                        check.timed = heard.words.iter().map(|w| (w.word.clone(), (w.start * 1000.0).round() / 1000.0, (w.end * 1000.0).round() / 1000.0)).collect();
+                        check.heard = heard.text.clone();
+                        heard.text
+                    };
+                    let second = crate::asr_util::second_opinion(&p.repo_root, &p.models_root, &file, &lang)?.map(|h| h.text);
+                    let heard: Vec<&str> = std::iter::once(first.as_str()).chain(second.as_deref()).collect();
+                    match crate::audio_flags::verdict(&stx::visible(&take.text), &heard) {
+                        Some("listen") => check.notes.push("listen".to_string()),
+                        Some(v) => check.issues.push(v.to_string()),
+                        None => check.notes.extend(suspects),
+                    }
+                }
+            }
             if let (Some(emb), Some(r)) = (&mut embedder, &reference) {
                 let e = voice_embedding(emb, &file)?;
                 let cos: f64 = e.iter().zip(r).map(|(a, b)| (*a as f64) * (*b as f64)).sum();
@@ -905,7 +990,7 @@ fn synth_scope(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Valu
     if project.blocks().any(|b| wanted.contains(&b.id) && project.engine_of(b) == "google") {
         google_prefetch(p, pid, &wanted, scope.force, qc.takes, progress)?;
     }
-    let checking = qc.asr_check || qc.takes > 1 || qc.similarity;
+    let checking = qc.asr_check || qc.takes > 1 || qc.similarity || !qc.heuristics.is_empty();
     let (mut done, mut failed, mut skipped) = (0usize, Vec::new(), 0usize);
     let mut made: BTreeMap<String, Vec<u32>> = BTreeMap::new();
     let total = wanted.len();

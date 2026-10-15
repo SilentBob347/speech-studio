@@ -9,6 +9,7 @@
 #[macro_use]
 pub mod i18n;
 mod asr_util;
+mod audio_flags;
 mod bench;
 mod credentials;
 mod denoise;

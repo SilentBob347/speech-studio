@@ -8,10 +8,16 @@ export type Take = {
   cut?: [number, number] | null;
 };
 export type QcCheck = { text_checked: boolean; wer: number; words: number; inserted: number; deleted: number; substituted: number; heard: string; passed: boolean; similarity: number | null; similar: boolean | null; issues: QcIssue[];
+  /** What does not redo the take: loudness off the voice, noise in pauses, `listen`, suspects recognition cleared. */
+  notes?: QcNote[];
   /** The words heard, each with its start and end in the take. */
   timed?: [string, number, number][] };
-export type QcIssue = "tail" | "stretched" | "gap" | "repeat" | "noise";
-export type QcSettings = { asr_check: boolean; strictness: "strict" | "normal" | "lenient"; takes: number; similarity: boolean };
+export type QcNote = "loud" | "quiet" | "pause_noise" | "listen" | "too_long" | "too_short" | "edge" | "long_pause" | "little_speech" | "audio_repeat";
+export type QcIssue = "tail" | "stretched" | "gap" | "repeat" | "noise" | "garbled" | "runaway" | "cutoff" | "silence" | "hum" | "clipping" | "whistle" | "click";
+export type QcSettings = { asr_check: boolean; strictness: "strict" | "normal" | "lenient"; takes: number; similarity: boolean; heuristics?: string[] };
+/** The checks of a take's sound (Game Dub's on Google takes), in the order the settings list them; the last two are costly. */
+export const SOUND_CHECKS = ["defect", "clipping", "length", "edge", "long_pause", "little_speech", "loudness", "pause_noise", "audio_repeat", "whistle"] as const;
+export const COSTLY_SOUND_CHECKS: readonly string[] = ["audio_repeat", "whistle"];
 export type Block = {
   id: string; speaker: string; voice: string | null; text: string; direction: string; pause_ms: number | null; cut_previous?: boolean; engine?: string | null;
   hidden: boolean; takes: Take[]; active: number | null; pinned: number | null; error: { key: string; text: string } | null;

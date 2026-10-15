@@ -157,11 +157,13 @@ pub struct QcSettings {
     pub takes: u32,
     /// Сверять голос дубля с рефом (WeSpeaker): непохожий — повтор и пометка.
     pub similarity: bool,
+    /// The kinds of `audio_flags` the sound of each new take is checked for; the cheap ones unless turned off.
+    pub heuristics: Vec<String>,
 }
 
 impl Default for QcSettings {
     fn default() -> Self {
-        QcSettings { asr_check: false, strictness: "normal".into(), takes: 1, similarity: false }
+        QcSettings { asr_check: false, strictness: "normal".into(), takes: 1, similarity: false, heuristics: crate::audio_flags::CHEAP.iter().map(|k| k.to_string()).collect() }
     }
 }
 

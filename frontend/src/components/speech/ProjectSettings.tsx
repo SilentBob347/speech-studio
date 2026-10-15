@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Dices, X } from "lucide-react";
 import { CLOUD_ENGINES, useEngines } from "../../lib/engines";
-import { type Loudness, type SeedMode, type SpeechProject } from "../../lib/speech";
+import { COSTLY_SOUND_CHECKS, SOUND_CHECKS, type Loudness, type SeedMode, type SpeechProject } from "../../lib/speech";
 import { named } from "../../lib/a11y";
 import { useEscapeLayer } from "../../lib/escape";
 import { LANG_CHOICES } from "./langs";
@@ -262,6 +262,19 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
             </label>
           </div>
           <p className="text-[11px] text-[var(--color-muted)]">{t("speech.takesHint")}</p>
+          <div className="pt-1 space-y-1">
+            <p className="text-[12px]">{t("speech.soundChecks")}</p>
+            <p className="text-[11px] text-[var(--color-muted)]">{t("speech.soundChecksHint")}</p>
+            {SOUND_CHECKS.map((k) => {
+              const on = (s.qc.heuristics ?? []).includes(k);
+              return (
+                <label key={k} className="flex items-start gap-2 text-[12px] cursor-pointer">
+                  <input type="checkbox" checked={on} onChange={(e) => set((p) => { const all = new Set(p.settings.qc.heuristics ?? []); if (e.target.checked) all.add(k); else all.delete(k); p.settings.qc.heuristics = SOUND_CHECKS.filter((x) => all.has(x)); })} className="mt-0.5 w-3.5 h-3.5 accent-[var(--color-accent)]" />
+                  <span>{t(`speech.soundCheck_${k}`)}{COSTLY_SOUND_CHECKS.includes(k) && <span className="ml-1.5 text-[10px] text-[var(--color-warn)]">{t("speech.soundCheckCostly")}</span>}</span>
+                </label>
+              );
+            })}
+          </div>
         </fieldset>
         {project.chapters.some((c) => c.blocks.some((b) => b.start != null)) && (
           <fieldset className="space-y-2">

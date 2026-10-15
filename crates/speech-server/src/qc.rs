@@ -20,8 +20,18 @@ pub struct Check {
     pub similarity: Option<f64>,
     pub similar: Option<bool>,
     /// Дефекты по словам распознавания: `tail` (звук после последнего слова), `stretched` (затянутое слово), `gap`
-    /// (разрыв внутри фразы).
+    /// (разрыв внутри фразы); по звуку (`audio_flags`): дефект синтеза, клиппинг, свист, и подозрение, которое
+    /// подтвердило распознавание (`repeat`, `garbled`).
     pub issues: Vec<String>,
+    /// What does not redo the take: loudness off the voice's usual, noise in the pauses, `listen` (only a person can
+    /// tell), and suspects recognition cleared.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub notes: Vec<String>,
+    /// The take's speech without the silence at its edges and its loudness, for the usual of its voice.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub speech_secs: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lufs: Option<f64>,
     /// The words recognition heard with their start and end in the take, seconds: the export's word timings.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub timed: Vec<(String, f64, f64)>,
@@ -168,7 +178,7 @@ pub fn check(expected: &str, heard: &str, strictness: &str) -> Check {
     let h = normalize(heard);
     let (inserted, deleted, substituted) = word_ops(&e, &h);
     let wer = if e.is_empty() { if h.is_empty() { 0.0 } else { 1.0 } } else { (inserted + deleted + substituted) as f64 / e.len() as f64 };
-    Check { text_checked: true, wer, words: e.len(), inserted, deleted, substituted, heard: heard.to_string(), passed: wer <= threshold(e.len(), strictness), similarity: None, similar: None, issues: Vec::new(), timed: Vec::new() }
+    Check { text_checked: true, wer, words: e.len(), inserted, deleted, substituted, heard: heard.to_string(), passed: wer <= threshold(e.len(), strictness), similarity: None, similar: None, issues: Vec::new(), timed: Vec::new(), ..Default::default() }
 }
 
 #[cfg(test)]
