@@ -1024,7 +1024,7 @@
     "maxStretch": "Limite de aceleração",
     "maxStretchHint": "Quanto uma tomada pode ser acelerada para caber na fala (1,25 como no Dub Studio)",
     "leadIntoSilence": "Começar antes, no silêncio",
-    "saveSubs": "Legendas .srt",
+    "saveSubs": "Legendas {{ext}}",
     "subsHint": "Legendas com os tempos em que cada bloco soa no arquivo",
     "saveChapters": "Lista de capítulos",
     "chaptersHint": "HH:MM:SS<TAB>Título para plataformas sem capítulos",

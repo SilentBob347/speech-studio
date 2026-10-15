@@ -1273,13 +1273,24 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         }
         let subtitles = format!("{name}.srt");
         std::fs::write(exports.join(&subtitles), srt(&part_cues)).map_err(|e| format!("{subtitles}: {e}"))?;
+        let rows: Vec<crate::transcript_out::Row> = part_cues.iter().map(|(a, z, who, text)| crate::transcript_out::Row { start: *a, end: *z, speaker: who.clone(), text: text.clone() }).collect();
+        let mut subtitle_files = vec![subtitles.clone()];
+        for format in ["vtt", "ass"] {
+            let text = crate::transcript_out::render_rows(&rows, format, &crate::transcript_out::Opts { speakers: true, times: true }).unwrap_or_default();
+            let file = format!("{name}.{format}");
+            std::fs::write(exports.join(&file), text).map_err(|e| format!("{file}: {e}"))?;
+            subtitle_files.push(file);
+        }
+        let lyrics = format!("{name}.lrc");
+        std::fs::write(exports.join(&lyrics), lrc(&part_timed)).map_err(|e| format!("{lyrics}: {e}"))?;
+        subtitle_files.push(lyrics);
         let timings = format!("{name}.timings.json");
         let body = json!({ "file": file, "blocks": part_timed.iter().map(|(s, e, who, text, words)| json!({ "start": s, "end": e, "speaker": who, "text": text, "words": words.iter().map(|(w, ws, we)| json!({ "word": w, "start": ws, "end": we })).collect::<Vec<_>>() })).collect::<Vec<_>>() });
         std::fs::write(exports.join(&timings), serde_json::to_vec_pretty(&body).map_err(|e| e.to_string())?).map_err(|e| format!("{timings}: {e}"))?;
-        outputs.push(json!({ "file": file, "subtitles": subtitles, "timings": timings, "chapters": chapter_list, "path": target.to_string_lossy(), "duration": z - a }));
+        outputs.push(json!({ "file": file, "subtitles": subtitles, "subtitle_files": subtitle_files, "timings": timings, "chapters": chapter_list, "path": target.to_string_lossy(), "duration": z - a }));
     }
     let first = outputs.first().cloned().unwrap_or(Value::Null);
-    Ok(json!({ "file": first["file"], "subtitles": first["subtitles"], "timings": first["timings"], "chapters": first["chapters"], "path": first["path"], "parts": if outputs.len() > 1 { Value::Array(outputs) } else { Value::Null }, "tag_problems": tag_problems, "acx": acx_report, "duration": total, "marks": marks, "lufs_before": levelled.map(|l| l.before), "lufs": levelled.map(|l| l.after) }))
+    Ok(json!({ "file": first["file"], "subtitles": first["subtitles"], "subtitle_files": first["subtitle_files"], "timings": first["timings"], "chapters": first["chapters"], "path": first["path"], "parts": if outputs.len() > 1 { Value::Array(outputs) } else { Value::Null }, "tag_problems": tag_problems, "acx": acx_report, "duration": total, "marks": marks, "lufs_before": levelled.map(|l| l.before), "lufs": levelled.map(|l| l.after) }))
 }
 
 /// Where a long export is cut into parts of at most `limit` seconds: at the last chapter start that keeps a part under

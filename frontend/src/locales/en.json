@@ -1024,7 +1024,7 @@
     "maxStretch": "Speed-up limit",
     "maxStretchHint": "How much a take may be sped up to fit its line (1.25 as in Dub Studio)",
     "leadIntoSilence": "Start earlier into silence",
-    "saveSubs": "Subtitles .srt",
+    "saveSubs": "Subtitles {{ext}}",
     "subsHint": "Subtitles with the times where each block sounds in the file",
     "saveChapters": "Chapter list",
     "chaptersHint": "HH:MM:SS<TAB>Title for platforms without chapters",

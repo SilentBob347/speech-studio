@@ -24,7 +24,7 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
   const [format, setFormat] = useState<ExportFormat>(project.settings.loudness === "acx" ? "mp3" : "wav");
   const [busy, setBusy] = useState(false);
   const [file, setFile] = useState<string | null>(null);
-  const [subs, setSubs] = useState<string | null>(null);
+  const [subs, setSubs] = useState<string[]>([]);
   const [chapterList, setChapterList] = useState<string | null>(null);
   const [acx, setAcx] = useState<AcxReport | null>(null);
   const [files, setFiles] = useState<{ file: string; bytes: number; mtime: number }[] | null>(null);
@@ -53,11 +53,11 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
     setError(null);
     try {
       const { job_id } = await speechApi.export(pid, format, undefined, perBlock, perBlock ? 0 : partMinutes, allowDuration);
-      const r = (await followJob(job_id, "export")) as { file: string; files?: string[]; subtitles?: string; timings?: string; chapters?: string | null; parts?: Part[] | null; acx?: AcxReport | null };
+      const r = (await followJob(job_id, "export")) as { file: string; files?: string[]; subtitles?: string; subtitle_files?: string[]; timings?: string; chapters?: string | null; parts?: Part[] | null; acx?: AcxReport | null };
       if (r.files) { setClips(r.files); return; }
       setAcx(r.acx ?? null);
       setFile(r.file);
-      setSubs(r.subtitles ?? null);
+      setSubs(r.subtitle_files ?? (r.subtitles ? [r.subtitles] : []));
       setChapterList(r.chapters ?? null);
       setTimings(r.timings ?? null);
       setParts(r.parts ?? null);
@@ -94,7 +94,7 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
           <>
             <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={t("speech.format")}>
               {EXPORT_FORMATS.map((f) => (
-                <button key={f} role="radio" aria-checked={format === f} onClick={() => { setFormat(f); setFile(null); setSubs(null); setChapterList(null); setAcx(null); setClips(null); }}
+                <button key={f} role="radio" aria-checked={format === f} onClick={() => { setFormat(f); setFile(null); setSubs([]); setChapterList(null); setAcx(null); setClips(null); }}
                   className={`px-3 py-1.5 rounded-lg border text-[12px] font-semibold uppercase ${format === f ? "border-[var(--color-accent)] text-[var(--color-accent)]" : "border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-text)]"}`}>{f}</button>
               ))}
             </div>
@@ -126,7 +126,7 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
                   </div>
                 )) : <FileActions pid={pid} file={file} primary />}
                 {!parts && chapterList && <FileActions pid={pid} file={chapterList} label={t("speech.saveChapters")} />}
-                {!parts && subs && <FileActions pid={pid} file={subs} label={t("speech.saveSubs")} />}
+                {!parts && subs.map((f) => <FileActions key={f} pid={pid} file={f} label={t("speech.saveSubs", { ext: f.slice(f.lastIndexOf(".")) })} />)}
                 {!parts && timings && <FileActions pid={pid} file={timings} label={t("speech.saveTimings")} />}
               </div>
             ) : (

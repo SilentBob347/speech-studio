@@ -12,11 +12,12 @@ pub struct Opts {
     pub times: bool,
 }
 
-struct Row {
-    start: f64,
-    end: f64,
-    speaker: String,
-    text: String,
+/// A subtitle line: its time, who says it and what.
+pub struct Row {
+    pub start: f64,
+    pub end: f64,
+    pub speaker: String,
+    pub text: String,
 }
 
 fn rows(p: &ListenProject) -> Vec<Row> {
@@ -52,9 +53,16 @@ fn several(rows: &[Row]) -> bool {
 }
 
 pub fn render(p: &ListenProject, format: &str, o: &Opts) -> Result<String, String> {
-    let rows = rows(p);
-    let tagged = o.speakers && !rows.is_empty() && several(&rows);
-    Ok(match format {
+    if format == "json" {
+        return serde_json::to_string_pretty(&json_value(p)).map_err(|e| e.to_string());
+    }
+    render_rows(&rows(p), format, o).ok_or_else(|| t!("listen-export-format", format = format.to_string()))
+}
+
+/// Lines as srt, vtt, ass or txt; None for another format.
+pub fn render_rows(rows: &[Row], format: &str, o: &Opts) -> Option<String> {
+    let tagged = o.speakers && !rows.is_empty() && several(rows);
+    Some(match format {
         "srt" => rows
             .iter()
             .enumerate()
@@ -63,7 +71,7 @@ pub fn render(p: &ListenProject, format: &str, o: &Opts) -> Result<String, Strin
             .join("\n"),
         "vtt" => {
             let mut out = String::from("WEBVTT\n");
-            for r in &rows {
+            for r in rows {
                 let voice = if tagged { format!("<v {}>", vtt_text(&r.speaker)) } else { String::new() };
                 out.push_str(&format!("\n{} --> {}\n{voice}{}\n", srt_time(r.start).replace(',', "."), srt_time(r.end).replace(',', "."), vtt_text(&r.text)));
             }
@@ -73,7 +81,7 @@ pub fn render(p: &ListenProject, format: &str, o: &Opts) -> Result<String, Strin
             let mut out = String::from(
                 "[Script Info]\nScriptType: v4.00+\nPlayResX: 1920\nPlayResY: 1080\nWrapStyle: 0\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Default,Arial,64,&H00FFFFFF,&H000000FF,&H00000000,&H64000000,0,0,0,0,100,100,0,0,1,3,1,2,60,60,60,1\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n",
             );
-            for r in &rows {
+            for r in rows {
                 let name = if o.speakers { r.speaker.replace(',', " ") } else { String::new() };
                 out.push_str(&format!("Dialogue: 0,{},{},Default,{name},0,0,0,,{}\n", ass_time(r.start), ass_time(r.end), r.text.replace('\n', "\\N").replace('{', "(").replace('}', ")")));
             }
@@ -81,7 +89,7 @@ pub fn render(p: &ListenProject, format: &str, o: &Opts) -> Result<String, Strin
         }
         "txt" => {
             let mut out: Vec<String> = Vec::new();
-            for r in &rows {
+            for r in rows {
                 let mut head = Vec::new();
                 if o.times {
                     head.push(format!("[{}]", clock(r.start)));
@@ -93,8 +101,7 @@ pub fn render(p: &ListenProject, format: &str, o: &Opts) -> Result<String, Strin
             }
             out.join("\n") + "\n"
         }
-        "json" => serde_json::to_string_pretty(&json_value(p)).map_err(|e| e.to_string())?,
-        other => return Err(t!("listen-export-format", format = other.to_string())),
+        _ => return None,
     })
 }
 

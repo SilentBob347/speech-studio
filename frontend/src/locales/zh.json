@@ -1024,7 +1024,7 @@
     "maxStretch": "加速上限",
     "maxStretchHint": "为放进台词可将版本加速多少（1.25，同 Dub Studio）",
     "leadIntoSilence": "提前到静音处开始",
-    "saveSubs": "字幕 .srt",
+    "saveSubs": "字幕 {{ext}}",
     "subsHint": "带有每个文本块在文件中响起时间的字幕",
     "saveChapters": "章节列表",
     "chaptersHint": "HH:MM:SS<TAB>标题，用于不支持章节的平台",

@@ -1024,7 +1024,7 @@
     "maxStretch": "Límite de aceleración",
     "maxStretchHint": "Cuánto puede acelerarse una toma para caber en su línea (1,25 como en Dub Studio)",
     "leadIntoSilence": "Empezar antes, en el silencio",
-    "saveSubs": "Subtítulos .srt",
+    "saveSubs": "Subtítulos {{ext}}",
     "subsHint": "Subtítulos con los tiempos en que suena cada bloque en el archivo",
     "saveChapters": "Lista de capítulos",
     "chaptersHint": "HH:MM:SS<TAB>Título para plataformas sin capítulos",
