@@ -1975,5 +1975,25 @@
     "title": "A voice only with leave",
     "message": "Clone your own voice or the voice of someone who agreed to it. Speech in someone's voice without leave is easily taken for a fake; where the law asks for it (Article 50 of the EU AI Act, for one), say that the speech is made by AI. The studio asks once.",
     "accept": "Understood, go on"
+  },
+  "lint": {
+    "open": "Check the script",
+    "title": "Script check",
+    "count": "errors: {{errors}} · warnings: {{warns}}",
+    "clean": "All fine: every block will be voiced as written.",
+    "block": "Block {{n}} · {{speaker}}",
+    "empty": "An empty block: nothing to voice.",
+    "engine": "There is no engine {{engine}}.",
+    "engine_unavailable": "{{engine}} will not run on this computer: {{why}}",
+    "language": "{{engine}} does not speak {{lang}}.",
+    "no_voice": "{{engine}} does not speak without a library voice: choose one.",
+    "voice_missing": "There is no voice {{voice}} in the library.",
+    "ref_text": "The voice {{voice}} has no reference text, and {{engine}} does not clone without it.",
+    "direction_ignored": "{{engine}} does not read directions: this one will not reach the voicing.",
+    "tags_ignored": "{{engine}} will not read the tags: {{tags}}",
+    "marks_ignored": "{{engine}} will not read stress marks or phonemes: they are taken out.",
+    "unread": "Left as written: {{words}}",
+    "dictionary": "A dictionary rule did not work: {{rules}}",
+    "prepare": "The text could not be prepared: {{detail}}"
   }
 }

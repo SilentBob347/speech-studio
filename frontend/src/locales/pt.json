@@ -1975,5 +1975,25 @@
     "title": "Uma voz só com permissão",
     "message": "Clone a sua própria voz ou a de alguém que concordou. Uma locução com a voz de outra pessoa sem permissão é facilmente tomada por fraude; onde a lei pedir (por exemplo, o art. 50 do Regulamento de IA da UE), indique que a fala foi feita por IA. O estúdio pergunta uma vez.",
     "accept": "Entendi, continuar"
+  },
+  "lint": {
+    "open": "Verificar o roteiro",
+    "title": "Verificação do roteiro",
+    "count": "erros: {{errors}} · avisos: {{warns}}",
+    "clean": "Tudo certo: cada bloco será locutado como está escrito.",
+    "block": "Bloco {{n}} · {{speaker}}",
+    "empty": "Um bloco vazio: nada para locutar.",
+    "engine": "Não existe o motor {{engine}}.",
+    "engine_unavailable": "{{engine}} não vai rodar neste computador: {{why}}",
+    "language": "{{engine}} não fala {{lang}}.",
+    "no_voice": "{{engine}} não fala sem uma voz da biblioteca: escolha uma.",
+    "voice_missing": "A voz {{voice}} não está na biblioteca.",
+    "ref_text": "A voz {{voice}} não tem texto de referência, e {{engine}} não clona sem ele.",
+    "direction_ignored": "{{engine}} não lê indicações: esta não chegará à locução.",
+    "tags_ignored": "{{engine}} não lerá as etiquetas: {{tags}}",
+    "marks_ignored": "{{engine}} não lerá marcas de acento nem fonemas: eles são retirados.",
+    "unread": "Fica como está escrito: {{words}}",
+    "dictionary": "Uma regra do dicionário não funcionou: {{rules}}",
+    "prepare": "O texto não pôde ser preparado: {{detail}}"
   }
 }

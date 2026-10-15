@@ -1975,5 +1975,25 @@
     "title": "Une voix seulement avec accord",
     "message": "Clonez votre propre voix ou celle d'une personne qui l'a accepté. Une voix utilisée sans accord passe facilement pour un faux ; là où la loi l'exige (l'article 50 du règlement européen sur l'IA, par exemple), indiquez que la parole est générée par IA. Le studio ne le demande qu'une fois.",
     "accept": "Compris, continuer"
+  },
+  "lint": {
+    "open": "Vérifier le script",
+    "title": "Vérification du script",
+    "count": "erreurs : {{errors}} · avertissements : {{warns}}",
+    "clean": "Tout va bien : chaque bloc sera doublé tel qu'il est écrit.",
+    "block": "Bloc {{n}} · {{speaker}}",
+    "empty": "Un bloc vide : rien à doubler.",
+    "engine": "Il n'y a pas de moteur {{engine}}.",
+    "engine_unavailable": "{{engine}} ne tournera pas sur cet ordinateur : {{why}}",
+    "language": "{{engine}} ne parle pas {{lang}}.",
+    "no_voice": "{{engine}} ne parle pas sans une voix de la bibliothèque : choisissez-en une.",
+    "voice_missing": "La voix {{voice}} n'est pas dans la bibliothèque.",
+    "ref_text": "La voix {{voice}} n'a pas de texte de référence, et {{engine}} ne clone pas sans lui.",
+    "direction_ignored": "{{engine}} ne lit pas les indications : celle-ci n'atteindra pas le doublage.",
+    "tags_ignored": "{{engine}} ne lira pas les balises : {{tags}}",
+    "marks_ignored": "{{engine}} ne lira pas les accents toniques ni les phonèmes : ils sont retirés.",
+    "unread": "Reste tel qu'écrit : {{words}}",
+    "dictionary": "Une règle du dictionnaire n'a pas fonctionné : {{rules}}",
+    "prepare": "Le texte n'a pas pu être préparé : {{detail}}"
   }
 }

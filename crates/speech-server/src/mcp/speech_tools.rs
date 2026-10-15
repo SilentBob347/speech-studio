@@ -103,6 +103,12 @@ pub(super) fn tools() -> Vec<Tool> {
             call: |_| get("/renders".into()),
         },
         Tool {
+            name: "project_lint",
+            description: "Check a project before voicing it: block by block, what would go wrong (level error: an empty block, an engine unavailable or without the project's language, no voice where the engine needs one, a voice missing or without the reference text Drama 3 needs, a broken dictionary rule) or not be read as written (level warn: tags or stress marks the engine does not read, a direction it ignores, what normalisation left unread).",
+            schema: project_only,
+            call: |args| get(project_path(args, "/lint")?),
+        },
+        Tool {
             name: "project_cast_characters",
             description: "The director model splits one chapter of a Speech project into the narrator and the characters, word for word, and replaces the chapter's blocks with their lines: a job, follow it with studio_wait. Characters keep the names met before in the project.",
             schema: || object(json!({ "pid": pid(), "chapter": { "type": "string", "description": "chapter id from project_get" } }), &["pid", "chapter"]),

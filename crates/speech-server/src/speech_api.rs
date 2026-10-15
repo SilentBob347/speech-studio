@@ -334,6 +334,17 @@ pub async fn export_check(State(st): State<AppState>, AxPath(pid): AxPath<String
     }
 }
 
+/// GET /projects/{pid}/lint — what would go wrong voicing the project, block by block, before voicing it.
+pub async fn lint(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Response {
+    let p = paths(&st);
+    let res = joined(tokio::task::spawn_blocking(move || sp::load(&p.workspace, &pid).map(|project| speech_jobs::lint(&p, &project))).await);
+    match res {
+        Ok(Ok(issues)) => Json(json!({ "issues": issues })).into_response(),
+        Ok(Err(e)) => refuse(StatusCode::NOT_FOUND, "no_project", e),
+        Err(r) => r,
+    }
+}
+
 /// POST /projects/{pid}/blocks/{bid}/ref (multipart: file, text?, whole?) — свой реф реплики: звук в `refs/` проекта
 /// (WAV 24 кГц моно), его текст (пустой — распознаётся) и «весь клип в контекст».
 pub async fn own_ref(State(st): State<AppState>, AxPath((pid, bid)): AxPath<(String, String)>, mut multipart: axum::extract::Multipart) -> Response {

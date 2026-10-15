@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, BookOpen, ChartGantt, Download, Drama, History, ListOrdered, Loader2, Redo2, Search, Settings2, Sparkles, SpellCheck, Square, Undo2, Users, Wand2, X } from "lucide-react";
+import { ArrowLeft, BookOpen, ChartGantt, Download, Drama, History, ListOrdered, Loader2, Redo2, Search, Settings2, Sparkles, SpellCheck, Square, Undo2, Users, Wand2, X, ListChecks } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { activeTake, engineOf, newId, spliceChars, SPEAKER_TINTS, speechApi, stressDoubts, voiceOf, type Block, type BlockState, type SpeechProject, type QueuedSynth, type StressWord } from "../../lib/speech";
 import { openSettings } from "../../lib/settingsNav";
@@ -12,6 +12,7 @@ import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
 import EditorMore from "../EditorMore";
 import StepBar from "./StepBar";
+import LintDialog from "./LintDialog";
 import { useSimpleMode } from "../../lib/simpleMode";
 import { useVoices } from "../../lib/voices";
 import { comboOf, matches, useShortcuts } from "../../lib/shortcuts";
@@ -88,6 +89,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
     return list.length ? { base, inherited, list } : null;
   };
   const [exported, setExported] = useState(false);
+  const [linting, setLinting] = useState(false);
   const [casting, setCasting] = useState(false);
   const castCharacters = async () => {
     if (!project) return;
@@ -562,6 +564,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           { icon: BookOpen, label: t("speech.dictionary"), act: () => setDictionary(true), narrowOnly: !simple },
           { icon: Drama, label: t("speech.castCharacters"), act: () => void castCharacters(), disabled: casting, narrowOnly: !simple },
           { icon: Users, label: t("speech.cast"), act: () => setCastOpen((v) => !v), belowLarge: true },
+          { icon: ListChecks, label: t("lint.open"), act: () => setLinting(true) },
           { icon: History, label: t("history.open"), act: () => setHistory(true) },
           { icon: Wand2, label: selected.length ? t("enrich.runSelected", { n: selected.length }) : t("enrich.run"), act: () => void enrich(selected.length ? selected : null), disabled: enriching },
           { icon: SpellCheck, label: t("speech.stressAll"), act: () => void stressBlocks(null), disabled: !!stressing || !blocks.length },
@@ -687,6 +690,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           onClose={() => setRecast(null)} />
       )}
       {settings && <ProjectSettings project={project} onChange={edit} onClose={() => setSettings(false)} />}
+      {linting && <LintDialog pid={pid} blocks={blocks} onClose={() => setLinting(false)} onJump={(id) => { setSelected([id]); document.getElementById(`block-${id}`)?.scrollIntoView({ block: "center", behavior: "smooth" }); }} />}
       {exporting && <ExportDialog pid={pid} project={project} onClose={() => setExporting(false)} onVoiceMissing={(ids) => { setExporting(false); void runSynth({ ids, force: true }); }} onDone={(file) => { setExported(true); pushActivity(t("speech.exported", { file }), "done"); }} />}
     </main>
   );

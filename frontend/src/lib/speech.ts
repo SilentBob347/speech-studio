@@ -107,6 +107,9 @@ export type Render = { pid: string; project: string; file: string; bytes: number
 /** What a recipe says about one block of a render. */
 export type RecipeBlock = { block: string; speaker: string; text: string; take: number; engine: string; voice: string; seed: number; temperature: number; wer: number | null; start?: number };
 
+/** Something that would go wrong voicing a block (`error`) or not be read as written (`warn`). */
+export type LintIssue = { block: string; level: "error" | "warn"; kind: string; detail: unknown };
+
 export const voiceOf = (p: SpeechProject, b: Block) => b.voice || p.cast[b.speaker] || p.settings.voice || null;
 export type TimelineBlock = { block: string; speaker: string; start: number; end: number; voiced: boolean; overlap: { with: string; secs: number } | null; cut_previous: boolean };
 export type ExportProblem = { block: string; state: BlockState | "missing" | "modified" | "duration" };
@@ -128,6 +131,7 @@ export const speechApi = {
   queue: (pid: string) => getCoded<{ queue: QueuedSynth[] }>(`/projects/${pid}/queue`),
   unqueue: (pid: string, n?: number) => sendCoded<{ removed: number }>("DELETE", n == null ? `/projects/${pid}/queue` : `/projects/${pid}/queue/${n}`),
   history: (pid?: string) => getCoded<{ takes: HistoryTake[] }>(pid ? `/history?pid=${pid}` : "/history"),
+  lint: (pid: string) => getCoded<{ issues: LintIssue[] }>(`/projects/${pid}/lint`),
   exportCheck: (pid: string) => getCoded<{ problems: ExportProblem[] }>(`/projects/${pid}/export-check`),
   timeline: (pid: string) => getCoded<{ blocks: TimelineBlock[] }>(`/projects/${pid}/timeline`),
   export: (pid: string, format: ExportFormat, chapter?: string, perBlock = false, partMinutes = 0, allowDuration = false, quality: ExportQuality = {}) => postCoded<{ job_id: string }>(`/projects/${pid}/export`, { format, chapter, per_block: perBlock, part_minutes: partMinutes || undefined, allow_duration: allowDuration || undefined, ...quality }),

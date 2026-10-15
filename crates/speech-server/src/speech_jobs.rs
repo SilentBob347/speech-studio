@@ -1090,6 +1090,67 @@ pub fn export_check(p: &SpeechPaths, pid: &str, project: &SpeechProject) -> Vec<
         .collect()
 }
 
+/// What would go wrong voicing the project, found before voicing it: block by block, an `error` stops the block from
+/// being voiced as written, a `warn` voices it but not all of it as the text says.
+pub fn lint(p: &SpeechPaths, project: &SpeechProject) -> Vec<Value> {
+    let entries = dictionary(p, project);
+    let library = crate::voice_library::list(&p.voices_dir).0;
+    let mut out = Vec::new();
+    let mut issue = |block: &str, level: &str, kind: &str, detail: Value| out.push(json!({ "block": block, "level": level, "kind": kind, "detail": detail }));
+    for b in project.blocks().filter(|b| !b.hidden) {
+        if crate::speech_text::visible(&b.text).trim().is_empty() {
+            issue(&b.id, "error", "empty", Value::Null);
+            continue;
+        }
+        let engine_id = project.engine_of(b);
+        let Some(engine) = crate::engines::get(engine_id) else {
+            issue(&b.id, "error", "engine", json!(engine_id));
+            continue;
+        };
+        if let Some(why) = &engine.unavailable {
+            issue(&b.id, "error", "engine_unavailable", json!({ "engine": engine.name, "why": why }));
+        }
+        let lang = crate::prep::block_lang(&b.text, &project.settings.lang);
+        if !lang.is_empty() && !engine.languages.is_empty() && !engine.languages.contains(&lang.as_str()) {
+            issue(&b.id, "error", "language", json!({ "engine": engine.name, "lang": lang }));
+        }
+        let voice = project.voice_of(b);
+        let preset = voice.as_deref().is_some_and(|v| engine.presets.iter().any(|x| x.id == v));
+        match voice.as_deref().filter(|_| !preset) {
+            None if engine.needs_voice => issue(&b.id, "error", "no_voice", json!({ "engine": engine.name })),
+            Some(v) if engine.clone != "none" => match library.iter().find(|x| x.name == v) {
+                None => issue(&b.id, "error", "voice_missing", json!({ "voice": v })),
+                Some(x) if engine.ref_text_required && x.transcript.as_deref().is_none_or(|t| t.trim().is_empty()) => issue(&b.id, "error", "ref_text", json!({ "engine": engine.name, "voice": v })),
+                _ => {}
+            },
+            _ => {}
+        }
+        if !b.direction.trim().is_empty() && !engine.direction {
+            issue(&b.id, "warn", "direction_ignored", json!({ "engine": engine.name }));
+        }
+        let prepared = match crate::prep::prepare(&b.text, &prep_opts(p, project, engine_id, voice.as_deref(), &entries, false)) {
+            Ok(x) => x,
+            Err(e) => {
+                issue(&b.id, "error", "prepare", json!(e));
+                continue;
+            }
+        };
+        if !prepared.ignored.unknown_tags.is_empty() {
+            issue(&b.id, "warn", "tags_ignored", json!({ "engine": engine.name, "tags": prepared.ignored.unknown_tags }));
+        }
+        if prepared.ignored.stress || prepared.ignored.phonemes || prepared.ignored.accent {
+            issue(&b.id, "warn", "marks_ignored", json!({ "engine": engine.name, "stress": prepared.ignored.stress, "phonemes": prepared.ignored.phonemes, "accent": prepared.ignored.accent }));
+        }
+        if !prepared.unknown.is_empty() {
+            issue(&b.id, "warn", "unread", json!(prepared.unknown));
+        }
+        if !prepared.broken.is_empty() {
+            issue(&b.id, "error", "dictionary", json!(prepared.broken.iter().map(|(rule, why)| json!({ "rule": rule, "why": why })).collect::<Vec<_>>()));
+        }
+    }
+    out
+}
+
 pub struct ExportOpts {
     pub format: String,
     pub chapter: Option<String>,

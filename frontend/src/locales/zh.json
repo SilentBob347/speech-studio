@@ -1975,5 +1975,25 @@
     "title": "仅在获得许可时使用声音",
     "message": "请只克隆你自己的声音，或已同意的人的声音。未经许可使用他人声音的配音很容易被当作伪造；在法律要求的地方（例如欧盟《人工智能法》第 50 条），请标明语音由 AI 生成。工作室只询问一次。",
     "accept": "明白，继续"
+  },
+  "lint": {
+    "open": "检查脚本",
+    "title": "脚本检查",
+    "count": "错误：{{errors}} · 警告：{{warns}}",
+    "clean": "一切正常：每个块都会按原文配音。",
+    "block": "块 {{n}} · {{speaker}}",
+    "empty": "空块：没有可配音的内容。",
+    "engine": "没有引擎 {{engine}}。",
+    "engine_unavailable": "{{engine}} 无法在此电脑上运行：{{why}}",
+    "language": "{{engine}} 不支持 {{lang}}。",
+    "no_voice": "{{engine}} 没有声音库中的声音无法发声：请选择一个。",
+    "voice_missing": "声音库中没有 {{voice}}。",
+    "ref_text": "声音 {{voice}} 没有参考文本，{{engine}} 没有它无法克隆。",
+    "direction_ignored": "{{engine}} 不读取提示：此提示不会影响配音。",
+    "tags_ignored": "{{engine}} 不会读取这些标签：{{tags}}",
+    "marks_ignored": "{{engine}} 不会读取重音符号或音素：它们会被去掉。",
+    "unread": "将按原样保留：{{words}}",
+    "dictionary": "词典规则未生效：{{rules}}",
+    "prepare": "文本无法准备：{{detail}}"
   }
 }
