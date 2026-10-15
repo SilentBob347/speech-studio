@@ -12,7 +12,8 @@ import UrlImport from "../UrlImport";
 
 const MEDIA = "audio/*,video/*,.mkv,.avi,.wma,.opus,.flac,.m4a";
 
-/** Listening's start: a recording from a file, a link or the microphone, and the recordings opened before. */
+/** Listening's start: a recording from a file (several at once go to recognition one after another), a link or the
+ * microphone, and the recordings opened before. */
 export default function ListeningHome({ onOpen }: { onOpen: (pid: string) => void }) {
   const { t, i18n } = useTranslation();
   const [projects, setProjects] = useState<ListenCard[] | null>(null);
@@ -20,6 +21,7 @@ export default function ListeningHome({ onOpen }: { onOpen: (pid: string) => voi
   const [error, setError] = useState<string | null>(null);
   const [drag, setDrag] = useState(false);
   const [removing, setRemoving] = useState<ListenCard | null>(null);
+  const [batch, setBatch] = useState<{ done: number; total: number } | null>(null);
   const file = useRef<HTMLInputElement>(null);
   const load = () => {
     speechApi.list().then((r) => setProjects(r.projects.filter((p): p is ListenCard => p.kind === "listening") as ListenCard[]), (e: unknown) => setError(errorText(e)));
@@ -27,10 +29,21 @@ export default function ListeningHome({ onOpen }: { onOpen: (pid: string) => voi
   useEffect(load, []);
   useChanged(PROJECTS_CHANGED, load);
 
-  const upload = async (f: File) => {
+  const upload = async (files: File[]) => {
+    if (!files.length) return;
     setBusy(true);
     setError(null);
-    try { onOpen((await listenApi.upload(f)).pid); } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
+    try {
+      if (files.length === 1) { onOpen((await listenApi.upload(files[0])).pid); return; }
+      setBatch({ done: 0, total: files.length });
+      const failed: string[] = [];
+      for (const [k, f] of files.entries()) {
+        try { await listenApi.transcribe((await listenApi.upload(f)).pid); } catch (e) { failed.push(`${f.name}: ${errorText(e)}`); }
+        setBatch({ done: k + 1, total: files.length });
+        load();
+      }
+      if (failed.length) setError(failed.join("\n"));
+    } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
   };
   const when = (s: number) => new Date(s * 1000).toLocaleString(i18n.language, { dateStyle: "medium", timeStyle: "short" });
 
@@ -43,14 +56,15 @@ export default function ListeningHome({ onOpen }: { onOpen: (pid: string) => voi
           <div
             onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
             onDragLeave={() => setDrag(false)}
-            onDrop={(e) => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files[0]; if (f) void upload(f); }}
+            onDrop={(e) => { e.preventDefault(); setDrag(false); void upload([...e.dataTransfer.files]); }}
             className={`rounded-xl border-2 border-dashed px-5 py-8 grid place-items-center text-center gap-2 transition-colors ${drag ? "border-[var(--color-accent)] bg-[color-mix(in_oklab,var(--color-accent)_8%,transparent)]" : "border-[var(--color-border)]"}`}
           >
             {busy ? <Loader2 size={22} className="animate-spin text-[var(--color-accent)]" /> : <FileAudio size={22} className="text-[var(--color-accent)]" />}
-            <p className="text-[13px]">{busy ? t("listen.uploading") : t("listen.drop")}</p>
+            <p className="text-[13px]">{busy ? (batch ? t("listen.batchUploading", { n: batch.done + 1 > batch.total ? batch.total : batch.done + 1, total: batch.total }) : t("listen.uploading")) : t("listen.drop")}</p>
             <button onClick={() => file.current?.click()} disabled={busy} className="px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[13px] font-semibold disabled:opacity-40">{t("listen.pickFile")}</button>
-            <input ref={file} type="file" accept={MEDIA} hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void upload(f); }} />
+            <input ref={file} type="file" accept={MEDIA} multiple hidden onChange={(e) => { const all = [...(e.target.files ?? [])]; e.target.value = ""; void upload(all); }} />
             <p className="text-[11px] text-[var(--color-muted)]">{t("listen.formats")}</p>
+            {!busy && batch && <p role="status" className="text-[12px] text-[var(--color-accent)]">{t("listen.batchQueued", { n: batch.total })}</p>}
           </div>
           <UrlImport onReady={(f) => onOpen(f.pid)} />
           <MicRecorder onDone={onOpen} onError={setError} />
