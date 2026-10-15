@@ -1108,6 +1108,18 @@ impl<'a> Placer<'a> {
     }
 }
 
+/// The SHA-256 of every file a build made, in the `sha256sum` format (`<hash>  <name>`), so whoever receives the
+/// files checks them with `sha256sum -c`.
+fn sha256_manifest(dir: &Path, files: &[String]) -> Result<String, String> {
+    let mut out = String::new();
+    for name in files {
+        let path = dir.join(name);
+        let hash = crate::setup::sha256_file(&path, &|| false).map_err(|e| format!("{}: {e}", path.display()))?.ok_or_else(|| format!("{}: hashing stopped", path.display()))?;
+        out.push_str(&format!("{hash}  {name}\n"));
+    }
+    Ok(out)
+}
+
 /// The lines of an exported file as a table (RFC 4180, UTF-8 with a BOM so spreadsheets read any script): where each
 /// line sounds in the file, its chapter, speaker and text, and the take, engine and voice it was voiced with. `from`
 /// is where the file starts in the whole export, for a part.
@@ -1642,8 +1654,18 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
     } else {
         None
     };
+    let mut built: Vec<String> = Vec::new();
+    for out in &outputs {
+        for key in ["file", "table", "timings", "player", "recipe", "chapters"] {
+            built.extend(out[key].as_str().map(str::to_string));
+        }
+        built.extend(out["subtitle_files"].as_array().into_iter().flatten().filter_map(Value::as_str).map(str::to_string));
+    }
+    built.extend(stems_zip.clone());
+    let manifest = format!("{base}.sha256");
+    std::fs::write(exports.join(&manifest), sha256_manifest(&exports, &built)?).map_err(|e| format!("{manifest}: {e}"))?;
     let first = outputs.first().cloned().unwrap_or(Value::Null);
-    Ok(json!({ "stems": stems_zip, "table": first["table"], "file": first["file"], "subtitles": first["subtitles"], "subtitle_files": first["subtitle_files"], "timings": first["timings"], "player": first["player"], "recipe": first["recipe"], "chapters": first["chapters"], "path": first["path"], "parts": if outputs.len() > 1 { Value::Array(outputs) } else { Value::Null }, "tag_problems": tag_problems, "acx": acx_report, "duration": total, "marks": marks, "lufs_before": levelled.map(|l| l.before), "lufs": levelled.map(|l| l.after) }))
+    Ok(json!({ "manifest": manifest, "stems": stems_zip, "table": first["table"], "file": first["file"], "subtitles": first["subtitles"], "subtitle_files": first["subtitle_files"], "timings": first["timings"], "player": first["player"], "recipe": first["recipe"], "chapters": first["chapters"], "path": first["path"], "parts": if outputs.len() > 1 { Value::Array(outputs) } else { Value::Null }, "tag_problems": tag_problems, "acx": acx_report, "duration": total, "marks": marks, "lufs_before": levelled.map(|l| l.before), "lufs": levelled.map(|l| l.after) }))
 }
 
 /// How a block was voiced: the take in the file and what made it, to make it again.

@@ -1214,6 +1214,7 @@
     "stemsHint": "À côté du fichier, une archive avec une piste FLAC par personnage, aussi longue que le fichier : seules ses répliques, à leur place, au volume du fichier. Additionnées, les pistes redonnent le fichier lui-même, pratique pour mixer dans un éditeur.",
     "saveStems": "Enregistrer les pistes par personnage",
     "saveTable": "Tableau des répliques (CSV)",
+    "saveManifest": "Empreintes des fichiers (SHA-256)",
     "exportName": "Nom du fichier",
     "exportNamePlaceholder": "ex. : {n} {project} - {chapter}",
     "exportNameHint": "Vide : les noms du studio. Clés : {project} le projet, {chapter} le chapitre, {n} le numéro du fichier (01), {date} la date. Pour plusieurs fichiers, utilisez {n} ou {chapter}.",

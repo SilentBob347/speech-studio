@@ -1214,6 +1214,7 @@
     "stemsHint": "Ao lado do arquivo, um pacote com uma faixa FLAC por personagem do tamanho do arquivo: só as falas dele, nos seus lugares, com o mesmo volume do arquivo. Somadas, as faixas formam o próprio arquivo, prático para mixar num editor.",
     "saveStems": "Salvar as faixas por personagem",
     "saveTable": "Tabela de falas (CSV)",
+    "saveManifest": "Hashes dos arquivos (SHA-256)",
     "exportName": "Nome do arquivo",
     "exportNamePlaceholder": "ex.: {n} {project} - {chapter}",
     "exportNameHint": "Vazio: os nomes do estúdio. Chaves: {project} o projeto, {chapter} o capítulo, {n} o número do arquivo (01), {date} a data. Com vários arquivos use {n} ou {chapter}.",

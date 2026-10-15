@@ -37,6 +37,7 @@ export default function ExportDialog({ pid, project, onChange, flush, onClose, o
   const [withStems, setWithStems] = useState(false);
   const [stems, setStems] = useState<string | null>(null);
   const [table, setTable] = useState<string | null>(null);
+  const [manifest, setManifest] = useState<string | null>(null);
   type Part = { file: string; subtitles: string; timings: string; chapters: string | null; duration: number };
   const [parts, setParts] = useState<Part[] | null>(null);
   const [timings, setTimings] = useState<string | null>(null);
@@ -66,7 +67,7 @@ export default function ExportDialog({ pid, project, onChange, flush, onClose, o
     try {
       await flush();
       const { job_id } = await speechApi.export(pid, format, undefined, perBlock, perBlock ? 0 : Math.max(partMinutes, 0), allowDuration, { sample_rate: rate || undefined, bits: bits || undefined, kbps: kbps || undefined }, !perBlock && partMinutes === -1, !perBlock && withStems);
-      const r = (await followJob(job_id, "export")) as { file: string; files?: string[]; subtitles?: string; subtitle_files?: string[]; timings?: string; player?: string; recipe?: string; chapters?: string | null; parts?: Part[] | null; acx?: AcxReport | null; stems?: string | null; table?: string };
+      const r = (await followJob(job_id, "export")) as { file: string; files?: string[]; subtitles?: string; subtitle_files?: string[]; timings?: string; player?: string; recipe?: string; chapters?: string | null; parts?: Part[] | null; acx?: AcxReport | null; stems?: string | null; table?: string; manifest?: string };
       if (r.files) { setClips(r.files); setRecipe(r.recipe ?? null); return; }
       setAcx(r.acx ?? null);
       setFile(r.file);
@@ -78,6 +79,7 @@ export default function ExportDialog({ pid, project, onChange, flush, onClose, o
       setParts(r.parts ?? null);
       setStems(r.stems ?? null);
       setTable(r.table ?? null);
+      setManifest(r.manifest ?? null);
       onDone(r.file);
     } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
   };
@@ -188,6 +190,7 @@ export default function ExportDialog({ pid, project, onChange, flush, onClose, o
                 {!parts && timings && <FileActions pid={pid} file={timings} label={t("speech.saveTimings")} />}
                 {!parts && recipe && <FileActions pid={pid} file={recipe} label={t("speech.saveRecipe")} />}
                 {stems && <FileActions pid={pid} file={stems} label={t("speech.saveStems")} />}
+                {manifest && <FileActions pid={pid} file={manifest} label={t("speech.saveManifest")} />}
               </div>
             ) : (
               <button onClick={run} disabled={busy} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[13px] font-semibold disabled:opacity-40">

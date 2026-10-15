@@ -1214,6 +1214,7 @@
     "stemsHint": "Beside the file, an archive with a FLAC track per speaker as long as the file: only that speaker's lines in their places, at the file's own loudness. Added together the tracks make the file itself, handy for mixing in an editor.",
     "saveStems": "Save the tracks by speaker",
     "saveTable": "Lines table (CSV)",
+    "saveManifest": "File hashes (SHA-256)",
     "exportName": "File name",
     "exportNamePlaceholder": "e.g. {n} {project} - {chapter}",
     "exportNameHint": "Empty: the studio's names. Keys: {project} the project, {chapter} the chapter, {n} the file's number (01), {date} the date. For several files use {n} or {chapter}.",
