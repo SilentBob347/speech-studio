@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, AudioLines, ChevronDown, ChevronUp, Download, Eye, EyeOff, FileCheck2, Loader2, Pause, Play, Redo2, RotateCcw, RotateCw, Scissors, Search, Settings2, Undo2, UserPlus, UserSearch, Fingerprint, Users, Wand2, X } from "lucide-react";
+import { ArrowLeft, AudioLines, ChartPie, ChevronDown, ChevronUp, Download, Eye, EyeOff, FileCheck2, Loader2, Pause, Play, Redo2, RotateCcw, RotateCw, Scissors, Search, Settings2, Undo2, UserPlus, UserSearch, Fingerprint, Users, Wand2, X } from "lucide-react";
 import { useListenProject } from "../../lib/useSpeechProject";
 import { askCloneTerms } from "../../lib/cloudConsent";
 import { comboOf, matches, typingIn } from "../../lib/shortcuts";
@@ -21,6 +21,7 @@ import EditorMore from "../EditorMore";
 import { RATES } from "../speech/Transport";
 import ListenSettings from "./ListenSettings";
 import ListenExport from "./ListenExport";
+import ListenStats from "./ListenStats";
 import ReferenceCheck from "./ReferenceCheck";
 
 
@@ -38,7 +39,7 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
-  const [dialog, setDialog] = useState<"settings" | "export" | "check" | null>(null);
+  const [dialog, setDialog] = useState<"settings" | "export" | "check" | "stats" | null>(null);
   const [query, setQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [match, setMatch] = useState(0);
@@ -279,12 +280,14 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
           <button onClick={() => { setSearching((v) => !v); setTimeout(() => searchBox.current?.focus(), 0); }} disabled={!shown} className={bar}><Search size={13} />{t("listen.find")}</button>
           <button onClick={() => setDialog("export")} disabled={!shown} className={`${bar} max-md:hidden`}><Download size={13} />{t("listen.export")}</button>
           <button onClick={() => setDialog("check")} disabled={!shown} className={`${bar} max-md:hidden`}><FileCheck2 size={13} />{t("listen.check")}</button>
+          <button onClick={() => setDialog("stats")} disabled={!shown} title={t("listen.statsHint")} className={`${bar} max-md:hidden`}><ChartPie size={13} />{t("listen.stats")}</button>
           <button onClick={() => void toSpeech()} disabled={!shown || !!busy} className={`${bar} max-md:hidden`}><AudioLines size={13} />{t("listen.toSpeech")}</button>
           <button onClick={() => void makeVoices()} disabled={!shown || !!busy} className={`${bar} max-md:hidden`}>{busy === "voices" ? <Loader2 size={13} className="animate-spin" /> : <UserPlus size={13} />}{t("listen.voicesAll")}</button>
           <EditorMore className="ml-auto md:hidden" items={[
             { icon: Settings2, label: t("listen.settings"), act: () => setDialog("settings") },
             { icon: Download, label: t("listen.export"), act: () => setDialog("export"), disabled: !shown },
             { icon: FileCheck2, label: t("listen.check"), act: () => setDialog("check"), disabled: !shown },
+            { icon: ChartPie, label: t("listen.stats"), act: () => setDialog("stats"), disabled: !shown },
             { icon: AudioLines, label: t("listen.toSpeech"), act: () => void toSpeech(), disabled: !shown || !!busy },
             { icon: UserPlus, label: t("listen.voicesAll"), act: () => void makeVoices(), disabled: !shown || !!busy },
           ]} />
@@ -373,6 +376,7 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
 
       {dialog === "settings" && <ListenSettings project={project} onChange={(p) => edit(() => p)} onClose={() => setDialog(null)} />}
       {dialog === "export" && <ListenExport pid={pid} onClose={() => setDialog(null)} />}
+      {dialog === "stats" && <ListenStats pid={pid} refresh={saving ? undefined : project} onClose={() => setDialog(null)} />}
       {dialog === "check" && <ReferenceCheck pid={pid} reference={project.reference} onReference={(reference) => edit((p) => ({ ...p, reference }))} onAlign={(lines) => edit((p) => ({ ...p, lines }))} onClose={() => setDialog(null)} />}
       <div role="region" aria-label={t("transport.label")} className="shrink-0 px-3 md:px-5 py-2 border-t border-[var(--color-border)] bg-[var(--color-surface)]/80 flex items-center gap-2 md:gap-3">
         <button onClick={toggle} className="grid place-items-center w-8 h-8 rounded-full bg-[var(--color-accent)] text-[var(--color-on-accent)]" {...named(playing ? t("listen.pause") : t("listen.play"))}>{playing ? <Pause size={14} /> : <Play size={14} />}</button>

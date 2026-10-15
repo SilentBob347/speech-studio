@@ -205,6 +205,12 @@ pub(super) fn tools() -> Vec<Tool> {
             call: |args| post(listen_path(args, "/cut")?, json!({})),
         },
         Tool {
+            name: "listen_stats",
+            description: "Who speaks how much in a Listening recording, over the lines shown: per speaker its talk seconds and share of all talk (%), lines, words, pace (words a minute) and longest stretch without another speaker, the most talkative first.",
+            schema: || object(json!({ "pid": listen_pid() }), &["pid"]),
+            call: |args| get(listen_path(args, "/stats")?),
+        },
+        Tool {
             name: "listen_subtitle_rules",
             description: "The broadcasters' subtitle rules listen_export can lay subtitles out by (Generic, Netflix, Amazon, BBC, Arte, DCMP): each with its characters per line, lines per screen, fastest reading (characters a second) and shortest and longest showing.",
             schema: || object(json!({}), &[]),

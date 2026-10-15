@@ -206,6 +206,14 @@ pub async fn cut(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Res
     enqueue_job(&st, &pid, jobs::JobKind::Remix, listen_jobs::cut).await
 }
 
+/// GET /listen/{pid}/stats — who speaks how much: talk time, share, lines, words, pace and longest stretch per speaker.
+pub async fn stats(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Response {
+    match lp::load(&st.workspace, &pid) {
+        Ok(p) => Json(p.speaker_stats()).into_response(),
+        Err(e) => refuse(StatusCode::NOT_FOUND, "no_project", e),
+    }
+}
+
 /// GET /listen/subtitle-rules — the broadcasters' subtitle rules the export lays subtitles out by.
 pub async fn subtitle_rules() -> Json<Value> {
     Json(json!({ "rules": dub_captions::PROFILES.iter().map(|p| json!({ "name": p.name, "max_line_len": p.max_line_len, "max_lines": p.max_lines, "max_cps": p.max_cps, "min_display_ms": p.min_display_ms, "max_display_ms": p.max_display_ms })).collect::<Vec<_>>() }))

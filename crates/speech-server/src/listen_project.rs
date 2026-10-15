@@ -183,6 +183,55 @@ impl ListenProject {
         self.lines.iter().filter(|l| !l.hidden && !l.text.trim().is_empty())
     }
 
+    /// Who speaks how much, over the lines that are shown: each speaker's talk time and its share of all talk, lines,
+    /// words, pace in words a minute and longest stretch without another speaker, the most talkative first.
+    pub fn speaker_stats(&self) -> serde_json::Value {
+        #[derive(Default)]
+        struct Tally {
+            secs: f64,
+            lines: usize,
+            words: usize,
+            longest: f64,
+        }
+        let mut tally: BTreeMap<String, Tally> = BTreeMap::new();
+        let mut run: Option<(String, f64, f64)> = None;
+        let close = |run: &Option<(String, f64, f64)>, tally: &mut BTreeMap<String, Tally>| {
+            if let Some((who, a, z)) = run {
+                let t = tally.entry(who.clone()).or_default();
+                t.longest = t.longest.max(z - a);
+            }
+        };
+        for l in self.shown() {
+            let t = tally.entry(l.speaker.clone()).or_default();
+            t.secs += (l.end - l.start).max(0.0);
+            t.lines += 1;
+            t.words += l.text.split_whitespace().count();
+            match &mut run {
+                Some((who, _, z)) if *who == l.speaker => *z = l.end,
+                _ => {
+                    close(&run, &mut tally);
+                    run = Some((l.speaker.clone(), l.start, l.end));
+                }
+            }
+        }
+        close(&run, &mut tally);
+        let talk: f64 = tally.values().map(|t| t.secs).sum();
+        let mut rows: Vec<serde_json::Value> = tally
+            .iter()
+            .map(|(key, t)| {
+                serde_json::json!({
+                    "speaker": key, "name": self.speaker_name(key), "seconds": (t.secs * 10.0).round() / 10.0,
+                    "share": if talk > 0.0 { (t.secs / talk * 1000.0).round() / 10.0 } else { 0.0 },
+                    "lines": t.lines, "words": t.words,
+                    "wpm": if t.secs > 0.0 { (t.words as f64 / (t.secs / 60.0)).round() } else { 0.0 },
+                    "longest": (t.longest * 10.0).round() / 10.0,
+                })
+            })
+            .collect();
+        rows.sort_by(|a, b| b["seconds"].as_f64().partial_cmp(&a["seconds"].as_f64()).unwrap_or(std::cmp::Ordering::Equal));
+        serde_json::json!({ "talk_seconds": (talk * 10.0).round() / 10.0, "duration": self.duration, "speakers": rows })
+    }
+
     /// Отрезки записи, отмеченные к удалению. Подряд идущие вырезанные слова сливаются вместе с тишиной между ними;
     /// граница отрезка — середина паузы до соседнего оставленного слова: метки слов у распознавателя неточны на
     /// десятки миллисекунд, а рез по середине паузы не оставляет хвостов и не съедает соседей.
@@ -390,5 +439,22 @@ mod tests {
         let words = spread_words("ab abcd", 1.0, 4.0);
         assert_eq!(words.len(), 2);
         assert!((words[0].end - 2.0).abs() < 1e-9 && (words[1].end - 4.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn speaker_stats_count_talk_share_pace_and_the_longest_stretch() {
+        let mut p = ListenProject::default();
+        p.speakers.insert("0".into(), "Анна".into());
+        let line = |who: &str, a: f64, z: f64, text: &str| Line { speaker: who.into(), start: a, end: z, text: text.into(), ..Default::default() };
+        p.lines = vec![line("0", 0.0, 6.0, "раз два три четыре пять шесть"), line("0", 6.0, 12.0, "семь восемь девять десять"), line("1", 12.0, 15.0, "да да да"), line("0", 15.0, 18.0, "ну")];
+        p.lines.push(Line { hidden: true, ..line("1", 18.0, 30.0, "скрытая строка не считается") });
+        let s = p.speaker_stats();
+        assert_eq!(s["talk_seconds"], 18.0);
+        let anna = &s["speakers"][0];
+        assert_eq!((anna["name"].as_str(), anna["seconds"].as_f64(), anna["lines"].as_u64(), anna["words"].as_u64()), (Some("Анна"), Some(15.0), Some(3), Some(11)));
+        assert_eq!(anna["share"], 83.3);
+        assert_eq!(anna["wpm"], 44.0);
+        assert_eq!(anna["longest"], 12.0);
+        assert_eq!(s["speakers"][1]["name"], "1");
     }
 }

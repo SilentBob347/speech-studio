@@ -85,6 +85,7 @@ export const listenApi = {
   /** With `rules` (a broadcaster's, from subtitleRules) subtitles go onto screens by its rules; without, as recognised. */
   export: (pid: string, format: TranscriptFormat, speakers: boolean, times: boolean, rules = "") => postCoded<{ file: string; text: string; too_fast: number | null }>(`/listen/${pid}/export`, { format, speakers, times, rules: rules || undefined }),
   subtitleRules: () => getCoded<{ rules: SubtitleRules[] }>("/listen/subtitle-rules"),
+  stats: (pid: string) => getCoded<SpeakerStats>(`/listen/${pid}/stats`),
   check: (pid: string, reference: string) => postCoded<ReferenceCheck>(`/listen/${pid}/check`, { reference }),
   toSpeech: (pid: string) => postCoded<{ pid: string }>(`/listen/${pid}/to-speech`, {}),
   speakersMatch: (pid: string) => postCoded<{ speakers: SpeakerMatch[]; threshold: number }>(`/listen/${pid}/speakers/match`, {}),
@@ -169,3 +170,5 @@ export const speakerColor = (key: string) => SPEAKER_COLORS[(Number.parseInt(key
 
 /** A broadcaster's subtitle rules: characters per line, lines per screen, fastest reading, shortest and longest showing. */
 export type SubtitleRules = { name: string; max_line_len: number; max_lines: number; max_cps: number; min_display_ms: number; max_display_ms: number };
+/** Who speaks how much: per speaker talk seconds, share of all talk (%), lines, words, words a minute, longest stretch. */
+export type SpeakerStats = { talk_seconds: number; duration: number; speakers: { speaker: string; name: string; seconds: number; share: number; lines: number; words: number; wpm: number; longest: number }[] };
