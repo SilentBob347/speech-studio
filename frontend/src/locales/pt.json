@@ -572,7 +572,8 @@
       "synth": "Locução",
       "export": "Exportação",
       "write": "Roteiro",
-      "cast": "Marcação de falantes"
+      "cast": "Marcação de falantes",
+      "enrich": "Tags do diretor"
     },
     "error": {
       "failed": "A tarefa terminou com erro",
@@ -1784,5 +1785,16 @@
       "whatsapp": "WhatsApp",
       "reddit": "Reddit"
     }
+  },
+  "enrich": {
+    "title": "Tags do diretor",
+    "count": "blocos com tags: {{n}}",
+    "none": "O diretor não encontrou onde pôr tags.",
+    "keep": "Usar",
+    "refused": "Respostas descartadas porque o modelo mudou palavras: {{n}}",
+    "hint": "As palavras não mudam: só são adicionadas tags que o motor do bloco lê. O marcado substitui o texto dos blocos; desfazer reverte.",
+    "apply": "Aplicar ({{n}})",
+    "run": "Inserir tags (diretor)",
+    "runSelected": "Inserir tags nos selecionados ({{n}})"
   }
 }

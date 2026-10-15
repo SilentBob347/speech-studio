@@ -67,6 +67,12 @@ pub(super) fn tools() -> Vec<Tool> {
             call: |args| post(project_path(args, "/synth")?, body_without(args, &["pid"])),
         },
         Tool {
+            name: "project_enrich",
+            description: "The director model suggests expression tags for blocks by their meaning, only tags the block's engine reads, never changing a word: a job, follow it with studio_wait. Its result lists each changed block as id, before and after, and how many answers were turned down for changed words; nothing is applied - put the texts you accept with project_update. Without ids, every block.",
+            schema: || object(json!({ "pid": pid(), "ids": { "type": "array", "items": { "type": "string" } } }), &["pid"]),
+            call: |args| post(project_path(args, "/enrich")?, body_without(args, &["pid"])),
+        },
+        Tool {
             name: "project_export",
             description: "Build the project's audio into one file (format wav, flac, mp3, ogg, m4a or m4b with chapters) with subtitles beside it (srt, vtt, ass and lrc) and optionally its sample_rate, bits and kbps, or with per_block one file per block: a job, follow it with studio_wait; its result names the files in the project's exports folder. It refuses while project_export_check lists problems; allow_duration lets only takes that do not fit their cue through.",
             schema: || object(json!({ "pid": pid(), "format": { "type": "string", "enum": ["wav", "flac", "mp3", "ogg", "m4a", "m4b"] }, "per_block": { "type": "boolean" }, "chapter": { "type": "string" }, "part_minutes": { "type": "integer", "minimum": 1 }, "allow_duration": { "type": "boolean" }, "sample_rate": { "type": "integer", "enum": [16000, 22050, 24000, 32000, 44100, 48000], "description": "Hz; mp3 takes 32000, 44100 or 48000" }, "bits": { "type": "integer", "enum": [16, 24, 32], "description": "wav 16, 24 or 32 (float); flac 16 or 24" }, "kbps": { "type": "integer", "minimum": 64, "maximum": 320, "description": "mp3, ogg, m4a and m4b" } }), &["pid", "format"]),

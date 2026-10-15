@@ -513,6 +513,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/speech/live", get(live::events))
         .route("/projects/{pid}/export", post(speech_api::export))
         .route("/projects/{pid}/blocks/{bid}/ref", post(speech_api::own_ref))
+        .route("/projects/{pid}/enrich", post(director_api::enrich))
         .route("/projects/{pid}/package", post(speech_api::package))
         .route("/speechproj/import", post(speech_api::import_package))
         .route("/projects/from-subtitles", post(speech_api::from_subtitles))

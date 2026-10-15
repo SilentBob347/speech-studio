@@ -920,3 +920,5 @@ media-bad-kbps = { $format } 不支持 { $kbps } kbps（MP3、OGG、M4A：64 到
 speech-own-ref-missing = 项目 refs 文件夹中缺少自定义参考 { $file }：请重新上传
 speech-own-ref-no-file = 没有收到参考文件
 speech-no-block = 项目中没有段落 { $id }
+director-no-tags = { $engine } 不支持表达标签，无需添加
+director-enriching = 导演正在添加标签：第 { $n } 部分，共 { $total } 部分

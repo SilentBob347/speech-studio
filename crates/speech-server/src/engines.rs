@@ -254,6 +254,44 @@ pub fn catalog(id: &'static str, name: &'static str) -> Engine {
     Engine { id, name, ..openrouter() }
 }
 
+/// The expression tags an engine reads, as rules for whoever writes its text (an agent, the director model).
+pub fn tag_rules(engine: &Engine) -> String {
+    let mut out = String::new();
+    if engine.tags.is_empty() {
+        out.push_str("No expression tags.");
+    } else {
+        out.push_str(&format!("A tag is written as {}.", engine.tag_format));
+        for (category, values) in &engine.tags {
+            let wrap = if *category == "scope" { " (each wraps a span: <value>...</value>)" } else { "" };
+            out.push_str(&format!("\n- {category}{wrap}: {}", values.join(", ")));
+        }
+        if !engine.sentence_tags.is_empty() {
+            out.push_str(&format!("\nAt the start of the sentence: {}; the others at the spot.", engine.sentence_tags.join(", ")));
+        }
+        if !engine.glued_tags.is_empty() {
+            out.push_str(&format!("\nGlued to the onomatopoeia that follows, with no space: {}.", engine.glued_tags.join(", ")));
+        }
+    }
+    out
+}
+
+/// Every tag text the engine reads: `tag_format` filled per value, and both ends of a `scope` span.
+pub fn tag_texts(engine: &Engine) -> Vec<String> {
+    engine
+        .tags
+        .iter()
+        .flat_map(|(category, values)| {
+            values.iter().flat_map(move |v| {
+                if *category == "scope" {
+                    vec![format!("<{v}>"), format!("</{v}>")]
+                } else {
+                    vec![engine.tag_format.replace("{category}", category).replace("{value}", v)]
+                }
+            })
+        })
+        .collect()
+}
+
 pub fn all() -> Vec<Engine> {
     vec![higgs(), drama(), supertonic(), qwen(), qwen_stress(), openrouter(), catalog("google", "Google Gemini"), catalog("fal", "fal.ai"), catalog("runware", "Runware")]
 }

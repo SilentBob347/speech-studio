@@ -1118,3 +1118,5 @@ media-bad-kbps = { $kbps } kbps não serve para { $format } (MP3, OGG, M4A: de 6
 speech-own-ref-missing = falta o arquivo de referência próprio { $file } na pasta refs do projeto: envie-o de novo
 speech-own-ref-no-file = o arquivo de referência não chegou
 speech-no-block = o projeto não tem o bloco { $id }
+director-no-tags = { $engine } não lê tags de expressão: não há nada a inserir
+director-enriching = O diretor insere tags: parte { $n } de { $total }

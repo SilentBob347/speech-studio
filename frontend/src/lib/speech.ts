@@ -101,6 +101,7 @@ export const speechApi = {
   list: () => getCoded<{ projects: ProjectCard[] }>("/projects"),
   podcast: (body: { topic: string; speakers: { name: string; manner: string }[]; minutes: number; lang: string; name?: string }) => postCoded<{ job_id: string }>("/projects/podcast", body),
   castChapter: (pid: string, chapter: string) => postCoded<{ job_id: string }>(`/projects/${pid}/cast`, { chapter }),
+  enrich: (pid: string, ids: string[] | null) => postCoded<{ job_id: string }>(`/projects/${pid}/enrich`, ids ? { ids } : {}),
   create: (body: { name?: string; text: string; voice?: string | null; lang?: string; split?: "paragraphs" | "lines"; files?: { name: string; text: string }[]; engine?: string }) => postCoded<{ project_id: string; project: SpeechProject }>("/projects", body),
   get: (pid: string) => getCoded<SpeechProject>(`/projects/${pid}`),
   put: (pid: string, project: SpeechProject) => {

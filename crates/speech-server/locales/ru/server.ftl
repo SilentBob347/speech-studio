@@ -1144,3 +1144,5 @@ media-bad-kbps = битрейт { $kbps } кбит/с не подходит дл
 speech-own-ref-missing = нет файла своего рефа { $file } в папке refs проекта — загрузите реф заново
 speech-own-ref-no-file = не пришёл файл рефа
 speech-no-block = в проекте нет блока { $id }
+director-no-tags = у движка { $engine } нет тегов экспрессии — расставлять нечего
+director-enriching = Режиссёр расставляет теги: часть { $n } из { $total }

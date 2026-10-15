@@ -572,7 +572,8 @@
       "synth": "Voicing",
       "export": "Export",
       "write": "Script",
-      "cast": "Speaker marking"
+      "cast": "Speaker marking",
+      "enrich": "Director tags"
     },
     "error": {
       "failed": "The task failed",
@@ -1784,5 +1785,16 @@
       "whatsapp": "WhatsApp",
       "reddit": "Reddit"
     }
+  },
+  "enrich": {
+    "title": "Tags from the director",
+    "count": "blocks with tags: {{n}}",
+    "none": "The director found nowhere to put tags.",
+    "keep": "Keep",
+    "refused": "Answers dropped because the model changed words: {{n}}",
+    "hint": "Words stay as they are - only tags the block's engine reads are added. What is ticked replaces the blocks' text; undo takes it back.",
+    "apply": "Apply ({{n}})",
+    "run": "Put in tags (director)",
+    "runSelected": "Put in tags for the selected ({{n}})"
   }
 }

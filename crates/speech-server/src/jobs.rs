@@ -84,10 +84,11 @@ pub enum JobKind {
     Write,
     /// Разметка главы по персонажам режиссёром-LLM.
     Cast,
+    Enrich,
 }
 
 impl JobKind {
-    const ALL: [JobKind; 21] = [
+    const ALL: [JobKind; 22] = [
         JobKind::Analyze,
         JobKind::Retranslate,
         JobKind::Remix,
@@ -109,6 +110,7 @@ impl JobKind {
         JobKind::Export,
         JobKind::Write,
         JobKind::Cast,
+        JobKind::Enrich,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -134,6 +136,7 @@ impl JobKind {
             JobKind::Export => "export",
             JobKind::Write => "write",
             JobKind::Cast => "cast",
+            JobKind::Enrich => "enrich",
         }
     }
 
@@ -146,7 +149,7 @@ impl JobKind {
     /// чтение вшитого текста проект не меняют и дублируют только сами себя.
     fn class(self) -> Option<&'static str> {
         match self {
-            JobKind::Analyze | JobKind::Retranslate | JobKind::Remix | JobKind::Align | JobKind::Shorten | JobKind::Glossary | JobKind::Cast => Some("text"),
+            JobKind::Analyze | JobKind::Retranslate | JobKind::Remix | JobKind::Align | JobKind::Shorten | JobKind::Glossary | JobKind::Cast | JobKind::Enrich => Some("text"),
             JobKind::DubAudio | JobKind::Render | JobKind::ExportLang => Some("audio"),
             JobKind::Separate => Some("separate"),
             JobKind::DetectText => Some("detect_text"),

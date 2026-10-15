@@ -572,7 +572,8 @@
       "synth": "Locución",
       "export": "Exportación",
       "write": "Guion",
-      "cast": "Marcado de hablantes"
+      "cast": "Marcado de hablantes",
+      "enrich": "Etiquetas del director"
     },
     "error": {
       "failed": "La tarea terminó con un error",
@@ -1784,5 +1785,16 @@
       "whatsapp": "WhatsApp",
       "reddit": "Reddit"
     }
+  },
+  "enrich": {
+    "title": "Etiquetas del director",
+    "count": "bloques con etiquetas: {{n}}",
+    "none": "El director no encontró dónde poner etiquetas.",
+    "keep": "Usar",
+    "refused": "Respuestas descartadas porque el modelo cambió palabras: {{n}}",
+    "hint": "Las palabras no cambian: solo se añaden etiquetas que lee el motor del bloque. Lo marcado reemplaza el texto de los bloques; deshacer lo revierte.",
+    "apply": "Aplicar ({{n}})",
+    "run": "Poner etiquetas (director)",
+    "runSelected": "Poner etiquetas en los seleccionados ({{n}})"
   }
 }

@@ -572,7 +572,8 @@
       "synth": "Mise en voix",
       "export": "Export",
       "write": "Script",
-      "cast": "Balisage des locuteurs"
+      "cast": "Balisage des locuteurs",
+      "enrich": "Balises du directeur"
     },
     "error": {
       "failed": "La tâche a échoué",
@@ -1784,5 +1785,16 @@
       "whatsapp": "WhatsApp",
       "reddit": "Reddit"
     }
+  },
+  "enrich": {
+    "title": "Balises du directeur",
+    "count": "blocs avec balises : {{n}}",
+    "none": "Le directeur n’a trouvé aucun endroit où placer des balises.",
+    "keep": "Garder",
+    "refused": "Réponses écartées car le modèle a changé des mots : {{n}}",
+    "hint": "Les mots ne changent pas : seules des balises lues par le moteur du bloc sont ajoutées. Ce qui est coché remplace le texte des blocs ; Annuler revient en arrière.",
+    "apply": "Appliquer ({{n}})",
+    "run": "Placer des balises (directeur)",
+    "runSelected": "Placer des balises dans la sélection ({{n}})"
   }
 }

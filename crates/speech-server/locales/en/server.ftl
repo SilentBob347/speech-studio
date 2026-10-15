@@ -1124,3 +1124,5 @@ media-bad-kbps = { $kbps } kbps does not suit { $format } (MP3, OGG, M4A: 64 to 
 speech-own-ref-missing = the own reference file { $file } is not in the project's refs folder - upload the reference again
 speech-own-ref-no-file = no reference file came
 speech-no-block = the project has no block { $id }
+director-no-tags = { $engine } reads no expression tags - there is nothing to put in
+director-enriching = The director puts in tags: part { $n } of { $total }

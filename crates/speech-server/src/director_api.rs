@@ -136,3 +136,52 @@ pub async fn cast(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(
         Err(e) => crate::enqueue_error(e),
     }
 }
+
+#[derive(Deserialize)]
+pub struct EnrichReq {
+    #[serde(default)]
+    ids: Option<Vec<String>>,
+}
+
+/// POST /projects/{pid}/enrich {ids?} — режиссёр предлагает теги экспрессии по смыслу (только теги движка блока,
+/// слова не меняются) задачей; проект не меняется, ответ — что было и что станет: применяет окно или агент.
+pub async fn enrich(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(req): Json<EnrichReq>) -> Response {
+    if let Err(e) = sp::load(&st.workspace, &pid) {
+        return refuse(StatusCode::NOT_FOUND, "no_project", e);
+    }
+    let p = paths(&st);
+    let pid2 = pid.clone();
+    let job: jobs::JobFn = Box::new(move |progress: jobs::ProgressFn| {
+        let cb = |ev: Value| progress(ev);
+        let project = sp::load(&p.workspace, &pid2)?;
+        let wanted = |b: &&Block| !b.hidden && !b.text.trim().is_empty() && req.ids.as_ref().is_none_or(|ids| ids.contains(&b.id));
+        let mut groups: Vec<(crate::engines::Engine, Vec<(String, String, String)>)> = Vec::new();
+        for b in project.blocks().filter(wanted) {
+            let Some(engine) = crate::engines::get(project.engine_of(b)).filter(|e| !e.tags.is_empty()) else { continue };
+            match groups.iter_mut().find(|(e, _)| e.id == engine.id) {
+                Some((_, list)) => list.push((b.id.clone(), b.speaker.clone(), b.text.clone())),
+                None => groups.push((engine, vec![(b.id.clone(), b.speaker.clone(), b.text.clone())])),
+            }
+        }
+        if groups.is_empty() {
+            let name = crate::engines::get(&project.settings.engine).map_or(project.settings.engine.clone(), |e| e.name.to_string());
+            return Err(t!("director-no-tags", engine = name));
+        }
+        step(&cb, t!("director-starting"), 2);
+        let provider = llm(&p, &cb)?;
+        let (mut changes, mut refused) = (Vec::new(), 0);
+        for (engine, blocks) in &groups {
+            let (made, no) = director::enrich(provider.client(), engine, blocks, &project.settings.lang, &|n, of| {
+                step(&cb, t!("director-enriching", n = (n + 1) as i64, total = of as i64), (5 + n * 90 / of.max(1)) as i64);
+            })?;
+            changes.extend(made.into_iter().map(|c| json!({ "id": c.id, "before": c.before, "after": c.after })));
+            refused += no;
+        }
+        step(&cb, t!("director-done"), 100);
+        Ok(json!({ "changes": changes, "refused": refused }))
+    });
+    match st.jobs.enqueue(jobs::JobMeta::new(jobs::JobKind::Enrich, Some(&pid)), job).await {
+        Ok(job_id) => Json(json!({ "job_id": job_id })).into_response(),
+        Err(e) => crate::enqueue_error(e),
+    }
+}

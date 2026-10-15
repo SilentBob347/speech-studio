@@ -23,22 +23,7 @@ fn skill_tags() -> String {
 fn engine_tags() -> String {
     let mut out = String::new();
     for engine in crate::engines::all() {
-        out.push_str(&format!("\n\n{} ({})", engine.name, engine.id));
-        if engine.tags.is_empty() {
-            out.push_str("\nNo expression tags.");
-        } else {
-            out.push_str(&format!("\nA tag is written as {}.", engine.tag_format));
-            for (category, values) in &engine.tags {
-                let wrap = if *category == "scope" { " (each wraps a span: <value>...</value>)" } else { "" };
-                out.push_str(&format!("\n- {category}{wrap}: {}", values.join(", ")));
-            }
-            if !engine.sentence_tags.is_empty() {
-                out.push_str(&format!("\nAt the start of the sentence: {}; the others at the spot.", engine.sentence_tags.join(", ")));
-            }
-            if !engine.glued_tags.is_empty() {
-                out.push_str(&format!("\nGlued to the onomatopoeia that follows, with no space: {}.", engine.glued_tags.join(", ")));
-            }
-        }
+        out.push_str(&format!("\n\n{} ({})\n{}", engine.name, engine.id, crate::engines::tag_rules(&engine)));
         out.push_str(match (engine.direction, engine.direction_presets_only) {
             (true, true) => "\nA block's direction reaches the engine only with its own voices.",
             (true, false) => "\nA block's direction reaches the engine.",

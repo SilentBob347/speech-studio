@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, BookOpen, ChartGantt, Download, Drama, History, ListOrdered, Loader2, Redo2, Search, Settings2, Sparkles, SpellCheck, Square, Undo2, Users, X } from "lucide-react";
+import { ArrowLeft, BookOpen, ChartGantt, Download, Drama, History, ListOrdered, Loader2, Redo2, Search, Settings2, Sparkles, SpellCheck, Square, Undo2, Users, Wand2, X } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { activeTake, engineOf, newId, spliceChars, SPEAKER_TINTS, speechApi, stressDoubts, voiceOf, type Block, type BlockState, type SpeechProject, type QueuedSynth, type StressWord } from "../../lib/speech";
 import { openSettings } from "../../lib/settingsNav";
@@ -11,6 +11,7 @@ import { followJob } from "../../lib/followJob";
 import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
 import EditorMore from "../EditorMore";
+import EnrichDialog, { type EnrichChange } from "./EnrichDialog";
 import { cloudApi } from "../../lib/cloud";
 import Transport, { RATES, type TransportBlock } from "./Transport";
 import { useStore } from "../../store";
@@ -80,6 +81,18 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
         await followJob(job_id, "cast");
       }
     } catch (e) { setJobError(errorText(e)); } finally { setCasting(false); }
+  };
+  const [enriching, setEnriching] = useState(false);
+  const [enriched, setEnriched] = useState<{ changes: EnrichChange[]; refused: number } | null>(null);
+  /** The director's tags for the selected blocks, or every block: shown to keep or drop before anything changes. */
+  const enrich = async (ids: string[] | null) => {
+    setEnriching(true);
+    try {
+      if (!(await askDirector())) return;
+      await flush();
+      const { job_id } = await speechApi.enrich(pid, ids);
+      setEnriched((await followJob(job_id, "enrich")) as { changes: EnrichChange[]; refused: number });
+    } catch (e) { setJobError(errorText(e)); } finally { setEnriching(false); }
   };
   const [selected, setSelected] = useState<string[]>([]);
   const [recast, setRecast] = useState<{ speaker: string; to: string | null } | null>(null);
@@ -520,6 +533,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           { icon: Drama, label: t("speech.castCharacters"), act: () => void castCharacters(), disabled: casting, narrowOnly: true },
           { icon: Users, label: t("speech.cast"), act: () => setCastOpen((v) => !v), belowLarge: true },
           { icon: History, label: t("history.open"), act: () => setHistory(true) },
+          { icon: Wand2, label: selected.length ? t("enrich.runSelected", { n: selected.length }) : t("enrich.run"), act: () => void enrich(selected.length ? selected : null), disabled: enriching },
           { icon: SpellCheck, label: t("speech.stressAll"), act: () => void stressBlocks(null), disabled: !!stressing || !blocks.length },
           { icon: Sparkles, label: t("speech.voiceAll"), act: () => void runSynth({ force: true }), disabled: !!job },
           { icon: Download, label: t("speech.export"), act: () => setExporting(true), narrowOnly: true },
@@ -608,6 +622,10 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
       </div>
       <Transport blocks={transportBlocks} audio={audio} playing={playing} paused={paused} rate={speed} start={selected[0] ?? blocks[0]?.id ?? null} tint={tintOf}
         onPlay={listenFrom} onPause={pauseAudio} onResume={resumeAudio} onStop={stopAudio} onSkip={skip} onRate={changeRate} onShow={showBlock} />
+      {enriched && (
+        <EnrichDialog changes={enriched.changes} refused={enriched.refused} onClose={() => setEnriched(null)}
+          onApply={(kept) => { edit((p) => { for (const b of blockList(p)) { const c = kept.find((x) => x.id === b.id); if (c && b.text === c.before) b.text = c.after; } return p; }); setEnriched(null); }} />
+      )}
       {history && <HistoryDialog pid={pid} onClose={() => setHistory(false)} onRepeat={(block, seed) => { setHistory(false); void runSynth({ ids: [block], force: true, seed }); }} />}
       {dictionary && <DictionaryDialog pid={pid} project={project} onChange={edit} onClose={() => setDictionary(false)} />}
       {recast && (

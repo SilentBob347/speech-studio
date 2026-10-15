@@ -165,8 +165,100 @@ pub fn cast_audiobook(llm: &ChatClient, text: &str, narrator: &str, known: &[Str
     Ok(out)
 }
 
+/// A block's text with expression tags the director put in, and the text it had.
+pub struct Enriched {
+    pub id: String,
+    pub before: String,
+    pub after: String,
+}
+
+#[derive(Deserialize)]
+struct Tagged {
+    lines: Vec<TaggedLine>,
+}
+
+#[derive(Deserialize)]
+struct TaggedLine {
+    id: String,
+    text: String,
+}
+
+static TAG_LIKE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| regex::Regex::new(r"<\|[^|<>]*\|>|</?[A-Za-z_][\w-]*>|\[[^\[\]\n]{1,40}\]").expect("tag"));
+
+/// The text with every tag the engine does not read (and that was not there before) taken out.
+fn keep_known(after: &str, before: &str, known: &[String]) -> String {
+    TAG_LIKE.replace_all(after, |c: &regex::Captures| if known.iter().any(|k| k == &c[0]) || before.contains(&c[0]) { c[0].to_string() } else { String::new() }).split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// Whether two texts say the same words, tags aside.
+fn same_words(a: &str, b: &str) -> bool {
+    letters(&TAG_LIKE.replace_all(a, " ")) == letters(&TAG_LIKE.replace_all(b, " "))
+}
+
+/// Expression tags put into blocks by their meaning, only those `engine` reads; a block whose words the model
+/// changed keeps its text. `blocks` are (id, speaker, text); the answer lists the blocks that got tags and how many
+/// answers were turned down for changed words.
+pub fn enrich(llm: &ChatClient, engine: &crate::engines::Engine, blocks: &[(String, String, String)], lang: &str, progress: &dyn Fn(usize, usize)) -> Result<(Vec<Enriched>, usize), String> {
+    if engine.tags.is_empty() {
+        return Err(t!("director-no-tags", engine = engine.name.to_string()));
+    }
+    let known = crate::engines::tag_texts(engine);
+    let system = format!(
+        "You are a voice director preparing lines for the {name} speech engine{lang_note}. Add expression tags where the meaning of a line asks for them: an emotion, a manner of speaking, a sound like a laugh or a sigh. Use only these tags, written exactly as listed:\n{rules}\n\nDo not change, add, remove or reorder any word or punctuation mark: only insert tags. Keep tags already in a line. Use few tags: most lines need none or one. Answer JSON {{\"lines\": [{{\"id\": ..., \"text\": ...}}]}} with every line given, in the same order.",
+        name = engine.name,
+        lang_note = if lang.is_empty() || lang == "auto" { String::new() } else { format!(" (language: {lang})") },
+        rules = crate::engines::tag_rules(engine),
+    );
+    let schema = json!({ "type": "object", "properties": { "lines": { "type": "array", "items": { "type": "object", "properties": { "id": { "type": "string" }, "text": { "type": "string" } }, "required": ["id", "text"] } } }, "required": ["lines"] });
+    let mut pieces: Vec<Vec<&(String, String, String)>> = vec![Vec::new()];
+    let mut size = 0;
+    for b in blocks {
+        if size > 0 && size + b.2.chars().count() > CHUNK_CHARS {
+            pieces.push(Vec::new());
+            size = 0;
+        }
+        size += b.2.chars().count();
+        pieces.last_mut().expect("a piece").push(b);
+    }
+    let (mut out, mut refused) = (Vec::new(), 0);
+    for (k, piece) in pieces.iter().enumerate().filter(|(_, p)| !p.is_empty()) {
+        progress(k, pieces.len());
+        let user = serde_json::to_string(&piece.iter().map(|(id, speaker, text)| json!({ "id": id, "speaker": speaker, "text": text })).collect::<Vec<_>>()).map_err(|e| e.to_string())?;
+        let chars: usize = piece.iter().map(|b| b.2.chars().count()).sum();
+        let messages = [Message::system(&system), Message::user_text(&user)];
+        let sampling = Sampling::new(0.4, 0.9, ((chars * 2) as u32).clamp(1_024, 8_192));
+        let use_schema = llm.structured_output() != StructuredOutput::Unsupported;
+        let done = llm.complete(&messages, &sampling, use_schema.then_some(&schema)).map_err(|e| t!("director-failed", error = e.to_string()))?;
+        let text = done.text.trim();
+        let body = match (text.find('{'), text.rfind('}')) {
+            (Some(a), Some(b)) if b > a => &text[a..=b],
+            _ => return Err(t!("director-not-json", answer = text.chars().take(200).collect::<String>())),
+        };
+        let tagged: Tagged = serde_json::from_str(body).map_err(|e| t!("director-not-json", answer = format!("{e}: {}", body.chars().take(200).collect::<String>())))?;
+        for line in tagged.lines {
+            let Some((id, _, before)) = piece.iter().find(|b| b.0 == line.id).map(|b| (&b.0, &b.1, &b.2)) else { continue };
+            let after = keep_known(&line.text, before, &known);
+            if !same_words(before, &after) {
+                refused += 1;
+            } else if after.trim() != before.trim() {
+                out.push(Enriched { id: id.clone(), before: before.clone(), after });
+            }
+        }
+    }
+    Ok((out, refused))
+}
+
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn enrich_keeps_only_the_engine_s_tags_and_never_other_words() {
+        let known = vec!["<|emotion:joy|>".to_string(), "<|sfx:laughter|>".to_string()];
+        assert_eq!(keep_known("<|emotion:joy|>Привет <|style:sad|>мир", "Привет мир", &known), "<|emotion:joy|>Привет мир");
+        assert!(same_words("Привет, мир!", "<|emotion:joy|>Привет, мир!"));
+        assert!(!same_words("Привет, мир!", "Привет, дорогой мир!"));
+        assert_eq!(keep_known("[pause] Да", "[pause] Да", &known), "[pause] Да");
+    }
     use super::*;
 
     #[test]
