@@ -21,6 +21,12 @@ import ConfirmDialog from "../ConfirmDialog";
 
 // Модели и компоненты в настройках: список из /setup/status с кнопками скачки/докачки и прогрессом.
 // part="cloud" — раздел «Облако» (ключ OpenRouter и потоки) на том же состоянии выбора.
+
+/** timoncool's programs by their id (CONTRACT.md, "Program ids"). */
+const PROGRAMS: Record<string, string> = {
+  yue2: "YuE2 Studio", minimax: "MiniMax Music3 Studio", ace: "ACE-Step Studio", dub: "Dub Studio",
+  speech: "Speech Studio", dungeon: "Dungeon Ultimate", bulka: "Bulka", videosos: "VideoSOS",
+};
 export default function ModelsSection({ part = "models" }: { part?: "models" | "cloud" }) {
   const { t } = useTranslation();
   const errText = useDownloadErrorText();
@@ -139,6 +145,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
         <div className="min-w-0 flex-1">
           <div className="text-[12px] font-medium truncate">{c.name}</div>
           <div className="mono text-[10px] text-[var(--color-muted)] truncate">{c.purpose} · {c.vram ? `${fmtBytes(c.vram)} VRAM · ` : ""}{fmtBytes(c.size)} {t("settings.disk")}</div>
+          {c.takenFrom && <div className="text-[10px] text-[var(--color-accent)]">{t("setup.takenFrom", { app: PROGRAMS[c.takenFrom] ?? c.takenFrom })}</div>}
         </div>
         {active ? (
           <div className="w-24 shrink-0">

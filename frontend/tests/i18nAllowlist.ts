@@ -7,6 +7,7 @@ export const ALLOW: Allow = {
     "v",
     "Content-Type", "Aa",
     "Bahasa Indonesia", "Bahasa Melayu", "Basa Jawa", "Basa Sunda",
+    "YuE2 Studio", "MiniMax Music3 Studio", "ACE-Step Studio", "Dub Studio", "Speech Studio", "Dungeon Ultimate", "Bulka", "VideoSOS",
   ]),
   cyrillicFiles: new Set(["lib/i18n.ts"]),
   // lib/mcpBridge.ts speaks only to the agent over MCP, in English: none of its text reaches the UI.

@@ -755,6 +755,7 @@ setup-rename = renaming { $path }: { $error }
 setup-waiting-other = Waiting for another download of the same components…
 setup-delete = deleting { $path }: { $error }
 setup-downloading = Downloading the models…
+setup-taken-from = { $file } taken from { $app } instead of downloading
 setup-source-changed = { $url }: the server gives { $got } bytes, { $want } are pinned; the source changed
 setup-manifest-write = manifest { $path }: { $error }
 setup-archive-no-files = the archive { $path } has none of the needed files

@@ -593,6 +593,7 @@ setup-rename = 重命名 { $path }：{ $error }
 setup-waiting-other = 正在等待同一组件的另一个下载…
 setup-delete = 删除 { $path }：{ $error }
 setup-downloading = 正在下载模型…
+setup-taken-from = { $file } 已从 { $app } 获取，无需下载
 setup-source-changed = { $url }：服务器提供 { $got } 字节，固定为 { $want } 字节；来源已改变
 setup-manifest-write = 清单 { $path }：{ $error }
 setup-archive-no-files = 压缩包 { $path } 中没有所需文件

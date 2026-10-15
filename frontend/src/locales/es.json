@@ -326,6 +326,7 @@
     "helpWindow": "Ayuda"
   },
   "setup": {
+    "takenFrom": "tomado de {{app}} sin descargarlo",
     "title": "Primer inicio",
     "subtitle": "Speech Studio necesita algunos componentes antes de la primera locución. Todo lo necesario ya está marcado: pulsa Descargar lo seleccionado abajo.",
     "download": "Descargar lo marcado",

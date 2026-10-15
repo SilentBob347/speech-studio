@@ -1228,6 +1228,45 @@ pub struct ComponentStatus {
     pub vram: u64,
     /// Влезает ли модель в видеопамять карты; None — модель без весов, карты нет или стадии идут на CPU.
     pub fits_vram: Option<bool>,
+    /// Программа (id из CONTRACT.md), у которой файл компонента взят в этом запуске вместо закачки.
+    pub taken_from: Option<String>,
+}
+
+/// A program's name by its id (CONTRACT.md, "Program ids").
+pub fn program_name(id: &str) -> &str {
+    match id {
+        "yue2" => "YuE2 Studio",
+        "minimax" => "MiniMax Music3 Studio",
+        "ace" => "ACE-Step Studio",
+        "dub" => "Dub Studio",
+        "speech" => "Speech Studio",
+        "dungeon" => "Dungeon Ultimate",
+        "bulka" => "Bulka",
+        "videosos" => "VideoSOS",
+        other => other,
+    }
+}
+
+fn taken() -> &'static Mutex<std::collections::BTreeMap<String, String>> {
+    static TAKEN: std::sync::OnceLock<Mutex<std::collections::BTreeMap<String, String>>> = std::sync::OnceLock::new();
+    TAKEN.get_or_init(Default::default)
+}
+
+/// A file another program of timoncool's has (same name and size, the folder name too), taken instead of downloaded
+/// and accepted only when its SHA-256 is the pinned one; the program's id, or None when nobody has it.
+fn take_from_neighbor(dest: &Path, f: &FileSpec, cancel: &dyn Fn() -> bool) -> Option<String> {
+    let (source, app) = studio_hub_client::neighbors::find_file(dest.file_name()?, f.size, dest.parent().and_then(Path::file_name))?;
+    let accept = |p: &Path| matches!(sha256_file(p, cancel), Ok(Some(h)) if h == f.sha256);
+    match studio_hub_client::neighbors::take_file(&source, dest, true, accept) {
+        Ok(()) => {
+            tracing::info!("[OK] {} taken from {app} instead of downloading", f.dest_rel);
+            Some(app)
+        }
+        Err(e) => {
+            tracing::warn!("{} from {app} ({}): {e}", f.dest_rel, source.display());
+            None
+        }
+    }
 }
 
 /// Оценка VRAM загруженной модели по id (движки/рантаймы = 0). Грубо, для показа в UI.
@@ -1495,6 +1534,7 @@ fn status_with_system_dir(repo_root: &Path, c: &Component, system: Option<&Path>
         external_url: c.external_url.map(|s| s.to_string()),
         vram: vram_estimate(c.id),
         fits_vram: None,
+        taken_from: lock(taken()).get(c.id).cloned(),
     }
 }
 
@@ -2640,6 +2680,11 @@ pub fn download_components(
                         }
                     }
                 }
+                if let Some(app) = take_from_neighbor(&dest, f, cancel) {
+                    lock(taken()).insert(c.id.to_string(), app.clone());
+                    progress(json!({ "stage": "download", "phase": "taken", "file": f.dest_rel, "from": app, "msg": t!("setup-taken-from", file = f.dest_rel, app = program_name(&app).to_string()) }));
+                    continue;
+                }
             } else if archive_installed(repo_root, f) {
                 continue;
             }
@@ -3049,6 +3094,34 @@ fn write_entry(entry: &mut impl Read, out: &Path, mode: Option<u32>) -> Result<(
 mod tests {
     use super::*;
 
+    /// A file a neighbouring program has is taken (copied here) only when its SHA-256 is the pinned one.
+    #[test]
+    fn a_neighbours_file_is_taken_when_its_checksum_matches() {
+        let tmp = tempfile::tempdir().unwrap();
+        let shared = tmp.path().join("shared");
+        let dub = tmp.path().join("dub");
+        std::fs::create_dir_all(dub.join("models/same")).unwrap();
+        std::fs::create_dir_all(&shared).unwrap();
+        let bytes = b"model bytes of a neighbour";
+        std::fs::write(dub.join("models/same/weights.bin"), bytes).unwrap();
+        std::fs::write(dub.join("models/same/other.bin"), bytes).unwrap();
+        let studios = serde_json::json!({ "studios": [{ "app": "dub", "version": "1", "data_dir": dub, "seen": 1 }] });
+        std::fs::write(shared.join("studios.json"), studios.to_string()).unwrap();
+        std::env::set_var("TIMONCOOL_SHARED_DIR", &shared);
+        std::fs::create_dir_all(tmp.path().join("speech")).unwrap();
+        studio_hub_client::neighbors::register("speech", "test", &tmp.path().join("speech"));
+        let sha: &'static str = Box::leak(<sha2::Sha256 as sha2::Digest>::digest(bytes).iter().map(|b| format!("{b:02x}")).collect::<String>().into_boxed_str());
+        let spec = FileSpec { url: "https://example.invalid/weights.bin", dest_rel: "models/same/weights.bin", size: bytes.len() as u64, sha256: sha, extract: Extract::None };
+        let dest = tmp.path().join("speech/models/same/weights.bin");
+        let other = tmp.path().join("speech/models/same/other.bin");
+        let wrong = FileSpec { dest_rel: "models/same/other.bin", sha256: "0000", ..spec };
+        assert_eq!(take_from_neighbor(&other, &wrong, &|| false), None, "a wrong checksum is refused");
+        assert!(!other.exists() && !PathBuf::from(format!("{}.neighbor", other.display())).exists());
+        assert_eq!(take_from_neighbor(&dest, &spec, &|| false).as_deref(), Some("dub"));
+        assert_eq!(std::fs::read(&dest).unwrap(), bytes);
+        std::env::remove_var("TIMONCOOL_SHARED_DIR");
+    }
+
     fn download_proxy(address: &str, kind: dub_llm::net::ProxyKind) -> Result<ureq::Proxy, String> {
         dl_proxy(&dub_llm::net::normalize(address, kind).map_err(|e| format!("{e:#}"))?)
     }
@@ -3069,6 +3142,7 @@ mod tests {
             external_url: None,
             vram: (gb * 1024.0 * 1024.0 * 1024.0) as u64,
             fits_vram: None,
+            taken_from: None,
         }
     }
 

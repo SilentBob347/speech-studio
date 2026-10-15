@@ -761,6 +761,7 @@ setup-rename = переименовать { $path }: { $error }
 setup-waiting-other = Жду другую закачку этих же компонентов…
 setup-delete = удалить { $path }: { $error }
 setup-downloading = Скачиваю модели…
+setup-taken-from = { $file } взят из { $app } без скачивания
 setup-source-changed = { $url }: сервер отдаёт { $got } байт, закреплено { $want } — источник изменился
 setup-manifest-write = манифест { $path }: { $error }
 setup-archive-no-files = в архиве { $path } не найдено нужных файлов

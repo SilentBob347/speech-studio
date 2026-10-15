@@ -752,6 +752,7 @@ setup-rename = renommage de { $path } : { $error }
 setup-waiting-other = En attente d’un autre téléchargement des mêmes composants…
 setup-delete = suppression de { $path } : { $error }
 setup-downloading = Téléchargement des modèles…
+setup-taken-from = { $file } repris de { $app } sans téléchargement
 setup-source-changed = { $url } : le serveur fournit { $got } octets, { $want } fixés ; la source a changé
 setup-manifest-write = manifeste { $path } : { $error }
 setup-archive-no-files = l’archive { $path } ne contient aucun des fichiers nécessaires
