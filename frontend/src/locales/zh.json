@@ -1858,5 +1858,23 @@
     "next_voice": "点击“配音”：工作室为各块配音并试听检查。",
     "next_export": "点击“文件”生成带字幕的音频。",
     "allDone": "完成：文件已生成。可以修改块后重新生成。"
+  },
+  "renders": {
+    "title": "已生成文件",
+    "none": "还没有文件：在项目中点击“导出”生成。",
+    "noneFound": "未找到",
+    "play": "试听",
+    "stop": "停止",
+    "openProject": "打开项目",
+    "save": "另存为…",
+    "recipe": "制作方式",
+    "recipeOf": "{{file}} 的制作方式",
+    "block": "块",
+    "take": "版本",
+    "engine": "引擎",
+    "voice": "声音",
+    "seed": "种子",
+    "baseVoice": "引擎基础声音",
+    "find": "查找文件或项目"
   }
 }

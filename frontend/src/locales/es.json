@@ -1858,5 +1858,23 @@
     "next_voice": "Pulsa Locución: el estudio pone voz a los bloques y los comprueba de oído.",
     "next_export": "Pulsa Archivo para generar el audio con subtítulos.",
     "allDone": "Listo: el archivo está hecho. Puedes editar bloques y generarlo de nuevo."
+  },
+  "renders": {
+    "title": "Archivos generados",
+    "none": "Aún no hay archivos: genera uno en un proyecto con Exportar.",
+    "noneFound": "No se encontró nada",
+    "play": "Escuchar",
+    "stop": "Detener",
+    "openProject": "Abrir el proyecto",
+    "save": "Guardar como…",
+    "recipe": "Cómo se hizo",
+    "recipeOf": "Cómo se hizo {{file}}",
+    "block": "Bloque",
+    "take": "Toma",
+    "engine": "Motor",
+    "voice": "Voz",
+    "seed": "Semilla",
+    "baseVoice": "voz base del motor",
+    "find": "Buscar un archivo o proyecto"
   }
 }

@@ -1858,5 +1858,23 @@
     "next_voice": "Pressione Locução: o estúdio dá voz aos blocos e confere de ouvido.",
     "next_export": "Pressione Arquivo para gerar o áudio com legendas.",
     "allDone": "Pronto: o arquivo foi gerado. Você pode editar os blocos e gerar de novo."
+  },
+  "renders": {
+    "title": "Arquivos gerados",
+    "none": "Ainda não há arquivos: gere um num projeto com Exportar.",
+    "noneFound": "Nada encontrado",
+    "play": "Ouvir",
+    "stop": "Parar",
+    "openProject": "Abrir o projeto",
+    "save": "Salvar como…",
+    "recipe": "Como foi feito",
+    "recipeOf": "Como {{file}} foi feito",
+    "block": "Bloco",
+    "take": "Tomada",
+    "engine": "Motor",
+    "voice": "Voz",
+    "seed": "Semente",
+    "baseVoice": "voz base do motor",
+    "find": "Buscar um arquivo ou projeto"
   }
 }

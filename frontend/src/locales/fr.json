@@ -1858,5 +1858,23 @@
     "next_voice": "Appuyez sur Doublage : le studio dit les blocs et les vérifie à l'oreille.",
     "next_export": "Appuyez sur Fichier pour générer l'audio avec sous-titres.",
     "allDone": "Terminé : le fichier est prêt. Vous pouvez modifier les blocs et le refaire."
+  },
+  "renders": {
+    "title": "Fichiers générés",
+    "none": "Aucun fichier pour l'instant : générez-en un dans un projet avec Exporter.",
+    "noneFound": "Aucun résultat",
+    "play": "Écouter",
+    "stop": "Arrêter",
+    "openProject": "Ouvrir le projet",
+    "save": "Enregistrer sous…",
+    "recipe": "Comment c'est fait",
+    "recipeOf": "Comment {{file}} a été fait",
+    "block": "Bloc",
+    "take": "Prise",
+    "engine": "Moteur",
+    "voice": "Voix",
+    "seed": "Graine",
+    "baseVoice": "voix de base du moteur",
+    "find": "Chercher un fichier ou un projet"
   }
 }

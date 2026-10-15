@@ -96,6 +96,11 @@ export type QueuedSynth = { n: number; added: number; scope: { ids: string[] | n
 /** The engine that voices a block: its own, its speaker's, the project's. */
 export const engineOf = (p: SpeechProject, b: Block) => b.engine || p.cast_engines?.[b.speaker] || p.settings.engine;
 /** The voice a block speaks with: its own, its speaker's, the project's. */
+/** A built audio file of a Speech project, with the recipe of how it was made when one is beside it. */
+export type Render = { pid: string; project: string; file: string; bytes: number; mtime: number; recipe: string | null };
+/** What a recipe says about one block of a render. */
+export type RecipeBlock = { block: string; speaker: string; text: string; take: number; engine: string; voice: string; seed: number; temperature: number; wer: number | null; start?: number };
+
 export const voiceOf = (p: SpeechProject, b: Block) => b.voice || p.cast[b.speaker] || p.settings.voice || null;
 export type TimelineBlock = { block: string; speaker: string; start: number; end: number; voiced: boolean; overlap: { with: string; secs: number } | null; cut_previous: boolean };
 export type ExportProblem = { block: string; state: BlockState | "missing" | "modified" | "duration" };
@@ -141,6 +146,7 @@ export const speechApi = {
   bookChapter: (id: string, index: number) => getCoded<{ title: string; text: string }>(`/books/${id}/chapters/${index}`),
   fromBook: (body: { id: string; name?: string; voice: string | null; chapters: { index: number; title?: string; text?: string }[] }) =>
     postCoded<{ project_id: string; project: SpeechProject }>("/projects/from-book", body),
+  renders: () => getCoded<{ renders: Render[] }>("/renders"),
   exports: (pid: string) => getCoded<{ files: { file: string; bytes: number; mtime: number }[]; dir: string }>(`/projects/${pid}/exports`),
   revealExport: (pid: string, file: string) => postCoded<{ ok: boolean }>(`/projects/${pid}/exports/${encodeURIComponent(file)}/reveal`, {}),
   saveExportAs: (pid: string, file: string) => postCoded<{ path: string | null; bytes?: number }>(`/projects/${pid}/exports/${encodeURIComponent(file)}/save-as`, {}),

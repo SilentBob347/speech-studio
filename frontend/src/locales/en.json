@@ -1858,5 +1858,23 @@
     "next_voice": "Press Voicing: the studio voices the blocks and checks them by ear.",
     "next_export": "Press File to build the audio with subtitles.",
     "allDone": "Done: the file is built. You can edit blocks and build it again."
+  },
+  "renders": {
+    "title": "Built files",
+    "none": "No built files yet: build one in a project with Export.",
+    "noneFound": "Nothing found",
+    "play": "Listen",
+    "stop": "Stop",
+    "openProject": "Open the project",
+    "save": "Save as…",
+    "recipe": "How it was made",
+    "recipeOf": "How {{file}} was made",
+    "block": "Block",
+    "take": "Take",
+    "engine": "Engine",
+    "voice": "Voice",
+    "seed": "Seed",
+    "baseVoice": "engine's base voice",
+    "find": "Find a file or project"
   }
 }

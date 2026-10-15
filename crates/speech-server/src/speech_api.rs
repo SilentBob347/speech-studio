@@ -778,6 +778,41 @@ pub async fn exports_list(State(st): State<AppState>, AxPath(pid): AxPath<String
     Json(json!({ "files": files, "dir": dir.to_string_lossy() })).into_response()
 }
 
+/// GET /renders — the audio files built for every Speech project, newest first, with whether a recipe is beside each.
+pub async fn renders(State(st): State<AppState>) -> Response {
+    let workspace = st.workspace.clone();
+    let res = joined(tokio::task::spawn_blocking(move || {
+        let mut out: Vec<Value> = Vec::new();
+        for entry in std::fs::read_dir(&workspace).into_iter().flatten().flatten() {
+            let pid = entry.file_name().to_string_lossy().into_owned();
+            let Ok(project) = sp::load(&workspace, &pid) else { continue };
+            let exports = entry.path().join("exports");
+            for file in std::fs::read_dir(&exports).into_iter().flatten().flatten() {
+                let path = file.path();
+                let Some(ext) = path.extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase) else { continue };
+                if !path.is_file() || !crate::media::EXPORT_FORMATS.contains(&ext.as_str()) {
+                    continue;
+                }
+                let Ok(meta) = file.metadata() else { continue };
+                let mtime = meta.modified().ok().and_then(|m| m.duration_since(std::time::UNIX_EPOCH).ok()).map_or(0, |d| d.as_secs());
+                let name = file.file_name().to_string_lossy().into_owned();
+                let recipe = path.with_file_name(format!("{name}.recipe.json"));
+                out.push(json!({
+                    "pid": pid, "project": project.name, "file": name, "bytes": meta.len(), "mtime": mtime,
+                    "recipe": recipe.is_file().then(|| recipe.file_name().map(|n| n.to_string_lossy().into_owned())).flatten(),
+                }));
+            }
+        }
+        out.sort_by_key(|v| std::cmp::Reverse(v["mtime"].as_u64().unwrap_or(0)));
+        out
+    })
+    .await);
+    match res {
+        Ok(v) => Json(json!({ "renders": v })).into_response(),
+        Err(r) => r,
+    }
+}
+
 /// POST /projects/{pid}/exports/{file}/reveal — показать файл в проводнике.
 pub async fn export_reveal(State(st): State<AppState>, AxPath((pid, file)): AxPath<(String, String)>) -> Response {
     match export_path(&st, &pid, &file) {

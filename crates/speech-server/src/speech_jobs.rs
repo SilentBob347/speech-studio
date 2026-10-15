@@ -1328,7 +1328,7 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         let lyrics = format!("{name}.lrc");
         std::fs::write(exports.join(&lyrics), lrc(&part_timed)).map_err(|e| format!("{lyrics}: {e}"))?;
         subtitle_files.push(lyrics);
-        let recipe = format!("{name}.recipe.json");
+        let recipe = format!("{file}.recipe.json");
         let body = json!({
             "made_with": format!("Speech Studio {}", env!("CARGO_PKG_VERSION")),
             "project": project.name,

@@ -14,6 +14,7 @@ import { useEngines } from "../../lib/engines";
 import { api } from "../../lib/api";
 import { CLOUD_ENGINE_NAMES, askCloud } from "../../lib/cloudConsent";
 import BatchList, { type BatchItem } from "../BatchList";
+import RenderLibrary from "./RenderLibrary";
 import type { ExportFormat } from "../../lib/speech";
 
 const FORMATS: ExportFormat[] = ["mp3", "wav", "flac", "ogg", "m4a"];
@@ -41,6 +42,7 @@ export default function ProjectsHome({ onOpen }: { onOpen: (pid: string) => void
   const [error, setError] = useState<string | null>(null);
   const [projects, setProjects] = useState<ProjectCard[] | null>(null);
   const [find, setFind] = useState("");
+  const [tab, setTab] = useState<"projects" | "renders">("projects");
   const [removing, setRemoving] = useState<ProjectCard | null>(null);
   const packFile = useRef<HTMLInputElement>(null);
   const subsFile = useRef<HTMLInputElement>(null);
@@ -200,11 +202,19 @@ export default function ProjectsHome({ onOpen }: { onOpen: (pid: string) => void
           <input ref={packFile} type="file" accept=".speechproj" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void openPack(f); }} />
         </section>
         <section aria-labelledby="recent-title" className="space-y-2">
-          <h2 id="recent-title" className="text-[13px] font-semibold">{t("speech.recent")}</h2>
-          {(projects?.length ?? 0) > 5 && (
-            <input value={find} onChange={(e) => setFind(e.target.value)} placeholder={t("speech.findProject")} aria-label={t("speech.findProject")}
+          <div role="tablist" aria-labelledby="recent-title" className="flex items-center gap-1">
+            <h2 id="recent-title" className="sr-only">{t("speech.recent")}</h2>
+            {(["projects", "renders"] as const).map((id) => (
+              <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
+                className={`px-2.5 py-1 rounded-md text-[13px] font-semibold ${tab === id ? "bg-[var(--color-surface-2)] text-[var(--color-text)]" : "text-[var(--color-muted)] hover:text-[var(--color-text)]"}`}>{id === "projects" ? t("speech.recent") : t("renders.title")}</button>
+            ))}
+          </div>
+          {(tab === "renders" || (projects?.length ?? 0) > 5) && (
+            <input value={find} onChange={(e) => setFind(e.target.value)} placeholder={tab === "renders" ? t("renders.find") : t("speech.findProject")} aria-label={tab === "renders" ? t("renders.find") : t("speech.findProject")}
               className="w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-3 py-1.5 text-[12px] focus:border-[var(--color-accent)] focus:outline-none" />
           )}
+          {tab === "renders" && <RenderLibrary find={find} onOpen={onOpen} />}
+          {tab === "projects" && <>
           {projects === null && <Loader2 size={16} className="animate-spin text-[var(--color-muted)]" />}
           {projects?.length === 0 && <p className="text-[13px] text-[var(--color-muted)]">{t("speech.noProjects")}</p>}
           <ul className="space-y-1.5">
@@ -218,6 +228,7 @@ export default function ProjectsHome({ onOpen }: { onOpen: (pid: string) => void
               </li>
             ))}
           </ul>
+          </>}
         </section>
       </div>
       {removing && (

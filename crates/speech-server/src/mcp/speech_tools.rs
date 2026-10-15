@@ -97,6 +97,12 @@ pub(super) fn tools() -> Vec<Tool> {
             call: |args| get(project_path(args, "/exports")?),
         },
         Tool {
+            name: "project_exports_all",
+            description: "Every audio file built for any Speech project, newest first: its project (pid and name), file, size, time and the recipe beside it (how it was made), if any. project_export_file, project_export_save_as and project_export_reveal take the pid and file.",
+            schema: super::nothing,
+            call: |_| get("/renders".into()),
+        },
+        Tool {
             name: "project_cast_characters",
             description: "The director model splits one chapter of a Speech project into the narrator and the characters, word for word, and replaces the chapter's blocks with their lines: a job, follow it with studio_wait. Characters keep the names met before in the project.",
             schema: || object(json!({ "pid": pid(), "chapter": { "type": "string", "description": "chapter id from project_get" } }), &["pid", "chapter"]),
