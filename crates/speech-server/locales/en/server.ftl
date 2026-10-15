@@ -1128,3 +1128,4 @@ director-no-tags = { $engine } reads no expression tags - there is nothing to pu
 director-enriching = The director puts in tags: part { $n } of { $total }
 speaker-too-little = speaker { $name } speaks too little to remember the voice: at least 2 seconds are needed
 book-name-note = a name from the book: put the stress mark + and mark it when checked by ear
+director-punctuating = The director punctuates: part { $n } of { $total }

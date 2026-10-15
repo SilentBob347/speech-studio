@@ -582,7 +582,7 @@
       "export": "Exportación",
       "write": "Guion",
       "cast": "Marcado de hablantes",
-      "enrich": "Etiquetas del director"
+      "enrich": "Edición del director"
     },
     "error": {
       "failed": "La tarea terminó con un error",
@@ -1905,7 +1905,13 @@
     "hint": "Las palabras no cambian: solo se añaden etiquetas que lee el motor del bloque. Lo marcado reemplaza el texto de los bloques; deshacer lo revierte.",
     "apply": "Aplicar ({{n}})",
     "run": "Poner etiquetas (director)",
-    "runSelected": "Poner etiquetas en los seleccionados ({{n}})"
+    "runSelected": "Poner etiquetas en los seleccionados ({{n}})",
+    "punct": "Puntuar para las pausas (director)",
+    "punctSelected": "Puntuar los seleccionados ({{n}})",
+    "punctTitle": "Puntuación del director",
+    "punct_count": "bloques cambiados: {{n}}",
+    "punct_none": "El director no encontró nada que cambiar en la puntuación.",
+    "punct_hint": "Las palabras y etiquetas no cambian: solo comas, rayas y puntos donde el habla hace pausa. Lo marcado reemplaza el texto; Deshacer lo revierte."
   },
   "review": {
     "title": "Revisión",

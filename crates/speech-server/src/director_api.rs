@@ -141,6 +141,9 @@ pub async fn cast(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(
 pub struct EnrichReq {
     #[serde(default)]
     ids: Option<Vec<String>>,
+    /// `tags` (default) — expression tags by meaning; `punctuation` — punctuation for reading aloud.
+    #[serde(default)]
+    mode: Option<String>,
 }
 
 /// POST /projects/{pid}/enrich {ids?} — режиссёр предлагает теги экспрессии по смыслу (только теги движка блока,
@@ -155,6 +158,19 @@ pub async fn enrich(State(st): State<AppState>, AxPath(pid): AxPath<String>, Jso
         let cb = |ev: Value| progress(ev);
         let project = sp::load(&p.workspace, &pid2)?;
         let wanted = |b: &&Block| !b.hidden && !b.text.trim().is_empty() && req.ids.as_ref().is_none_or(|ids| ids.contains(&b.id));
+        if req.mode.as_deref() == Some("punctuation") {
+            let blocks: Vec<(String, String, String)> = project.blocks().filter(wanted).map(|b| (b.id.clone(), b.speaker.clone(), b.text.clone())).collect();
+            step(&cb, t!("director-starting"), 2);
+            let provider = llm(&p, &cb)?;
+            let (made, refused) = director::punctuate(provider.client(), &blocks, &project.settings.lang, &|n, of| {
+                step(&cb, t!("director-punctuating", n = (n + 1) as i64, total = of as i64), (5 + n * 90 / of.max(1)) as i64);
+            })?;
+            step(&cb, t!("director-done"), 100);
+            return Ok(json!({ "changes": made.into_iter().map(|c| json!({ "id": c.id, "before": c.before, "after": c.after })).collect::<Vec<_>>(), "refused": refused }));
+        }
+        if let Some(m) = req.mode.as_deref().filter(|m| *m != "tags") {
+            return Err(format!("mode {m} is not tags or punctuation"));
+        }
         let mut groups: Vec<(crate::engines::Engine, Vec<(String, String, String)>)> = Vec::new();
         for b in project.blocks().filter(wanted) {
             let Some(engine) = crate::engines::get(project.engine_of(b)).filter(|e| !e.tags.is_empty()) else { continue };

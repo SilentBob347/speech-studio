@@ -1122,3 +1122,4 @@ director-no-tags = { $engine } ne lit aucune balise d’expression : rien à ajo
 director-enriching = Le directeur place les balises : partie { $n } sur { $total }
 speaker-too-little = le locuteur « { $name } » parle trop peu pour retenir sa voix : il faut au moins 2 secondes
 book-name-note = un nom du livre : placez l'accent + et marquez-le une fois vérifié à l'oreille
+director-punctuating = Le directeur ponctue : partie { $n } sur { $total }

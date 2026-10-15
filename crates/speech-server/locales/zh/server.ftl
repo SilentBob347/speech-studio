@@ -924,3 +924,4 @@ director-no-tags = { $engine } 不支持表达标签，无需添加
 director-enriching = 导演正在添加标签：第 { $n } 部分，共 { $total } 部分
 speaker-too-little = 说话人“{ $name }”的语音太少，无法记住声音：至少需要 2 秒
 book-name-note = 书中的名字：加上重音符号 +，试听确认后标记
+director-punctuating = 导演正在加标点：第 { $n } 部分，共 { $total } 部分

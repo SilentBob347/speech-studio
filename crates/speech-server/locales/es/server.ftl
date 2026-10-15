@@ -1122,3 +1122,4 @@ director-no-tags = { $engine } no lee etiquetas de expresión: no hay nada que a
 director-enriching = El director coloca etiquetas: parte { $n } de { $total }
 speaker-too-little = el hablante «{ $name }» habla demasiado poco para recordar su voz: hacen falta al menos 2 segundos
 book-name-note = un nombre del libro: pon la marca de acento + y márcalo al revisarlo de oído
+director-punctuating = El director puntúa: parte { $n } de { $total }

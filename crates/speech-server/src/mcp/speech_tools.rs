@@ -68,8 +68,8 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "project_enrich",
-            description: "The director model suggests expression tags for blocks by their meaning, only tags the block's engine reads, never changing a word: a job, follow it with studio_wait. Its result lists each changed block as id, before and after, and how many answers were turned down for changed words; nothing is applied - put the texts you accept with project_update. Without ids, every block.",
-            schema: || object(json!({ "pid": pid(), "ids": { "type": "array", "items": { "type": "string" } } }), &["pid"]),
+            description: "The director model suggests, never changing a word: with mode tags (the default) expression tags for blocks by their meaning, only tags the block's engine reads; with mode punctuation the punctuation for reading aloud (commas, dashes and full stops where speech pauses, a run-on sentence cut in two), tags kept. A job, follow it with studio_wait. Its result lists each changed block as id, before and after, and how many answers were turned down for changed words; nothing is applied - put the texts you accept with project_update. Without ids, every block.",
+            schema: || object(json!({ "pid": pid(), "ids": { "type": "array", "items": { "type": "string" } }, "mode": { "type": "string", "enum": ["tags", "punctuation"] } }), &["pid"]),
             call: |args| post(project_path(args, "/enrich")?, body_without(args, &["pid"])),
         },
         Tool {

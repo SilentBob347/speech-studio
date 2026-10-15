@@ -206,9 +206,34 @@ pub fn enrich(llm: &ChatClient, engine: &crate::engines::Engine, blocks: &[(Stri
     let system = format!(
         "You are a voice director preparing lines for the {name} speech engine{lang_note}. Add expression tags where the meaning of a line asks for them: an emotion, a manner of speaking, a sound like a laugh or a sigh. Use only these tags, written exactly as listed:\n{rules}\n\nDo not change, add, remove or reorder any word or punctuation mark: only insert tags. Keep tags already in a line. Use few tags: most lines need none or one. Answer JSON {{\"lines\": [{{\"id\": ..., \"text\": ...}}]}} with every line given, in the same order.",
         name = engine.name,
-        lang_note = if lang.is_empty() || lang == "auto" { String::new() } else { format!(" (language: {lang})") },
+        lang_note = lang_note(lang),
         rules = crate::engines::tag_rules(engine),
     );
+    rewrite(llm, &system, blocks, 0.4, progress, &|before, answer| {
+        let after = keep_known(answer, before, &known);
+        same_words(before, &after).then_some(after)
+    })
+}
+
+/// Punctuation put where the lines are read aloud: commas, dashes and full stops where speech pauses, a question
+/// mark where it rises, a run-on sentence cut in two. Words and tags stay as they are; a block whose words or tags the
+/// model changed keeps its text.
+pub fn punctuate(llm: &ChatClient, blocks: &[(String, String, String)], lang: &str, progress: &dyn Fn(usize, usize)) -> Result<(Vec<Enriched>, usize), String> {
+    let system = format!(
+        "You are an editor preparing lines to be read aloud by a speech engine{lang_note}. Fix the punctuation so each line reads naturally: commas, dashes and full stops where speech pauses, a question mark where it asks, a run-on sentence cut into two with a full stop. Do not change, add, remove or reorder any word, keep its letters and case, and keep every tag such as <|...|>, [...] or <...> exactly where it stands. Change nothing in a line that already reads well. Answer JSON {{\"lines\": [{{\"id\": ..., \"text\": ...}}]}} with every line given, in the same order.",
+        lang_note = lang_note(lang),
+    );
+    let tags = |t: &str| TAG_LIKE.find_iter(t).map(|m| m.as_str().to_string()).collect::<Vec<_>>();
+    rewrite(llm, &system, blocks, 0.2, progress, &|before, after| (same_words(before, after) && tags(before) == tags(after)).then(|| after.to_string()))
+}
+
+fn lang_note(lang: &str) -> String {
+    if lang.is_empty() || lang == "auto" { String::new() } else { format!(" (language: {lang})") }
+}
+
+/// Lines sent to the model in pieces under `CHUNK_CHARS`; each answer `accept` passes replaces its line, the others
+/// count as refused. The project is not touched: the answer is what each changed line was and would be.
+fn rewrite(llm: &ChatClient, system: &str, blocks: &[(String, String, String)], temperature: f32, progress: &dyn Fn(usize, usize), accept: &dyn Fn(&str, &str) -> Option<String>) -> Result<(Vec<Enriched>, usize), String> {
     let schema = json!({ "type": "object", "properties": { "lines": { "type": "array", "items": { "type": "object", "properties": { "id": { "type": "string" }, "text": { "type": "string" } }, "required": ["id", "text"] } } }, "required": ["lines"] });
     let mut pieces: Vec<Vec<&(String, String, String)>> = vec![Vec::new()];
     let mut size = 0;
@@ -225,8 +250,8 @@ pub fn enrich(llm: &ChatClient, engine: &crate::engines::Engine, blocks: &[(Stri
         progress(k, pieces.len());
         let user = serde_json::to_string(&piece.iter().map(|(id, speaker, text)| json!({ "id": id, "speaker": speaker, "text": text })).collect::<Vec<_>>()).map_err(|e| e.to_string())?;
         let chars: usize = piece.iter().map(|b| b.2.chars().count()).sum();
-        let messages = [Message::system(&system), Message::user_text(&user)];
-        let sampling = Sampling::new(0.4, 0.9, ((chars * 2) as u32).clamp(1_024, 8_192));
+        let messages = [Message::system(system), Message::user_text(&user)];
+        let sampling = Sampling::new(temperature, 0.9, ((chars * 2) as u32).clamp(1_024, 8_192));
         let use_schema = llm.structured_output() != StructuredOutput::Unsupported;
         let done = llm.complete(&messages, &sampling, use_schema.then_some(&schema)).map_err(|e| t!("director-failed", error = e.to_string()))?;
         let text = done.text.trim();
@@ -234,14 +259,13 @@ pub fn enrich(llm: &ChatClient, engine: &crate::engines::Engine, blocks: &[(Stri
             (Some(a), Some(b)) if b > a => &text[a..=b],
             _ => return Err(t!("director-not-json", answer = text.chars().take(200).collect::<String>())),
         };
-        let tagged: Tagged = serde_json::from_str(body).map_err(|e| t!("director-not-json", answer = format!("{e}: {}", body.chars().take(200).collect::<String>())))?;
-        for line in tagged.lines {
-            let Some((id, _, before)) = piece.iter().find(|b| b.0 == line.id).map(|b| (&b.0, &b.1, &b.2)) else { continue };
-            let after = keep_known(&line.text, before, &known);
-            if !same_words(before, &after) {
-                refused += 1;
-            } else if after.trim() != before.trim() {
-                out.push(Enriched { id: id.clone(), before: before.clone(), after });
+        let lines: Tagged = serde_json::from_str(body).map_err(|e| t!("director-not-json", answer = format!("{e}: {}", body.chars().take(200).collect::<String>())))?;
+        for line in lines.lines {
+            let Some((id, before)) = piece.iter().find(|b| b.0 == line.id).map(|b| (&b.0, &b.2)) else { continue };
+            match accept(before, &line.text) {
+                None => refused += 1,
+                Some(after) if after.trim() != before.trim() => out.push(Enriched { id: id.clone(), before: before.clone(), after }),
+                Some(_) => {}
             }
         }
     }

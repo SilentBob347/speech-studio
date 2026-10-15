@@ -582,7 +582,7 @@
       "export": "Export",
       "write": "Script",
       "cast": "Balisage des locuteurs",
-      "enrich": "Balises du directeur"
+      "enrich": "Retouche du directeur"
     },
     "error": {
       "failed": "La tâche a échoué",
@@ -1905,7 +1905,13 @@
     "hint": "Les mots ne changent pas : seules des balises lues par le moteur du bloc sont ajoutées. Ce qui est coché remplace le texte des blocs ; Annuler revient en arrière.",
     "apply": "Appliquer ({{n}})",
     "run": "Placer des balises (directeur)",
-    "runSelected": "Placer des balises dans la sélection ({{n}})"
+    "runSelected": "Placer des balises dans la sélection ({{n}})",
+    "punct": "Ponctuer pour les pauses (directeur)",
+    "punctSelected": "Ponctuer la sélection ({{n}})",
+    "punctTitle": "Ponctuation du directeur",
+    "punct_count": "blocs modifiés : {{n}}",
+    "punct_none": "Le directeur n'a rien trouvé à changer dans la ponctuation.",
+    "punct_hint": "Les mots et les balises restent : seulement des virgules, tirets et points là où la parole marque une pause. Ce que vous gardez remplace le texte ; Annuler le reprend."
   },
   "review": {
     "title": "Relecture",

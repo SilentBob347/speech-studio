@@ -582,7 +582,7 @@
       "export": "Exportação",
       "write": "Roteiro",
       "cast": "Marcação de falantes",
-      "enrich": "Tags do diretor"
+      "enrich": "Edição do diretor"
     },
     "error": {
       "failed": "A tarefa terminou com erro",
@@ -1905,7 +1905,13 @@
     "hint": "As palavras não mudam: só são adicionadas tags que o motor do bloco lê. O marcado substitui o texto dos blocos; desfazer reverte.",
     "apply": "Aplicar ({{n}})",
     "run": "Inserir tags (diretor)",
-    "runSelected": "Inserir tags nos selecionados ({{n}})"
+    "runSelected": "Inserir tags nos selecionados ({{n}})",
+    "punct": "Pontuar para as pausas (diretor)",
+    "punctSelected": "Pontuar os selecionados ({{n}})",
+    "punctTitle": "Pontuação do diretor",
+    "punct_count": "blocos alterados: {{n}}",
+    "punct_none": "O diretor não encontrou nada a mudar na pontuação.",
+    "punct_hint": "Palavras e etiquetas ficam: só vírgulas, travessões e pontos onde a fala pausa. O marcado substitui o texto; Desfazer reverte."
   },
   "review": {
     "title": "Revisão",
