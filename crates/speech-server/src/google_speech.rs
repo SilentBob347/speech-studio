@@ -170,6 +170,11 @@ fn retried<T>(what: &str, progress: &dyn Fn(Value), mut f: impl FnMut() -> Resul
     }
 }
 
+/// Отказ по деньгам или доступу (предоплата кончилась, потолок трат, ключ без прав): следующие запросы не пройдут.
+fn account_refused(error: &str) -> bool {
+    error.contains(" 402 ") || error.contains(" 403 ") || error.contains("spending cap") || error.contains("prepayment")
+}
+
 /// Обычный запрос: 429 и 5xx повторяются с паузой, отказ фильтра и прочее — сразу ошибка.
 fn direct(c: &crate::google_tts::Client, s: &Setup, text: &str, style: &str) -> Result<Value, String> {
     let request = crate::google_tts::request(text, &s.voice, style)?;
@@ -178,7 +183,7 @@ fn direct(c: &crate::google_tts::Client, s: &Setup, text: &str, style: &str) -> 
         attempt += 1;
         match c.generate(&s.model, &request) {
             Ok(r) => return Ok(r),
-            Err(e) if attempt < DIRECT_ATTEMPTS && (e.contains(" 429 ") || e.contains(" 500 ") || e.contains(" 502 ") || e.contains(" 503 ") || e.contains(" 504 ")) => {
+            Err(e) if attempt < DIRECT_ATTEMPTS && !account_refused(&e) && (e.contains(" 429 ") || e.contains(" 500 ") || e.contains(" 502 ") || e.contains(" 503 ") || e.contains(" 504 ")) => {
                 pause(5 * 3u64.pow(attempt - 1))?;
             }
             Err(e) => return Err(e),
@@ -259,6 +264,8 @@ fn direct_run(c: &crate::google_tts::Client, repo_root: &Path, models_root: &Pat
     let threads = crate::models::openrouter_concurrency(models_root).min(keys.len()).max(1);
     let (next, done) = (AtomicUsize::new(0), AtomicUsize::new(0));
     let failed: Mutex<HashMap<String, String>> = Mutex::new(HashMap::new());
+    // первый отказ по деньгам или доступу останавливает остальные запросы: они получат ту же причину
+    let refused: Mutex<Option<String>> = Mutex::new(None);
     let cost: Mutex<Option<f64>> = Mutex::new(None);
     let ctl = crate::jobs::current();
     let total = keys.len();
@@ -266,7 +273,7 @@ fn direct_run(c: &crate::google_tts::Client, repo_root: &Path, models_root: &Pat
     let (tell, told) = std::sync::mpsc::channel::<usize>();
     std::thread::scope(|scope| {
         for _ in 0..threads {
-            let (next, done, failed, cost, ctl, tell) = (&next, &done, &failed, &cost, ctl.clone(), tell.clone());
+            let (next, done, failed, cost, ctl, tell, refused) = (&next, &done, &failed, &cost, ctl.clone(), tell.clone(), &refused);
             scope.spawn(move || {
                 let _entered = ctl.map(crate::jobs::enter);
                 loop {
@@ -275,7 +282,11 @@ fn direct_run(c: &crate::google_tts::Client, repo_root: &Path, models_root: &Pat
                     }
                     let i = next.fetch_add(1, Ordering::SeqCst);
                     let Some((key, w)) = keys.get(i) else { break };
-                    let got = direct(c, s, &w.text, &w.style).and_then(|r| keep(project_dir, key, &r).map(|_| r));
+                    let stopped = refused.lock().unwrap_or_else(|p| p.into_inner()).clone();
+                    let got = match stopped {
+                        Some(reason) => Err(reason),
+                        None => direct(c, s, &w.text, &w.style).and_then(|r| keep(project_dir, key, &r).map(|_| r)),
+                    };
                     match got {
                         Ok(r) => {
                             if let Some(usd) = spend(repo_root, pid, s, &r["usageMetadata"], false) {
@@ -284,6 +295,9 @@ fn direct_run(c: &crate::google_tts::Client, repo_root: &Path, models_root: &Pat
                             }
                         }
                         Err(e) => {
+                            if account_refused(&e) {
+                                refused.lock().unwrap_or_else(|p| p.into_inner()).get_or_insert_with(|| e.clone());
+                            }
                             failed.lock().unwrap_or_else(|p| p.into_inner()).insert(key.clone(), e);
                         }
                     }
@@ -474,6 +488,15 @@ mod tests {
         assert_ne!(a, key_of(&s, "Привет!", "", 1));
         assert_ne!(a, key_of(&s, "Привет", "шёпотом", 1));
         assert_ne!(a, key_of(&s, "Привет", "", 2), "a new take is a new request");
+    }
+
+    #[test]
+    fn money_and_access_refusals_stop_the_job_and_are_not_retried() {
+        assert!(account_refused("Google 402 Payment Required: prepayment credits are depleted"));
+        assert!(account_refused("Google 429 Too Many Requests: monthly spending cap reached"));
+        assert!(account_refused("Google 403 Forbidden: permission denied"));
+        assert!(!account_refused("Google 429 Too Many Requests: rate limit"));
+        assert!(!account_refused("Google TTS unfinished: \"PROHIBITED_CONTENT\""));
     }
 
     #[test]
