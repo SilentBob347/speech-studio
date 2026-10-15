@@ -1465,7 +1465,12 @@
     "removed": "已从文本中移除：脚注标记 {{notes}} 个，网址 {{links}} 个",
     "namesToDict": "找到的名字（{{n}}）：加入项目词典以标注重音",
     "dialogue": "直接引语单独作为说话人",
-    "dialogueHint": "以破折号开头的段落对白和引号中的引语归于说话人「对白」，作者叙述仍归旁白。"
+    "dialogueHint": "以破折号开头的段落对白和引号中的引语归于说话人「对白」，作者叙述仍归旁白。",
+    "rebuildOpen": "从修改后的书更新…",
+    "rebuild": "统计会保留什么",
+    "rebuildCounts": "连同录音保留的块：{{kept}}。新块：{{added}}。文本已不存在的块：{{dropped}}（其中已配音 {{dropped_voiced}}）。更新前的项目副本保存在项目文件夹中。",
+    "rebuildBack": "返回",
+    "rebuildApply": "更新项目"
   },
   "files": {
     "saveAs": "将 {{file}} 另存为…",

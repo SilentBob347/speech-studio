@@ -1465,7 +1465,12 @@
     "removed": "taken out of the text: {{notes}} footnote marks, {{links}} site addresses",
     "namesToDict": "Names found ({{n}}): into the project's dictionary to set their stress",
     "dialogue": "Direct speech as its own speaker",
-    "dialogueHint": "Lines opening a paragraph with a dash and quotations go to the speaker “Lines”, the author's words stay the narrator's."
+    "dialogueHint": "Lines opening a paragraph with a dash and quotations go to the speaker “Lines”, the author's words stay the narrator's.",
+    "rebuildOpen": "Update from the edited book…",
+    "rebuild": "Count what stays",
+    "rebuildCounts": "Blocks kept with their takes: {{kept}}. New blocks: {{added}}. Blocks whose text is gone: {{dropped}} ({{dropped_voiced}} of them voiced). A copy of the project before the update stays in its folder.",
+    "rebuildBack": "Back",
+    "rebuildApply": "Update the project"
   },
   "files": {
     "saveAs": "Save {{file}} as…",

@@ -107,7 +107,7 @@ connected and the address to paste.
   `project_queue`, `project_queue_remove`, `project_queue_clear`; `speech_live_watch` hears the blocks as they are
   voiced (each block's sound as a WAV file). `history_list` lists the takes voiced lately.
 - **Projects from files**: `project_create_from_subtitles` (SRT, VTT, ASS), `book_preview` + `book_chapter` +
-  `project_create_from_book` (an audiobook of the chosen chapters; `dialogue` puts direct speech under its own speaker), `project_package` / `project_import_package` (one
+  `project_create_from_book` (an audiobook of the chosen chapters; `dialogue` puts direct speech under its own speaker; `into` rebuilds a project from the edited book keeping the voiced blocks of unchanged paragraphs, `dry_run` counts first), `project_package` / `project_import_package` (one
   `.speechproj` file to move a project), `listen_to_speech` (a recording's transcript).
 - **Takes and exports as files**: `project_take_file`, `project_export_file`, `project_export_save` (copy to a path),
   `project_exports_to_folder`, `project_export_reveal`, `project_export_save_as`.

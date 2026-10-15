@@ -757,12 +757,21 @@ pub struct FromBook {
     names: Vec<String>,    /// Direct speech (a dialogue dash, quotations) apart from the author's words, under its own speaker.
     #[serde(default)]
     dialogue: bool,
+    /// A project to rebuild from the edited book instead of making a new one: unchanged paragraphs keep their blocks.
+    #[serde(default)]
+    into: Option<String>,
+    /// With `into`: only count what the rebuild keeps, adds and drops.
+    #[serde(default)]
+    dry_run: bool,
 }
 
 /// POST /projects/from-book — проект из выбранных глав (с правками окна): глава книги — глава проекта.
 pub async fn from_book(State(st): State<AppState>, Json(req): Json<FromBook>) -> Response {
     if !sp::is_pid(&req.id) || req.chapters.is_empty() {
         return refuse(StatusCode::BAD_REQUEST, "bad_request", "id and chapters are needed");
+    }
+    if req.into.as_deref().is_some_and(|pid| !sp::is_pid(pid)) {
+        return refuse(StatusCode::BAD_REQUEST, "bad_request", "into is a project id");
     }
     let src = import_dir(&st, &req.id);
     let p = paths(&st);
@@ -771,6 +780,33 @@ pub async fn from_book(State(st): State<AppState>, Json(req): Json<FromBook>) ->
             let book: crate::book_import::Book = serde_json::from_slice(&std::fs::read(src.join("book.json")).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
             let narrator = t!("speech-narrator");
             let lines = t!("speech-lines");
+            if let Some(pid) = &req.into {
+                let old = sp::load(&p.workspace, pid)?;
+                let chapters: Vec<crate::book_rebuild::NewChapter> = req
+                    .chapters
+                    .iter()
+                    .filter_map(|choice| {
+                        let c = book.chapters.get(choice.index)?;
+                        Some(crate::book_rebuild::NewChapter { title: choice.title.clone().unwrap_or_else(|| c.title.clone()), text: choice.text.clone().unwrap_or_else(|| c.text.clone()) })
+                    })
+                    .collect();
+                let (mut project, stats) = crate::book_rebuild::rebuild(&old, &chapters, &narrator, req.dialogue.then_some(lines.as_str()));
+                if req.dry_run {
+                    return Ok((pid.clone(), json!({ "stats": stats })));
+                }
+                let backups = p.workspace.join(pid).join("backups");
+                std::fs::create_dir_all(&backups).map_err(|e| format!("{}: {e}", backups.display()))?;
+                let backup = backups.join(format!("project-{}.json", sp::now()));
+                std::fs::write(&backup, serde_json::to_vec_pretty(&old).map_err(|e| e.to_string())?).map_err(|e| format!("{}: {e}", backup.display()))?;
+                for name in req.names.iter().map(|n| n.trim()).filter(|n| !n.is_empty()) {
+                    if !project.dictionary.iter().any(|e| e.find == name) {
+                        project.dictionary.push(crate::pron_dict::Entry { id: crate::pron_dict::new_id(), find: name.to_string(), say: name.to_string(), note: t!("book-name-note"), source: "book".into(), ..Default::default() });
+                    }
+                }
+                sp::save(&p.workspace, pid, &project)?;
+                let _ = std::fs::remove_dir_all(&src);
+                return Ok((pid.clone(), json!({ "stats": stats, "backup": backup.to_string_lossy(), "project": shown(&p, &project) })));
+            }
             let mut project = sp::SpeechProject { name: req.name.clone().filter(|n| !n.trim().is_empty()).unwrap_or_else(|| book.title.clone()), created: sp::now(), ..Default::default() };
             project.settings.voice = req.voice.clone();
             let lang = book.lang.split(['-', '_']).next().unwrap_or("").to_lowercase();
@@ -804,6 +840,13 @@ pub async fn from_book(State(st): State<AppState>, Json(req): Json<FromBook>) ->
         .await,
     );
     match done {
+        Ok(Ok((pid, rebuilt))) if rebuilt.get("stats").is_some() => {
+            let mut answer = json!({ "project_id": pid });
+            if let (Some(a), Some(b)) = (answer.as_object_mut(), rebuilt.as_object()) {
+                a.extend(b.clone());
+            }
+            Json(answer).into_response()
+        }
         Ok(Ok((pid, project))) => Json(json!({ "project_id": pid, "project": project })).into_response(),
         Ok(Err(e)) => refuse(StatusCode::BAD_REQUEST, "book-refused", e),
         Err(r) => r,

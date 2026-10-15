@@ -1,15 +1,17 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { BookOpen, ChevronDown, Loader2, X } from "lucide-react";
-import { speechApi, type BookPreview } from "../../lib/speech";
+import { speechApi, type BookPreview, type RebuildStats } from "../../lib/speech";
 import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
 import { useEscapeLayer } from "../../lib/escape";
 import VoicePicker from "./VoicePicker";
 
 
-/** The structure of a book before synthesis: which chapters to voice, their titles and text, the voice; then a project. */
-export default function BookImport({ preview, onClose, onCreated }: { preview: BookPreview; onClose: () => void; onCreated: (pid: string) => void }) {
+/** The structure of a book before synthesis: which chapters to voice, their titles and text, the voice; then a project.
+ * With `into` the book is an edited source of that project: the counts of what stays voiced come first, then the
+ * project is rebuilt. */
+export default function BookImport({ preview, into, onClose, onCreated }: { preview: BookPreview; into?: string; onClose: () => void; onCreated: (pid: string) => void }) {
   const { t } = useTranslation();
   useEscapeLayer(onClose);
   const duration = (secs: number) => {
@@ -27,6 +29,7 @@ export default function BookImport({ preview, onClose, onCreated }: { preview: B
   const [names, setNames] = useState<Set<string>>(() => new Set(preview.names.map((n) => n.name)));
   const [namesToDict, setNamesToDict] = useState(true);
   const [dialogue, setDialogue] = useState(false);
+  const [counted, setCounted] = useState<RebuildStats | null>(null);
   const chosen = preview.chapters.filter((c) => picked[c.index]);
   const total = useMemo(() => chosen.reduce((s, c) => s + c.est_secs, 0), [chosen]);
   const edit = async (index: number) => {
@@ -36,16 +39,18 @@ export default function BookImport({ preview, onClose, onCreated }: { preview: B
       try { const c = await speechApi.bookChapter(preview.id, index); setTexts((x) => ({ ...x, [index]: c.text })); } catch (e) { setError(errorText(e)); }
     }
   };
-  const create = async () => {
+  const create = async (apply = true) => {
     setBusy(true);
     setError(null);
     try {
       const r = await speechApi.fromBook({
+        into, dry_run: into ? !apply : undefined,
         id: preview.id, name: name.trim() || undefined, voice,
         chapters: chosen.map((c) => ({ index: c.index, title: titles[c.index], text: texts[c.index] })),
         names: namesToDict ? preview.names.map((n) => n.name).filter((n) => names.has(n)) : [],
         dialogue,
       });
+      if (into && !apply) { setCounted(r.stats ?? null); return; }
       onCreated(r.project_id);
     } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
   };
@@ -113,9 +118,19 @@ export default function BookImport({ preview, onClose, onCreated }: { preview: B
         <div className="flex flex-wrap items-center gap-3 px-5 py-3 border-t border-[var(--color-border)]">
           <span className="text-[12px] text-[var(--color-muted)]">{t("book.summary", { n: chosen.length, of: preview.chapters.length, time: duration(total) })}</span>
           {error && <span role="alert" className="text-[12px] text-[var(--color-warn)] break-words">{error}</span>}
-          <button onClick={() => void create()} disabled={busy || !chosen.length} className="ml-auto inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[13px] font-semibold disabled:opacity-40">
-            {busy && <Loader2 size={14} className="animate-spin" />}{t("book.create")}
-          </button>
+          {into && counted ? (
+            <>
+              <span role="status" className="basis-full text-[12px]">{t("book.rebuildCounts", counted)}</span>
+              <button onClick={() => setCounted(null)} disabled={busy} className="ml-auto px-3 py-2 rounded-lg border border-[var(--color-border)] text-[13px] hover:border-[var(--color-accent)]">{t("book.rebuildBack")}</button>
+              <button onClick={() => void create(true)} disabled={busy} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[13px] font-semibold disabled:opacity-40">
+                {busy && <Loader2 size={14} className="animate-spin" />}{t("book.rebuildApply")}
+              </button>
+            </>
+          ) : (
+            <button onClick={() => void create(!into)} disabled={busy || !chosen.length} className="ml-auto inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[13px] font-semibold disabled:opacity-40">
+              {busy && <Loader2 size={14} className="animate-spin" />}{into ? t("book.rebuild") : t("book.create")}
+            </button>
+          )}
         </div>
       </div>
     </div>

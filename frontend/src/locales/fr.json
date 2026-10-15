@@ -1465,7 +1465,12 @@
     "removed": "retiré du texte : {{notes}} appels de note, {{links}} adresses web",
     "namesToDict": "Noms trouvés ({{n}}) : dans le dictionnaire du projet pour placer leur accent",
     "dialogue": "Discours direct à part",
-    "dialogueHint": "Les répliques ouvrant un paragraphe par un tiret et les citations vont au locuteur « Répliques », les mots de l’auteur restent au narrateur."
+    "dialogueHint": "Les répliques ouvrant un paragraphe par un tiret et les citations vont au locuteur « Répliques », les mots de l’auteur restent au narrateur.",
+    "rebuildOpen": "Mettre à jour depuis le livre corrigé…",
+    "rebuild": "Compter ce qui reste",
+    "rebuildCounts": "Blocs gardés avec leurs prises : {{kept}}. Nouveaux blocs : {{added}}. Blocs dont le texte a disparu : {{dropped}} (dont {{dropped_voiced}} voisés). Une copie du projet d’avant reste dans son dossier.",
+    "rebuildBack": "Retour",
+    "rebuildApply": "Mettre à jour le projet"
   },
   "files": {
     "saveAs": "Enregistrer {{file}} sous…",

@@ -1465,7 +1465,12 @@
     "removed": "retirado do texto: {{notes}} marcas de nota, {{links}} endereços de sites",
     "namesToDict": "Nomes encontrados ({{n}}): para o dicionário do projeto, para marcar o acento",
     "dialogue": "Discurso direto como locutor próprio",
-    "dialogueHint": "Falas que abrem um parágrafo com travessão e citações vão para o locutor «Falas»; as palavras do autor ficam com o narrador."
+    "dialogueHint": "Falas que abrem um parágrafo com travessão e citações vão para o locutor «Falas»; as palavras do autor ficam com o narrador.",
+    "rebuildOpen": "Atualizar a partir do livro corrigido…",
+    "rebuild": "Contar o que fica",
+    "rebuildCounts": "Blocos mantidos com as suas tomadas: {{kept}}. Blocos novos: {{added}}. Blocos cujo texto saiu: {{dropped}} (com voz: {{dropped_voiced}}). Uma cópia do projeto anterior fica na pasta dele.",
+    "rebuildBack": "Voltar",
+    "rebuildApply": "Atualizar o projeto"
   },
   "files": {
     "saveAs": "Salvar {{file}} como…",

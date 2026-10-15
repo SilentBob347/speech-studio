@@ -1465,7 +1465,12 @@
     "removed": "quitado del texto: {{notes}} marcas de nota, {{links}} direcciones web",
     "namesToDict": "Nombres encontrados ({{n}}): al diccionario del proyecto para marcar su acento",
     "dialogue": "Estilo directo como hablante propio",
-    "dialogueHint": "Las réplicas que abren un párrafo con guion y las citas van al hablante «Diálogos»; las palabras del autor quedan para el narrador."
+    "dialogueHint": "Las réplicas que abren un párrafo con guion y las citas van al hablante «Diálogos»; las palabras del autor quedan para el narrador.",
+    "rebuildOpen": "Actualizar desde el libro corregido…",
+    "rebuild": "Contar lo que se conserva",
+    "rebuildCounts": "Bloques que se conservan con sus tomas: {{kept}}. Bloques nuevos: {{added}}. Bloques cuyo texto ya no está: {{dropped}} (con voz: {{dropped_voiced}}). Una copia del proyecto anterior queda en su carpeta.",
+    "rebuildBack": "Atrás",
+    "rebuildApply": "Actualizar el proyecto"
   },
   "files": {
     "saveAs": "Guardar {{file}} como…",

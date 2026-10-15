@@ -90,6 +90,8 @@ export type SpeechProject = {
   cast_params?: Record<string, SpeechParams>; chapters: Chapter[]; dictionary: DictEntry[];
   /** What is known of each character for picking its voice. */
   characters?: Record<string, { gender?: VoiceGender; age?: VoiceAge }>;
+  /** A project made from a book: its title, author and cover file. */
+  book?: { title: string; author: string; cover: string | null } | null;
   status?: Record<string, { state: BlockState; key: string; fit?: "fits" | "tight" | "impossible" }>;
 };
 export type ProjectCard = { pid: string; kind: string; name: string; mtime: number; created?: number; blocks?: number; ready?: number };
@@ -118,6 +120,8 @@ export type HistoryTake = {
 export type QueuedSynth = { n: number; added: number; scope: { ids: string[] | null; from: string | null; force: boolean; seed: number | null } };
 /** The engine that voices a block: its own, its speaker's, the project's. */
 export const engineOf = (p: SpeechProject, b: Block) => (p.settings.one_voice ? p.settings.engine : b.engine || p.cast_engines?.[b.speaker] || p.settings.engine);
+/** What rebuilding a book project from its edited source keeps, adds and drops. */
+export type RebuildStats = { kept: number; added: number; dropped: number; dropped_voiced: number };
 /** A built audio file of a Speech project, with the recipe of how it was made when one is beside it. */
 export type Render = { pid: string; project: string; file: string; bytes: number; mtime: number; recipe: string | null };
 /** What a recipe says about one block of a render. */
@@ -173,8 +177,8 @@ export const speechApi = {
     return fetch(`${BASE}/books/preview`, { method: "POST", body: form }).then(coded<BookPreview>);
   },
   bookChapter: (id: string, index: number) => getCoded<{ title: string; text: string }>(`/books/${id}/chapters/${index}`),
-  fromBook: (body: { id: string; name?: string; voice: string | null; chapters: { index: number; title?: string; text?: string }[]; names?: string[]; dialogue?: boolean }) =>
-    postCoded<{ project_id: string; project: SpeechProject }>("/projects/from-book", body),
+  fromBook: (body: { id: string; name?: string; voice: string | null; chapters: { index: number; title?: string; text?: string }[]; names?: string[]; dialogue?: boolean; into?: string; dry_run?: boolean }) =>
+    postCoded<{ project_id: string; project?: SpeechProject; stats?: RebuildStats; backup?: string }>("/projects/from-book", body),
   renders: () => getCoded<{ renders: Render[] }>("/renders"),
   exports: (pid: string) => getCoded<{ files: { file: string; bytes: number; mtime: number }[]; dir: string }>(`/projects/${pid}/exports`),
   revealExport: (pid: string, file: string) => postCoded<{ ok: boolean }>(`/projects/${pid}/exports/${encodeURIComponent(file)}/reveal`, {}),

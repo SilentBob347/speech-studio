@@ -70,6 +70,7 @@ mod engines;
 mod cloud_tts;
 mod speechproj;
 mod book_import;
+mod book_rebuild;
 mod acx;
 mod auto_cast;
 mod cloud;

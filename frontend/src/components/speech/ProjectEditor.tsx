@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, BookOpen, ChartGantt, Download, Drama, History, ListOrdered, Loader2, MessagesSquare, Redo2, Search, Settings2, Sparkles, SpellCheck, Square, Undo2, Users, Wand2, X, ListChecks } from "lucide-react";
+import { ArrowLeft, BookOpen, BookUp, ChartGantt, Download, Drama, History, ListOrdered, Loader2, MessagesSquare, Redo2, Search, Settings2, Sparkles, SpellCheck, Square, Undo2, Users, Wand2, X, ListChecks } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import type { VoiceAge, VoiceGender } from "../../lib/api";
-import { activeTake, engineOf, newId, spliceChars, SPEAKER_TINTS, speechApi, stressDoubts, voiceOf, type Block, type BlockState, type SpeechProject, type QueuedSynth, type StressWord } from "../../lib/speech";
+import { activeTake, engineOf, newId, spliceChars, SPEAKER_TINTS, speechApi, stressDoubts, voiceOf, type Block, type BlockState, type SpeechProject, type QueuedSynth, type StressWord, type BookPreview } from "../../lib/speech";
 import { openSettings } from "../../lib/settingsNav";
 import { useSpeechProject } from "../../lib/useSpeechProject";
+import BookImport from "./BookImport";
 import { useLivePlayback } from "../../lib/livePlayback";
 import { useEngines } from "../../lib/engines";
 import { followJob } from "../../lib/followJob";
@@ -409,6 +410,12 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
       return p;
     });
   };
+  const bookFile = useRef<HTMLInputElement>(null);
+  const [bookUpdate, setBookUpdate] = useState<BookPreview | null>(null);
+  const openEditedBook = async (f: File) => {
+    setJobError(null);
+    try { await flush(); setBookUpdate(await speechApi.bookPreview(f)); } catch (e) { setJobError(errorText(e)); }
+  };
   const [picking, setPicking] = useState(false);
   const autoCast = async () => {
     if (picking) return;
@@ -649,6 +656,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           { icon: Wand2, label: selected.length ? t("enrich.runSelected", { n: selected.length }) : t("enrich.run"), act: () => void enrich(selected.length ? selected : null), disabled: enriching },
           { icon: Wand2, label: selected.length ? t("enrich.punctSelected", { n: selected.length }) : t("enrich.punct"), act: () => void enrich(selected.length ? selected : null, "punctuation"), disabled: enriching },
           { icon: MessagesSquare, label: selected.length ? t("speech.splitSpeechSelected", { n: selected.length }) : t("speech.splitSpeech"), act: () => void splitSpeech(selected.length ? selected : null), disabled: splitting || !blocks.length },
+          ...(project.book ? [{ icon: BookUp, label: t("book.rebuildOpen"), act: () => bookFile.current?.click() }] : []),
           { icon: SpellCheck, label: t("speech.stressAll"), act: () => void stressBlocks(null), disabled: !!stressing || !blocks.length },
           { icon: Sparkles, label: t("speech.voiceAll"), act: () => void runSynth({ force: true }), disabled: !!job },
           { icon: Download, label: t("speech.export"), act: () => setExporting(true), narrowOnly: true },
@@ -743,6 +751,8 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
         <div className="flex-1 min-w-0 overflow-y-auto px-4 py-4">
           {error && <ErrorNote text={error} />}
           {jobError && <ErrorNote text={jobError} onClose={() => setJobError(null)} />}
+          <input ref={bookFile} type="file" accept=".epub,.fb2,.pdf,.docx,.html,.htm,.md,.txt" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void openEditedBook(f); }} />
+          {bookUpdate && <BookImport preview={bookUpdate} into={pid} onClose={() => setBookUpdate(null)} onCreated={() => { setBookUpdate(null); reload(); }} />}
           {note && (
             <div role="status" className="mb-3 px-3 py-2 rounded-lg border border-[var(--color-border)] text-[12px] text-[var(--color-muted)] flex items-center gap-2">
               <span className="flex-1 min-w-0">{note}</span>
