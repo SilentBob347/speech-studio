@@ -566,6 +566,7 @@
       "done": "Terminé"
     },
     "kind": {
+      "music": "Musique d’un studio",
       "analyze": "Reconnaissance",
       "retranslate": "Traduction",
       "remix": "Montage par le texte",
@@ -1928,6 +1929,34 @@
     "strength": "Intensité de la réduction de bruit",
     "db": "jusqu’à −{{db}} dB",
     "full": "au maximum"
+  },
+  "tracks": {
+    "addFiles": "Fichiers…",
+    "addFilesHint": "Fichiers son de cet ordinateur sur une nouvelle piste du livre, l’un après l’autre",
+    "addFolder": "Dossier…",
+    "addFolderHint": "Tous les fichiers son d’un dossier, par nom, sur une nouvelle piste",
+    "music": "Musique…",
+    "musicHint": "Faire de la musique dans un studio de la famille (YuE2, MiniMax, ACE-Step) et la poser sur une piste",
+    "mute": "Couper la piste",
+    "unmute": "Réactiver la piste",
+    "gain": "Volume de la piste",
+    "gainHint": "Le volume de toute la piste par-dessus celui de ses clips, dB ; l’export la mixe sous les voix, sans ducking",
+    "addHere": "Ajouter des fichiers à cette piste",
+    "remove": "Supprimer la piste",
+    "musicTitle": "Musique d’un studio",
+    "musicIntro": "Le studio de musique choisi sur cet ordinateur fait la chanson selon son propre formulaire ; elle reste dans sa bibliothèque et son son arrive en clip sur une piste du livre. Le studio doit être ouvert.",
+    "refresh": "Chercher les studios à nouveau",
+    "studio": "Studio de musique",
+    "notRunning": "{{name}} n’est pas ouvert : ouvrez-le et il apparaîtra ici",
+    "noneRunning": "Aucun studio de musique n’est ouvert : ouvrez YuE2, MiniMax ou ACE-Step Studio",
+    "getStudios": "Pas de studio ? Téléchargez-le sur son site, installez-le et ouvrez-le, puis appuyez sur Actualiser en haut.",
+    "download": "Télécharger {{name}}",
+    "downloadHint": "Page de {{name}} : ce qu’il fait et son installateur",
+    "where": "La poser sur",
+    "newTrack": "Une nouvelle piste",
+    "at": "À partir de la seconde",
+    "atEnd": "après le dernier clip",
+    "make": "Faire"
   },
   "timeline": {
     "montage": "Montage audio",

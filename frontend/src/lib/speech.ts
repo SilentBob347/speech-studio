@@ -114,7 +114,13 @@ export type SpeechProject = {
   /** A project made from a book: its title, author and cover file. */
   book?: { title: string; author: string; cover: string | null } | null;
   status?: Record<string, { state: BlockState; key: string; fit?: "fits" | "tight" | "impossible" }>;
+  /** The book's or the play's own tracks beside the voices, mixed into the export. */
+  tracks?: Track[];
 };
+/** A sound on a track: a file of the project's media, its start on the export's scale, the part kept, its montage. */
+export type TrackClip = { id: string; file: string; label: string; start: number; duration: number; cut: [number, number] | null; mix?: Mix; source?: { studio: string; song: string; values: Record<string, unknown> } };
+export type Track = { id: string; name: string; gain_db: number; muted: boolean; clips: TrackClip[] };
+export type MusicStudio = { id: string; name: string; page: string; running: boolean; fields: import("./cloud").CloudField[] };
 export type ProjectCard = { pid: string; kind: string; name: string; mtime: number; created?: number; blocks?: number; ready?: number };
 export type ExportFormat = "wav" | "flac" | "mp3" | "ogg" | "m4a" | "m4b";
 /** The export's sample rate, bit depth (WAV, FLAC) and bitrate (MP3, OGG, M4A); unset — the format's own. */
@@ -195,6 +201,19 @@ export const speechApi = {
     form.append("file", file, file.name);
     return fetch(`${BASE}/projects/from-subtitles`, { method: "POST", body: form }).then(coded<{ project_id: string; project: SpeechProject }>);
   },
+  /** Sound files onto a track (or a new one called `name`), one after another from `at` or after its last clip. */
+  tracksUpload: (pid: string, files: File[], track: string | null, name: string, at: number | null) => {
+    const form = new FormData();
+    for (const f of files) form.append("file", f, f.name);
+    if (track) form.append("track", track);
+    if (name) form.append("name", name);
+    if (at != null) form.append("at", String(at));
+    return fetch(`${BASE}/projects/${pid}/tracks/upload`, { method: "POST", body: form }).then(coded<SpeechProject>);
+  },
+  musicStudios: () => getCoded<{ studios: MusicStudio[] }>("/music/studios"),
+  trackMusic: (pid: string, body: { studio: string; values: Record<string, unknown>; track?: string | null; name?: string; at?: number | null }) => postCoded<{ job_id: string }>(`/projects/${pid}/tracks/music`, body),
+  mediaUrl: (pid: string, file: string) => `${BASE}/projects/${pid}/media/${encodeURIComponent(file)}`,
+  mediaPeaks: (pid: string, file: string) => getCoded<{ secs: number; per_second: number; peaks: number[] }>(`/projects/${pid}/media/${encodeURIComponent(file)}/peaks`),
   setOwnRef: (pid: string, block: string, file: File, whole: boolean) => {
     const form = new FormData();
     form.append("file", file, file.name);

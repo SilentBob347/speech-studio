@@ -566,6 +566,7 @@
       "done": "已完成"
     },
     "kind": {
+      "music": "工作室音乐",
       "analyze": "识别",
       "retranslate": "翻译",
       "remix": "按文本剪辑",
@@ -1928,6 +1929,34 @@
     "strength": "降噪强度",
     "db": "最多 −{{db}} dB",
     "full": "完全"
+  },
+  "tracks": {
+    "addFiles": "文件…",
+    "addFilesHint": "把本机的音频文件依次放到书的新音轨上",
+    "addFolder": "文件夹…",
+    "addFolderHint": "把一个文件夹里的所有音频文件按名称放到新音轨上",
+    "music": "音乐…",
+    "musicHint": "在生态中的音乐工作室（YuE2、MiniMax、ACE-Step）生成音乐并放到音轨上",
+    "mute": "静音此音轨",
+    "unmute": "取消静音",
+    "gain": "音轨音量",
+    "gainHint": "整条音轨在其片段音量之上的音量（dB）；导出时混在人声之下，不做闪避",
+    "addHere": "向此音轨添加文件",
+    "remove": "删除音轨",
+    "musicTitle": "来自工作室的音乐",
+    "musicIntro": "由本机选定的音乐工作室按其自己的表单生成歌曲；歌曲留在工作室的曲库中，声音作为片段放到书的音轨上。工作室需要正在运行。",
+    "refresh": "重新查找工作室",
+    "studio": "工作室",
+    "notRunning": "{{name}} 未运行——打开它后会出现在这里",
+    "noneRunning": "没有正在运行的音乐工作室：请打开 YuE2、MiniMax 或 ACE-Step Studio",
+    "getStudios": "还没有工作室？从网站下载、安装并启动它，然后点击上方的“刷新”。",
+    "download": "下载 {{name}}",
+    "downloadHint": "{{name}} 的页面：介绍和安装程序",
+    "where": "放到",
+    "newTrack": "新音轨",
+    "at": "从第几秒开始",
+    "atEnd": "在最后一个片段之后",
+    "make": "生成"
   },
   "timeline": {
     "montage": "剪辑",

@@ -12,13 +12,15 @@ pub struct Studio {
     pub id: &'static str,
     pub name: &'static str,
     port: u16,
+    /// The studio's page, where it is downloaded (as VideoSOS's family list links them).
+    page: &'static str,
 }
 
 /// The ports each studio's desktop shell serves on (their `SERVER_PORT` / `studio.json`), as VideoSOS knows them.
 pub const STUDIOS: &[Studio] = &[
-    Studio { id: "yue2-studio", name: "YuE2 Studio", port: 8791 },
-    Studio { id: "minimax-music3-studio", name: "MiniMax Music3 Studio", port: 8765 },
-    Studio { id: "ace-step-studio", name: "ACE-Step Studio", port: 8792 },
+    Studio { id: "yue2-studio", name: "YuE2 Studio", port: 8791, page: "https://timoncool.github.io/YuE2-Studio/" },
+    Studio { id: "minimax-music3-studio", name: "MiniMax Music3 Studio", port: 8765, page: "https://timoncool.github.io/MiniMax-Music3-Studio/" },
+    Studio { id: "ace-step-studio", name: "ACE-Step Studio", port: 8792, page: "https://timoncool.github.io/ACE-Step-Studio/" },
 ];
 
 const PROTOCOL: &str = "2026-07-28";
@@ -67,25 +69,27 @@ fn tool(client: &reqwest::blocking::Client, studio: &Studio, name: &str, argumen
     })
 }
 
-/// Every music studio, whether it answers now and, when it does, the form of its `song_create`.
-pub fn list() -> Vec<Value> {
-    let Ok(client) = client(Duration::from_secs(3)) else { return Vec::new() };
-    STUDIOS
-        .iter()
-        .map(|studio| {
-            let schema = call(&client, studio, "tools/list", None, json!({})).ok().and_then(|tools| {
-                tools["tools"].as_array().and_then(|tools| tools.iter().find(|t| t["name"] == "song_create")).map(|t| t["inputSchema"].clone())
-            });
-            match schema {
-                Some(schema) => {
-                    let order: Vec<String> = ORDER.iter().map(|k| k.to_string()).collect();
-                    let fields = fields_of_object(&schema, &schema, "", &Skip { keys: SKIP }, false, Some(&order));
-                    json!({ "id": studio.id, "name": studio.name, "running": true, "fields": fields })
-                }
-                None => json!({ "id": studio.id, "name": studio.name, "running": false, "fields": [] }),
+/// Every music studio, whether it answers now and, when it does, the form of its `song_create`; the studios are asked
+/// at once, as a closed port takes a while to refuse.
+pub fn list() -> Result<Vec<Value>, String> {
+    let client = reqwest::blocking::Client::builder().timeout(Duration::from_secs(3)).connect_timeout(Duration::from_millis(800)).no_proxy().build().map_err(|e| e.to_string())?;
+    let ask = |studio: &Studio| {
+        let schema = call(&client, studio, "tools/list", None, json!({})).ok().and_then(|tools| {
+            tools["tools"].as_array().and_then(|tools| tools.iter().find(|t| t["name"] == "song_create")).map(|t| t["inputSchema"].clone())
+        });
+        match schema {
+            Some(schema) => {
+                let order: Vec<String> = ORDER.iter().map(|k| k.to_string()).collect();
+                let fields = fields_of_object(&schema, &schema, "", &Skip { keys: SKIP }, false, Some(&order));
+                json!({ "id": studio.id, "name": studio.name, "page": studio.page, "running": true, "fields": fields })
             }
-        })
-        .collect()
+            None => json!({ "id": studio.id, "name": studio.name, "page": studio.page, "running": false, "fields": [] }),
+        }
+    };
+    std::thread::scope(|scope| {
+        let asked: Vec<_> = STUDIOS.iter().map(|studio| scope.spawn(|| ask(studio))).collect();
+        asked.into_iter().zip(STUDIOS).map(|(h, studio)| h.join().map_err(|_| format!("{}: asking it broke down", studio.name))).collect()
+    })
 }
 
 /// A song made in `studio` with the form's `values`: the audio file of each song it made, with the song's id and title,
@@ -142,7 +146,7 @@ mod tests {
             answer(json!({ "audio": "C:/songs/rain.flac" })),
         ]);
         let port: u16 = server.base().rsplit(':').next().unwrap().parse().unwrap();
-        let studio = Studio { id: "yue2-studio", name: "YuE2 Studio", port };
+        let studio = Studio { id: "yue2-studio", name: "YuE2 Studio", port, page: "" };
         let mut values = Map::new();
         values.insert("style".into(), json!("calm piano"));
         values.insert("lyrics".into(), json!(""));

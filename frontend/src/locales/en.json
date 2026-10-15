@@ -566,6 +566,7 @@
       "done": "Done"
     },
     "kind": {
+      "music": "Music from a studio",
       "analyze": "Recognition",
       "retranslate": "Translation",
       "remix": "Edit by text",
@@ -1928,6 +1929,34 @@
     "strength": "Noise suppression strength",
     "db": "down to −{{db}} dB",
     "full": "all the way"
+  },
+  "tracks": {
+    "addFiles": "Files…",
+    "addFilesHint": "Sound files of this computer onto a new track of the book, one after another",
+    "addFolder": "Folder…",
+    "addFolderHint": "Every sound file of a folder, by name, onto a new track",
+    "music": "Music…",
+    "musicHint": "Make music in a music studio of the family (YuE2, MiniMax, ACE-Step) and put it on a track",
+    "mute": "Mute the track",
+    "unmute": "Unmute the track",
+    "gain": "Track gain",
+    "gainHint": "The whole track's gain over its clips', dB; the export mixes it under the voices, no ducking",
+    "addHere": "Add files to this track",
+    "remove": "Remove the track",
+    "musicTitle": "Music from a studio",
+    "musicIntro": "The chosen music studio of this computer makes the song by its own form; it stays in the studio's library and its sound comes onto a track of the book as a clip. The studio must be running.",
+    "refresh": "Look for the studios again",
+    "studio": "Studio",
+    "notRunning": "{{name}} is not running — open it and it shows up here",
+    "noneRunning": "No music studio is running: open YuE2, MiniMax or ACE-Step Studio",
+    "getStudios": "No studio yet? Download it from its site, install and start it, then press Refresh above.",
+    "download": "Get {{name}}",
+    "downloadHint": "{{name}}'s page: what it does and its installer",
+    "where": "Put it on",
+    "newTrack": "A new track",
+    "at": "From second",
+    "atEnd": "after the last clip",
+    "make": "Make"
   },
   "timeline": {
     "montage": "Montage",

@@ -566,6 +566,7 @@
       "done": "Listo"
     },
     "kind": {
+      "music": "Música de un estudio",
       "analyze": "Reconocimiento",
       "retranslate": "Traducción",
       "remix": "Edición por texto",
@@ -1928,6 +1929,34 @@
     "strength": "Intensidad de la supresión de ruido",
     "db": "hasta −{{db}} dB",
     "full": "del todo"
+  },
+  "tracks": {
+    "addFiles": "Archivos…",
+    "addFilesHint": "Archivos de sonido del equipo a una pista nueva del libro, uno tras otro",
+    "addFolder": "Carpeta…",
+    "addFolderHint": "Todos los archivos de sonido de una carpeta, por nombre, a una pista nueva",
+    "music": "Música…",
+    "musicHint": "Hacer música en un estudio musical de la familia (YuE2, MiniMax, ACE-Step) y ponerla en una pista",
+    "mute": "Silenciar la pista",
+    "unmute": "Activar la pista",
+    "gain": "Volumen de la pista",
+    "gainHint": "El volumen de toda la pista sobre el de sus clips, dB; la exportación la mezcla bajo las voces, sin ducking",
+    "addHere": "Añadir archivos a esta pista",
+    "remove": "Quitar la pista",
+    "musicTitle": "Música de un estudio",
+    "musicIntro": "El estudio musical elegido de este equipo hace la canción con su propio formulario; queda en la biblioteca del estudio y su sonido llega como clip a una pista del libro. El estudio debe estar abierto.",
+    "refresh": "Buscar los estudios de nuevo",
+    "studio": "Estudio",
+    "notRunning": "{{name}} no está abierto: ábralo y aparecerá aquí",
+    "noneRunning": "Ningún estudio musical está abierto: abra YuE2, MiniMax o ACE-Step Studio",
+    "getStudios": "¿Sin estudio? Descárguelo de su sitio, instálelo y ábralo; luego pulse Actualizar arriba.",
+    "download": "Descargar {{name}}",
+    "downloadHint": "Página de {{name}}: qué hace y su instalador",
+    "where": "Ponerla en",
+    "newTrack": "Una pista nueva",
+    "at": "Desde el segundo",
+    "atEnd": "tras el último clip",
+    "make": "Hacer"
   },
   "timeline": {
     "montage": "Montaje",

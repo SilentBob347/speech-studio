@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Minus, Play, Plus, SlidersHorizontal, X } from "lucide-react";
-import { FLAT_MIX, MIX_GAIN_DB, speechApi, type Mix, type TimelineBlock } from "../../lib/speech";
+import { FileAudio, FolderOpen, Minus, Music, Play, Plus, SlidersHorizontal, Trash2, Volume2, VolumeX, X } from "lucide-react";
+import { FLAT_MIX, MIX_GAIN_DB, speechApi, type Mix, type TimelineBlock, type Track } from "../../lib/speech";
 import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
 
@@ -24,6 +24,14 @@ const lineY = (gain: number, height: number) => Math.max(6, Math.min(94, 50 - (g
 const [GAIN_MIN, GAIN_MAX] = MIX_GAIN_DB;
 const round = (x: number, step: number) => Number((Math.round(x / step) * step).toFixed(3));
 
+/** A clip on the scale: a block's take, or with `track` a sound of the book's track (`file` in the project's media). */
+type Row = TimelineBlock & { track?: string; file?: string; label?: string };
+/** What the editor changed on a clip of a book's track. */
+export type ClipChange = { start?: number; cut?: [number, number] | null; mix?: Mix };
+const trackLane = (id: string) => `\u0000track:${id}`;
+const peakKey = (r: Row) => (r.track ? (r.file ? `media:${r.file}` : null) : r.take);
+const TRACK_TINT = "var(--color-accent-2)";
+
 type Drag = { block: string; kind: "move" | "left" | "right" | "fin" | "fout" | "gain"; x0: number; y0: number; moved: boolean; from: Live };
 type Live = { start: number; cut: [number, number]; mix: Mix };
 
@@ -31,7 +39,7 @@ type Live = { start: number; cut: [number, number]; mix: Mix };
  * is not voiced), an interruption striped where it covers the previous reply, with the choice to cut that reply off, join
  * the two back to back or keep both. «Montage» turns it into a track editor: the clip's waveform, its edges trimmed, its
  * fades and gain dragged, the clip moved along the time, everything kept in the project and the take left as it is. */
-export default function ProjectTimeline({ pid, speakers, tintOf, textOf, refresh, cueTimed, onChoose, onJump, onMontage, onPlay, onClose }: {
+export default function ProjectTimeline({ pid, speakers, tintOf, textOf, refresh, cueTimed, tracks, onChoose, onJump, onMontage, onPlay, onTrackClip, onTrack, onAddFiles, onMusic, onPlayMedia, onClose }: {
   pid: string;
   /** A block's text, shown inside its clip as far as it fits. */
   textOf: (block: string) => string;
@@ -46,6 +54,14 @@ export default function ProjectTimeline({ pid, speakers, tintOf, textOf, refresh
   onJump: (block: string) => void;
   onMontage: (block: string, change: Montage) => void;
   onPlay: (block: string) => void;
+  /** The book's or the play's own tracks, under the voices. */
+  tracks: Track[];
+  onTrackClip: (track: string, clip: string, change: ClipChange) => void;
+  onTrack: (track: string, change: { gain_db?: number; muted?: boolean; remove?: boolean }) => void;
+  /** Sound files onto a track, or a new one when `track` is null. */
+  onAddFiles: (files: File[], track: string | null) => void;
+  onMusic: () => void;
+  onPlayMedia: (file: string, cut: [number, number]) => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -59,6 +75,19 @@ export default function ProjectTimeline({ pid, speakers, tintOf, textOf, refresh
   const [live, setLive] = useState<{ block: string; value: Live } | null>(null);
   const scroller = useRef<HTMLDivElement | null>(null);
   const asked = useRef(new Set<string>());
+  const filesInput = useRef<HTMLInputElement | null>(null);
+  const folderInput = useRef<HTMLInputElement | null>(null);
+  const [target, setTarget] = useState<string | null>(null);
+  const trackRows = useMemo<Row[]>(() => tracks.flatMap((track) => track.clips.map((c) => {
+    const [a, z] = c.cut ?? [0, c.duration];
+    return { block: c.id, speaker: trackLane(track.id), start: c.start, end: c.start + (z - a), voiced: true, overlap: null, cut_previous: false, prev: null, take: null, take_secs: c.duration, cut: c.cut, mix: c.mix ?? FLAT_MIX, track: track.id, file: c.file, label: c.label };
+  })), [tracks]);
+  const all = useMemo<Row[]>(() => [...(rows ?? []), ...trackRows], [rows, trackRows]);
+  const pick = (folder: boolean, track: string | null) => { setTarget(track); (folder ? folderInput : filesInput).current?.click(); };
+  const picked = (list: FileList | null) => {
+    const files = [...(list ?? [])].filter((f) => f.type.startsWith("audio/") || /\.(wav|mp3|flac|ogg|opus|m4a|aac|wma|aiff?)$/i.test(f.name));
+    if (files.length) onAddFiles(files, target);
+  };
   useEffect(() => {
     if (refresh === undefined) return;
     let alive = true;
@@ -66,35 +95,43 @@ export default function ProjectTimeline({ pid, speakers, tintOf, textOf, refresh
     return () => { alive = false; };
   }, [pid, refresh]);
   useEffect(() => {
-    if (!editing || !rows) return;
+    if (!editing) return;
     let alive = true;
-    const wanted = [...new Set(rows.map((r) => r.take).filter((f): f is string => !!f && !asked.current.has(f)))];
+    const wanted = [...new Set(all.map(peakKey).filter((f): f is string => !!f && !asked.current.has(f)))];
     wanted.forEach((f) => asked.current.add(f));
     void (async () => {
       for (const file of wanted) {
         try {
-          const got = await speechApi.takePeaks(pid, file);
+          const got = file.startsWith("media:") ? await speechApi.mediaPeaks(pid, file.slice(6)) : await speechApi.takePeaks(pid, file);
           setPeaks((p) => ({ ...p, [file]: { per_second: got.per_second, peaks: got.peaks } }));
         } catch (e) { asked.current.delete(file); if (alive) setError(errorText(e)); return; }
       }
     })();
     return () => { alive = false; };
-  }, [editing, rows, pid]);
+  }, [editing, all, pid]);
   const lanes = useMemo(() => {
     const seen = [...speakers];
     for (const r of rows ?? []) if (!seen.includes(r.speaker)) seen.push(r.speaker);
-    return seen.filter((s) => rows?.some((r) => r.speaker === s));
-  }, [rows, speakers]);
+    return [...seen.filter((s) => rows?.some((r) => r.speaker === s)), ...tracks.map((tr) => trackLane(tr.id))];
+  }, [rows, speakers, tracks]);
   const pps = ZOOMS[zoom];
   const lane = editing ? LANE_EDIT : LANE;
-  const total = Math.max(1, ...(rows ?? []).map((r) => r.end));
+  const total = Math.max(1, ...all.map((r) => r.end));
   const overlaps = (rows ?? []).filter((r) => r.overlap);
   const chosen = rows?.find((r) => r.block === open);
   const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
   const ticks = Math.max(1, [1, 5, 10, 30, 60, 300].find((step) => step * pps >= 60) ?? 600);
 
-  const valueOf = (r: TimelineBlock): Live => live?.block === r.block ? live.value : { start: r.start, cut: r.cut ?? [0, r.take_secs ?? r.end - r.start], mix: r.mix ?? FLAT_MIX };
-  const commit = (r: TimelineBlock, v: Live, kind: Drag["kind"]) => {
+  const valueOf = (r: Row): Live => live?.block === r.block ? live.value : { start: r.start, cut: r.cut ?? [0, r.take_secs ?? r.end - r.start], mix: r.mix ?? FLAT_MIX };
+  const commit = (r: Row, v: Live, kind: Drag["kind"]) => {
+    if (r.track) {
+      const whole = r.take_secs ?? v.cut[1];
+      const cut: [number, number] = [round(v.cut[0], 0.01), round(v.cut[1], 0.01)];
+      if (kind === "move") onTrackClip(r.track, r.block, { start: round(v.start, 0.01) });
+      else if (kind === "left" || kind === "right") onTrackClip(r.track, r.block, { start: round(v.start, 0.01), cut: cut[0] <= 0.005 && cut[1] >= whole - 0.005 ? null : cut });
+      else onTrackClip(r.track, r.block, { mix: v.mix });
+      return;
+    }
     if (kind === "move") {
       const shift = round(v.start - r.start, 0.01);
       if (Math.abs(shift) < 0.005) return;
@@ -113,7 +150,7 @@ export default function ProjectTimeline({ pid, speakers, tintOf, textOf, refresh
     const was = r.mix ?? FLAT_MIX;
     if (v.mix.gain_db !== was.gain_db || v.mix.fade_in !== was.fade_in || v.mix.fade_out !== was.fade_out) onMontage(r.block, { mix: v.mix });
   };
-  const change = (r: TimelineBlock, kind: Drag["kind"], dx: number, dy: number, from: Live): Live => {
+  const change = (r: Row, kind: Drag["kind"], dx: number, dy: number, from: Live): Live => {
     const dt = dx / pps;
     const [a, z] = from.cut;
     const length = z - a;
@@ -128,7 +165,7 @@ export default function ProjectTimeline({ pid, speakers, tintOf, textOf, refresh
       }
       case "left": {
         const na = Math.min(z - MIN_CLIP, Math.max(0, a + dt));
-        return { ...from, cut: [na, z], mix: { ...mix, fade_in: Math.min(mix.fade_in, z - na), fade_out: Math.min(mix.fade_out, z - na) } };
+        return { ...from, cut: [na, z], start: r.track ? from.start + (na - a) : from.start, mix: { ...mix, fade_in: Math.min(mix.fade_in, z - na), fade_out: Math.min(mix.fade_out, z - na) } };
       }
       case "right": {
         const nz = Math.max(a + MIN_CLIP, Math.min(whole, z + dt));
@@ -139,7 +176,7 @@ export default function ProjectTimeline({ pid, speakers, tintOf, textOf, refresh
       case "gain": return { ...from, mix: { ...mix, gain_db: round(Math.max(GAIN_MIN, Math.min(GAIN_MAX, mix.gain_db - dy / PX_PER_DB)), 0.5) } };
     }
   };
-  const begin = (e: React.PointerEvent, r: TimelineBlock, kind: Drag["kind"]) => {
+  const begin = (e: React.PointerEvent, r: Row, kind: Drag["kind"]) => {
     if (e.button !== 0) return;
     e.stopPropagation();
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -147,7 +184,7 @@ export default function ProjectTimeline({ pid, speakers, tintOf, textOf, refresh
     setDrag({ block: r.block, kind, x0: e.clientX, y0: e.clientY, moved: false, from });
     setLive({ block: r.block, value: from });
   };
-  const move = (e: React.PointerEvent, r: TimelineBlock) => {
+  const move = (e: React.PointerEvent, r: Row) => {
     if (!drag || drag.block !== r.block) return;
     const dx = e.clientX - drag.x0;
     const dy = e.clientY - drag.y0;
@@ -155,15 +192,15 @@ export default function ProjectTimeline({ pid, speakers, tintOf, textOf, refresh
     if (!drag.moved) setDrag({ ...drag, moved: true });
     setLive({ block: r.block, value: change(r, drag.kind, dx, dy, drag.from) });
   };
-  const end = (e: React.PointerEvent, r: TimelineBlock) => {
+  const end = (e: React.PointerEvent, r: Row) => {
     if (!drag || drag.block !== r.block) return;
     (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
     const kind = drag.kind;
     setDrag(null);
-    if (!drag.moved) { setLive(null); if (kind === "move") onJump(r.block); return; }
+    if (!drag.moved) { setLive(null); if (kind === "move" && !r.track) onJump(r.block); return; }
     if (live) commit(r, live.value, kind);
   };
-  const nudge = (e: React.KeyboardEvent, r: TimelineBlock, kind: Drag["kind"]) => {
+  const nudge = (e: React.KeyboardEvent, r: Row, kind: Drag["kind"]) => {
     const step = kind === "gain" ? { ArrowUp: 1, ArrowDown: -1 }[e.key as "ArrowUp" | "ArrowDown"] : { ArrowLeft: -1, ArrowRight: 1 }[e.key as "ArrowLeft" | "ArrowRight"];
     if (step === undefined) return;
     e.preventDefault();
@@ -175,12 +212,17 @@ export default function ProjectTimeline({ pid, speakers, tintOf, textOf, refresh
     setLive({ block: r.block, value: next });
     commit(r, next, kind);
   };
-  const reset = (r: TimelineBlock, kind: "fin" | "fout" | "gain" | "trim") => {
+  const reset = (r: Row, kind: "fin" | "fout" | "gain" | "trim") => {
     const v = valueOf(r);
-    if (kind === "trim") { onMontage(r.block, { cut: null }); return; }
+    if (kind === "trim") {
+      if (r.track) onTrackClip(r.track, r.block, { start: round(v.start - v.cut[0], 0.01), cut: null });
+      else onMontage(r.block, { cut: null });
+      return;
+    }
     const mix = { ...v.mix, ...(kind === "fin" ? { fade_in: 0 } : kind === "fout" ? { fade_out: 0 } : { gain_db: 0 }) };
     setLive({ block: r.block, value: { ...v, mix } });
-    onMontage(r.block, { mix });
+    if (r.track) onTrackClip(r.track, r.block, { mix });
+    else onMontage(r.block, { mix });
   };
   const wheel = (e: React.WheelEvent) => {
     if (!(e.ctrlKey || e.metaKey)) return;
@@ -205,6 +247,15 @@ export default function ProjectTimeline({ pid, speakers, tintOf, textOf, refresh
         <span className="text-[11px] text-[var(--color-muted)] tabnum">{clock(total)}{overlaps.length ? ` · ${t("timeline.overlaps", { n: overlaps.length })}` : ""}</span>
         {readout && <span className="text-[11px] tabnum text-[var(--color-accent)]">{readout}</span>}
         <div className="ml-auto flex items-center gap-1">
+          {editing && (
+            <>
+              <button onClick={() => pick(false, null)} title={t("tracks.addFilesHint")} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--color-border)] text-[11px] text-[var(--color-muted)] hover:text-[var(--color-text)]"><FileAudio size={12} />{t("tracks.addFiles")}</button>
+              <button onClick={() => pick(true, null)} title={t("tracks.addFolderHint")} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--color-border)] text-[11px] text-[var(--color-muted)] hover:text-[var(--color-text)]"><FolderOpen size={12} />{t("tracks.addFolder")}</button>
+              <button onClick={onMusic} title={t("tracks.musicHint")} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--color-border)] text-[11px] text-[var(--color-muted)] hover:text-[var(--color-text)]"><Music size={12} />{t("tracks.music")}</button>
+              <input ref={filesInput} type="file" multiple accept="audio/*" hidden onChange={(e) => { picked(e.target.files); e.target.value = ""; }} />
+              <input ref={folderInput} type="file" multiple hidden {...{ webkitdirectory: "" }} onChange={(e) => { picked(e.target.files); e.target.value = ""; }} />
+            </>
+          )}
           <button onClick={() => setEditing((on) => !on)} aria-pressed={editing} title={t("timeline.montageHint")}
             className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border text-[11px] ${editing ? "border-[var(--color-accent)] text-[var(--color-accent)]" : "border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-text)]"}`}>
             <SlidersHorizontal size={12} />{t("timeline.montage")}
@@ -218,29 +269,49 @@ export default function ProjectTimeline({ pid, speakers, tintOf, textOf, refresh
       {error && <p role="alert" className="text-[12px] text-[var(--color-warn)]">{error}</p>}
       {rows && (
         <div className="flex">
-          <div className="shrink-0 w-24" style={{ paddingTop: RULER }}>
-            {lanes.map((s) => <div key={s} style={{ height: lane, lineHeight: `${lane}px`, color: tintOf(s) }} className="text-[11px] font-semibold truncate pr-2" title={s}>{s}</div>)}
+          <div className={`shrink-0 ${editing ? "w-36" : "w-24"}`} style={{ paddingTop: RULER }}>
+            {lanes.map((s) => {
+              const track = tracks.find((tr) => trackLane(tr.id) === s);
+              if (!track) return <div key={s} style={{ height: lane, lineHeight: `${lane}px`, color: tintOf(s) }} className="text-[11px] font-semibold truncate pr-2" title={s}>{s}</div>;
+              return (
+                <div key={s} style={{ height: lane }} className={`pr-2 flex flex-col justify-center gap-0.5 ${track.muted ? "opacity-50" : ""}`}>
+                  <span className="text-[11px] font-semibold truncate" style={{ color: TRACK_TINT }} title={track.name}>{track.name}</span>
+                  {editing && (
+                    <span className="flex items-center gap-1">
+                      <button onClick={() => onTrack(track.id, { muted: !track.muted })} aria-pressed={track.muted} className="p-0.5 rounded text-[var(--color-muted)] hover:text-[var(--color-text)]" {...named(t(track.muted ? "tracks.unmute" : "tracks.mute"))}>{track.muted ? <VolumeX size={12} /> : <Volume2 size={12} />}</button>
+                      <input type="number" value={track.gain_db} step={0.5} min={GAIN_MIN} max={GAIN_MAX} onChange={(e) => { const v = Number(e.target.value); if (Number.isFinite(v)) onTrack(track.id, { gain_db: Math.max(GAIN_MIN, Math.min(GAIN_MAX, v)) }); }}
+                        className="w-12 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded px-1 text-[10px] tabnum" aria-label={t("tracks.gain")} title={t("tracks.gainHint")} />
+                      <button onClick={() => pick(false, track.id)} className="p-0.5 rounded text-[var(--color-muted)] hover:text-[var(--color-text)]" {...named(t("tracks.addHere"))}><Plus size={12} /></button>
+                      <button onClick={() => onTrack(track.id, { remove: true })} className="p-0.5 rounded text-[var(--color-muted)] hover:text-[var(--color-warn)]" {...named(t("tracks.remove"))}><Trash2 size={12} /></button>
+                    </span>
+                  )}
+                </div>
+              );
+            })}
           </div>
           <div ref={scroller} onWheel={wheel} className="relative flex-1 min-w-0 overflow-x-auto pb-1">
             <div className="relative" style={{ width: total * pps + 40, height: RULER + lanes.length * lane }}>
               {Array.from({ length: Math.floor(total / ticks) + 1 }, (_, k) => (
                 <span key={k} className="absolute top-0 text-[9px] tabnum text-[var(--color-muted)] border-l border-[var(--color-border)] pl-0.5 h-full" style={{ left: k * ticks * pps }}>{clock(k * ticks)}</span>
               ))}
-              {rows.map((r) => {
+              {all.map((r) => {
                 const top = RULER + lanes.indexOf(r.speaker) * lane + 4;
                 const v = valueOf(r);
                 const length = editing && r.voiced ? v.cut[1] - v.cut[0] : r.end - r.start;
                 const left = (editing ? v.start : r.start) * pps;
                 const width = Math.max(2, length * pps);
                 const height = lane - 8;
-                const tint = tintOf(r.speaker);
-                const wave = r.take ? peaks[r.take] : undefined;
+                const tint = r.track ? TRACK_TINT : tintOf(r.speaker);
+                const key = peakKey(r);
+                const wave = key ? peaks[key] : undefined;
+                const owner = r.track ? tracks.find((tr) => tr.id === r.track) : undefined;
+                const who = owner ? owner.name : r.speaker;
                 return (
                   <div key={r.block}>
                     {editing && r.voiced ? (
-                      <div role="group" aria-label={t("timeline.block", { speaker: r.speaker, at: clock(v.start) })}
+                      <div role="group" aria-label={t("timeline.block", { speaker: who, at: clock(v.start) })}
                         onPointerDown={(e) => begin(e, r, "move")} onPointerMove={(e) => move(e, r)} onPointerUp={(e) => end(e, r)}
-                        className={`absolute rounded-[4px] border overflow-hidden select-none touch-none ${drag?.block === r.block && drag.kind === "move" ? "cursor-grabbing z-10" : "cursor-grab"}`}
+                        className={`absolute rounded-[4px] border overflow-hidden select-none touch-none ${owner?.muted ? "opacity-40" : ""} ${drag?.block === r.block && drag.kind === "move" ? "cursor-grabbing z-10" : "cursor-grab"}`}
                         style={{ left, width, top, height, borderColor: tint, background: `color-mix(in oklab, ${tint} 22%, transparent)` }}>
                         {wave && (
                           <svg aria-hidden className="absolute inset-0 w-full h-full pointer-events-none" viewBox={`0 0 ${Math.max(1, Math.round(length * wave.per_second))} 2`} preserveAspectRatio="none">
@@ -254,8 +325,8 @@ export default function ProjectTimeline({ pid, speakers, tintOf, textOf, refresh
                           {v.mix.fade_in > 0 && <path d={`M0 0 L${(v.mix.fade_in / length) * 1000} 0 L0 100 Z`} fill="rgba(0,0,0,0.5)" />}
                           {v.mix.fade_out > 0 && <path d={`M${1000 - (v.mix.fade_out / length) * 1000} 0 L1000 0 L1000 100 Z`} fill="rgba(0,0,0,0.5)" />}
                         </svg>
-                        <span aria-hidden className="absolute left-2.5 right-2.5 top-2 text-[10px] leading-[14px] text-[var(--color-text)] truncate pointer-events-none">{textOf(r.block)}</span>
-                        <button onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); onPlay(r.block); }}
+                        <span aria-hidden className="absolute left-2.5 right-2.5 top-2 text-[10px] leading-[14px] text-[var(--color-text)] truncate pointer-events-none">{r.track ? r.label : textOf(r.block)}</span>
+                        <button onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); if (r.track && r.file) onPlayMedia(r.file, v.cut); else onPlay(r.block); }}
                           className="absolute left-2.5 bottom-1 p-0.5 rounded bg-[var(--color-accent)] text-[var(--color-on-accent)]" {...named(t("timeline.listen"))}><Play size={9} /></button>
                         <div onPointerDown={(e) => begin(e, r, "gain")} onPointerMove={(e) => move(e, r)} onPointerUp={(e) => end(e, r)}
                           onDoubleClick={(e) => { e.stopPropagation(); reset(r, "gain"); }} onKeyDown={(e) => nudge(e, r, "gain")}
@@ -279,11 +350,11 @@ export default function ProjectTimeline({ pid, speakers, tintOf, textOf, refresh
                         ))}
                       </div>
                     ) : (
-                      <button onClick={() => onJump(r.block)} title={`${r.speaker} · ${clock(r.start)}–${clock(r.end)}${r.voiced ? "" : ` · ${t("timeline.estimate")}`}`}
-                        className={`absolute rounded-[4px] border ${r.voiced ? "" : "border-dashed"} hover:brightness-125`}
+                      <button onClick={() => { if (!r.track) onJump(r.block); }} title={`${who} · ${clock(r.start)}–${clock(r.end)}${r.voiced ? "" : ` · ${t("timeline.estimate")}`}`}
+                        className={`absolute rounded-[4px] border ${r.voiced ? "" : "border-dashed"} ${owner?.muted ? "opacity-40" : ""} hover:brightness-125`}
                         style={{ left, width, top, height, borderColor: tint, background: r.voiced ? `color-mix(in oklab, ${tint} 35%, transparent)` : "transparent" }}
-                        aria-label={t("timeline.block", { speaker: r.speaker, at: clock(r.start) })}>
-                        <span aria-hidden className="block px-1 text-[10px] leading-[20px] text-left text-[var(--color-text)] truncate pointer-events-none">{textOf(r.block)}</span>
+                        aria-label={t("timeline.block", { speaker: who, at: clock(r.start) })}>
+                        <span aria-hidden className="block px-1 text-[10px] leading-[20px] text-left text-[var(--color-text)] truncate pointer-events-none">{r.track ? r.label : textOf(r.block)}</span>
                       </button>
                     )}
                     {r.overlap && !editing && (

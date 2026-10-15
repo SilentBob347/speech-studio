@@ -678,7 +678,8 @@ pub async fn tracks_upload(State(st): State<AppState>, AxPath(pid): AxPath<Strin
 /// GET /music/studios — the music studios of this computer, whether each answers now, and the form of its song.
 pub async fn music_studios() -> Response {
     match joined(tokio::task::spawn_blocking(crate::music_studios::list).await) {
-        Ok(list) => Json(json!({ "studios": list })).into_response(),
+        Ok(Ok(list)) => Json(json!({ "studios": list })).into_response(),
+        Ok(Err(e)) => refuse(StatusCode::INTERNAL_SERVER_ERROR, "music_failed", e),
         Err(r) => r,
     }
 }

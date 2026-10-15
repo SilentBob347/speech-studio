@@ -38,6 +38,7 @@ import ExportDialog from "./ExportDialog";
 import DictionaryDialog from "./DictionaryDialog";
 import SearchReplace from "./SearchReplace";
 import ProjectTimeline, { type Montage, type OverlapChoice } from "./ProjectTimeline";
+import MusicDialog from "./MusicDialog";
 import EngineSelect from "./EngineSelect";
 import HistoryDialog from "./HistoryDialog";
 
@@ -77,6 +78,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   const [dictionary, setDictionary] = useState(false);
   const [searching, setSearching] = useState(false);
   const [timelineOpen, setTimelineOpen] = useState(false);
+  const [musicOpen, setMusicOpen] = useState(false);
   const [history, setHistory] = useState(false);
   const [castOpen, setCastOpen] = useState(false);
   const simple = useSimpleMode();
@@ -711,6 +713,37 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
       {timelineOpen && (
         <ProjectTimeline pid={pid} speakers={speakers} tintOf={tintOf} textOf={(id) => blocks.find((b) => b.id === id)?.text ?? ""} refresh={saving ? undefined : project} onClose={() => setTimelineOpen(false)}
           cueTimed={project.settings.timeline}
+          tracks={project.tracks ?? []}
+          onTrackClip={(trackId, clipId, change) => edit((p) => {
+            const clip = p.tracks?.find((tr) => tr.id === trackId)?.clips.find((c) => c.id === clipId);
+            if (!clip) return p;
+            if (change.start !== undefined) clip.start = Math.max(0, change.start);
+            if (change.cut !== undefined) clip.cut = change.cut;
+            if (change.mix) clip.mix = change.mix;
+            return p;
+          })}
+          onTrack={(trackId, change) => edit((p) => {
+            if (change.remove) { p.tracks = (p.tracks ?? []).filter((tr) => tr.id !== trackId); return p; }
+            const track = p.tracks?.find((tr) => tr.id === trackId);
+            if (!track) return p;
+            if (change.gain_db !== undefined) track.gain_db = change.gain_db;
+            if (change.muted !== undefined) track.muted = change.muted;
+            return p;
+          })}
+          onAddFiles={(files, trackId) => { void (async () => {
+            try { await flush(); await speechApi.tracksUpload(pid, files, trackId, "", null); reload(); }
+            catch (e) { setJobError(errorText(e)); }
+          })(); }}
+          onMusic={() => setMusicOpen(true)}
+          onPlayMedia={(file, [from, to]) => {
+            audio.current?.pause();
+            const a = new Audio(speechApi.mediaUrl(pid, file));
+            a.volume = volume.current;
+            a.addEventListener("loadedmetadata", () => { a.currentTime = from; }, { once: true });
+            a.addEventListener("timeupdate", () => { if (a.currentTime >= to) a.pause(); });
+            audio.current = a;
+            a.play().catch((e: unknown) => setJobError(errorText(e)));
+          }}
           onPlay={(id) => { const b = blocks.find((x) => x.id === id); if (b) playBlock(b, []); }}
           onMontage={(id, change: Montage) => edit((p) => {
             const at = locate(p, id);
@@ -741,6 +774,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
             return p;
           })} />
       )}
+      {musicOpen && <MusicDialog pid={pid} tracks={(project.tracks ?? []).map((tr) => ({ id: tr.id, name: tr.name }))} flush={flush} onClose={() => setMusicOpen(false)} onDone={() => { setMusicOpen(false); reload(); }} />}
       {searching && (
         <SearchReplace blocks={blocks} onClose={() => setSearching(false)}
           onJump={(id) => document.getElementById(`block-${id}`)?.scrollIntoView({ block: "center", behavior: "smooth" })}

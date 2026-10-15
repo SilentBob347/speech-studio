@@ -386,7 +386,7 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "music_studios",
-            description: "The music studios of this computer (YuE2 Studio, MiniMax Music3 Studio, ACE-Step Studio): whether each runs now and the fields of its song form (the input of its song_create), for project_track_music. A studio that does not run is started by the person.",
+            description: "The music studios of this computer (YuE2 Studio, MiniMax Music3 Studio, ACE-Step Studio): whether each runs now, the fields of its song form (the input of its song_create) for project_track_music, and page, where it is downloaded. A studio that does not run is installed or started by the person.",
             schema: || object(json!({}), &[]),
             call: |_| get("/music/studios".into()),
         },
