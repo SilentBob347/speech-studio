@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, ChevronDown, Combine, Eye, EyeOff, GripVertical, Loader2, Pause, Pin, Play, Plus, RefreshCw, Scissors, SlidersHorizontal, SpellCheck, Trash2, X } from "lucide-react";
 import { activeTake, cueTime, MARKERS, withCase, type Block, type BlockState, type Marker, type StressWord } from "../../lib/speech";
+import { askCloneTerms } from "../../lib/cloudConsent";
 import { named } from "../../lib/a11y";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -386,6 +387,7 @@ function OwnRefField({ block, a }: { block: Block; a: BlockActions }) {
   const [error, setError] = useState<string | null>(null);
   const r = block.own_ref;
   const upload = async (f: File) => {
+    if (!(await askCloneTerms())) return;
     setBusy(true);
     setError(null);
     try { await a.ownRef(f, whole); } catch (e) { setError(e instanceof Error ? e.message : String(e)); } finally { setBusy(false); }

@@ -915,7 +915,9 @@
     "attr_manner_playful": "俏皮",
     "attr_manner_serious": "严肃",
     "attr_manner_cheerful": "欢快",
-    "attr_manner_melancholic": "忧郁"
+    "attr_manner_melancholic": "忧郁",
+    "license": "许可",
+    "licenseHint": "CC-BY-4.0 或文字说明：“仅限个人使用”"
   },
   "speech": {
     "projectSettings": "项目设置",
@@ -1950,5 +1952,10 @@
     "seed": "种子",
     "baseVoice": "引擎基础声音",
     "find": "查找文件或项目"
+  },
+  "cloneTerms": {
+    "title": "仅在获得许可时使用声音",
+    "message": "请只克隆你自己的声音，或已同意的人的声音。未经许可使用他人声音的配音很容易被当作伪造；在法律要求的地方（例如欧盟《人工智能法》第 50 条），请标明语音由 AI 生成。工作室只询问一次。",
+    "accept": "明白，继续"
   }
 }

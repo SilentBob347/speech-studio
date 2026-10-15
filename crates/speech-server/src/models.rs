@@ -220,6 +220,7 @@ pub fn is_selection_key(key: &str) -> bool {
             | "tts_idle_unload_min" // через сколько минут простоя выгружать модель озвучки (0 — никогда)
             | "qwen_tts_quant"  // квант Qwen3-TTS CustomVoice: Q4_K_M или Q8_0
             | "cloud_ok_speech" | "cloud_ok_listening" | "cloud_ok_director" | "cloud_ok_assistant" // разрешил ли человек отправлять стадию в облако
+            | "clone_terms_ok" // принял ли человек условия клонирования голоса
             | "or_tts_model"    // id TTS-модели OpenRouter (напр. "openai/gpt-4o-mini-tts")
             | "or_tts_voice"    // голос по умолчанию для облачного TTS (напр. "alloy")
             | "or_tts_autocast" // БЕТА: автокастинг голосов по полу спикера (муж->муж/жен->жен); ВКЛ по умолчанию
@@ -238,7 +239,7 @@ pub fn is_selection_value(key: &str, value: &str) -> bool {
         "tts_provider" => matches!(value, "local" | "openrouter" | "google"),
         "google_tts_mode" => matches!(value, "standard" | "batch" | "auto"),
         "assistant" => matches!(value, "openrouter" | "agent"),
-        "cloud_ok_speech" | "cloud_ok_listening" | "cloud_ok_director" | "cloud_ok_assistant" => matches!(value, "0" | "1"),
+        "cloud_ok_speech" | "cloud_ok_listening" | "cloud_ok_director" | "cloud_ok_assistant" | "clone_terms_ok" => matches!(value, "0" | "1"),
         "tts_idle_unload_min" => matches!(value, "0" | "5" | "15" | "30" | "60"),
         "qwen_tts_quant" => crate::qwen_tts::QUANTS.iter().any(|(q, _, _)| *q == value),
         "voice_clean" => matches!(value, "0" | "1"),

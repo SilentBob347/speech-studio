@@ -237,6 +237,8 @@ export type VoiceCard = {
   favorite: boolean; kind: "clone" | "preset" | "design"; transcript_auto: boolean; cleaned: boolean;
   /** The voice this one is a variant of (the same character angry or whispering) and the variant's name; empty — its own. */
   variant_of: string; variant: string;
+  /** What the voice may be used for: an SPDX id or the terms in words. */
+  license: string;
 };
 export type VoiceEntry = { name: string; audio: string; size: number; transcript: string | null; photo: string | null; original: boolean; card: VoiceCard };
 export type RefIssue = "long_pause" | "noisy" | "clipped" | "short";

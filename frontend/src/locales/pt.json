@@ -915,7 +915,9 @@
     "attr_manner_playful": "brincalhona",
     "attr_manner_serious": "séria",
     "attr_manner_cheerful": "alegre",
-    "attr_manner_melancholic": "melancólica"
+    "attr_manner_melancholic": "melancólica",
+    "license": "Licença",
+    "licenseHint": "CC-BY-4.0 ou com palavras: «só uso pessoal»"
   },
   "speech": {
     "projectSettings": "Configurações do projeto",
@@ -1950,5 +1952,10 @@
     "seed": "Semente",
     "baseVoice": "voz base do motor",
     "find": "Buscar um arquivo ou projeto"
+  },
+  "cloneTerms": {
+    "title": "Uma voz só com permissão",
+    "message": "Clone a sua própria voz ou a de alguém que concordou. Uma locução com a voz de outra pessoa sem permissão é facilmente tomada por fraude; onde a lei pedir (por exemplo, o art. 50 do Regulamento de IA da UE), indique que a fala foi feita por IA. O estúdio pergunta uma vez.",
+    "accept": "Entendi, continuar"
   }
 }

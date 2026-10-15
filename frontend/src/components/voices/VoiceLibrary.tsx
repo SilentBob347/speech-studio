@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Archive, Check, Cloud, FileAudio, FolderInput, Loader2, Mic, Package, Pause, Play, ScanText, Sparkles, Star, Wand2, X } from "lucide-react";
 import { api, ApiError, slot, type Selection, type VoiceEntry } from "../../lib/api";
+import { askCloneTerms } from "../../lib/cloudConsent";
 import { named } from "../../lib/a11y";
 import { useEscapeLayer } from "../../lib/escape";
 import { openSettings } from "../../lib/settingsNav";
@@ -78,6 +79,7 @@ export default function VoiceLibrary({ onClose, onPick }: { onClose: () => void;
   const toggle = (n: string) => setSelected((s) => { const x = new Set(s); if (x.has(n)) x.delete(n); else x.add(n); return x; });
 
   const importFiles = async (files: File[], clean: boolean) => {
+    if (!(await askCloneTerms())) return;
     setBusy("import");
     setError(null);
     try {

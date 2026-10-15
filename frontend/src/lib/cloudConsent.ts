@@ -29,3 +29,16 @@ export async function askCloud(stage: CloudStage, provider: string): Promise<boo
   if (ok) await api.setSelection(consentKey(stage), "1");
   return ok;
 }
+
+/** The terms of cloning a voice, shown before the first clone: a voice of one's own or with its owner's leave. */
+export const useCloneTerms = create<{ asking: ((ok: boolean) => void) | null }>(() => ({ asking: null }));
+
+/** Whether a voice may be cloned now: the terms are accepted once, and the answer is kept in the studio's settings. */
+export async function askCloneTerms(): Promise<boolean> {
+  const caps = await api.capabilities();
+  if (caps.selection?.clone_terms_ok === "1") return true;
+  const ok = await new Promise<boolean>((answer) => useCloneTerms.setState({ asking: answer }));
+  useCloneTerms.setState({ asking: null });
+  if (ok) await api.setSelection("clone_terms_ok", "1");
+  return ok;
+}

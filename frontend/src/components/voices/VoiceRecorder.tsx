@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Mic, Square, X } from "lucide-react";
 import { api } from "../../lib/api";
+import { askCloneTerms } from "../../lib/cloudConsent";
 import { named } from "../../lib/a11y";
 import { useEscapeLayer } from "../../lib/escape";
 import { errorText } from "../../lib/voices";
@@ -28,6 +29,7 @@ export default function VoiceRecorder({ clean, onClose, onRecorded }: { clean: b
   const stopTimer = () => { if (timer.current) window.clearInterval(timer.current); timer.current = null; };
   const start = async () => {
     setError(null);
+    if (!(await askCloneTerms())) return;
     try {
       const r = await api.recordStart(name.trim(), device || undefined);
       if (!r.ok) { setError(r.error ?? t("voices.recordFailed")); return; }

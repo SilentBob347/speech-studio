@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, AudioLines, ChevronDown, ChevronUp, Download, Eye, EyeOff, FileCheck2, Loader2, Pause, Play, Redo2, RotateCcw, RotateCw, Scissors, Search, Settings2, Undo2, UserPlus, Users, Wand2, X } from "lucide-react";
 import { useListenProject } from "../../lib/useSpeechProject";
+import { askCloneTerms } from "../../lib/cloudConsent";
 import { comboOf, matches } from "../../lib/shortcuts";
 import {
   activeToken, clock, cutSeconds, listenApi, mergeNext, newSpeaker, restoreAll, setLineText, speakerColor, splitLine, toggleCut, tokensOf, type ListenLine,
@@ -191,6 +192,7 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
     } catch (e) { setFailure(errorText(e)); } finally { setBusy(null); }
   };
   const makeVoices = async (speaker?: string) => {
+    if (!(await askCloneTerms())) return;
     setBusy("voices");
     setNotice(null);
     setFailure(null);

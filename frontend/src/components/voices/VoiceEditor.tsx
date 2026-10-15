@@ -35,6 +35,7 @@ export default function VoiceEditor({ voice, all, onClose, onChanged, onRenamed,
   const [source, setSource] = useState(voice.card.source);
   const [lang, setLang] = useState(voice.card.lang);
   const [variant, setVariant] = useState(voice.card.variant);
+  const [license, setLicense] = useState(voice.card.license);
   useEffect(() => { setVariant(voice.card.variant); }, [voice.card.variant]);
   const [transcript, setTranscript] = useState(voice.transcript ?? "");
   const [busy, setBusy] = useState<string | null>(null);
@@ -172,6 +173,11 @@ export default function VoiceEditor({ voice, all, onClose, onChanged, onRenamed,
               {CONSENTS.map((c) => <option key={c} value={c}>{t(`voices.consent_${c || "unknown"}`)}</option>)}
             </select>
           </div>
+        </div>
+        <div>
+          <label className={label} htmlFor="ve-license">{t("voices.license")}</label>
+          <input id="ve-license" list="ve-licenses" value={license} onChange={(e) => setLicense(e.target.value)} onBlur={() => { if (license.trim() !== voice.card.license) void setCard({ license: license.trim() }); }} placeholder={t("voices.licenseHint")} className={field} />
+          <datalist id="ve-licenses">{["CC0-1.0", "CC-BY-4.0", "CC-BY-SA-4.0", "CC-BY-NC-4.0", "CC-BY-NC-SA-4.0"].map((l) => <option key={l} value={l} />)}</datalist>
         </div>
         {!all.some((v) => v.card.variant_of === voice.name) && (
           <div className="grid grid-cols-2 gap-2">
