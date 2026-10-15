@@ -468,7 +468,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           onClose={() => setRecast(null)} />
       )}
       {settings && <ProjectSettings project={project} onChange={edit} onClose={() => setSettings(false)} />}
-      {exporting && <ExportDialog pid={pid} project={project} onClose={() => setExporting(false)} onVoiceMissing={() => { setExporting(false); void runSynth({}); }} onDone={(file) => pushActivity(t("speech.exported", { file }), "done")} />}
+      {exporting && <ExportDialog pid={pid} project={project} onClose={() => setExporting(false)} onVoiceMissing={(ids) => { setExporting(false); void runSynth({ ids, force: true }); }} onDone={(file) => pushActivity(t("speech.exported", { file }), "done")} />}
     </main>
   );
 }

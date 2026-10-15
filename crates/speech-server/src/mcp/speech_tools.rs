@@ -68,9 +68,15 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "project_export",
-            description: "Build the project's audio into one file (format wav, flac, mp3, ogg, m4a or m4b with chapters) with subtitles, or with per_block one file per block: a job, follow it with studio_wait; its result names the files in the project's exports folder.",
-            schema: || object(json!({ "pid": pid(), "format": { "type": "string", "enum": ["wav", "flac", "mp3", "ogg", "m4a", "m4b"] }, "per_block": { "type": "boolean" }, "chapter": { "type": "string" } }), &["pid", "format"]),
+            description: "Build the project's audio into one file (format wav, flac, mp3, ogg, m4a or m4b with chapters) with subtitles, or with per_block one file per block: a job, follow it with studio_wait; its result names the files in the project's exports folder. It refuses while project_export_check lists problems; allow_duration lets only takes that do not fit their cue through.",
+            schema: || object(json!({ "pid": pid(), "format": { "type": "string", "enum": ["wav", "flac", "mp3", "ogg", "m4a", "m4b"] }, "per_block": { "type": "boolean" }, "chapter": { "type": "string" }, "part_minutes": { "type": "integer", "minimum": 1 }, "allow_duration": { "type": "boolean" } }), &["pid", "format"]),
             call: |args| post(project_path(args, "/export")?, body_without(args, &["pid"])),
+        },
+        Tool {
+            name: "project_export_check",
+            description: "What keeps a project from being exported: each problem names its block and state (new, stale, failed, missing — the take file is gone, modified — the take file changed after it was voiced, duration — the take does not fit its cue even sped up). Empty means it can be exported.",
+            schema: project_only,
+            call: |args| get(project_path(args, "/export-check")?),
         },
         Tool {
             name: "project_exports",

@@ -590,7 +590,9 @@ fn voice_block(p: &SpeechPaths, pid: &str, id: &str, count: u32, source: &str, p
         let n = b.takes.iter().map(|t| t.n).max().unwrap_or(0) + 1;
         let result = synth_block(p, pid, &project, &b, n).and_then(|(samples, ignored, mut take)| {
             let file = format!("{}-{n}.flac", b.id);
-            write_flac(&samples, &takes_dir(p, pid).join(&file))?;
+            let path = takes_dir(p, pid).join(&file);
+            write_flac(&samples, &path)?;
+            take.bytes = std::fs::metadata(&path).map_err(|e| e.to_string())?.len();
             take.file = file;
             take.key = key.clone();
             take.source = source.into();
@@ -854,7 +856,6 @@ pub fn loudness(preset: &str) -> Option<(f64, f64, f64)> {
     }
 }
 
-/// Что мешает экспорту: блоки без звука, устаревшие, упавшие, со стёртым файлом дубля. Пусто — можно.
 pub fn export_check(p: &SpeechPaths, pid: &str, project: &SpeechProject) -> Vec<Value> {
     let keys = keys(p, project);
     project
@@ -864,8 +865,15 @@ pub fn export_check(p: &SpeechPaths, pid: &str, project: &SpeechProject) -> Vec<
             match sp::status(b, &key) {
                 "skipped" => None,
                 "ready" => {
-                    let on_disk = b.active.and_then(|n| b.takes.iter().find(|t| t.n == n)).is_some_and(|t| takes_dir(p, pid).join(&t.file).is_file());
-                    (!on_disk).then(|| json!({ "block": b.id, "state": "missing" }))
+                    let take = b.active.and_then(|n| b.takes.iter().find(|t| t.n == n));
+                    let size = take.and_then(|t| std::fs::metadata(takes_dir(p, pid).join(&t.file)).ok()).filter(|m| m.is_file()).map(|m| m.len());
+                    let state = match (take, size) {
+                        (_, None) => "missing",
+                        (Some(t), Some(len)) if t.bytes > 0 && t.bytes != len => "modified",
+                        (Some(t), _) if t.fit_over => "duration",
+                        _ => return None,
+                    };
+                    Some(json!({ "block": b.id, "state": state }))
                 }
                 state => Some(json!({ "block": b.id, "state": state })),
             }
@@ -880,6 +888,8 @@ pub struct ExportOpts {
     pub per_block: bool,
     /// Длинная книга — частями не длиннее стольких минут (по границам глав).
     pub part_minutes: Option<u32>,
+    /// Экспортировать, хотя дубли не влезли в реплику по длительности.
+    pub allow_duration: bool,
 }
 
 /// Склеить проект в файл `exports/<имя>.<формат>`.
@@ -888,7 +898,7 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         return Err(t!("media-bad-format", format = opts.format.clone()));
     }
     let project = sp::load(&p.workspace, pid)?;
-    let problems = export_check(p, pid, &project);
+    let problems: Vec<Value> = export_check(p, pid, &project).into_iter().filter(|x| !(opts.allow_duration && x["state"] == "duration")).collect();
     if !problems.is_empty() {
         return Err(t!("speech-export-not-ready", count = problems.len() as i64));
     }
@@ -1245,6 +1255,29 @@ mod tests {
         let x = vec![0.5f32; 48_000];
         assert_eq!(resample_to(x.clone(), 48_000).len(), 24_000);
         assert_eq!(resample_to(x, 24_000).len(), 48_000);
+    }
+
+    #[test]
+    fn export_check_names_a_changed_take_file_and_a_take_too_long_for_its_cue() {
+        let root = tempfile::tempdir().unwrap();
+        let p = SpeechPaths { repo_root: root.path().into(), workspace: root.path().join("ws"), voices_dir: root.path().join("voices"), models_root: root.path().join("models"), higgs_dll: root.path().join("none.dll"), threads: 1 };
+        let block = |id: &str| Block { id: id.into(), speaker: "A".into(), text: "Текст.".into(), ..Default::default() };
+        let mut project = SpeechProject::default();
+        project.chapters = vec![sp::Chapter { id: "c".into(), title: String::new(), blocks: vec![block("a"), block("b"), block("c"), block("d")] }];
+        let keys = keys(&p, &project);
+        let dir = takes_dir(&p, "pid");
+        std::fs::create_dir_all(&dir).unwrap();
+        for (i, b) in project.chapters[0].blocks.iter_mut().enumerate() {
+            let file = format!("{}-1.flac", b.id);
+            std::fs::write(dir.join(&file), b"flac!").unwrap();
+            let bytes = match i { 1 => 9, 3 => 0, _ => 5 };
+            b.takes.push(Take { n: 1, file, key: keys[&b.id].clone(), bytes, fit_over: i == 2, ..Default::default() });
+            b.active = Some(1);
+        }
+        let states: Vec<(String, String)> = export_check(&p, "pid", &project).iter().map(|x| (x["block"].as_str().unwrap().to_string(), x["state"].as_str().unwrap().to_string())).collect();
+        assert_eq!(states, vec![("b".to_string(), "modified".to_string()), ("c".to_string(), "duration".to_string())], "a take of an old project has no size and is not compared");
+        std::fs::remove_file(dir.join("a-1.flac")).unwrap();
+        assert_eq!(export_check(&p, "pid", &project)[0]["state"], "missing");
     }
 
     #[test]

@@ -8,14 +8,15 @@ import { named } from "../../lib/a11y";
 import FileActions from "./FileActions";
 import { useEscapeLayer } from "../../lib/escape";
 
-/** Export: what keeps it back (blocks not voiced or out of date), the format and the finished file to save. */
+/** Export: what keeps it back (blocks not voiced, out of date, with a lost or changed take file, or a take too long for
+ * its cue, the one problem that can be let through), the format and the finished file to save. */
 const PART_MINUTES = [0, 60, 120, 300, 600] as const;
 
 export default function ExportDialog({ pid, project, onClose, onVoiceMissing, onDone }: {
   pid: string;
   project: SpeechProject;
   onClose: () => void;
-  onVoiceMissing: () => void;
+  onVoiceMissing: (ids: string[]) => void;
   onDone: (file: string) => void;
 }) {
   const { t } = useTranslation();
@@ -29,6 +30,7 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
   const [files, setFiles] = useState<{ file: string; bytes: number; mtime: number }[] | null>(null);
   const [perBlock, setPerBlock] = useState(false);
   const [partMinutes, setPartMinutes] = useState(0);
+  const [allowDuration, setAllowDuration] = useState(false);
   type Part = { file: string; subtitles: string; timings: string; chapters: string | null; duration: number };
   const [parts, setParts] = useState<Part[] | null>(null);
   const [timings, setTimings] = useState<string | null>(null);
@@ -50,7 +52,7 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
     setBusy(true);
     setError(null);
     try {
-      const { job_id } = await speechApi.export(pid, format, undefined, perBlock, perBlock ? 0 : partMinutes);
+      const { job_id } = await speechApi.export(pid, format, undefined, perBlock, perBlock ? 0 : partMinutes, allowDuration);
       const r = (await followJob(job_id, "export")) as { file: string; files?: string[]; subtitles?: string; timings?: string; chapters?: string | null; parts?: Part[] | null; acx?: AcxReport | null };
       if (r.files) { setClips(r.files); return; }
       setAcx(r.acx ?? null);
@@ -62,6 +64,9 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
       onDone(r.file);
     } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
   };
+  const blocking = (problems ?? []).filter((p) => !(allowDuration && p.state === "duration"));
+  const toVoice = blocking.filter((p) => p.state !== "duration").map((p) => p.block);
+  const tooLong = (problems ?? []).some((p) => p.state === "duration");
   const counts = (problems ?? []).reduce<Record<string, number>>((a, p) => { a[p.state] = (a[p.state] ?? 0) + 1; return a; }, {});
   return (
     <div className="fixed inset-0 z-[60] grid place-items-center glass-scrim anim-fade" onClick={() => { if (!busy) onClose(); }}>
@@ -73,14 +78,19 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
         {problems === null && !error && <Loader2 size={16} className="animate-spin text-[var(--color-muted)]" />}
         {problems && problems.length > 0 && (
           <div role="alert" className="rounded-lg border border-[var(--color-warn)]/40 bg-[color-mix(in_oklab,var(--color-warn)_8%,transparent)] p-3 space-y-2">
-            <p className="text-[13px]">{t("speech.exportBlocked", { n: problems.length })}</p>
+            <p className="text-[13px]">{blocking.length ? t("speech.exportBlocked", { n: blocking.length }) : t("speech.exportDurationAllowed")}</p>
             <ul className="text-[12px] text-[var(--color-muted)] space-y-0.5">
               {Object.entries(counts).map(([state, n]) => <li key={state}>{t(`speech.state_${state as ExportProblem["state"]}`)}: {n}</li>)}
             </ul>
-            <button onClick={onVoiceMissing} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[12px] font-semibold"><Sparkles size={13} />{t("speech.voiceTheMissing")}</button>
+            {toVoice.length > 0 && <button onClick={() => onVoiceMissing(toVoice)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[12px] font-semibold"><Sparkles size={13} />{t("speech.voiceTheMissing")}</button>}
+            {tooLong && (
+              <label className="flex items-center gap-2 text-[12px] cursor-pointer">
+                <input type="checkbox" checked={allowDuration} onChange={(e) => setAllowDuration(e.target.checked)} className="w-4 h-4 accent-[var(--color-accent)]" />{t("speech.allowDuration")}
+              </label>
+            )}
           </div>
         )}
-        {problems && problems.length === 0 && (
+        {problems && blocking.length === 0 && (
           <>
             <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={t("speech.format")}>
               {EXPORT_FORMATS.map((f) => (
