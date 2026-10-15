@@ -9,7 +9,7 @@ import CloudModelPicker from "../cloud/CloudModelPicker";
 import { LANG_CHOICES } from "../speech/langs";
 import { api, slot } from "../../lib/api";
 
-const ENGINES: ListenEngine[] = ["", "parakeet", "whisper", "openrouter", "fal"];
+export const ENGINES: ListenEngine[] = ["", "parakeet", "whisper", "openrouter", "fal"];
 const SPEAKERS = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 
 /** How the recording is recognised: engine, language, speakers, noise removal, voice separation, hallucination filter, a

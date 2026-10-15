@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Ear, FileAudio, Loader2, Mic, Square, Trash2 } from "lucide-react";
 import { api } from "../../lib/api";
-import { listenApi, clock, type ListenCard } from "../../lib/listen";
+import { listenApi, clock, type ListenCard, type ListenEngine, type ListenProject } from "../../lib/listen";
+import { ENGINES } from "./ListenSettings";
+import { LANG_CHOICES } from "../speech/langs";
 import { speechApi } from "../../lib/speech";
 import { errorText } from "../../lib/voices";
 import { PROJECTS_CHANGED, useChanged } from "../../lib/mcpBridge";
@@ -11,6 +13,21 @@ import ConfirmDialog from "../ConfirmDialog";
 import UrlImport from "../UrlImport";
 
 const MEDIA = "audio/*,video/*,.mkv,.avi,.wma,.opus,.flac,.m4a";
+const START = "listen.start";
+type Start = { engine: ListenEngine; lang: string };
+
+function savedStart(): Start {
+  try {
+    const s = JSON.parse(localStorage.getItem(START) ?? "{}") as Partial<Start>;
+    return { engine: ENGINES.includes(s.engine as ListenEngine) ? (s.engine as ListenEngine) : "", lang: (LANG_CHOICES as readonly string[]).includes(s.lang ?? "") ? s.lang! : "auto" };
+  } catch { return { engine: "", lang: "auto" }; }
+}
+
+/** A new recording takes the engine and language picked on the start screen; one recognised before keeps its own. */
+async function prepare(pid: string, project: ListenProject, start: Start): Promise<void> {
+  if (project.made || (project.settings.engine === start.engine && project.settings.lang === start.lang)) return;
+  await listenApi.put(pid, { ...project, settings: { ...project.settings, engine: start.engine, lang: start.lang } });
+}
 
 /** Listening's start: a recording from a file (several at once go to recognition one after another), a link or the
  * microphone, and the recordings opened before. */
@@ -23,6 +40,11 @@ export default function ListeningHome({ onOpen }: { onOpen: (pid: string) => voi
   const [removing, setRemoving] = useState<ListenCard | null>(null);
   const [batch, setBatch] = useState<{ done: number; total: number } | null>(null);
   const file = useRef<HTMLInputElement>(null);
+  const [start, setStart] = useState<Start>(savedStart);
+  const pickStart = (next: Start) => {
+    setStart(next);
+    try { localStorage.setItem(START, JSON.stringify(next)); } catch { /* the pick holds for this screen only */ }
+  };
   const load = () => {
     speechApi.list().then((r) => setProjects(r.projects.filter((p): p is ListenCard => p.kind === "listening") as ListenCard[]), (e: unknown) => setError(errorText(e)));
   };
@@ -34,11 +56,20 @@ export default function ListeningHome({ onOpen }: { onOpen: (pid: string) => voi
     setBusy(true);
     setError(null);
     try {
-      if (files.length === 1) { onOpen((await listenApi.upload(files[0])).pid); return; }
+      if (files.length === 1) {
+        const r = await listenApi.upload(files[0]);
+        await prepare(r.pid, r.project, start);
+        onOpen(r.pid);
+        return;
+      }
       setBatch({ done: 0, total: files.length });
       const failed: string[] = [];
       for (const [k, f] of files.entries()) {
-        try { await listenApi.transcribe((await listenApi.upload(f)).pid); } catch (e) { failed.push(`${f.name}: ${errorText(e)}`); }
+        try {
+          const r = await listenApi.upload(f);
+          await prepare(r.pid, r.project, start);
+          await listenApi.transcribe(r.pid);
+        } catch (e) { failed.push(`${f.name}: ${errorText(e)}`); }
         setBatch({ done: k + 1, total: files.length });
         load();
       }
@@ -53,6 +84,22 @@ export default function ListeningHome({ onOpen }: { onOpen: (pid: string) => voi
         <section aria-labelledby="listen-new" className="space-y-4">
           <h1 id="listen-new" className="text-xl font-bold tracking-tight flex items-center gap-2"><Ear size={20} className="text-[var(--color-accent)]" />{t("listen.newTitle")}</h1>
           <p className="text-[13px] text-[var(--color-muted)] leading-relaxed">{t("listen.newHint")}</p>
+          <div className="grid gap-2 grid-cols-2">
+            <label className="text-[11px] text-[var(--color-muted)] space-y-1">
+              <span className="block">{t("listen.engine")}</span>
+              <select value={start.engine} onChange={(e) => pickStart({ ...start, engine: e.target.value as ListenEngine })}
+                className="w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-2 py-1.5 text-[12px] text-[var(--color-text)]">
+                {ENGINES.map((e) => <option key={e} value={e}>{t(`listen.engine_${e || "default"}`)}</option>)}
+              </select>
+            </label>
+            <label className="text-[11px] text-[var(--color-muted)] space-y-1">
+              <span className="block">{t("speech.lang")}</span>
+              <select value={start.lang} onChange={(e) => pickStart({ ...start, lang: e.target.value })}
+                className="w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-2 py-1.5 text-[12px] text-[var(--color-text)]">
+                {LANG_CHOICES.map((l) => <option key={l} value={l}>{l === "auto" ? t("speech.langAuto") : l.toUpperCase()}</option>)}
+              </select>
+            </label>
+          </div>
           <div
             onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
             onDragLeave={() => setDrag(false)}
@@ -67,11 +114,11 @@ export default function ListeningHome({ onOpen }: { onOpen: (pid: string) => voi
             {!busy && batch && <p role="status" className="text-[12px] text-[var(--color-accent)]">{t("listen.batchQueued", { n: batch.total })}</p>}
           </div>
           <UrlImport onReady={(f) => onOpen(f.pid)} />
-          <MicRecorder onDone={onOpen} onError={setError} />
+          <MicRecorder onDone={(pid, project) => { void prepare(pid, project, start).then(() => onOpen(pid), (e: unknown) => setError(errorText(e))); }} onError={setError} />
           {error && <p role="alert" className="text-[12px] text-[var(--color-warn)] break-words">{error}</p>}
         </section>
         <section aria-labelledby="listen-list" className="space-y-3">
-          <h2 id="listen-list" className="text-[13px] uppercase tracking-[0.14em] text-[var(--color-muted)]">{t("listen.projects")}</h2>
+          <h2 id="listen-list" className="text-[13px] font-semibold">{t("listen.projects")}</h2>
           {projects === null ? <Loader2 size={16} className="animate-spin text-[var(--color-muted)]" /> : projects.length === 0 ? (
             <p className="text-[13px] text-[var(--color-muted)]">{t("listen.noProjects")}</p>
           ) : (
@@ -84,7 +131,7 @@ export default function ListeningHome({ onOpen }: { onOpen: (pid: string) => voi
                       {[clock(p.duration), p.transcribed ? t("listen.cardLines", { n: p.lines, speakers: p.speakers }) : t("listen.cardNew"), when(p.created || p.mtime)].join(" · ")}
                     </span>
                   </button>
-                  <button onClick={() => setRemoving(p)} className="p-2 mr-1 rounded text-[var(--color-muted)] opacity-0 group-hover:opacity-100 focus:opacity-100 hover:text-[var(--color-warn)]" {...named(t("listen.remove", { name: p.name }))}><Trash2 size={14} /></button>
+                  <button onClick={() => setRemoving(p)} className="p-2 mr-1 rounded text-[var(--color-muted)] pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 focus:opacity-100 hover:text-[var(--color-warn)]" {...named(t("listen.remove", { name: p.name }))}><Trash2 size={14} /></button>
                 </li>
               ))}
             </ul>
@@ -100,7 +147,7 @@ export default function ListeningHome({ onOpen }: { onOpen: (pid: string) => voi
 }
 
 /** A recording from a microphone straight into a new project: device, level, time. */
-function MicRecorder({ onDone, onError }: { onDone: (pid: string) => void; onError: (e: string) => void }) {
+function MicRecorder({ onDone, onError }: { onDone: (pid: string, project: ListenProject) => void; onError: (e: string) => void }) {
   const { t } = useTranslation();
   const [devices, setDevices] = useState<string[] | null>(null);
   const [device, setDevice] = useState("");
@@ -128,7 +175,7 @@ function MicRecorder({ onDone, onError }: { onDone: (pid: string) => void; onErr
     timer.current = null;
     setRecording(false);
     setLevel(0);
-    try { onDone((await listenApi.recordStop()).pid); } catch (e) { onError(errorText(e)); }
+    try { const r = await listenApi.recordStop(); onDone(r.pid, r.project); } catch (e) { onError(errorText(e)); }
   };
   return (
     <div className="rounded-xl border border-[var(--color-border)] px-4 py-3 space-y-2">
