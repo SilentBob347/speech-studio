@@ -1536,6 +1536,7 @@
     "copy": "Copy diagnostics",
     "pack": "Make a bug-report pack",
     "report": "Report a problem",
+    "logs": "Logs folder",
     "refresh": "Refresh",
     "packed": "Pack saved:",
     "show": "Show in folder"

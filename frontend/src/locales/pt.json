@@ -1536,6 +1536,7 @@
     "copy": "Copiar diagnóstico",
     "pack": "Criar pacote para relatório de erro",
     "report": "Relatar um problema",
+    "logs": "Pasta de logs",
     "refresh": "Atualizar",
     "packed": "Pacote salvo:",
     "show": "Mostrar na pasta"

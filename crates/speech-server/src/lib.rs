@@ -525,6 +525,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/diagnostics", get(diagnostics::get))
         .route("/diagnostics/report", post(diagnostics::make_report))
         .route("/diagnostics/report/reveal", post(diagnostics::reveal_report))
+        .route("/diagnostics/logs/reveal", post(diagnostics::reveal_logs))
         .route("/journal", get(journal::read).post(journal::write).delete(journal::clear))
         .route("/journal/{id}", axum::routing::delete(journal::remove))
         .route("/jobs", get(jobs_list))

@@ -38,6 +38,7 @@ export default function DiagnosticsPanel() {
         <button onClick={copy} disabled={!diag} className={btn}>{copied ? <Check size={13} className="text-[var(--color-accent)]" /> : <Copy size={13} />}{copied ? t("prefs.copied") : t("diag.copy")}</button>
         <button onClick={() => void makePack()} disabled={packing} className={btn}>{packing ? <Loader2 size={13} className="animate-spin" /> : <Package size={13} />}{t("diag.pack")}</button>
         <a href={issueReportUrl(__APP_VERSION__, diag?.report.gpu)} target="_blank" rel="noreferrer" className={btn}><Bug size={13} />{t("diag.report")}</a>
+        <button onClick={() => postCoded("/diagnostics/logs/reveal", {}).catch((e: unknown) => setProblem(errorText(e)))} className={btn}><FolderOpen size={13} />{t("diag.logs")}</button>
         <button onClick={load} className={btn}><RefreshCw size={13} />{t("diag.refresh")}</button>
       </div>
       {pack && (

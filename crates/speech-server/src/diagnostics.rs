@@ -193,6 +193,16 @@ pub async fn reveal_report(State(st): State<AppState>, Json(body): Json<Value>) 
     Json(json!({ "ok": true })).into_response()
 }
 
+/// POST /diagnostics/logs/reveal: the folder with the helpers' logs (llama-server and the like) in the file manager.
+pub async fn reveal_logs(State(st): State<AppState>) -> Response {
+    let dir = st.repo_root.join("logs");
+    if let Err(e) = std::fs::create_dir_all(&dir) {
+        return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": "io", "detail": format!("{}: {e}", dir.display()) }))).into_response();
+    }
+    crate::reveal_in_explorer(dir.to_string_lossy().into_owned());
+    Json(json!({ "ok": true })).into_response()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
