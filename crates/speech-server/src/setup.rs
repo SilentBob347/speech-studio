@@ -1042,6 +1042,22 @@ pub fn manifest() -> Vec<Component> {
             markers: &[Marker { rel: "models/ruaccent/dictionary/accents.json.gz", expect: 20_954_156 }],
             external_url: None,
         },
+        // The large homograph model of RUAccent (big_poetry) as weight-only int8: it makes the fp32 model's choices
+        // and replaces tiny2 once it is here.
+        Component {
+            id: "ruaccent-omograph-big",
+            name: t!("setup-comp-ruaccent-omograph-big-name"),
+            purpose: t!("setup-comp-ruaccent-omograph-big-purpose"),
+            requirement: Requirement::Optional,
+            delivery: Delivery::Download,
+            size: 181_553_054 + 3_715_061,
+            files: &[
+                FileSpec { url: "https://huggingface.co/nerualdreming/ruaccent-omograph-int8/resolve/d5c4eb6864d55cfc24ae45530eb4ef96843efb2b/big_poetry/model.onnx", dest_rel: "models/ruaccent/nn/nn_omograph/big_poetry/model.onnx", size: 181_553_054, sha256: "028407ff85d499b56efd25c31c326ecb7bd6496399f52a002b11789a7fc63964", extract: Extract::None },
+                FileSpec { url: "https://huggingface.co/nerualdreming/ruaccent-omograph-int8/resolve/d5c4eb6864d55cfc24ae45530eb4ef96843efb2b/big_poetry/tokenizer.json", dest_rel: "models/ruaccent/nn/nn_omograph/big_poetry/tokenizer.json", size: 3_715_061, sha256: "0f120fc8462d8684194e7fff76bd43a3b8535bb63df158ee7cd37b8ba5c92f03", extract: Extract::None },
+            ],
+            markers: &[Marker { rel: "models/ruaccent/nn/nn_omograph/big_poetry/model.onnx", expect: 181_553_054 }],
+            external_url: None,
+        },
         // ── СAЙДКАРЫ / ДВИЖКИ ───────────────────────────────────────────────
         Component {
             id: "bsroformer-engine",

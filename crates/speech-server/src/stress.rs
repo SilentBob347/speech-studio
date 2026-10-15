@@ -19,6 +19,7 @@ use serde::Serialize;
 
 pub const COMPONENT: &str = "ruaccent";
 pub const DIR: &str = "ruaccent";
+pub const OMOGRAPH_BIG: &str = "nn/nn_omograph/big_poetry";
 const VOWELS: &str = "аеёиоуыэюя";
 /// Сеть ударений обучена на словах до 40 знаков с учётом служебных.
 const ACCENT_MAX_CHARS: usize = 38;
@@ -77,10 +78,20 @@ pub struct Stresser {
     accent: Mutex<Session>,
     omograph: Mutex<Session>,
     omo_tok: tokenizers::Tokenizer,
+    /// The homograph model's folder, and whether it is a BERT that reads `token_type_ids`.
+    omo_dir: PathBuf,
+    omo_types: bool,
 }
 
 pub fn dir(models_root: &Path) -> PathBuf {
     models_root.join(DIR)
+}
+
+/// The homograph model to use: big_poetry (weight-only int8, nerualdreming/ruaccent-omograph-int8) once it is
+/// downloaded, else the tiny2 of the base component.
+fn omograph_dir(d: &Path) -> PathBuf {
+    let big = d.join(OMOGRAPH_BIG);
+    if big.join("model.onnx").is_file() && big.join("tokenizer.json").is_file() { big } else { d.join("nn/nn_omograph/tiny2") }
 }
 
 pub fn installed(repo_root: &Path) -> bool {
@@ -95,7 +106,7 @@ static LOADED: LazyLock<Mutex<Option<Arc<Stresser>>>> = LazyLock::new(|| Mutex::
 /// Общий на процесс разметчик: грузится при первом обращении (словарь собирается в память один раз).
 pub fn shared(models_root: &Path) -> Result<Arc<Stresser>, String> {
     let mut slot = LOADED.lock().map_err(|_| "stress lock".to_string())?;
-    if let Some(s) = slot.as_ref() {
+    if let Some(s) = slot.as_ref().filter(|s| s.omo_dir == omograph_dir(&dir(models_root))) {
         return Ok(s.clone());
     }
     let s = Arc::new(Stresser::load(&dir(models_root))?);
@@ -133,11 +144,11 @@ fn build_accents(path: &Path) -> Result<fst::Map<Vec<u8>>, String> {
     fst::Map::new(bytes).map_err(|e| format!("accents fst: {e}"))
 }
 
-fn session(path: &Path) -> Result<Session, String> {
+fn session(path: &Path, threads: usize) -> Result<Session, String> {
     let err = |e: &dyn std::fmt::Display| format!("{}: {e}", path.display());
     Session::builder()
         .map_err(|e| err(&e))?
-        .with_intra_threads(2)
+        .with_intra_threads(threads)
         .map_err(|e| err(&e))?
         .commit_from_file(path)
         .map_err(|e| err(&e))
@@ -160,7 +171,8 @@ impl Stresser {
                 }
             })
             .collect();
-        let mut omo_tok = tokenizers::Tokenizer::from_file(d.join("nn/nn_omograph/tiny2/tokenizer.json")).map_err(|e| e.to_string())?;
+        let omo_dir = omograph_dir(d);
+        let mut omo_tok = tokenizers::Tokenizer::from_file(omo_dir.join("tokenizer.json")).map_err(|e| e.to_string())?;
         omo_tok
             .with_truncation(Some(tokenizers::TruncationParams { max_length: 512, ..Default::default() }))
             .map_err(|e| e.to_string())?;
@@ -171,9 +183,11 @@ impl Stresser {
             yo_words: json_gz(&dict.join("yo_words.json.gz"))?,
             yo_homographs: json_gz(&dict.join("yo_homographs.json.gz"))?,
             chars,
-            accent: Mutex::new(session(&d.join("nn/nn_accent/model.onnx"))?),
-            omograph: Mutex::new(session(&d.join("nn/nn_omograph/tiny2/model.onnx"))?),
+            accent: Mutex::new(session(&d.join("nn/nn_accent/model.onnx"), 2)?),
+            omograph: Mutex::new(session(&omo_dir.join("model.onnx"), if omo_dir.ends_with("tiny2") { 2 } else { 4 })?),
             omo_tok,
+            omo_types: !omo_dir.ends_with("tiny2"),
+            omo_dir,
         })
     }
 
@@ -233,14 +247,17 @@ impl Stresser {
         let enc = self.omo_tok.encode((context, hypothesis), true).map_err(|e| e.to_string())?;
         let ids: Vec<i64> = enc.get_ids().iter().map(|v| *v as i64).collect();
         let mask: Vec<i64> = enc.get_attention_mask().iter().map(|v| *v as i64).collect();
+        let types: Vec<i64> = enc.get_type_ids().iter().map(|v| *v as i64).collect();
         let shape = vec![1i64, ids.len() as i64];
         let mut s = self.omograph.lock().map_err(|_| "omograph lock".to_string())?;
-        let out = s
-            .run(ort::inputs![
-                "input_ids" => TensorRef::from_array_view((shape.clone(), ids.as_slice())).map_err(|e| e.to_string())?,
-                "attention_mask" => TensorRef::from_array_view((shape, mask.as_slice())).map_err(|e| e.to_string())?,
-            ])
-            .map_err(|e| format!("omograph: {e}"))?;
+        let mut inputs = ort::inputs![
+            "input_ids" => TensorRef::from_array_view((shape.clone(), ids.as_slice())).map_err(|e| e.to_string())?,
+            "attention_mask" => TensorRef::from_array_view((shape.clone(), mask.as_slice())).map_err(|e| e.to_string())?,
+        ];
+        if self.omo_types {
+            inputs.push(("token_type_ids".into(), TensorRef::from_array_view((shape, types.as_slice())).map_err(|e| e.to_string())?.into()));
+        }
+        let out = s.run(inputs).map_err(|e| format!("omograph: {e}"))?;
         let (_, logits) = out["logits"].try_extract_tensor::<f32>().map_err(|e| format!("omograph: {e}"))?;
         Ok(softmax(&logits[..2])[1])
     }
