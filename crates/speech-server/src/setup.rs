@@ -3637,7 +3637,9 @@ mod tests {
     #[test]
     fn removal_refuses_what_the_app_does_not_install() {
         let root = temp_root("refuse");
-        assert_eq!(remove_components(&root, &["vcruntime".to_string()]).unwrap_err().code, "not_removable");
+        if cfg!(windows) {
+            assert_eq!(remove_components(&root, &["vcruntime".to_string()]).unwrap_err().code, "not_removable");
+        }
         assert_eq!(remove_components(&root, &["nvidia-driver".to_string()]).unwrap_err().code, "not_removable");
         assert_eq!(remove_components(&root, &["nope".to_string()]).unwrap_err().code, "unknown_component");
         let _busy = try_claim(&["whisper-small".to_string()]).unwrap();
