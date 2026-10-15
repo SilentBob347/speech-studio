@@ -1261,7 +1261,16 @@
     "splitSpeechDone": "已在 {{n}} 个块中分离直接引语。对白归于说话人「对白」：为其指定声音，或让导演模型标注角色。",
     "splitSpeechNone": "未找到直接引语：段首破折号后的对白，或冒号后引号中的话。",
     "oneVoice": "整个项目使用同一个声音",
-    "oneVoiceHint": "所有块都使用项目的声音、引擎和参数。角色分配、块自己的声音和各语言的声音都会保留：取消勾选即可恢复。"
+    "oneVoiceHint": "所有块都使用项目的声音、引擎和参数。角色分配、块自己的声音和各语言的声音都会保留：取消勾选即可恢复。",
+    "autoCast": "自动选声音",
+    "autoCastHint": "从声音库为没有声音的角色挑选：按性别、年龄和项目语言，每个角色各不相同。",
+    "autoCastDone": "已选：{{list}}。",
+    "autoCastNone": "没有合适的声音：{{list}}。请向声音库添加声音，或设置性别和年龄。",
+    "autoCastAll": "所有角色都已有声音。",
+    "characterGender": "性别：{{speaker}}",
+    "characterAge": "年龄：{{speaker}}",
+    "genderAny": "未指定性别",
+    "ageAny": "未指定年龄"
   },
   "tags": {
     "emotion": "情绪",

@@ -111,21 +111,32 @@ pub async fn cast(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(
         let chapter = project.chapters.iter().find(|c| c.id == req.chapter).ok_or_else(|| req.chapter.clone())?;
         let text = chapter.blocks.iter().filter(|b| !b.hidden).map(|b| b.text.trim()).filter(|t| !t.is_empty()).collect::<Vec<_>>().join("\n\n");
         let narrator = t!("speech-narrator");
-        let known: Vec<String> = project.blocks().map(|b| b.speaker.clone()).filter(|s| *s != narrator).fold(Vec::new(), |mut v, s| {
-            if !v.contains(&s) {
-                v.push(s);
-            }
-            v
-        });
+        let mut known: Vec<director::Person> = Vec::new();
+        for (name, c) in &project.characters {
+            director::register(&mut known, director::Person { name: name.clone(), gender: c.gender.clone(), age: c.age.clone() }, &narrator);
+        }
+        let lines_speaker = t!("speech-lines");
+        for b in project.blocks().filter(|b| b.speaker != lines_speaker) {
+            director::register(&mut known, director::Person { name: b.speaker.clone(), ..Default::default() }, &narrator);
+        }
         step(&cb, t!("director-starting"), 2);
         let provider = llm(&p, &cb)?;
-        let lines = director::cast_audiobook(provider.client(), &text, &narrator, &known, &project.settings.lang, &|n, of| {
+        let (lines, people) = director::cast_audiobook(provider.client(), &text, &narrator, &known, &project.settings.lang, &|n, of| {
             step(&cb, t!("director-casting", n = n as i64, total = of as i64), (5 + n * 90 / of.max(1)) as i64);
         })?;
         let mut fresh = sp::load(&p.workspace, &pid2)?;
         let made = lines.len();
         if let Some(ch) = fresh.chapters.iter_mut().find(|c| c.id == req.chapter) {
             ch.blocks = lines.into_iter().map(|l| Block { id: sp::new_id(), speaker: l.speaker, text: l.text.trim().to_string(), direction: l.direction.trim().to_string(), ..Default::default() }).collect();
+        }
+        for p in people.into_iter().filter(|p| !p.gender.is_empty() || !p.age.is_empty()) {
+            let c = fresh.characters.entry(p.name).or_default();
+            if c.gender.is_empty() {
+                c.gender = p.gender;
+            }
+            if c.age.is_empty() {
+                c.age = p.age;
+            }
         }
         sp::save(&p.workspace, &pid2, &fresh)?;
         step(&cb, t!("director-done"), 100);

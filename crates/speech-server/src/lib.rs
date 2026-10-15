@@ -71,6 +71,7 @@ mod cloud_tts;
 mod speechproj;
 mod book_import;
 mod acx;
+mod auto_cast;
 mod cloud;
 mod openai_api;
 mod director;
@@ -540,6 +541,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/projects/from-book", post(speech_api::from_book))
         .route("/projects/{pid}/export-check", get(speech_api::export_check))
         .route("/projects/{pid}/lint", get(speech_api::lint))
+        .route("/projects/{pid}/auto-cast", get(speech_api::auto_cast))
         .route("/projects/{pid}/timeline", get(speech_api::timeline))
         .route("/projects/{pid}/save-export", post(speech_api::save_export))
         .route("/projects/{pid}/takes/{file}", get(speech_api::take_file))

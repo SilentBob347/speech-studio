@@ -1,4 +1,4 @@
-import { BASE, coded, postCoded, sendCoded, getCoded } from "./api";
+import { BASE, coded, postCoded, sendCoded, getCoded, type VoiceAge, type VoiceGender } from "./api";
 
 export type Take = {
   n: number; file: string; duration: number; seed: number; temperature: number; key: string; created: number;
@@ -88,6 +88,8 @@ export type SpeechProject = {
   cast: Record<string, string>; cast_engines?: Record<string, string>;
   /** A speaker's own sampling, over the project's. */
   cast_params?: Record<string, SpeechParams>; chapters: Chapter[]; dictionary: DictEntry[];
+  /** What is known of each character for picking its voice. */
+  characters?: Record<string, { gender?: VoiceGender; age?: VoiceAge }>;
   status?: Record<string, { state: BlockState; key: string; fit?: "fits" | "tight" | "impossible" }>;
 };
 export type ProjectCard = { pid: string; kind: string; name: string; mtime: number; created?: number; blocks?: number; ready?: number };
@@ -148,6 +150,7 @@ export const speechApi = {
   unqueue: (pid: string, n?: number) => sendCoded<{ removed: number }>("DELETE", n == null ? `/projects/${pid}/queue` : `/projects/${pid}/queue/${n}`),
   history: (pid?: string) => getCoded<{ takes: HistoryTake[] }>(pid ? `/history?pid=${pid}` : "/history"),
   lint: (pid: string) => getCoded<{ issues: LintIssue[] }>(`/projects/${pid}/lint`),
+  autoCast: (pid: string) => getCoded<{ picks: { speaker: string; voice: string | null }[] }>(`/projects/${pid}/auto-cast`),
   exportCheck: (pid: string) => getCoded<{ problems: ExportProblem[] }>(`/projects/${pid}/export-check`),
   timeline: (pid: string) => getCoded<{ blocks: TimelineBlock[] }>(`/projects/${pid}/timeline`),
   export: (pid: string, format: ExportFormat, chapter?: string, perBlock = false, partMinutes = 0, allowDuration = false, quality: ExportQuality = {}) => postCoded<{ job_id: string }>(`/projects/${pid}/export`, { format, chapter, per_block: perBlock, part_minutes: partMinutes || undefined, allow_duration: allowDuration || undefined, ...quality }),

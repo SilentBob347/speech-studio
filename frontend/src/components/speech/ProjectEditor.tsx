@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, BookOpen, ChartGantt, Download, Drama, History, ListOrdered, Loader2, MessagesSquare, Redo2, Search, Settings2, Sparkles, SpellCheck, Square, Undo2, Users, Wand2, X, ListChecks } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
+import type { VoiceAge, VoiceGender } from "../../lib/api";
 import { activeTake, engineOf, newId, spliceChars, SPEAKER_TINTS, speechApi, stressDoubts, voiceOf, type Block, type BlockState, type SpeechProject, type QueuedSynth, type StressWord } from "../../lib/speech";
 import { openSettings } from "../../lib/settingsNav";
 import { useSpeechProject } from "../../lib/useSpeechProject";
@@ -377,12 +378,12 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   };
 
   const [splitting, setSplitting] = useState(false);
-  const [splitNote, setSplitNote] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
   const splitSpeech = async (ids: string[] | null) => {
     if (!project || splitting) return;
     setSplitting(true);
     setJobError(null);
-    setSplitNote(null);
+    setNote(null);
     const cut: Record<string, { from: string; parts: { speech: boolean; text: string }[]; speaker: string }> = {};
     try {
       for (const b of blockList(project).filter((b) => b.text.trim() && (ids === null || ids.includes(b.id)))) {
@@ -391,7 +392,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
       }
     } catch (e) { setJobError(errorText(e)); } finally { setSplitting(false); }
     const n = Object.keys(cut).length;
-    setSplitNote(n ? t("speech.splitSpeechDone", { n }) : t("speech.splitSpeechNone"));
+    setNote(n ? t("speech.splitSpeechDone", { n }) : t("speech.splitSpeechNone"));
     if (!n) return;
     edit((p) => {
       for (const c of p.chapters) {
@@ -408,6 +409,33 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
       return p;
     });
   };
+  const [picking, setPicking] = useState(false);
+  const autoCast = async () => {
+    if (picking) return;
+    setPicking(true);
+    setJobError(null);
+    setNote(null);
+    try {
+      await flush();
+      const { picks } = await speechApi.autoCast(pid);
+      const found = picks.filter((x) => x.voice);
+      const none = picks.filter((x) => !x.voice).map((x) => x.speaker);
+      if (found.length) edit((p) => { for (const x of found) p.cast[x.speaker] = x.voice!; return p; });
+      setNote([
+        found.length ? t("speech.autoCastDone", { list: found.map((x) => `${x.speaker} — ${x.voice}`).join(", ") }) : !none.length ? t("speech.autoCastAll") : "",
+        none.length ? t("speech.autoCastNone", { list: none.join(", ") }) : "",
+      ].filter(Boolean).join(" "));
+    } catch (e) { setJobError(errorText(e)); } finally { setPicking(false); }
+  };
+  const setCharacter = (speaker: string, patch: { gender?: VoiceGender; age?: VoiceAge }) => edit((p) => {
+    const all = { ...(p.characters ?? {}) };
+    const c = { ...all[speaker], ...patch };
+    if (!c.gender) delete c.gender;
+    if (!c.age) delete c.age;
+    if (Object.keys(c).length) all[speaker] = c; else delete all[speaker];
+    p.characters = all;
+    return p;
+  });
   const stressBlocks = async (ids: string[] | null) => {
     if (!project || stressing) return;
     const todo = blockList(project).filter((b) => b.text.trim() && (ids === null || ids.includes(b.id)));
@@ -682,6 +710,10 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
             <input type="checkbox" checked={!!project.settings.one_voice} onChange={(e) => edit((p) => { p.settings.one_voice = e.target.checked; return p; })} className="mt-0.5 w-3.5 h-3.5 accent-[var(--color-accent)]" />
             <span>{t("speech.oneVoice")}<span className="block text-[11px] text-[var(--color-muted)]">{t("speech.oneVoiceHint")}</span></span>
           </label>
+          <button onClick={() => void autoCast()} disabled={picking || !speakers.length || !!project.settings.one_voice} title={t("speech.autoCastHint")}
+            className="w-full inline-flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)] disabled:opacity-40">
+            {picking ? <Loader2 size={13} className="animate-spin" /> : <Wand2 size={13} />}{t("speech.autoCast")}
+          </button>
           {speakers.map((s) => (
             <label key={s} className={`block text-[11px] ${project.settings.one_voice ? "opacity-50" : ""}`}>
               <span className="flex items-baseline gap-1.5"><span className="font-semibold" style={{ color: tintOf(s) }}>{s}</span><span className="text-[10px] tabnum text-[var(--color-muted)]">{t("speech.castBlocks", { n: blocks.filter((b) => b.speaker === s && !b.hidden).length })}</span></span>
@@ -695,16 +727,26 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
                 <OwnParams engine={project.cast_engines?.[s] || project.settings.engine} value={project.cast_params?.[s]} inherited={project.settings.params} label={t("speech.ownParamsSpeaker")}
                   onChange={(v) => edit((p) => { const all = { ...(p.cast_params ?? {}) }; if (v) all[s] = v; else delete all[s]; p.cast_params = all; return p; })} />
               </div>
+              <div className="mt-1 grid grid-cols-2 gap-1">
+                <select value={project.characters?.[s]?.gender ?? ""} onChange={(e) => setCharacter(s, { gender: e.target.value as VoiceGender })} aria-label={t("speech.characterGender", { speaker: s })}
+                  className="min-w-0 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-1.5 py-1 text-[11px] text-[var(--color-muted)]">
+                  {(["", "female", "male"] as const).map((g) => <option key={g} value={g}>{g ? t(`voices.gender_${g}`) : t("speech.genderAny")}</option>)}
+                </select>
+                <select value={project.characters?.[s]?.age ?? ""} onChange={(e) => setCharacter(s, { age: e.target.value as VoiceAge })} aria-label={t("speech.characterAge", { speaker: s })}
+                  className="min-w-0 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-1.5 py-1 text-[11px] text-[var(--color-muted)]">
+                  {(["", "child", "teen", "adult", "senior"] as const).map((a) => <option key={a} value={a}>{a ? t(`voices.age_${a}`) : t("speech.ageAny")}</option>)}
+                </select>
+              </div>
             </label>
           ))}
         </aside>
         <div className="flex-1 min-w-0 overflow-y-auto px-4 py-4">
           {error && <ErrorNote text={error} />}
           {jobError && <ErrorNote text={jobError} onClose={() => setJobError(null)} />}
-          {splitNote && (
+          {note && (
             <div role="status" className="mb-3 px-3 py-2 rounded-lg border border-[var(--color-border)] text-[12px] text-[var(--color-muted)] flex items-center gap-2">
-              <span className="flex-1 min-w-0">{splitNote}</span>
-              <button onClick={() => setSplitNote(null)} className="p-0.5 rounded hover:text-[var(--color-text)]" {...named(t("a11y.close"))}><X size={13} /></button>
+              <span className="flex-1 min-w-0">{note}</span>
+              <button onClick={() => setNote(null)} className="p-0.5 rounded hover:text-[var(--color-text)]" {...named(t("a11y.close"))}><X size={13} /></button>
             </div>
           )}
           {stressMissing && (

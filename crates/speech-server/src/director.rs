@@ -3,7 +3,8 @@
 //! абзацам делится на рассказчика и персонажей с постоянными именами (известные персонажи передаются в каждый кусок);
 //! дословность проверяется сравнением букв куска и разметки, расхождение — повтор с указанием, затем ошибка.
 
-use serde::Deserialize;
+use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use dub_llm::{ChatClient, Message, Sampling, StructuredOutput};
@@ -48,7 +49,7 @@ fn lines_schema(speakers: Option<&[String]>) -> Value {
 }
 
 /// Ответ модели в JSON: по схеме, если сервер её держит, иначе первый JSON-объект в тексте.
-fn ask(llm: &ChatClient, system: &str, user: &str, schema: &Value, max_tokens: u32) -> Result<Vec<Line>, String> {
+fn ask_json<T: DeserializeOwned>(llm: &ChatClient, system: &str, user: &str, schema: &Value, max_tokens: u32) -> Result<T, String> {
     let messages = [Message::system(system), Message::user_text(user)];
     let sampling = Sampling::new(0.6, 0.9, max_tokens);
     let use_schema = llm.structured_output() != StructuredOutput::Unsupported;
@@ -58,7 +59,11 @@ fn ask(llm: &ChatClient, system: &str, user: &str, schema: &Value, max_tokens: u
         (Some(a), Some(b)) if b > a => &text[a..=b],
         _ => return Err(t!("director-not-json", answer = text.chars().take(200).collect::<String>())),
     };
-    let parsed: Lines = serde_json::from_str(body).map_err(|e| t!("director-not-json", answer = format!("{e}: {}", body.chars().take(200).collect::<String>())))?;
+    serde_json::from_str(body).map_err(|e| t!("director-not-json", answer = format!("{e}: {}", body.chars().take(200).collect::<String>())))
+}
+
+fn ask(llm: &ChatClient, system: &str, user: &str, schema: &Value, max_tokens: u32) -> Result<Vec<Line>, String> {
+    let parsed: Lines = ask_json(llm, system, user, schema, max_tokens)?;
     Ok(parsed.lines.into_iter().filter(|l| !l.text.trim().is_empty()).collect())
 }
 
@@ -118,6 +123,57 @@ pub fn chunks(text: &str) -> Vec<String> {
     out
 }
 
+/// A character of a book as the registry pass knows it: the name the lines go under, and gender and age for picking
+/// a voice (`female`/`male`, `child`/`teen`/`adult`/`senior`, or empty when the text does not tell).
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Default)]
+pub struct Person {
+    pub name: String,
+    #[serde(default)]
+    pub gender: String,
+    #[serde(default)]
+    pub age: String,
+}
+
+#[derive(Deserialize)]
+struct People {
+    characters: Vec<Person>,
+}
+
+fn people_schema() -> Value {
+    json!({
+        "type": "object",
+        "properties": {
+            "characters": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "name": { "type": "string" },
+                        "gender": { "type": "string", "enum": crate::voice_library::GENDERS },
+                        "age": { "type": "string", "enum": crate::voice_library::AGES }
+                    },
+                    "required": ["name", "gender", "age"],
+                    "additionalProperties": false
+                }
+            }
+        },
+        "required": ["characters"],
+        "additionalProperties": false
+    })
+}
+
+/// The first pass's rules: who speaks in the text, under one name each, with gender and age.
+fn registry_rules(narrator: &str, known: &[Person], lang: &str) -> String {
+    let listed = if known.is_empty() { "none yet".to_string() } else { serde_json::to_string(known).unwrap_or_default() };
+    format!(
+        "You keep the list of characters of an audiobook. List every character who speaks a line in this text, not the \
+         narrator \"{narrator}\". Characters listed so far: {listed}. Keep their names exactly; a listed character met under \
+         another name (a nickname, a surname, a title) keeps the listed name. A new character gets a short name in the \
+         language of the text (code \"{lang}\"). gender is female or male, age is child, teen, adult or senior; leave either \
+         empty when the text does not tell. Answer with JSON only: the characters who speak in this text."
+    )
+}
+
 /// Правила разметчика книги; их же читает агент в гайде `audiobook`.
 pub fn casting_rules(narrator: &str, known_list: &str, lang: &str) -> String {
     format!(
@@ -125,15 +181,30 @@ pub fn casting_rules(narrator: &str, known_list: &str, lang: &str) -> String {
          The narrator is called \"{narrator}\". Characters already met: {known_list}; use exactly these names for them, and \
          give a new character a short name in the language of the text (code \"{lang}\"). Copy the text VERBATIM, in order, \
          every word and punctuation mark, only splitting it between speakers; the words that introduce a line (\"he said\") \
-         belong to the narrator. \"direction\" is a short note on how a line sounds, or empty. Answer with JSON only."
+         belong to the narrator. In a paragraph opening with a dash the author's words stand between dashes, and the words \
+         after the next dash are the character's line again. \"direction\" is a short note on how a line sounds, or empty. Answer with JSON only."
     )
 }
 
-/// Разметка куска книги: рассказчик и персонажи; `known` — уже встреченные персонажи, их имена не меняются.
-fn cast_chunk(llm: &ChatClient, chunk: &str, narrator: &str, known: &[String], lang: &str) -> Result<Vec<Line>, String> {
+/// The second pass's rules: the speakers are the narrator and the registry's characters, and no one else.
+fn closed_casting_rules(narrator: &str, names: &[String]) -> String {
+    format!(
+        "You are the casting director of an audiobook. Split the text into the narrator's parts and the characters' lines. \
+         The speakers are the narrator \"{narrator}\" and these characters, and no one else: {}. Give each line to the \
+         character who says it, under exactly that name. Copy the text VERBATIM, in order, every word and punctuation mark, \
+         only splitting it between speakers; the words that introduce a line (\"he said\") belong to the narrator. In a \
+         paragraph opening with a dash the author's words stand between dashes, and the words after the next dash are the \
+         character's line again. \"direction\" is a short note on how a line sounds, or empty. Answer with JSON only.",
+        names.join(", ")
+    )
+}
+
+/// Разметка куска книги: рассказчик и персонажи; `known` — уже встреченные персонажи, их имена не меняются; с
+/// `closed` других персонажей нет.
+fn cast_chunk(llm: &ChatClient, chunk: &str, narrator: &str, known: &[String], lang: &str, closed: bool) -> Result<Vec<Line>, String> {
     let known_list = if known.is_empty() { "none yet".to_string() } else { known.join(", ") };
-    let system = casting_rules(narrator, &known_list, lang);
-    let schema = lines_schema(None);
+    let speakers: Vec<String> = std::iter::once(narrator.to_string()).chain(known.iter().cloned()).collect();
+    let (system, schema) = if closed { (closed_casting_rules(narrator, known), lines_schema(Some(&speakers))) } else { (casting_rules(narrator, &known_list, lang), lines_schema(None)) };
     let max_tokens = ((chunk.chars().count() * 2) as u32).clamp(1_024, 8_192);
     let want = letters(chunk);
     let mut lines = ask(llm, &system, chunk, &schema, max_tokens)?;
@@ -141,28 +212,64 @@ fn cast_chunk(llm: &ChatClient, chunk: &str, narrator: &str, known: &[String], l
         let again = format!("{chunk}\n\n(The previous split changed or dropped words. Keep every word of the text exactly.)");
         lines = ask(llm, &system, &again, &schema, max_tokens)?;
         if letters(&lines.iter().map(|l| l.text.as_str()).collect::<String>()) != want {
+            tracing::warn!(chunk = %chunk, answer = ?lines, "director: the split does not keep the text word for word");
             return Err(t!("director-not-verbatim", start = chunk.chars().take(60).collect::<String>()));
         }
     }
     Ok(lines)
 }
 
-/// Разметка главы целиком: куски по абзацам, персонажи копятся по ходу; `progress` — номер куска и их число.
-pub fn cast_audiobook(llm: &ChatClient, text: &str, narrator: &str, known: &[String], lang: &str, progress: &dyn Fn(usize, usize)) -> Result<Vec<Line>, String> {
+/// One more sighting of a character: a new one joins the registry, a known one keeps its name and takes the gender
+/// and age it did not have yet.
+pub fn register(people: &mut Vec<Person>, p: Person, narrator: &str) {
+    let name = p.name.trim();
+    if name.is_empty() || name == narrator {
+        return;
+    }
+    let ok = |v: &str, all: &[&str]| if all.contains(&v) { v.to_string() } else { String::new() };
+    let (gender, age) = (ok(&p.gender, &crate::voice_library::GENDERS), ok(&p.age, &crate::voice_library::AGES));
+    match people.iter_mut().find(|x| x.name == name) {
+        Some(x) => {
+            if x.gender.is_empty() {
+                x.gender = gender;
+            }
+            if x.age.is_empty() {
+                x.age = age;
+            }
+        }
+        None => people.push(Person { name: name.to_string(), gender, age }),
+    }
+}
+
+/// Разметка главы в два прохода: сначала реестр персонажей (кто говорит, под одним именем, с полом и возрастом) по
+/// кускам, потом реплики кусков раздаются только им. `known` — персонажи проекта; ответ — реплики и реестр.
+/// `progress` — номер шага и их число (по куску на проход).
+pub fn cast_audiobook(llm: &ChatClient, text: &str, narrator: &str, known: &[Person], lang: &str, progress: &dyn Fn(usize, usize)) -> Result<(Vec<Line>, Vec<Person>), String> {
     let parts = chunks(text);
-    let mut met: Vec<String> = known.to_vec();
+    let steps = parts.len() * 2;
+    let mut people: Vec<Person> = Vec::new();
+    for p in known {
+        register(&mut people, p.clone(), narrator);
+    }
+    for (i, chunk) in parts.iter().enumerate() {
+        progress(i + 1, steps);
+        let max_tokens = ((chunk.chars().count() / 2) as u32).clamp(512, 2_048);
+        let found: People = ask_json(llm, &registry_rules(narrator, &people, lang), chunk, &people_schema(), max_tokens)?;
+        for p in found.characters {
+            register(&mut people, p, narrator);
+        }
+    }
+    let names: Vec<String> = people.iter().map(|p| p.name.clone()).collect();
     let mut out = Vec::new();
     for (i, chunk) in parts.iter().enumerate() {
-        progress(i + 1, parts.len());
-        let lines = cast_chunk(llm, chunk, narrator, &met, lang)?;
+        progress(parts.len() + i + 1, steps);
+        let lines = cast_chunk(llm, chunk, narrator, &names, lang, !names.is_empty())?;
         for l in &lines {
-            if l.speaker != narrator && !met.contains(&l.speaker) {
-                met.push(l.speaker.clone());
-            }
+            register(&mut people, Person { name: l.speaker.clone(), ..Default::default() }, narrator);
         }
         out.extend(lines);
     }
-    Ok(out)
+    Ok((out, people))
 }
 
 /// A block's text with expression tags the director put in, and the text it had.

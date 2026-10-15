@@ -228,6 +228,9 @@ pub struct SpeechProject {
     /// Параметры синтеза персонажа, когда они не те, что у проекта; блок может задать свои поверх.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub cast_params: BTreeMap<String, crate::tts_host::Params>,
+    /// What is known of each character for picking its voice: gender and age, from the director's registry or the user.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub characters: BTreeMap<String, Character>,
     pub chapters: Vec<Chapter>,
     /// Словарь произношения проекта: срабатывает раньше глобального.
     pub dictionary: Vec<crate::pron_dict::Entry>,
@@ -236,6 +239,16 @@ pub struct SpeechProject {
     /// Ключ инструмента агента «одним вызовом»: повторный вызов с теми же входами находит этот проект.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub key: String,
+}
+
+/// A character's gender (`female`, `male`) and age (`child`, `teen`, `adult`, `senior`), each empty when unknown.
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+#[serde(default)]
+pub struct Character {
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub gender: String,
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub age: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
@@ -248,7 +261,7 @@ pub struct BookMeta {
 
 impl Default for SpeechProject {
     fn default() -> Self {
-        SpeechProject { kind: KIND.into(), version: 1, name: String::new(), created: 0, settings: Settings::default(), cast: BTreeMap::new(), cast_engines: BTreeMap::new(), cast_params: BTreeMap::new(), chapters: Vec::new(), dictionary: Vec::new(), book: None, key: String::new() }
+        SpeechProject { kind: KIND.into(), version: 1, name: String::new(), created: 0, settings: Settings::default(), cast: BTreeMap::new(), cast_engines: BTreeMap::new(), cast_params: BTreeMap::new(), characters: BTreeMap::new(), chapters: Vec::new(), dictionary: Vec::new(), book: None, key: String::new() }
     }
 }
 
@@ -335,6 +348,11 @@ impl SpeechProject {
         self.settings.params.checked()?;
         for (speaker, params) in &self.cast_params {
             params.checked().map_err(|e| format!("speaker {speaker}: {e}"))?;
+        }
+        for (name, c) in &self.characters {
+            if !crate::voice_library::GENDERS.contains(&c.gender.as_str()) || !crate::voice_library::AGES.contains(&c.age.as_str()) {
+                return Err(format!("character {name}: gender is one of {:?} and age one of {:?}", crate::voice_library::GENDERS, crate::voice_library::AGES));
+            }
         }
         if let Some(g) = self.settings.normalize_off.iter().find(|g| !crate::normalize_ru::GROUPS.contains(&g.as_str())) {
             return Err(format!("normalize_off: {g} is not one of {}", crate::normalize_ru::GROUPS.join(", ")));

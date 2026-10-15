@@ -1261,7 +1261,16 @@
     "splitSpeechDone": "Direct speech separated in {{n}} blocks. The lines are under the speaker “Lines”: give it a voice or let the director name the characters.",
     "splitSpeechNone": "No direct speech found: lines after a dash at a paragraph's start or in quotes after a colon.",
     "oneVoice": "One voice for the whole project",
-    "oneVoiceHint": "Every block speaks with the project's voice, engine and sampling. The cast, the blocks' own voices and the voices by language are kept: untick to bring them back."
+    "oneVoiceHint": "Every block speaks with the project's voice, engine and sampling. The cast, the blocks' own voices and the voices by language are kept: untick to bring them back.",
+    "autoCast": "Pick voices",
+    "autoCastHint": "Library voices for the characters without one: by gender, age and the project's language, a different one each.",
+    "autoCastDone": "Picked: {{list}}.",
+    "autoCastNone": "No fitting voice for: {{list}}. Add voices to the library or set gender and age.",
+    "autoCastAll": "Every character already has a voice.",
+    "characterGender": "Gender: {{speaker}}",
+    "characterAge": "Age: {{speaker}}",
+    "genderAny": "gender not set",
+    "ageAny": "age not set"
   },
   "tags": {
     "emotion": "Emotion",

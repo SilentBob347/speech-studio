@@ -103,6 +103,12 @@ pub(super) fn tools() -> Vec<Tool> {
             call: |_| get("/renders".into()),
         },
         Tool {
+            name: "project_auto_cast",
+            description: "Pick library voices for the characters that have no voice in the cast: never a voice of the other gender, then the nearest age and the project's language, a voice to one character only, the project's own voices left out. A character's gender and age come from the director's casting (two passes: first the characters with gender and age, then their lines) or from settings you put into the project's characters (project_update: characters {name: {gender: female|male, age: child|teen|adult|senior}}). Answers picks (speaker, voice or null when none fits); nothing changes until you put the voices into cast with project_update.",
+            schema: project_only,
+            call: |args| get(project_path(args, "/auto-cast")?),
+        },
+        Tool {
             name: "project_lint",
             description: "Check a project before voicing it: block by block, what would go wrong (level error: an empty block, an engine unavailable or without the project's language, no voice where the engine needs one, a voice missing or without the reference text Drama 3 needs, a broken dictionary rule) or not be read as written (level warn: tags or stress marks the engine does not read, a direction it ignores, what normalisation left unread).",
             schema: project_only,
@@ -110,7 +116,7 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "project_cast_characters",
-            description: "The director model splits one chapter of a Speech project into the narrator and the characters, word for word, and replaces the chapter's blocks with their lines: a job, follow it with studio_wait. Characters keep the names met before in the project.",
+            description: "The director model splits one chapter of a Speech project into the narrator and the characters, word for word, and replaces the chapter's blocks with their lines: a job, follow it with studio_wait. Two passes: first the characters who speak, each under one name with gender and age (kept in the project's characters), then every line goes to one of them. Characters keep the names met before in the project; project_auto_cast then picks their voices.",
             schema: || object(json!({ "pid": pid(), "chapter": { "type": "string", "description": "chapter id from project_get" } }), &["pid", "chapter"]),
             call: |args| post(project_path(args, "/cast")?, json!({ "chapter": text(args, "chapter")? })),
         },

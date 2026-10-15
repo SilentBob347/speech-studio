@@ -1261,7 +1261,16 @@
     "splitSpeechDone": "Discours direct séparé dans {{n}} blocs. Les répliques sont au locuteur « Répliques » : donnez-lui une voix ou laissez le directeur nommer les personnages.",
     "splitSpeechNone": "Aucun discours direct trouvé : répliques après un tiret en début de paragraphe ou entre guillemets après deux-points.",
     "oneVoice": "Une seule voix pour tout le projet",
-    "oneVoiceHint": "Chaque bloc parle avec la voix, le moteur et les réglages du projet. La distribution, les voix propres des blocs et les voix par langue sont gardées : décochez pour les retrouver."
+    "oneVoiceHint": "Chaque bloc parle avec la voix, le moteur et les réglages du projet. La distribution, les voix propres des blocs et les voix par langue sont gardées : décochez pour les retrouver.",
+    "autoCast": "Choisir les voix",
+    "autoCastHint": "Des voix de la bibliothèque pour les personnages sans voix : selon le genre, l’âge et la langue du projet, une différente pour chacun.",
+    "autoCastDone": "Choisies : {{list}}.",
+    "autoCastNone": "Aucune voix adaptée pour : {{list}}. Ajoutez des voix à la bibliothèque ou indiquez le genre et l’âge.",
+    "autoCastAll": "Tous les personnages ont déjà une voix.",
+    "characterGender": "Genre : {{speaker}}",
+    "characterAge": "Âge : {{speaker}}",
+    "genderAny": "genre non indiqué",
+    "ageAny": "âge non indiqué"
   },
   "tags": {
     "emotion": "Émotion",

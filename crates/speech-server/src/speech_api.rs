@@ -345,6 +345,26 @@ pub async fn lint(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Re
     }
 }
 
+/// GET /projects/{pid}/auto-cast — a library voice for each character with no voice in the cast, by its gender, age
+/// and the project's language; nothing is changed, the window or the agent puts the voices into the cast.
+pub async fn auto_cast(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Response {
+    let p = paths(&st);
+    let res = joined(
+        tokio::task::spawn_blocking(move || {
+            sp::load(&p.workspace, &pid).map(|project| {
+                let (library, _) = crate::voice_library::list(&p.voices_dir);
+                crate::auto_cast::propose(&project, &library, &t!("speech-narrator"))
+            })
+        })
+        .await,
+    );
+    match res {
+        Ok(Ok(picks)) => Json(json!({ "picks": picks.into_iter().map(|(speaker, voice)| json!({ "speaker": speaker, "voice": voice })).collect::<Vec<_>>() })).into_response(),
+        Ok(Err(e)) => refuse(StatusCode::NOT_FOUND, "no_project", e),
+        Err(r) => r,
+    }
+}
+
 /// POST /projects/{pid}/blocks/{bid}/ref (multipart: file, text?, whole?) — свой реф реплики: звук в `refs/` проекта
 /// (WAV 24 кГц моно), его текст (пустой — распознаётся) и «весь клип в контекст».
 pub async fn own_ref(State(st): State<AppState>, AxPath((pid, bid)): AxPath<(String, String)>, mut multipart: axum::extract::Multipart) -> Response {

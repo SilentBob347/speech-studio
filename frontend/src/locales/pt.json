@@ -1261,7 +1261,16 @@
     "splitSpeechDone": "Discurso direto separado em {{n}} blocos. As falas ficam com o locutor «Falas»: dê-lhe uma voz ou deixe o diretor nomear as personagens.",
     "splitSpeechNone": "Nenhum discurso direto encontrado: falas após um travessão no início do parágrafo ou entre aspas após dois-pontos.",
     "oneVoice": "Uma só voz para todo o projeto",
-    "oneVoiceHint": "Todos os blocos usam a voz, o motor e os parâmetros do projeto. O elenco, as vozes próprias dos blocos e as vozes por idioma são mantidos: desmarque para recuperá-los."
+    "oneVoiceHint": "Todos os blocos usam a voz, o motor e os parâmetros do projeto. O elenco, as vozes próprias dos blocos e as vozes por idioma são mantidos: desmarque para recuperá-los.",
+    "autoCast": "Escolher vozes",
+    "autoCastHint": "Vozes da biblioteca para as personagens sem voz: por gênero, idade e idioma do projeto, uma diferente para cada.",
+    "autoCastDone": "Escolhidas: {{list}}.",
+    "autoCastNone": "Sem voz adequada: {{list}}. Adicione vozes à biblioteca ou indique gênero e idade.",
+    "autoCastAll": "Todas as personagens já têm voz.",
+    "characterGender": "Gênero: {{speaker}}",
+    "characterAge": "Idade: {{speaker}}",
+    "genderAny": "gênero não indicado",
+    "ageAny": "idade não indicada"
   },
   "tags": {
     "emotion": "Emoção",
