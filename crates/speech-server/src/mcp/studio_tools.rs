@@ -379,6 +379,12 @@ pub(super) fn tools() -> Vec<Tool> {
             call: |args| get(project_path(args, &format!("/takes/{}", segment(&text(args, "file")?)))?),
         },
         Tool {
+            name: "project_take_peaks",
+            description: "A take's waveform as the track editor draws it: peaks of each 1/25 s (the loudest sample, 0..1, not scaled) and its length in seconds; file is the take's name from project_get.",
+            schema: || object(json!({ "pid": pid(), "file": { "type": "string" } }), &["pid", "file"]),
+            call: |args| get(project_path(args, &format!("/takes/{}/peaks", segment(&text(args, "file")?)))?),
+        },
+        Tool {
             name: "project_export_file",
             description: "An export of a project (file from project_exports) as a file on this computer.",
             schema: || object(json!({ "pid": pid(), "file": { "type": "string" } }), &["pid", "file"]),

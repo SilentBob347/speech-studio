@@ -556,6 +556,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/projects/{pid}/timeline", get(speech_api::timeline))
         .route("/projects/{pid}/save-export", post(speech_api::save_export))
         .route("/projects/{pid}/takes/{file}", get(speech_api::take_file))
+        .route("/projects/{pid}/takes/{file}/peaks", get(speech_api::take_peaks))
         .route("/projects/{pid}/dictionary/try", post(speech_api::try_rule))
         .route("/projects/{pid}/tries/{file}", get(speech_api::try_file))
         .route("/projects/{pid}/exports/{file}", get(speech_api::export_file))

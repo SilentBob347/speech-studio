@@ -76,6 +76,44 @@ pub struct BlockError {
     pub text: String,
 }
 
+/// A clip's montage in the track editor (VideoSOS clip controls): gain in dB and fades in seconds.
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, Default, PartialEq)]
+#[serde(default)]
+pub struct Mix {
+    pub gain_db: f64,
+    pub fade_in: f64,
+    pub fade_out: f64,
+}
+
+impl Mix {
+    pub const GAIN_DB: std::ops::RangeInclusive<f64> = -40.0..=24.0;
+
+    pub fn is_flat(&self) -> bool {
+        *self == Mix::default()
+    }
+
+    /// The samples with the gain, then the fades: linear in amplitude over their length, each no longer than the clip.
+    pub fn apply(&self, samples: &mut [f32], sr: u32) {
+        if self.is_flat() {
+            return;
+        }
+        let gain = 10f32.powf(self.gain_db as f32 / 20.0);
+        let n = samples.len();
+        let fade_in = ((self.fade_in * sr as f64) as usize).min(n);
+        let fade_out = ((self.fade_out * sr as f64) as usize).min(n);
+        for (k, s) in samples.iter_mut().enumerate() {
+            let mut g = gain;
+            if k < fade_in {
+                g *= k as f32 / fade_in as f32;
+            }
+            if n - k <= fade_out {
+                g *= (n - k - 1) as f32 / fade_out as f32;
+            }
+            *s *= g;
+        }
+    }
+}
+
 /// Свой реф реплики вместо голоса: звук в `refs/` проекта и что в нём сказано. `whole` — клип целиком в контекст
 /// движка (продолжение речи), иначе он режется до предела рефа, как голос библиотеки.
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
@@ -135,6 +173,9 @@ pub struct Block {
     /// The voice effect of the block (`voice_fx::KINDS`): `none` takes its speaker's off, empty — its speaker's.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub fx: String,
+    /// The montage of the block's clip: its gain and fades, applied where it sounds, the take staying as it is.
+    #[serde(skip_serializing_if = "Mix::is_flat")]
+    pub mix: Mix,
     /// Время реплики субтитров, с: в проекте по таймкодам блок звучит в нём.
     pub start: Option<f64>,
     pub end: Option<f64>,
@@ -372,6 +413,9 @@ impl SpeechProject {
             return Err(format!("this is a {} project, not a speech one", self.kind));
         }
         self.settings.params.checked()?;
+        if let Some(b) = self.blocks().find(|b| !Mix::GAIN_DB.contains(&b.mix.gain_db) || !(b.mix.fade_in >= 0.0 && b.mix.fade_out >= 0.0 && b.mix.fade_in.is_finite() && b.mix.fade_out.is_finite())) {
+            return Err(format!("block {}: gain {} dB must be {}..{} and fades {} s, {} s not below 0", b.id, b.mix.gain_db, Mix::GAIN_DB.start(), Mix::GAIN_DB.end(), b.mix.fade_in, b.mix.fade_out));
+        }
         crate::speech_jobs::name_keys(&self.settings.export_name, &crate::speech_jobs::EXPORT_NAME_KEYS)?;
         crate::speech_jobs::name_keys(&self.settings.clip_name, &crate::speech_jobs::CLIP_NAME_KEYS)?;
         for (speaker, params) in &self.cast_params {
@@ -911,5 +955,23 @@ mod tests {
         let mut p = from_text("t", "Раз.", "Р");
         p.chapters[0].blocks[0].active = Some(3);
         assert!(p.validate().unwrap_err().contains("take 3"));
+    }
+
+    #[test]
+    fn a_clips_mix_gains_then_fades_in_and_out_over_its_length() {
+        let mut x = vec![0.5f32; 1000];
+        Mix { gain_db: 6.0, fade_in: 0.1, fade_out: 0.2 }.apply(&mut x, 1000);
+        let g = 10f32.powf(6.0 / 20.0) * 0.5;
+        assert_eq!(x[0], 0.0);
+        assert!((x[50] - g * 0.5).abs() < 1e-4, "{}", x[50]);
+        assert!((x[500] - g).abs() < 1e-4);
+        assert!((x[899] - g * 100.0 / 200.0).abs() < 1e-2, "{}", x[899]);
+        assert_eq!(x[999], 0.0);
+        let mut flat = vec![0.5f32; 10];
+        Mix::default().apply(&mut flat, 1000);
+        assert!(flat.iter().all(|v| *v == 0.5));
+        let mut p = SpeechProject::default();
+        p.chapters.push(Chapter { id: "c".into(), title: String::new(), blocks: vec![Block { id: "b".into(), text: "Да.".into(), mix: Mix { gain_db: 30.0, ..Mix::default() }, ..Default::default() }] });
+        assert!(p.validate().unwrap_err().contains("gain"));
     }
 }

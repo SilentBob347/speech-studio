@@ -465,8 +465,6 @@ pub(crate) fn safe_file(name: &str) -> bool {
     !name.is_empty() && !name.contains(['/', '\\']) && !name.contains("..")
 }
 
-/// GET /projects/{pid}/takes/{file}?fx= — звук дубля с Range; с `fx` — через этот эффект голоса (`voice_fx`), копия
-/// рядом в `takes/.fx/`, сам дубль не меняется.
 pub async fn take_file(State(st): State<AppState>, AxPath((pid, file)): AxPath<(String, String)>, axum::extract::Query(q): axum::extract::Query<std::collections::HashMap<String, String>>, req: axum::http::Request<axum::body::Body>) -> Response {
     if !sp::is_pid(&pid) || !safe_file(&file) {
         return refuse(StatusCode::BAD_REQUEST, "bad_request", file);
@@ -475,16 +473,37 @@ pub async fn take_file(State(st): State<AppState>, AxPath((pid, file)): AxPath<(
     if !path.is_file() {
         return refuse(StatusCode::NOT_FOUND, "no_file", file);
     }
-    let Some(fx) = q.get("fx").filter(|f| !f.is_empty()).cloned() else {
-        return crate::serve_file_range(&path, req, None).await;
-    };
-    if !crate::voice_fx::KINDS.contains(&fx.as_str()) {
+    let fx = q.get("fx").filter(|f| !f.is_empty()).cloned();
+    if let Some(fx) = fx.as_ref().filter(|fx| !crate::voice_fx::KINDS.contains(&fx.as_str())) {
         return refuse(StatusCode::BAD_REQUEST, "bad_request", format!("fx {fx}"));
+    }
+    let number = |key: &str| -> Result<Option<f64>, String> {
+        q.get(key).filter(|v| !v.is_empty()).map(|v| v.parse::<f64>().map_err(|_| format!("{key} {v}"))).transpose()
+    };
+    let parsed = (|| -> Result<(sp::Mix, Option<[f64; 2]>), String> {
+        let mix = sp::Mix { gain_db: number("gain")?.unwrap_or(0.0), fade_in: number("fin")?.unwrap_or(0.0), fade_out: number("fout")?.unwrap_or(0.0) };
+        let cut = match (number("a")?, number("z")?) {
+            (Some(a), Some(z)) if z > a => Some([a, z]),
+            (None, None) => None,
+            _ => return Err("a and z come together, a before z".into()),
+        };
+        Ok((mix, cut))
+    })();
+    let (mix, cut) = match parsed {
+        Ok(found) => found,
+        Err(e) => return refuse(StatusCode::BAD_REQUEST, "bad_request", e),
+    };
+    if !sp::Mix::GAIN_DB.contains(&mix.gain_db) || mix.fade_in < 0.0 || mix.fade_out < 0.0 {
+        return refuse(StatusCode::BAD_REQUEST, "bad_request", format!("gain {} fades {} {}", mix.gain_db, mix.fade_in, mix.fade_out));
+    }
+    if fx.is_none() && mix.is_flat() {
+        return crate::serve_file_range(&path, req, None).await;
     }
     let rendered = joined(
         tokio::task::spawn_blocking(move || -> Result<std::path::PathBuf, String> {
             let dir = path.parent().unwrap_or(Path::new(".")).join(".fx");
-            let out = dir.join(format!("{file}.{fx}.wav"));
+            let recipe = format!("{fx:?} {mix:?} {cut:?}");
+            let out = dir.join(format!("{file}.{}.wav", &blake3::hash(recipe.as_bytes()).to_hex()[..16]));
             let fresh = |o: &Path| std::fs::metadata(o).and_then(|m| m.modified()).ok() >= std::fs::metadata(&path).and_then(|m| m.modified()).ok();
             if out.is_file() && fresh(&out) {
                 return Ok(out);
@@ -494,7 +513,15 @@ pub async fn take_file(State(st): State<AppState>, AxPath((pid, file)): AxPath<(
             let wav = tmp.path().join("take.wav");
             crate::media::extract_audio(&path, &wav, crate::speech_jobs::SR, 1)?;
             let (samples, sr) = crate::wavio::read_mono_f32(&wav)?;
-            let done = crate::voice_fx::apply(&samples, sr, &fx)?;
+            let mut done = match &fx {
+                Some(fx) => crate::voice_fx::apply(&samples, sr, fx)?,
+                None => samples,
+            };
+            // the fades lie where the project's clip starts and ends in the file, so the window keeps seeking by the cut
+            let [a, z] = cut.unwrap_or([0.0, f64::INFINITY]);
+            let from = ((a * sr as f64) as usize).min(done.len());
+            let to = ((z * sr as f64) as usize).clamp(from, done.len());
+            mix.apply(&mut done[from..to], sr);
             let part = out.with_extension("wav.part");
             crate::wavio::write_mono_f32(&part, &done, sr)?;
             std::fs::rename(&part, &out).map_err(|e| format!("{}: {e}", out.display()))?;
@@ -505,6 +532,47 @@ pub async fn take_file(State(st): State<AppState>, AxPath((pid, file)): AxPath<(
     match rendered {
         Ok(Ok(out)) => crate::serve_file_range(&out, req, None).await,
         Ok(Err(e)) => refuse(StatusCode::INTERNAL_SERVER_ERROR, "fx_failed", e),
+        Err(r) => r,
+    }
+}
+
+/// Peaks per second of a take's waveform for the track editor.
+const PEAKS_PER_SECOND: u32 = 25;
+
+/// GET /projects/{pid}/takes/{file}/peaks — the take's waveform as `PEAKS_PER_SECOND` peaks a second (the loudest sample
+/// of each slice, 0..1, not scaled, so takes compare), kept beside the take in `.fx`.
+pub async fn take_peaks(State(st): State<AppState>, AxPath((pid, file)): AxPath<(String, String)>) -> Response {
+    if !sp::is_pid(&pid) || !safe_file(&file) {
+        return refuse(StatusCode::BAD_REQUEST, "bad_request", file);
+    }
+    let path = st.workspace.join(&pid).join("takes").join(&file);
+    if !path.is_file() {
+        return refuse(StatusCode::NOT_FOUND, "no_file", file);
+    }
+    let made = joined(
+        tokio::task::spawn_blocking(move || -> Result<Value, String> {
+            let out = path.parent().unwrap_or(Path::new(".")).join(".fx").join(format!("{file}.peaks.json"));
+            let fresh = std::fs::metadata(&out).and_then(|m| m.modified()).ok() >= std::fs::metadata(&path).and_then(|m| m.modified()).ok();
+            if out.is_file() && fresh {
+                let text = std::fs::read_to_string(&out).map_err(|e| format!("{}: {e}", out.display()))?;
+                return serde_json::from_str(&text).map_err(|e| format!("{}: {e}", out.display()));
+            }
+            let tmp = tempfile::Builder::new().prefix("take-peaks-").tempdir().map_err(|e| e.to_string())?;
+            let wav = tmp.path().join("take.wav");
+            crate::media::extract_audio(&path, &wav, crate::speech_jobs::SR, 1)?;
+            let (samples, sr) = crate::wavio::read_mono_f32(&wav)?;
+            let slice = (sr / PEAKS_PER_SECOND).max(1) as usize;
+            let peaks: Vec<f32> = samples.chunks(slice).map(|c| (c.iter().fold(0.0f32, |m, v| m.max(v.abs())).min(1.0) * 1000.0).round() / 1000.0).collect();
+            let body = json!({ "secs": samples.len() as f64 / sr as f64, "per_second": PEAKS_PER_SECOND, "peaks": peaks });
+            std::fs::create_dir_all(out.parent().unwrap_or(Path::new("."))).map_err(|e| format!("{}: {e}", out.display()))?;
+            std::fs::write(&out, body.to_string()).map_err(|e| format!("{}: {e}", out.display()))?;
+            Ok(body)
+        })
+        .await,
+    );
+    match made {
+        Ok(Ok(body)) => Json(body).into_response(),
+        Ok(Err(e)) => refuse(StatusCode::INTERNAL_SERVER_ERROR, "peaks_failed", e),
         Err(r) => r,
     }
 }

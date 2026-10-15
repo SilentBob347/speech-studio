@@ -1195,7 +1195,11 @@ pub fn timeline(project: &SpeechProject) -> Vec<Value> {
         if let (true, Some(last)) = (b.cut_previous && overlap.is_some(), rows.last_mut()) {
             last["end"] = json!(round3(start));
         }
-        rows.push(json!({ "block": b.id, "speaker": b.speaker, "start": round3(start), "end": round3(end), "voiced": take.is_some(), "overlap": overlap, "cut_previous": b.cut_previous }));
+        let prev = rows.last().and_then(|r| r["block"].as_str().map(str::to_string));
+        rows.push(json!({
+            "block": b.id, "speaker": b.speaker, "start": round3(start), "end": round3(end), "voiced": take.is_some(), "overlap": overlap, "cut_previous": b.cut_previous,
+            "prev": prev, "take": take.map(|t| t.file.clone()), "take_secs": take.map(|t| t.duration), "cut": take.and_then(|t| t.cut), "mix": b.mix,
+        }));
         if b.cut_previous || furthest.is_none_or(|(_, e)| end >= e) {
             furthest = Some((b.id.as_str(), end));
         }
@@ -1379,6 +1383,7 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         if project.settings.level_pieces {
             crate::loudness::level_piece(&mut samples, SR);
         }
+        b.mix.apply(&mut samples, SR);
         let at = placer.place(b, take.fit_lead, samples.len());
         if let Some((prev_at, prev)) = prev_audio.as_ref().filter(|(pa, pv)| b.cut_previous && at < pa + pv.len()) {
             cut_tail(&mut mix, *prev_at, prev, at);
@@ -1715,6 +1720,7 @@ fn export_clips(p: &SpeechPaths, pid: &str, project: &SpeechProject, blocks: &[&
             Some(fx) => crate::voice_fx::apply(&samples, SR, fx)?,
             None => samples,
         };
+        b.mix.apply(&mut samples, SR);
         if let Some((target, tp, _)) = loudness(&project.settings.loudness) {
             crate::loudness::level(&mut samples, SR, target, peak_for(&opts.format, tp), project.settings.loudness != "acx")?;
         }
