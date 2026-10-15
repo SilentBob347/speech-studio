@@ -673,7 +673,8 @@ pub async fn book_preview(State(st): State<AppState>, mut multipart: axum::extra
                     json!({ "index": i, "title": c.title, "chars": chars, "est_secs": dub_core::fit::estimate(&c.text, cps), "head": c.text.chars().take(240).collect::<String>(), "skip": c.skip })
                 })
                 .collect();
-            Ok(json!({ "id": id, "title": book.title, "author": book.author, "lang": lang, "cover": book.cover.is_some(), "chapters": chapters, "removed": book.removed }))
+            let names: Vec<Value> = crate::book_import::names(&book.chapters, 3, 40).into_iter().map(|(name, n)| json!({ "name": name, "count": n })).collect();
+            Ok(json!({ "id": id, "title": book.title, "author": book.author, "lang": lang, "cover": book.cover.is_some(), "chapters": chapters, "removed": book.removed, "names": names }))
         })
         .await,
     );
@@ -714,6 +715,9 @@ pub struct FromBook {
     #[serde(default)]
     voice: Option<String>,
     chapters: Vec<BookChoice>,
+    /// The book's names go into the project's dictionary as rules to check, so their stress can be set.
+    #[serde(default)]
+    names: Vec<String>,
 }
 
 /// POST /projects/from-book — проект из выбранных глав (с правками окна): глава книги — глава проекта.
@@ -750,6 +754,9 @@ pub async fn from_book(State(st): State<AppState>, Json(req): Json<FromBook>) ->
                 std::fs::copy(src.join(f), dst.join(f)).map_err(|e| e.to_string())?;
             }
             project.book = Some(sp::BookMeta { title: book.title.clone(), author: book.author.clone(), cover: cover.map(str::to_string) });
+            for name in req.names.iter().map(|n| n.trim()).filter(|n| !n.is_empty()) {
+                project.dictionary.push(crate::pron_dict::Entry { id: crate::pron_dict::new_id(), find: name.to_string(), say: name.to_string(), note: t!("book-name-note"), source: "book".into(), ..Default::default() });
+            }
             sp::save(&p.workspace, &pid, &project)?;
             let _ = std::fs::remove_dir_all(&src);
             Ok((pid, shown(&p, &project)))

@@ -1121,3 +1121,4 @@ speech-no-block = o projeto não tem o bloco { $id }
 director-no-tags = { $engine } não lê tags de expressão: não há nada a inserir
 director-enriching = O diretor insere tags: parte { $n } de { $total }
 speaker-too-little = o orador «{ $name }» fala muito pouco para memorizar a voz: são precisos pelo menos 2 segundos
+book-name-note = um nome do livro: ponha a marca de acento + e marque ao conferir de ouvido

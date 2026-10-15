@@ -355,7 +355,7 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "book_preview",
-            description: "Read a book (EPUB, FB2, PDF, DOCX, HTML, Markdown, TXT) to choose its chapters: answers its id, title, author, language, whether it has a cover, and the chapters (index, title, characters, estimated seconds of speech, its opening, skip naming one to leave out: empty, toc, front or cover). book_chapter gives a whole one; project_create_from_book makes the audiobook project.",
+            description: "Read a book (EPUB, FB2, PDF, DOCX, HTML, Markdown, TXT) to choose its chapters: answers its id, title, author, language, whether it has a cover, and the chapters (index, title, characters, estimated seconds of speech, its opening, skip naming one to leave out: empty, toc, front or cover), removed (footnote marks and site addresses taken out of the text) and names (capitalised words inside sentences met three times or more, the most frequent first). book_chapter gives a whole one; project_create_from_book makes the audiobook project.",
             schema: || id_only("path", "the book file"),
             call: |args| upload("/books/preview", local_file(args, "path")?, "file", Vec::new()),
         },
@@ -367,8 +367,8 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "project_create_from_book",
-            description: "Make an audiobook project of a book read by book_preview: chapters lists the ones to take (index, and a title or text of your own to replace theirs), voice the narrator, name the project's name.",
-            schema: || object(json!({ "id": { "type": "string" }, "name": { "type": "string" }, "voice": { "type": "string" }, "chapters": { "type": "array", "items": { "type": "object", "properties": { "index": { "type": "integer" }, "title": { "type": "string" }, "text": { "type": "string" } }, "required": ["index"] } } }), &["id", "chapters"]),
+            description: "Make an audiobook project of a book read by book_preview: chapters lists the ones to take (index, and a title or text of your own to replace theirs), voice the narrator, name the project's name, names the names book_preview found that go into the project's dictionary as rules to check (to set their stress).",
+            schema: || object(json!({ "id": { "type": "string" }, "name": { "type": "string" }, "voice": { "type": "string" }, "names": { "type": "array", "items": { "type": "string" } }, "chapters": { "type": "array", "items": { "type": "object", "properties": { "index": { "type": "integer" }, "title": { "type": "string" }, "text": { "type": "string" } }, "required": ["index"] } } }), &["id", "chapters"]),
             call: |args| post("/projects/from-book".into(), args.clone()),
         },
         // ---------------------------------------------------------------- Speech: takes and export files

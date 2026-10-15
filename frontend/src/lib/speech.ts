@@ -96,6 +96,8 @@ export type BookPreview = {
   chapters: { index: number; title: string; chars: number; est_secs: number; head: string; skip: "cover" | "front" | "toc" | "empty" | null }[];
   /** Footnote marks and site addresses taken out of the text. */
   removed: { notes: number; links: number };
+  /** The names the text shows, the most frequent first. */
+  names: { name: string; count: number }[];
 };
 export type HistoryTake = {
   pid: string; project: string; block: string; speaker: string; text: string; n: number; file: string; created: number;
@@ -158,7 +160,7 @@ export const speechApi = {
     return fetch(`${BASE}/books/preview`, { method: "POST", body: form }).then(coded<BookPreview>);
   },
   bookChapter: (id: string, index: number) => getCoded<{ title: string; text: string }>(`/books/${id}/chapters/${index}`),
-  fromBook: (body: { id: string; name?: string; voice: string | null; chapters: { index: number; title?: string; text?: string }[] }) =>
+  fromBook: (body: { id: string; name?: string; voice: string | null; chapters: { index: number; title?: string; text?: string }[]; names?: string[] }) =>
     postCoded<{ project_id: string; project: SpeechProject }>("/projects/from-book", body),
   renders: () => getCoded<{ renders: Render[] }>("/renders"),
   exports: (pid: string) => getCoded<{ files: { file: string; bytes: number; mtime: number }[]; dir: string }>(`/projects/${pid}/exports`),

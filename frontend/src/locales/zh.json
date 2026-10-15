@@ -1411,7 +1411,8 @@
     "create": "创建项目",
     "minutes": "{{m}} 分钟",
     "hours": "{{h}} 小时 {{m}} 分钟",
-    "removed": "已从文本中移除：脚注标记 {{notes}} 个，网址 {{links}} 个"
+    "removed": "已从文本中移除：脚注标记 {{notes}} 个，网址 {{links}} 个",
+    "namesToDict": "找到的名字（{{n}}）：加入项目词典以标注重音"
   },
   "files": {
     "saveAs": "将 {{file}} 另存为…",

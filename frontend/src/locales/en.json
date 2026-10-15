@@ -1411,7 +1411,8 @@
     "create": "Create the project",
     "minutes": "{{m}} min",
     "hours": "{{h}} h {{m}} min",
-    "removed": "taken out of the text: {{notes}} footnote marks, {{links}} site addresses"
+    "removed": "taken out of the text: {{notes}} footnote marks, {{links}} site addresses",
+    "namesToDict": "Names found ({{n}}): into the project's dictionary to set their stress"
   },
   "files": {
     "saveAs": "Save {{file}} as…",

@@ -38,6 +38,26 @@ pub struct Removed {
 static NOTE_MARK: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\[\d{1,3}\]|\[\*\]|[¹²³⁴⁵⁶⁷⁸⁹⁰]+").expect("note mark"));
 static LINK: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)[ \t]*\(?\b(?:https?://|www\.)[^\s<>«»]*[^\s<>«».,;:!?)]\)?").expect("link"));
 
+static CAPITAL_WORD: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\b[А-ЯЁ][а-яё]{2,}\b").expect("capital word"));
+
+/// The names of a book, as far as the text shows them: words with a capital letter where a sentence does not begin,
+/// met at least `min` times, the most frequent first, at most `limit`.
+pub fn names(chapters: &[Chapter], min: usize, limit: usize) -> Vec<(String, usize)> {
+    let mut counts: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    for c in chapters.iter().filter(|c| c.skip.is_none()) {
+        for m in CAPITAL_WORD.find_iter(&c.text) {
+            let before = c.text[..m.start()].trim_end_matches([' ', '\t', '«', '"', '(', '—', '–', '-']);
+            if !(before.is_empty() || before.ends_with(['.', '!', '?', '…', '\n', ':'])) {
+                *counts.entry(m.as_str().to_string()).or_default() += 1;
+            }
+        }
+    }
+    let mut out: Vec<(String, usize)> = counts.into_iter().filter(|(_, n)| *n >= min).collect();
+    out.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
+    out.truncate(limit);
+    out
+}
+
 /// Footnote marks and site addresses out of a chapter, counted.
 fn strip_marks(text: &str, removed: &mut Removed) -> String {
     removed.notes += NOTE_MARK.find_iter(text).count();
@@ -456,6 +476,13 @@ mod tests {
         assert_eq!(h.chapters.len(), 2);
         assert_eq!(h.chapters[0].skip.as_deref(), Some("toc"));
         assert_eq!(h.chapters[1].text, "Абзац один.\n\nДва.");
+    }
+
+    #[test]
+    fn names_are_capital_words_inside_sentences_met_often_enough() {
+        let text = "Утром Анна ушла. Потом пришёл Олег, и Анна обрадовалась. Вечером Анна и Олег гуляли.\n\nОлег улыбнулся. Вдруг позвонила Мария.";
+        let chapters = vec![Chapter { title: String::new(), text: text.into(), skip: None }];
+        assert_eq!(names(&chapters, 2, 10), vec![("Анна".to_string(), 3), ("Олег".to_string(), 2)]);
     }
 
     #[test]
