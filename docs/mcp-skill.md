@@ -118,7 +118,8 @@ connected and the address to paste.
 - **Tracks of a book or play** (music, sounds, ambience beside the voices): `project_track_import` (sound files and
   folders of this computer onto a track, copied into the project's media, one after another), `project_track_upload`
   (one file by upload, as the window does), `project_media_file` and `project_media_peaks` (a clip's sound and its
-  waveform). The project's `tracks` - each with `id`, `name`, `gain_db`, `muted` and `clips` (`file`, `label`, `start`
+  waveform), `music_studios` and `project_track_music` (music made in YuE2, MiniMax or ACE-Step Studio on this
+  computer by its own song form, a job; the song stays in that studio's library and comes onto a track). The project's `tracks` - each with `id`, `name`, `gain_db`, `muted` and `clips` (`file`, `label`, `start`
   in seconds on the export's scale, `duration`, `cut`, `mix`) - are edited with `project_update`; the export mixes every
   track that is not muted under the voices (not when one chapter is exported alone), and the tracks by speaker give each
   track its own stem. No ducking: the levels are set by the tracks' and clips' gains.

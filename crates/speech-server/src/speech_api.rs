@@ -675,6 +675,62 @@ pub async fn tracks_upload(State(st): State<AppState>, AxPath(pid): AxPath<Strin
     project_answer(res)
 }
 
+/// GET /music/studios — the music studios of this computer, whether each answers now, and the form of its song.
+pub async fn music_studios() -> Response {
+    match joined(tokio::task::spawn_blocking(crate::music_studios::list).await) {
+        Ok(list) => Json(json!({ "studios": list })).into_response(),
+        Err(r) => r,
+    }
+}
+
+#[derive(serde::Deserialize)]
+pub struct TrackMusic {
+    studio: String,
+    #[serde(default)]
+    values: serde_json::Map<String, Value>,
+    #[serde(default)]
+    track: Option<String>,
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    at: Option<f64>,
+}
+
+/// POST /projects/{pid}/tracks/music {studio, values, track?, name?, at?} — music of the book or play made in a music
+/// studio (the form of its song from /music/studios) as a job: the song stays in the studio's library, its audio comes
+/// into the project's media as a clip on the track `track` or a new one, at `at` (by default after its last clip).
+pub async fn tracks_music(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<TrackMusic>) -> Response {
+    if let Err(e) = sp::load(&st.workspace, &pid) {
+        return refuse(StatusCode::NOT_FOUND, "no_project", e);
+    }
+    let Some(studio) = crate::music_studios::studio(&body.studio) else {
+        return refuse(StatusCode::BAD_REQUEST, "bad_request", t!("music-unknown", studio = body.studio.clone()));
+    };
+    let p = paths(&st);
+    let pid2 = pid.clone();
+    let job: crate::jobs::JobFn = Box::new(move |progress: crate::jobs::ProgressFn| {
+        let step = |msg: String, pct: i64| progress(json!({ "type": "progress", "stage": "music", "msg": msg, "pct": pct }));
+        step(t!("music-asking", studio = studio.name), 5);
+        let songs = crate::music_studios::make_song(studio, &body.values, &|said| step(t!("music-making", studio = studio.name, detail = said), 40))?;
+        step(t!("music-placing"), 95);
+        let files: Vec<std::path::PathBuf> = songs.iter().map(|(audio, _, _)| audio.clone()).collect();
+        let mut clips = crate::tracks::clips_of(&p.workspace, &pid2, &files, body.at.unwrap_or(0.0))?;
+        for (clip, (_, song, title)) in clips.iter_mut().zip(&songs) {
+            clip.label = title.clone();
+            clip.source = Some(json!({ "studio": studio.id, "song": song, "values": body.values }));
+        }
+        let mut project = sp::load(&p.workspace, &pid2)?;
+        let name = body.name.clone().filter(|n| !n.trim().is_empty()).unwrap_or_else(|| t!("music-track"));
+        let track = crate::tracks::place(&mut project, body.track.as_deref(), &name, clips, body.at)?;
+        sp::save(&p.workspace, &pid2, &project)?;
+        Ok(json!({ "track": track, "songs": songs.iter().map(|(_, song, title)| json!({ "song": song, "title": title })).collect::<Vec<_>>() }))
+    });
+    match st.jobs.enqueue(crate::jobs::JobMeta::new(crate::jobs::JobKind::Music, Some(&pid)), job).await {
+        Ok(job_id) => Json(json!({ "job_id": job_id })).into_response(),
+        Err(e) => crate::enqueue_error(e),
+    }
+}
+
 fn place_files(p: &SpeechPaths, pid: &str, files: &[std::path::PathBuf], track: Option<&str>, name: &str, at: Option<f64>) -> Result<Value, String> {
     let mut project = sp::load(&p.workspace, pid)?;
     let clips = crate::tracks::clips_of(&p.workspace, pid, files, at.unwrap_or(0.0))?;

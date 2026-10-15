@@ -385,6 +385,18 @@ pub(super) fn tools() -> Vec<Tool> {
             call: |args| post(project_path(args, "/tracks/import")?, body_without(args, &["pid"])),
         },
         Tool {
+            name: "music_studios",
+            description: "The music studios of this computer (YuE2 Studio, MiniMax Music3 Studio, ACE-Step Studio): whether each runs now and the fields of its song form (the input of its song_create), for project_track_music. A studio that does not run is started by the person.",
+            schema: || object(json!({}), &[]),
+            call: |_| get("/music/studios".into()),
+        },
+        Tool {
+            name: "project_track_music",
+            description: "Make the music of a book or play in a music studio of this computer and put it on a track: studio is an id from music_studios, values its song form's fields (style, lyrics or none for an instrumental, duration...). A job, follow it with studio_wait: the song is kept in the studio's library and its audio comes into the project's media as a clip on the track whose id track names or a new one called name, at at seconds (by default after the track's last clip). Answers the job id.",
+            schema: || object(json!({ "pid": pid(), "studio": { "type": "string", "enum": ["yue2-studio", "minimax-music3-studio", "ace-step-studio"] }, "values": { "type": "object" }, "track": { "type": "string" }, "name": { "type": "string" }, "at": { "type": "number", "minimum": 0 } }), &["pid", "studio", "values"]),
+            call: |args| post(project_path(args, "/tracks/music")?, body_without(args, &["pid"])),
+        },
+        Tool {
             name: "project_track_upload",
             description: "Put one sound file on a track by uploading a copy of it, as the window does with a file picked there (project_track_import reads files and folders where they lie): path is the file, track the id of a track or none for a new one called name, at its start in seconds. Answers the project.",
             schema: || object(json!({ "pid": pid(), "path": { "type": "string" }, "track": { "type": "string" }, "name": { "type": "string" }, "at": { "type": "number", "minimum": 0 } }), &["pid", "path"]),

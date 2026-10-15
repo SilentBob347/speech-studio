@@ -480,7 +480,7 @@ fn annotations(name: &str) -> Value {
         "studio_wait", "proxy_test", "openrouter_verify", "ui_screenshot", "ui_read_page", "ui_console", "url_probe", "url_probe_cookies_text", "studio_health",
         "engine_tags", "voice_sample", "voice_design_sample", "dictionary_try_file", "project_dictionary_counts", "project_unknown_words", "cloud_model_form",
         "cloud_estimate", "cloud_keys", "cloud_spend", "openai_api_log", "openai_api_models", "listen_audio", "project_queue", "history_list",
-        "speech_live_watch", "job_events", "book_preview", "book_chapter", "project_take_file", "project_take_peaks", "project_media_file", "project_media_peaks", "project_export_file", "agent_status", "windows_watch",
+        "speech_live_watch", "job_events", "book_preview", "book_chapter", "project_take_file", "project_take_peaks", "project_media_file", "project_media_peaks", "music_studios", "project_export_file", "agent_status", "windows_watch",
         "player_state",
     ];
     // writes over what was stored, so the earlier content is gone: a client asks first
@@ -757,7 +757,7 @@ fn tools() -> &'static [Tool] {
             Tool {
                 name: "studio_wait",
                 description: "Wait for work to finish instead of polling: a job (job_id, as project_synth, project_export, project_cast_characters, project_enrich, podcast_write, listen_transcribe, listen_cut, voice_transcribe, voice_clean, voices_download_pack or a one-call tool answering done false returned it, or the fetch.id of a download by link), or until one kind of work is over - synth, export, analyze (recognition), remix (cut by text), write (podcast script), cast (characters), enrich (the director's tags), voice_transcript, voice_clean, separate, download, voices_pack - or everything (until: idle, the default). Returns when it is done or after seconds (30 by default, at most 55, under the minute clients allow a call) with how far it got; call it again to keep waiting.",
-                schema: || object(json!({ "job_id": { "type": "string" }, "until": { "type": "string", "enum": ["idle", "synth", "export", "analyze", "remix", "write", "cast", "enrich", "voice_transcript", "voice_clean", "voice_design", "separate", "download", "voices_pack"] }, "seconds": { "type": "integer" } }), &[]),
+                schema: || object(json!({ "job_id": { "type": "string" }, "until": { "type": "string", "enum": ["idle", "synth", "export", "analyze", "remix", "write", "cast", "enrich", "music", "voice_transcript", "voice_clean", "voice_design", "separate", "download", "voices_pack"] }, "seconds": { "type": "integer" } }), &[]),
                 call: |_| composite("wait"),
             },
             Tool {

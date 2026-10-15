@@ -85,10 +85,12 @@ pub enum JobKind {
     /// Разметка главы по персонажам режиссёром-LLM.
     Cast,
     Enrich,
+    /// Music of a book or play made in a music studio of this computer.
+    Music,
 }
 
 impl JobKind {
-    const ALL: [JobKind; 22] = [
+    const ALL: [JobKind; 23] = [
         JobKind::Analyze,
         JobKind::Retranslate,
         JobKind::Remix,
@@ -111,6 +113,7 @@ impl JobKind {
         JobKind::Write,
         JobKind::Cast,
         JobKind::Enrich,
+        JobKind::Music,
     ];
 
     pub fn as_str(self) -> &'static str {
@@ -136,6 +139,7 @@ impl JobKind {
             JobKind::Export => "export",
             JobKind::Write => "write",
             JobKind::Cast => "cast",
+            JobKind::Music => "music",
             JobKind::Enrich => "enrich",
         }
     }
@@ -155,7 +159,7 @@ impl JobKind {
             JobKind::DetectText => Some("detect_text"),
             JobKind::VoiceTranscript | JobKind::VoiceClean | JobKind::VoiceDesign => Some("voice"),
             JobKind::Synth | JobKind::Export => Some("speech"),
-            JobKind::Download | JobKind::VoicesPack | JobKind::Frame | JobKind::Write => None,
+            JobKind::Download | JobKind::VoicesPack | JobKind::Frame | JobKind::Write | JobKind::Music => None,
         }
     }
 }

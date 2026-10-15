@@ -89,6 +89,7 @@ mod vad;
 mod voice_api;
 mod voice_fx;
 mod tracks;
+mod music_studios;
 mod voice_jobs;
 mod voice_library;
 mod wavio;
@@ -562,6 +563,8 @@ pub fn build_router(state: AppState) -> Router {
         .route("/projects/{pid}/media/{file}/peaks", get(speech_api::media_peaks))
         .route("/projects/{pid}/tracks/import", post(speech_api::tracks_import))
         .route("/projects/{pid}/tracks/upload", post(speech_api::tracks_upload))
+        .route("/projects/{pid}/tracks/music", post(speech_api::tracks_music))
+        .route("/music/studios", get(speech_api::music_studios))
         .route("/projects/{pid}/dictionary/try", post(speech_api::try_rule))
         .route("/projects/{pid}/tries/{file}", get(speech_api::try_file))
         .route("/projects/{pid}/exports/{file}", get(speech_api::export_file))
