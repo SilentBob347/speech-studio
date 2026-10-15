@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { Users, X } from "lucide-react";
 import type { Block } from "../../lib/speech";
+import { binding } from "../../lib/shortcuts";
 import { useEngines, voiceName } from "../../lib/engines";
 import { useEscapeLayer } from "../../lib/escape";
 import { named } from "../../lib/a11y";
@@ -34,7 +35,7 @@ export default function RecastDialog({ speaker, from, to, blocks, engine, onAppl
             </li>
           ))}
         </ol>
-        <p className="mt-2 text-[11px] text-[var(--color-muted)] leading-relaxed">{t("recast.keep")}</p>
+        <p className="mt-2 text-[11px] text-[var(--color-muted)] leading-relaxed">{t("recast.keep", { keys: binding("undo") })}</p>
         <div className="mt-4 flex flex-wrap justify-end gap-2">
           <button onClick={onClose} className="px-3.5 py-1.5 rounded-lg border border-[var(--color-border)] text-[13px]">{t("common.cancel")}</button>
           <button onClick={() => onApply(false)} className="px-3.5 py-1.5 rounded-lg border border-[var(--color-border)] text-[13px] hover:border-[var(--color-accent)]">{t("recast.apply")}</button>

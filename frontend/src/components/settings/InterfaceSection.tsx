@@ -6,6 +6,7 @@ import { setSimpleMode, useSimpleMode } from "../../lib/simpleMode";
 import { DUB_LANGS, LANGS, setLang, type Lang } from "../../lib/i18n";
 import { playSfx, setSfxEnabled, sfxEnabled } from "../../lib/sfx";
 import SettingSwitch from "./SettingSwitch";
+import ShortcutsSection from "./ShortcutsSection";
 import { THEMES, savedTheme, setTheme, type Theme } from "../../lib/theme";
 
 const langName = (code: Lang) => DUB_LANGS.find((l) => l.code === code)?.name ?? code;
@@ -19,6 +20,7 @@ export default function InterfaceSection() {
   const selectId = useId();
   const themeId = useId();
   return (
+    <div className="space-y-3">
     <div className="max-w-2xl rounded-lg border border-[var(--color-border)] divide-y divide-[var(--color-border)] bg-[var(--color-surface-2)]/40">
       <div className="flex items-center gap-3 px-3 py-2.5">
         <Languages size={15} className="shrink-0 text-[var(--color-accent-2)]" />
@@ -47,6 +49,8 @@ export default function InterfaceSection() {
       <SettingSwitch icon={AudioLines} label={t("prefs.livePlayback")} hint={t("prefs.livePlaybackHint")} on={live}
         onToggle={() => { const v = !live; setLive(v); setLivePlaybackEnabled(v); }} />
       <SettingSwitch icon={Footprints} label={t("simple.title")} hint={t("simple.hint")} on={simple} onToggle={() => setSimpleMode(!simple)} />
+    </div>
+    <ShortcutsSection />
     </div>
   );
 }

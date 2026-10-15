@@ -6,6 +6,7 @@ import { openHelp, openSettings } from "../../lib/settingsNav";
 import { useStore } from "../../store";
 import { useCommands } from "../../lib/commands";
 import CommandPalette from "./CommandPalette";
+import { matches, useShortcuts } from "../../lib/shortcuts";
 
 // Фокус в поле ввода или открытая модалка -> горячие клавиши окна не перехватываем.
 function typing(e: KeyboardEvent): boolean {
@@ -29,15 +30,19 @@ function ShortcutsHelp({ onClose }: { onClose: () => void }) {
     const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h);
   }, [onClose]);
+  const keys = useShortcuts();
   const rows: [string, string][] = [
-    ["Ctrl + 1", t("hotkeys.modeSpeech")],
-    ["Ctrl + 2", t("hotkeys.modeListening")],
-    ["Ctrl + N", t("hotkeys.new")],
-    ["Ctrl + ,", t("hotkeys.settings")],
-    ["Ctrl + K", t("hotkeys.palette")],
-    ["F1", t("hotkeys.helpWindow")],
-    ["F10", t("hotkeys.fsWindow")],
-    ["?", t("hotkeys.help")],
+    [keys.modeSpeech, t("hotkeys.modeSpeech")],
+    [keys.modeListening, t("hotkeys.modeListening")],
+    [keys.new, t("hotkeys.new")],
+    [keys.settings, t("hotkeys.settings")],
+    [keys.palette, t("hotkeys.palette")],
+    [keys.search, t("hotkeys.search")],
+    [keys.undo, t("hotkeys.undo")],
+    [keys.redo, t("hotkeys.redo")],
+    [keys.help, t("hotkeys.helpWindow")],
+    [keys.fullscreen, t("hotkeys.fsWindow")],
+    [keys.shortcuts, t("hotkeys.help")],
     ["Esc", t("hotkeys.esc")],
   ];
   return (
@@ -73,18 +78,17 @@ export default function Hotkeys() {
   ]);
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
-      if (e.key === "F10") { e.preventDefault(); toggleFullscreen(); return; }
-      if ((e.ctrlKey || e.metaKey) && (e.code === "KeyK" || e.key.toLowerCase() === "k") && !modalOpen()) { e.preventDefault(); setPalette(true); return; }
+      if (matches(e, "fullscreen")) { e.preventDefault(); toggleFullscreen(); return; }
+      if (matches(e, "palette") && !modalOpen()) { e.preventDefault(); setPalette(true); return; }
       if (typing(e) || modalOpen()) return;
       const s = useStore.getState();
-      const ctrl = e.ctrlKey || e.metaKey;
-      if (e.key === "F1") { e.preventDefault(); openHelp(); return; }
-      if (ctrl && e.key === ",") { e.preventDefault(); openSettings("models"); return; }
-      if (s.stage !== "ready") { if (e.key === "?") setShown(true); return; }
-      if (ctrl && e.key === "1") { e.preventDefault(); s.setMode("speech"); }
-      else if (ctrl && e.key === "2") { e.preventDefault(); s.setMode("listening"); }
-      else if (ctrl && e.key.toLowerCase() === "n") { e.preventDefault(); s.startFresh(); }
-      else if (e.key === "?") setShown(true);
+      if (matches(e, "help")) { e.preventDefault(); openHelp(); return; }
+      if (matches(e, "settings")) { e.preventDefault(); openSettings("models"); return; }
+      if (s.stage !== "ready") { if (matches(e, "shortcuts")) setShown(true); return; }
+      if (matches(e, "modeSpeech")) { e.preventDefault(); s.setMode("speech"); }
+      else if (matches(e, "modeListening")) { e.preventDefault(); s.setMode("listening"); }
+      else if (matches(e, "new")) { e.preventDefault(); s.startFresh(); }
+      else if (matches(e, "shortcuts")) setShown(true);
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);

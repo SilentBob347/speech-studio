@@ -7,6 +7,7 @@ import { JOURNAL_CHANGED, bridgeError, takeArgs, textArg, useBridgeCommand, useC
 import { errorText } from "../../lib/voices";
 import { useCommands, type Command } from "../../lib/commands";
 import { setSimpleMode, useSimpleMode } from "../../lib/simpleMode";
+import { useShortcuts } from "../../lib/shortcuts";
 import { useStore, type Activity, type Mode } from "../../store";
 import type { JobKind } from "../../lib/api";
 import en from "../../locales/en.json";
@@ -38,6 +39,7 @@ const MODE_ITEMS: readonly { id: Mode; icon: LucideIcon; label: "modes.speech" |
 
 function ModeSwitcher() {
   const { t } = useTranslation();
+  const keys = useShortcuts();
   const mode = useStore((s) => s.mode);
   const setMode = useStore((s) => s.setMode);
   return (
@@ -45,7 +47,7 @@ function ModeSwitcher() {
       {MODE_ITEMS.map(({ id, icon: Icon, label, hint }) => {
         const active = mode === id;
         return (
-          <button key={id} type="button" role="tab" aria-selected={active} onClick={() => setMode(id)} title={t(hint)} aria-label={t(label)}
+          <button key={id} type="button" role="tab" aria-selected={active} onClick={() => setMode(id)} title={t(hint, { keys: id === "speech" ? keys.modeSpeech : keys.modeListening })} aria-label={t(label)}
             className={`flex h-7 items-center gap-1.5 rounded-md px-3 text-[12px] font-medium transition-colors ${active ? "bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm" : "text-[var(--color-muted)] hover:text-[var(--color-text)]"}`}>
             <Icon size={14} className={active ? "text-[var(--color-accent)]" : ""} />
             <span className="hidden md:inline">{t(label)}</span>
@@ -207,13 +209,14 @@ export default function TopBar() {
   });
   useBridgeCommand("open_help", (args) => { takeArgs("ui_open_help", args, []); setHelp(true); return { open: "help" }; });
   const group = t("palette.groups.window");
+  const keys = useShortcuts();
   const setMode = useStore((s) => s.setMode);
   const simple = useSimpleMode();
   useCommands("topbar", [
     ...(ready ? [
       { id: "mode-speech", label: t("hotkeys.modeSpeech"), group, run: () => setMode("speech") },
       { id: "mode-listening", label: t("hotkeys.modeListening"), group, run: () => setMode("listening") },
-      { id: "new", label: t("nav.newTitle"), group, run: startFresh },
+      { id: "new", label: t("nav.newTitle", { keys: keys.new }), group, run: startFresh },
       { id: "voices", label: t("voices.title"), group, run: () => setVoices(true) },
       { id: "assistant", label: t("chat.title"), group, run: () => setAssistant((open) => !open) },
     ] : []),
@@ -246,7 +249,7 @@ export default function TopBar() {
           </button>
         )}
         {ready && (
-          <button onClick={startFresh} title={t("nav.newTitle")} aria-label={t("nav.newTitle")}
+          <button onClick={startFresh} title={t("nav.newTitle", { keys: keys.new })} aria-label={t("nav.newTitle", { keys: keys.new })}
             className="inline-flex items-center gap-1 px-2 xl:px-3 py-1.5 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[12px] font-bold text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-colors shadow-sm">
             <Plus size={13} /><span className="hidden xl:inline">{t("nav.new")}</span>
           </button>

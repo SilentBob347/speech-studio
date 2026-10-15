@@ -54,7 +54,7 @@
     "editorMore": "Acciones del proyecto",
     "new": "Nuevo",
     "newHint": "Empezar con un vídeo nuevo",
-    "newTitle": "Empezar el modo actual desde una página en blanco (Ctrl+N)"
+    "newTitle": "Empezar el modo actual desde una página en blanco ({{keys}})"
   },
   "prefs": {
     "title": "Ajustes",
@@ -328,7 +328,15 @@
     "new": "Empezar de nuevo en el modo actual",
     "settings": "Ajustes",
     "helpWindow": "Ayuda",
-    "palette": "Paleta de comandos"
+    "palette": "Paleta de comandos",
+    "search": "Buscar en el proyecto",
+    "undo": "Deshacer",
+    "redo": "Rehacer",
+    "setHint": "Pulsa un atajo y luego las nuevas teclas; Esc deja las anteriores",
+    "taken": "ya lo usa {{action}}",
+    "change": "Cambiar las teclas: {{action}}",
+    "pressKeys": "pulsa…",
+    "reset": "Volver a {{keys}}"
   },
   "setup": {
     "takenFrom": "tomado de {{app}} sin descargarlo",
@@ -718,8 +726,8 @@
     "label": "Modo",
     "speech": "Speech",
     "listening": "Listening",
-    "speechHint": "Pon voz a un texto con tus voces (Ctrl+1)",
-    "listeningHint": "Reconoce el habla y comprueba una locución (Ctrl+2)"
+    "speechHint": "Pon voz a un texto con tus voces ({{keys}})",
+    "listeningHint": "Reconoce el habla y comprueba una locución ({{keys}})"
   },
   "voices": {
     "open": "Voces",
@@ -1284,7 +1292,7 @@
   },
   "search": {
     "open": "Buscar",
-    "title": "Buscar y reemplazar en el proyecto (Ctrl+F)",
+    "title": "Buscar y reemplazar en el proyecto ({{keys}})",
     "find": "Buscar",
     "replace": "Reemplazar con",
     "regex": "Expresión regular ($1 en el reemplazo inserta un grupo)",
@@ -1692,7 +1700,7 @@
   "recast": {
     "title": "Una voz nueva para «{{speaker}}»",
     "touches": "Bloques afectados: {{n}}, ya locutados: {{voiced}}. Los bloques con una voz elegida en el propio bloque no cambian.",
-    "keep": "Las tomas anteriores se quedan en el historial de cada bloque y puedes volver a ellas eligiendo la toma; Ctrl+Z deshace el cambio de voz.",
+    "keep": "Las tomas anteriores se quedan en el historial de cada bloque y puedes volver a ellas eligiendo la toma; {{keys}} deshace el cambio de voz.",
     "apply": "Cambiar",
     "applyRevoice": "Cambiar y locutar {{n}} de nuevo"
   },

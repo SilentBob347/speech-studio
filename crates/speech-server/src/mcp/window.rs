@@ -505,7 +505,7 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "ui_press_key",
-            description: "Press a key in the window, modifiers joined by +: Space plays and pauses the open Listening recording, Ctrl+F opens the search of the open project, Ctrl+Z and Ctrl+Shift+Z (or Ctrl+Y) undo and redo, Ctrl+1 and Ctrl+2 open Speech and Listening, Ctrl+N starts a new project, Ctrl+K the command palette (type an action's name, then Enter), Ctrl+, the settings, F1 the help, F10 full screen, ? the list of shortcuts; in a Listening transcript ArrowLeft/ArrowRight move the word selection and Delete cuts it; Escape closes a dialog or a menu, Enter, Tab.",
+            description: "Press a key in the window, modifiers joined by +: Space plays and pauses the open Listening recording, Ctrl+F opens the search of the open project, Ctrl+Z and Ctrl+Shift+Z (or Ctrl+Y) undo and redo, Ctrl+1 and Ctrl+2 open Speech and Listening, Ctrl+N starts a new project, Ctrl+K the command palette (type an action's name, then Enter), Ctrl+, the settings, F1 the help, F10 full screen, ? the list of shortcuts; in a Listening transcript ArrowLeft/ArrowRight move the word selection and Delete cuts it; Escape closes a dialog or a menu, Enter, Tab. These are the keys as they come: the user can set others in the settings' Language and sounds, and ? lists the current ones.",
             schema: || id_only("key", "the key"),
             call: |args| window("press_key", args, 15),
         },

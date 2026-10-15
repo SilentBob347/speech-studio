@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, AudioLines, ChevronDown, ChevronUp, Download, Eye, EyeOff, FileCheck2, Loader2, Pause, Play, Redo2, RotateCcw, RotateCw, Scissors, Search, Settings2, Undo2, UserPlus, Users, Wand2, X } from "lucide-react";
 import { useListenProject } from "../../lib/useSpeechProject";
+import { comboOf, matches } from "../../lib/shortcuts";
 import {
   activeToken, clock, cutSeconds, listenApi, mergeNext, newSpeaker, restoreAll, setLineText, speakerColor, splitLine, toggleCut, tokensOf, type ListenLine,
 } from "../../lib/listen";
@@ -202,10 +203,10 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const typing = e.target instanceof HTMLElement && (e.target.closest("input, textarea, select, [contenteditable]") != null);
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") { e.preventDefault(); setSearching(true); setTimeout(() => searchBox.current?.focus(), 0); }
+      if (matches(e, "search")) { e.preventDefault(); setSearching(true); setTimeout(() => searchBox.current?.focus(), 0); }
       else if (typing) return;
-      else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); if (e.shiftKey) redo(); else undo(); }
-      else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") { e.preventDefault(); redo(); }
+      else if (matches(e, "undo")) { e.preventDefault(); undo(); }
+      else if (matches(e, "redo") || comboOf(e) === "Ctrl+Y") { e.preventDefault(); redo(); }
       else if (e.key === " " && !(e.target instanceof HTMLButtonElement)) { e.preventDefault(); toggle(); }
     };
     window.addEventListener("keydown", onKey);

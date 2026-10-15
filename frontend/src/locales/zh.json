@@ -54,7 +54,7 @@
     "editorMore": "项目操作",
     "new": "新建",
     "newHint": "用新视频开始",
-    "newTitle": "以空白页面重新开始当前模式（Ctrl+N）"
+    "newTitle": "以空白页面重新开始当前模式（{{keys}}）"
   },
   "prefs": {
     "title": "设置",
@@ -328,7 +328,15 @@
     "new": "在当前模式中重新开始",
     "settings": "设置",
     "helpWindow": "帮助",
-    "palette": "命令面板"
+    "palette": "命令面板",
+    "search": "在项目中搜索",
+    "undo": "撤销",
+    "redo": "重做",
+    "setHint": "点击快捷键后按下新的按键；Esc 保留原来的",
+    "taken": "已被“{{action}}”使用",
+    "change": "更改按键：{{action}}",
+    "pressKeys": "请按键…",
+    "reset": "恢复为 {{keys}}"
   },
   "setup": {
     "takenFrom": "已从 {{app}} 获取，无需下载",
@@ -718,8 +726,8 @@
     "label": "模式",
     "speech": "Speech",
     "listening": "Listening",
-    "speechHint": "用你的声音为文本配音（Ctrl+1）",
-    "listeningHint": "识别语音并检查配音（Ctrl+2）"
+    "speechHint": "用你的声音为文本配音（{{keys}}）",
+    "listeningHint": "识别语音并检查配音（{{keys}}）"
   },
   "voices": {
     "open": "声音",
@@ -1284,7 +1292,7 @@
   },
   "search": {
     "open": "查找",
-    "title": "在项目中查找和替换（Ctrl+F）",
+    "title": "在项目中查找和替换（{{keys}}）",
     "find": "查找",
     "replace": "替换为",
     "regex": "正则表达式（替换中的 $1 插入分组）",
@@ -1692,7 +1700,7 @@
   "recast": {
     "title": "为“{{speaker}}”换声音",
     "touches": "涉及文本块：{{n}} 个，其中已配音：{{voiced}} 个。在文本块里单独选了声音的不会改变。",
-    "keep": "之前的配音版本会保留在每个文本块的历史中，可通过选择版本回到它们；Ctrl+Z 可撤销换声音。",
+    "keep": "之前的配音版本会保留在每个文本块的历史中，可通过选择版本回到它们；{{keys}} 可撤销换声音。",
     "apply": "更换",
     "applyRevoice": "更换并重新配音 {{n}} 个"
   },

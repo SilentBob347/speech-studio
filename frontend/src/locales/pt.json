@@ -54,7 +54,7 @@
     "editorMore": "Ações do projeto",
     "new": "Novo",
     "newHint": "Começar com um novo vídeo",
-    "newTitle": "Começar o modo atual numa página em branco (Ctrl+N)"
+    "newTitle": "Começar o modo atual numa página em branco ({{keys}})"
   },
   "prefs": {
     "title": "Configurações",
@@ -328,7 +328,15 @@
     "new": "Recomeçar no modo atual",
     "settings": "Configurações",
     "helpWindow": "Ajuda",
-    "palette": "Paleta de comandos"
+    "palette": "Paleta de comandos",
+    "search": "Buscar no projeto",
+    "undo": "Desfazer",
+    "redo": "Refazer",
+    "setHint": "Clique num atalho e pressione as novas teclas; Esc mantém as antigas",
+    "taken": "já usado por {{action}}",
+    "change": "Trocar as teclas: {{action}}",
+    "pressKeys": "pressione…",
+    "reset": "Voltar a {{keys}}"
   },
   "setup": {
     "takenFrom": "aproveitado de {{app}} sem baixar",
@@ -718,8 +726,8 @@
     "label": "Modo",
     "speech": "Speech",
     "listening": "Listening",
-    "speechHint": "Dê voz a um texto com as suas vozes (Ctrl+1)",
-    "listeningHint": "Reconheça a fala e verifique uma locução (Ctrl+2)"
+    "speechHint": "Dê voz a um texto com as suas vozes ({{keys}})",
+    "listeningHint": "Reconheça a fala e verifique uma locução ({{keys}})"
   },
   "voices": {
     "open": "Vozes",
@@ -1284,7 +1292,7 @@
   },
   "search": {
     "open": "Buscar",
-    "title": "Buscar e substituir no projeto (Ctrl+F)",
+    "title": "Buscar e substituir no projeto ({{keys}})",
     "find": "Buscar",
     "replace": "Substituir por",
     "regex": "Expressão regular ($1 na substituição insere um grupo)",
@@ -1692,7 +1700,7 @@
   "recast": {
     "title": "Uma nova voz para “{{speaker}}”",
     "touches": "Blocos afetados: {{n}}, já narrados: {{voiced}}. Blocos com uma voz escolhida no próprio bloco não mudam.",
-    "keep": "As tomadas anteriores ficam no histórico de cada bloco e dá para voltar a elas escolhendo a tomada; Ctrl+Z desfaz a troca de voz.",
+    "keep": "As tomadas anteriores ficam no histórico de cada bloco e dá para voltar a elas escolhendo a tomada; {{keys}} desfaz a troca de voz.",
     "apply": "Trocar",
     "applyRevoice": "Trocar e narrar {{n}} de novo"
   },

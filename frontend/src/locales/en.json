@@ -54,7 +54,7 @@
     "editorMore": "Project actions",
     "new": "New",
     "newHint": "Start with a new video",
-    "newTitle": "Start the current mode from a clean page (Ctrl+N)"
+    "newTitle": "Start the current mode from a clean page ({{keys}})"
   },
   "prefs": {
     "title": "Settings",
@@ -328,7 +328,15 @@
     "new": "Start over in the current mode",
     "settings": "Settings",
     "helpWindow": "Help",
-    "palette": "Command palette"
+    "palette": "Command palette",
+    "search": "Search the project",
+    "undo": "Undo",
+    "redo": "Redo",
+    "setHint": "Click a shortcut, then press the new keys; Esc keeps the old ones",
+    "taken": "already used by {{action}}",
+    "change": "Change the keys: {{action}}",
+    "pressKeys": "press…",
+    "reset": "Back to {{keys}}"
   },
   "setup": {
     "takenFrom": "taken from {{app}} instead of downloading",
@@ -718,8 +726,8 @@
     "label": "Mode",
     "speech": "Speech",
     "listening": "Listening",
-    "speechHint": "Voice text with your voices (Ctrl+1)",
-    "listeningHint": "Recognise speech and check a voicing (Ctrl+2)"
+    "speechHint": "Voice text with your voices ({{keys}})",
+    "listeningHint": "Recognise speech and check a voicing ({{keys}})"
   },
   "voices": {
     "open": "Voices",
@@ -1284,7 +1292,7 @@
   },
   "search": {
     "open": "Find",
-    "title": "Find and replace in the project (Ctrl+F)",
+    "title": "Find and replace in the project ({{keys}})",
     "find": "Find",
     "replace": "Replace with",
     "regex": "Regular expression ($1 in the replacement inserts a group)",
@@ -1692,7 +1700,7 @@
   "recast": {
     "title": "A new voice for “{{speaker}}”",
     "touches": "Blocks it touches: {{n}}, already voiced: {{voiced}}. Blocks with a voice chosen in the block itself do not change.",
-    "keep": "The earlier takes stay in each block’s history, so you can go back by choosing a take; Ctrl+Z takes the voice change back.",
+    "keep": "The earlier takes stay in each block’s history, so you can go back by choosing a take; {{keys}} takes the voice change back.",
     "apply": "Change",
     "applyRevoice": "Change and voice {{n}} again"
   },

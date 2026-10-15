@@ -54,7 +54,7 @@
     "editorMore": "Actions du projet",
     "new": "Nouveau",
     "newHint": "Commencer avec une nouvelle vidéo",
-    "newTitle": "Recommencer le mode actuel sur une page vierge (Ctrl+N)"
+    "newTitle": "Recommencer le mode actuel sur une page vierge ({{keys}})"
   },
   "prefs": {
     "title": "Paramètres",
@@ -328,7 +328,15 @@
     "new": "Recommencer dans le mode actuel",
     "settings": "Paramètres",
     "helpWindow": "Aide",
-    "palette": "Palette de commandes"
+    "palette": "Palette de commandes",
+    "search": "Chercher dans le projet",
+    "undo": "Annuler",
+    "redo": "Rétablir",
+    "setHint": "Cliquez sur un raccourci puis appuyez sur les nouvelles touches ; Échap garde les anciennes",
+    "taken": "déjà pris par {{action}}",
+    "change": "Changer les touches : {{action}}",
+    "pressKeys": "appuyez…",
+    "reset": "Revenir à {{keys}}"
   },
   "setup": {
     "takenFrom": "repris de {{app}} sans téléchargement",
@@ -718,8 +726,8 @@
     "label": "Mode",
     "speech": "Speech",
     "listening": "Listening",
-    "speechHint": "Donner une voix à un texte avec vos voix (Ctrl+1)",
-    "listeningHint": "Reconnaître la parole et vérifier une voix (Ctrl+2)"
+    "speechHint": "Donner une voix à un texte avec vos voix ({{keys}})",
+    "listeningHint": "Reconnaître la parole et vérifier une voix ({{keys}})"
   },
   "voices": {
     "open": "Voix",
@@ -1284,7 +1292,7 @@
   },
   "search": {
     "open": "Chercher",
-    "title": "Chercher et remplacer dans le projet (Ctrl+F)",
+    "title": "Chercher et remplacer dans le projet ({{keys}})",
     "find": "Chercher",
     "replace": "Remplacer par",
     "regex": "Expression régulière ($1 dans le remplacement insère un groupe)",
@@ -1692,7 +1700,7 @@
   "recast": {
     "title": "Une nouvelle voix pour « {{speaker}} »",
     "touches": "Blocs concernés : {{n}}, déjà dits : {{voiced}}. Les blocs dont la voix est choisie dans le bloc lui-même ne changent pas.",
-    "keep": "Les prises précédentes restent dans l’historique de chaque bloc : on y revient en choisissant la prise ; Ctrl+Z annule le changement de voix.",
+    "keep": "Les prises précédentes restent dans l’historique de chaque bloc : on y revient en choisissant la prise ; {{keys}} annule le changement de voix.",
     "apply": "Changer",
     "applyRevoice": "Changer et refaire {{n}} voix"
   },

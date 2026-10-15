@@ -13,6 +13,7 @@ import { named } from "../../lib/a11y";
 import EditorMore from "../EditorMore";
 import StepBar from "./StepBar";
 import { useSimpleMode } from "../../lib/simpleMode";
+import { comboOf, matches, useShortcuts } from "../../lib/shortcuts";
 import EnrichDialog, { type EnrichChange } from "./EnrichDialog";
 import { cloudApi } from "../../lib/cloud";
 import Transport, { RATES, type TransportBlock } from "./Transport";
@@ -73,6 +74,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   const [history, setHistory] = useState(false);
   const [castOpen, setCastOpen] = useState(false);
   const simple = useSimpleMode();
+  const keys = useShortcuts();
   const [exported, setExported] = useState(false);
   const [casting, setCasting] = useState(false);
   const castCharacters = async () => {
@@ -122,10 +124,10 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement | null;
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "f") { e.preventDefault(); setSearching(true); return; }
+      if (matches(e, "search")) { e.preventDefault(); setSearching(true); return; }
       if (el && (el.tagName === "TEXTAREA" || el.tagName === "INPUT")) return;
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); if (e.shiftKey) redo(); else undo(); }
-      else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") { e.preventDefault(); redo(); }
+      if (matches(e, "undo")) { e.preventDefault(); undo(); }
+      else if (matches(e, "redo") || comboOf(e) === "Ctrl+Y") { e.preventDefault(); redo(); }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
@@ -534,7 +536,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
         </div>
         <div className="hidden md:flex items-center gap-1.5 ml-auto">
           <button onClick={() => setSettings(true)} className={bar} {...named(t("speech.projectSettings"))}><Settings2 size={13} /><span className="hidden min-[1700px]:inline">{t("speech.projectSettings")}</span></button>
-          <button onClick={() => setSearching((v) => !v)} aria-pressed={searching} className={bar} {...named(t("search.title"))}><Search size={13} /><span className="hidden min-[1700px]:inline">{t("search.open")}</span></button>
+          <button onClick={() => setSearching((v) => !v)} aria-pressed={searching} className={bar} {...named(t("search.title", { keys: keys.search }))}><Search size={13} /><span className="hidden min-[1700px]:inline">{t("search.open")}</span></button>
           {!simple && <>
           <button onClick={() => setTimelineOpen((v) => !v)} aria-pressed={timelineOpen} className={bar} {...named(t("timeline.hint"))}><ChartGantt size={13} /><span className="hidden min-[1700px]:inline">{t("timeline.open")}</span></button>
           <button onClick={() => setDictionary(true)} className={bar} {...named(t("speech.dictionaryHint"))}><BookOpen size={13} /><span className="hidden min-[1700px]:inline">{t("speech.dictionary")}</span></button>
