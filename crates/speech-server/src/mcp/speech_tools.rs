@@ -140,6 +140,12 @@ pub(super) fn tools() -> Vec<Tool> {
             call: |args| post("/text/stress".into(), args.clone()),
         },
         Tool {
+            name: "text_direct_speech",
+            description: "A text's direct speech apart from the author's words, as books print it: a paragraph opening with a dash (`— Привет, — сказал он. — Как дела?`) or a quotation after a colon, at the paragraph's start or before the author's words after a dash. Answers the parts in order (speech true for a line) and the speaker name lines get; put them into a project as blocks with project_update. A book takes it at creation with dialogue true (project_create_from_book).",
+            schema: || object(json!({ "text": { "type": "string" } }), &["text"]),
+            call: |args| post("/text/direct-speech".into(), args.clone()),
+        },
+        Tool {
             name: "dictionary_get",
             description: "The global pronunciation dictionary: entries (word, regex or phonemes) with what to find, what to say and where they apply.",
             schema: super::nothing,

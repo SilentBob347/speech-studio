@@ -12,6 +12,7 @@ mod asr_util;
 mod bench;
 mod credentials;
 mod denoise;
+mod direct_speech;
 pub mod diagnostics;
 #[cfg(windows)]
 mod dll_imports;
@@ -480,6 +481,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/engine/tags", get(speech_api::tags))
         .route("/engines", get(speech_api::engines))
         .route("/text/stress", post(speech_api::stress))
+        .route("/text/direct-speech", post(speech_api::direct_speech))
         .route("/text/prepare", post(dict_api::prepare))
         .route("/dictionary", get(dict_api::get_global).put(dict_api::put_global))
         .route("/dictionary/import", post(dict_api::import))

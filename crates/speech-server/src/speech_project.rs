@@ -469,6 +469,12 @@ fn chunk(text: &str) -> Vec<String> {
 /// спикеров не больше восьми; иначе абзацы рассказчика, длинные — по предложениям. В диалоге строка без имени сразу
 /// под репликой — её продолжение, а после пустой строки — абзац рассказчика.
 pub fn split_text(text: &str, narrator: &str) -> Vec<(String, String)> {
+    split_text_lines(text, narrator, None)
+}
+
+/// `split_text`, and with `lines` the direct speech of each narrator paragraph (`direct_speech`) goes to that speaker,
+/// the author's words staying the narrator's.
+pub fn split_text_lines(text: &str, narrator: &str, lines: Option<&str>) -> Vec<(String, String)> {
     if let Some(tags) = dialog_tags(text) {
         let mut out: Vec<(String, String)> = Vec::new();
         let mut after_break = true;
@@ -495,7 +501,14 @@ pub fn split_text(text: &str, narrator: &str) -> Vec<(String, String)> {
     text.split("\n\n")
         .flat_map(|p| {
             let p = p.split_whitespace().collect::<Vec<_>>().join(" ");
-            chunk(&p).into_iter().filter(|c| !c.is_empty()).map(|c| (narrator.to_string(), c)).collect::<Vec<_>>()
+            let parts = match lines {
+                Some(who) => crate::direct_speech::split(&p).into_iter().map(|(speech, t)| (if speech { who } else { narrator }, t)).collect(),
+                None => vec![(narrator, p)],
+            };
+            parts
+                .into_iter()
+                .flat_map(|(who, t)| chunk(&t).into_iter().filter(|c| !c.is_empty()).map(|c| (who.to_string(), c)).collect::<Vec<_>>())
+                .collect::<Vec<_>>()
         })
         .collect()
 }

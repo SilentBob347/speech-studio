@@ -1255,7 +1255,11 @@
     "emotionNone": "sem emoção",
     "emotionApplied": "Emoção em {{n}} blocos; motor sem emoções: {{skipped}}",
     "ownParamsSpeaker": "Parâmetros próprios do personagem",
-    "ownParamsBlock": "Parâmetros próprios do bloco"
+    "ownParamsBlock": "Parâmetros próprios do bloco",
+    "splitSpeech": "Separar o discurso direto",
+    "splitSpeechSelected": "Separar o discurso direto nos selecionados ({{n}})",
+    "splitSpeechDone": "Discurso direto separado em {{n}} blocos. As falas ficam com o locutor «Falas»: dê-lhe uma voz ou deixe o diretor nomear as personagens.",
+    "splitSpeechNone": "Nenhum discurso direto encontrado: falas após um travessão no início do parágrafo ou entre aspas após dois-pontos."
   },
   "tags": {
     "emotion": "Emoção",
@@ -1448,7 +1452,9 @@
     "minutes": "{{m}} min",
     "hours": "{{h}} h {{m}} min",
     "removed": "retirado do texto: {{notes}} marcas de nota, {{links}} endereços de sites",
-    "namesToDict": "Nomes encontrados ({{n}}): para o dicionário do projeto, para marcar o acento"
+    "namesToDict": "Nomes encontrados ({{n}}): para o dicionário do projeto, para marcar o acento",
+    "dialogue": "Discurso direto como locutor próprio",
+    "dialogueHint": "Falas que abrem um parágrafo com travessão e citações vão para o locutor «Falas»; as palavras do autor ficam com o narrador."
   },
   "files": {
     "saveAs": "Salvar {{file}} como…",

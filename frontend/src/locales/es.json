@@ -1255,7 +1255,11 @@
     "emotionNone": "sin emoción",
     "emotionApplied": "Emoción en {{n}} bloques; motor sin emociones: {{skipped}}",
     "ownParamsSpeaker": "Parámetros propios del personaje",
-    "ownParamsBlock": "Parámetros propios del bloque"
+    "ownParamsBlock": "Parámetros propios del bloque",
+    "splitSpeech": "Separar el estilo directo",
+    "splitSpeechSelected": "Separar el estilo directo en los seleccionados ({{n}})",
+    "splitSpeechDone": "Estilo directo separado en {{n}} bloques. Las réplicas quedan con el hablante «Diálogos»: dele una voz o deje que el director nombre a los personajes.",
+    "splitSpeechNone": "No se encontró estilo directo: réplicas tras un guion al inicio del párrafo o entre comillas tras dos puntos."
   },
   "tags": {
     "emotion": "Emoción",
@@ -1448,7 +1452,9 @@
     "minutes": "{{m}} min",
     "hours": "{{h}} h {{m}} min",
     "removed": "quitado del texto: {{notes}} marcas de nota, {{links}} direcciones web",
-    "namesToDict": "Nombres encontrados ({{n}}): al diccionario del proyecto para marcar su acento"
+    "namesToDict": "Nombres encontrados ({{n}}): al diccionario del proyecto para marcar su acento",
+    "dialogue": "Estilo directo como hablante propio",
+    "dialogueHint": "Las réplicas que abren un párrafo con guion y las citas van al hablante «Diálogos»; las palabras del autor quedan para el narrador."
   },
   "files": {
     "saveAs": "Guardar {{file}} como…",

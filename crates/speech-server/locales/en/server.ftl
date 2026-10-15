@@ -979,6 +979,7 @@ speech-export-block = Joining { $n } of { $total }…
 speech-export-loudness = Bringing the loudness to the preset…
 speech-untitled = Untitled
 speech-narrator = Narrator
+speech-lines = Lines
 speech-no-project = There is no project { $pid }.
 media-loudnorm-silent = The audio is silent: there is nothing to bring to a loudness.
 media-bad-format = { $format } is not an export format: WAV, FLAC, MP3, OGG or M4A.

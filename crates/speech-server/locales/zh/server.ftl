@@ -775,6 +775,7 @@ speech-export-block = 正在拼接第 { $n } 段，共 { $total } 段…
 speech-export-loudness = 正在按预设调整响度…
 speech-untitled = 未命名
 speech-narrator = 旁白
+speech-lines = 对白
 speech-no-project = 没有项目 { $pid }。
 media-loudnorm-silent = 音频是静音：没有可调整的响度。
 media-bad-format = { $format } 不是导出格式：WAV、FLAC、MP3、OGG 或 M4A。

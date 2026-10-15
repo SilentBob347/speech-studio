@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft, BookOpen, ChartGantt, Download, Drama, History, ListOrdered, Loader2, Redo2, Search, Settings2, Sparkles, SpellCheck, Square, Undo2, Users, Wand2, X, ListChecks } from "lucide-react";
+import { ArrowLeft, BookOpen, ChartGantt, Download, Drama, History, ListOrdered, Loader2, MessagesSquare, Redo2, Search, Settings2, Sparkles, SpellCheck, Square, Undo2, Users, Wand2, X, ListChecks } from "lucide-react";
 import { api, ApiError } from "../../lib/api";
 import { activeTake, engineOf, newId, spliceChars, SPEAKER_TINTS, speechApi, stressDoubts, voiceOf, type Block, type BlockState, type SpeechProject, type QueuedSynth, type StressWord } from "../../lib/speech";
 import { openSettings } from "../../lib/settingsNav";
@@ -376,6 +376,38 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
     if (needs && !job) void runSynth({ from: id });
   };
 
+  const [splitting, setSplitting] = useState(false);
+  const [splitNote, setSplitNote] = useState<string | null>(null);
+  const splitSpeech = async (ids: string[] | null) => {
+    if (!project || splitting) return;
+    setSplitting(true);
+    setJobError(null);
+    setSplitNote(null);
+    const cut: Record<string, { from: string; parts: { speech: boolean; text: string }[]; speaker: string }> = {};
+    try {
+      for (const b of blockList(project).filter((b) => b.text.trim() && (ids === null || ids.includes(b.id)))) {
+        const r = await speechApi.directSpeech(b.text);
+        if (r.parts.some((x) => x.speech) && b.speaker !== r.speaker) cut[b.id] = { from: b.text, ...r };
+      }
+    } catch (e) { setJobError(errorText(e)); } finally { setSplitting(false); }
+    const n = Object.keys(cut).length;
+    setSplitNote(n ? t("speech.splitSpeechDone", { n }) : t("speech.splitSpeechNone"));
+    if (!n) return;
+    edit((p) => {
+      for (const c of p.chapters) {
+        c.blocks = c.blocks.flatMap((b) => {
+          const x = cut[b.id];
+          if (!x || x.from !== b.text) return [b];
+          return x.parts.map((part, i) => {
+            const speaker = part.speech ? x.speaker : b.speaker;
+            const base: Block = i === 0 ? b : { ...b, id: newId(), takes: [], active: null, pinned: null, error: null, note: "", marker: "", start: null, end: null, word_notes: [] };
+            return speaker === b.speaker ? { ...base, text: part.text } : { ...base, speaker, text: part.text, voice: null, engine: undefined, params: undefined };
+          });
+        });
+      }
+      return p;
+    });
+  };
   const stressBlocks = async (ids: string[] | null) => {
     if (!project || stressing) return;
     const todo = blockList(project).filter((b) => b.text.trim() && (ids === null || ids.includes(b.id)));
@@ -588,6 +620,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           { icon: History, label: t("history.open"), act: () => setHistory(true) },
           { icon: Wand2, label: selected.length ? t("enrich.runSelected", { n: selected.length }) : t("enrich.run"), act: () => void enrich(selected.length ? selected : null), disabled: enriching },
           { icon: Wand2, label: selected.length ? t("enrich.punctSelected", { n: selected.length }) : t("enrich.punct"), act: () => void enrich(selected.length ? selected : null, "punctuation"), disabled: enriching },
+          { icon: MessagesSquare, label: selected.length ? t("speech.splitSpeechSelected", { n: selected.length }) : t("speech.splitSpeech"), act: () => void splitSpeech(selected.length ? selected : null), disabled: splitting || !blocks.length },
           { icon: SpellCheck, label: t("speech.stressAll"), act: () => void stressBlocks(null), disabled: !!stressing || !blocks.length },
           { icon: Sparkles, label: t("speech.voiceAll"), act: () => void runSynth({ force: true }), disabled: !!job },
           { icon: Download, label: t("speech.export"), act: () => setExporting(true), narrowOnly: true },
@@ -664,6 +697,12 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
         <div className="flex-1 min-w-0 overflow-y-auto px-4 py-4">
           {error && <ErrorNote text={error} />}
           {jobError && <ErrorNote text={jobError} onClose={() => setJobError(null)} />}
+          {splitNote && (
+            <div role="status" className="mb-3 px-3 py-2 rounded-lg border border-[var(--color-border)] text-[12px] text-[var(--color-muted)] flex items-center gap-2">
+              <span className="flex-1 min-w-0">{splitNote}</span>
+              <button onClick={() => setSplitNote(null)} className="p-0.5 rounded hover:text-[var(--color-text)]" {...named(t("a11y.close"))}><X size={13} /></button>
+            </div>
+          )}
           {stressMissing && (
             <div role="alert" className="mb-3 px-3 py-2 rounded-lg border border-[var(--color-warn)]/40 text-[12px] text-[var(--color-warn)] flex flex-wrap items-center gap-2">
               <span className="flex-1 min-w-0">{t("speech.stressMissing")}</span>

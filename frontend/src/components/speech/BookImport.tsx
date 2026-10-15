@@ -26,6 +26,7 @@ export default function BookImport({ preview, onClose, onCreated }: { preview: B
   const [error, setError] = useState<string | null>(null);
   const [names, setNames] = useState<Set<string>>(() => new Set(preview.names.map((n) => n.name)));
   const [namesToDict, setNamesToDict] = useState(true);
+  const [dialogue, setDialogue] = useState(false);
   const chosen = preview.chapters.filter((c) => picked[c.index]);
   const total = useMemo(() => chosen.reduce((s, c) => s + c.est_secs, 0), [chosen]);
   const edit = async (index: number) => {
@@ -43,6 +44,7 @@ export default function BookImport({ preview, onClose, onCreated }: { preview: B
         id: preview.id, name: name.trim() || undefined, voice,
         chapters: chosen.map((c) => ({ index: c.index, title: titles[c.index], text: texts[c.index] })),
         names: namesToDict ? preview.names.map((n) => n.name).filter((n) => names.has(n)) : [],
+        dialogue,
       });
       onCreated(r.project_id);
     } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
@@ -104,6 +106,10 @@ export default function BookImport({ preview, onClose, onCreated }: { preview: B
             )}
           </div>
         )}
+        <label className="flex items-start gap-2 px-5 py-2 border-t border-[var(--color-border)] text-[12px] cursor-pointer">
+          <input type="checkbox" checked={dialogue} onChange={(e) => setDialogue(e.target.checked)} className="mt-0.5 w-3.5 h-3.5 accent-[var(--color-accent)]" />
+          <span>{t("book.dialogue")}<span className="block text-[11px] text-[var(--color-muted)]">{t("book.dialogueHint")}</span></span>
+        </label>
         <div className="flex flex-wrap items-center gap-3 px-5 py-3 border-t border-[var(--color-border)]">
           <span className="text-[12px] text-[var(--color-muted)]">{t("book.summary", { n: chosen.length, of: preview.chapters.length, time: duration(total) })}</span>
           {error && <span role="alert" className="text-[12px] text-[var(--color-warn)] break-words">{error}</span>}

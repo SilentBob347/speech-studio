@@ -562,6 +562,23 @@ pub async fn stress(State(st): State<AppState>, Json(req): Json<StressReq>) -> R
     }
 }
 
+#[derive(serde::Deserialize)]
+pub struct DirectSpeechReq {
+    text: String,
+}
+
+/// POST /text/direct-speech — a paragraph's direct speech apart from the author's words, in order; a text of several
+/// paragraphs is cut paragraph by paragraph.
+pub async fn direct_speech(Json(req): Json<DirectSpeechReq>) -> Response {
+    let parts: Vec<Value> = req
+        .text
+        .split("\n\n")
+        .flat_map(|p| crate::direct_speech::split(&p.split_whitespace().collect::<Vec<_>>().join(" ")))
+        .map(|(speech, text)| json!({ "speech": speech, "text": text }))
+        .collect();
+    Json(json!({ "parts": parts, "speaker": t!("speech-lines") })).into_response()
+}
+
 /// POST /projects/{pid}/package {audio} — файл проекта для переноса в папку экспорта проекта.
 pub async fn package(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<Value>) -> Response {
     if !sp::is_pid(&pid) {
@@ -717,7 +734,9 @@ pub struct FromBook {
     chapters: Vec<BookChoice>,
     /// The book's names go into the project's dictionary as rules to check, so their stress can be set.
     #[serde(default)]
-    names: Vec<String>,
+    names: Vec<String>,    /// Direct speech (a dialogue dash, quotations) apart from the author's words, under its own speaker.
+    #[serde(default)]
+    dialogue: bool,
 }
 
 /// POST /projects/from-book — проект из выбранных глав (с правками окна): глава книги — глава проекта.
@@ -731,6 +750,7 @@ pub async fn from_book(State(st): State<AppState>, Json(req): Json<FromBook>) ->
         tokio::task::spawn_blocking(move || -> Result<(String, Value), String> {
             let book: crate::book_import::Book = serde_json::from_slice(&std::fs::read(src.join("book.json")).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
             let narrator = t!("speech-narrator");
+            let lines = t!("speech-lines");
             let mut project = sp::SpeechProject { name: req.name.clone().filter(|n| !n.trim().is_empty()).unwrap_or_else(|| book.title.clone()), created: sp::now(), ..Default::default() };
             project.settings.voice = req.voice.clone();
             let lang = book.lang.split(['-', '_']).next().unwrap_or("").to_lowercase();
@@ -740,7 +760,7 @@ pub async fn from_book(State(st): State<AppState>, Json(req): Json<FromBook>) ->
             for choice in &req.chapters {
                 let Some(c) = book.chapters.get(choice.index) else { continue };
                 let text = choice.text.clone().unwrap_or_else(|| c.text.clone());
-                let blocks = sp::split_text(&text, &narrator)
+                let blocks = sp::split_text_lines(&text, &narrator, req.dialogue.then_some(lines.as_str()))
                     .into_iter()
                     .map(|(speaker, text)| sp::Block { id: sp::new_id(), speaker, text, ..Default::default() })
                     .collect();

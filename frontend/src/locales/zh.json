@@ -1255,7 +1255,11 @@
     "emotionNone": "无情绪",
     "emotionApplied": "已为 {{n}} 个块设置情绪；引擎不支持情绪：{{skipped}}",
     "ownParamsSpeaker": "角色自己的参数",
-    "ownParamsBlock": "块自己的参数"
+    "ownParamsBlock": "块自己的参数",
+    "splitSpeech": "分离直接引语",
+    "splitSpeechSelected": "分离所选块中的直接引语（{{n}}）",
+    "splitSpeechDone": "已在 {{n}} 个块中分离直接引语。对白归于说话人「对白」：为其指定声音，或让导演模型标注角色。",
+    "splitSpeechNone": "未找到直接引语：段首破折号后的对白，或冒号后引号中的话。"
   },
   "tags": {
     "emotion": "情绪",
@@ -1448,7 +1452,9 @@
     "minutes": "{{m}} 分钟",
     "hours": "{{h}} 小时 {{m}} 分钟",
     "removed": "已从文本中移除：脚注标记 {{notes}} 个，网址 {{links}} 个",
-    "namesToDict": "找到的名字（{{n}}）：加入项目词典以标注重音"
+    "namesToDict": "找到的名字（{{n}}）：加入项目词典以标注重音",
+    "dialogue": "直接引语单独作为说话人",
+    "dialogueHint": "以破折号开头的段落对白和引号中的引语归于说话人「对白」，作者叙述仍归旁白。"
   },
   "files": {
     "saveAs": "将 {{file}} 另存为…",

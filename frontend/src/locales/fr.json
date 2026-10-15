@@ -1255,7 +1255,11 @@
     "emotionNone": "sans émotion",
     "emotionApplied": "Émotion mise dans {{n}} blocs ; moteur sans émotions : {{skipped}}",
     "ownParamsSpeaker": "Réglages propres au personnage",
-    "ownParamsBlock": "Réglages propres au bloc"
+    "ownParamsBlock": "Réglages propres au bloc",
+    "splitSpeech": "Séparer le discours direct",
+    "splitSpeechSelected": "Séparer le discours direct des blocs choisis ({{n}})",
+    "splitSpeechDone": "Discours direct séparé dans {{n}} blocs. Les répliques sont au locuteur « Répliques » : donnez-lui une voix ou laissez le directeur nommer les personnages.",
+    "splitSpeechNone": "Aucun discours direct trouvé : répliques après un tiret en début de paragraphe ou entre guillemets après deux-points."
   },
   "tags": {
     "emotion": "Émotion",
@@ -1448,7 +1452,9 @@
     "minutes": "{{m}} min",
     "hours": "{{h}} h {{m}} min",
     "removed": "retiré du texte : {{notes}} appels de note, {{links}} adresses web",
-    "namesToDict": "Noms trouvés ({{n}}) : dans le dictionnaire du projet pour placer leur accent"
+    "namesToDict": "Noms trouvés ({{n}}) : dans le dictionnaire du projet pour placer leur accent",
+    "dialogue": "Discours direct à part",
+    "dialogueHint": "Les répliques ouvrant un paragraphe par un tiret et les citations vont au locuteur « Répliques », les mots de l’auteur restent au narrateur."
   },
   "files": {
     "saveAs": "Enregistrer {{file}} sous…",

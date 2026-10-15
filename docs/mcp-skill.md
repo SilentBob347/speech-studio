@@ -107,7 +107,7 @@ connected and the address to paste.
   `project_queue`, `project_queue_remove`, `project_queue_clear`; `speech_live_watch` hears the blocks as they are
   voiced (each block's sound as a WAV file). `history_list` lists the takes voiced lately.
 - **Projects from files**: `project_create_from_subtitles` (SRT, VTT, ASS), `book_preview` + `book_chapter` +
-  `project_create_from_book` (an audiobook of the chosen chapters), `project_package` / `project_import_package` (one
+  `project_create_from_book` (an audiobook of the chosen chapters; `dialogue` puts direct speech under its own speaker), `project_package` / `project_import_package` (one
   `.speechproj` file to move a project), `listen_to_speech` (a recording's transcript).
 - **Takes and exports as files**: `project_take_file`, `project_export_file`, `project_export_save` (copy to a path),
   `project_exports_to_folder`, `project_export_reveal`, `project_export_save_as`.
@@ -133,7 +133,8 @@ connected and the address to paste.
   `project_google_report` shows the batch waiting, the last job's result with each failed phrase and Google's reason,
   and past batches), `fal`, `runware`. Ask the user before a paid run.
 - **Text**: `text_prepare` shows how a text will be read (dictionary, Russian normalisation, stress marks, the engine's
-  text), `text_stress` gives stress marks and ё with unsure homographs, `dictionary_get` / `dictionary_set` /
+  text), `text_stress` gives stress marks and ё with unsure homographs, `text_direct_speech` cuts direct speech (a
+  dialogue dash, quotations) apart from the author's words, `dictionary_get` / `dictionary_set` /
   `dictionary_import` (Balabolka .dic, .rex, .bxd), `dictionary_try` + `dictionary_try_file` (hear a rule before saving
   it), `project_dictionary_counts` (how often each rule fires in a project), `project_unknown_words` (the words no
   dictionary knows).

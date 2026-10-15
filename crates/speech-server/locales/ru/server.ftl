@@ -999,6 +999,7 @@ speech-export-block = Склеиваю { $n } из { $total }…
 speech-export-loudness = Привожу громкость к пресету…
 speech-untitled = Без названия
 speech-narrator = Рассказчик
+speech-lines = Реплики
 speech-no-project = Проекта { $pid } нет.
 media-loudnorm-silent = Звук тихий: приводить к громкости нечего.
 media-bad-format = { $format } — не формат экспорта: WAV, FLAC, MP3, OGG или M4A.

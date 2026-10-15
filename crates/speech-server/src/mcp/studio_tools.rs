@@ -367,8 +367,8 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "project_create_from_book",
-            description: "Make an audiobook project of a book read by book_preview: chapters lists the ones to take (index, and a title or text of your own to replace theirs), voice the narrator, name the project's name, names the names book_preview found that go into the project's dictionary as rules to check (to set their stress).",
-            schema: || object(json!({ "id": { "type": "string" }, "name": { "type": "string" }, "voice": { "type": "string" }, "names": { "type": "array", "items": { "type": "string" } }, "chapters": { "type": "array", "items": { "type": "object", "properties": { "index": { "type": "integer" }, "title": { "type": "string" }, "text": { "type": "string" } }, "required": ["index"] } } }), &["id", "chapters"]),
+            description: "Make an audiobook project of a book read by book_preview: chapters lists the ones to take (index, and a title or text of your own to replace theirs), voice the narrator, name the project's name, names the names book_preview found that go into the project's dictionary as rules to check (to set their stress), dialogue true puts the direct speech (a dialogue dash, quotations) apart from the author's words under its own speaker, as text_direct_speech cuts it.",
+            schema: || object(json!({ "id": { "type": "string" }, "name": { "type": "string" }, "voice": { "type": "string" }, "dialogue": { "type": "boolean" }, "names": { "type": "array", "items": { "type": "string" } }, "chapters": { "type": "array", "items": { "type": "object", "properties": { "index": { "type": "integer" }, "title": { "type": "string" }, "text": { "type": "string" } }, "required": ["index"] } } }), &["id", "chapters"]),
             call: |args| post("/projects/from-book".into(), args.clone()),
         },
         // ---------------------------------------------------------------- Speech: takes and export files

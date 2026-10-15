@@ -169,7 +169,7 @@ export const speechApi = {
     return fetch(`${BASE}/books/preview`, { method: "POST", body: form }).then(coded<BookPreview>);
   },
   bookChapter: (id: string, index: number) => getCoded<{ title: string; text: string }>(`/books/${id}/chapters/${index}`),
-  fromBook: (body: { id: string; name?: string; voice: string | null; chapters: { index: number; title?: string; text?: string }[]; names?: string[] }) =>
+  fromBook: (body: { id: string; name?: string; voice: string | null; chapters: { index: number; title?: string; text?: string }[]; names?: string[]; dialogue?: boolean }) =>
     postCoded<{ project_id: string; project: SpeechProject }>("/projects/from-book", body),
   renders: () => getCoded<{ renders: Render[] }>("/renders"),
   exports: (pid: string) => getCoded<{ files: { file: string; bytes: number; mtime: number }[]; dir: string }>(`/projects/${pid}/exports`),
@@ -183,6 +183,7 @@ export const speechApi = {
   },
   engines: () => getCoded<{ engines: EngineCaps[] }>("/engines"),
   stress: (text: string, lang: string) => postCoded<StressResult>("/text/stress", { text, lang }),
+  directSpeech: (text: string) => postCoded<{ parts: { speech: boolean; text: string }[]; speaker: string }>("/text/direct-speech", { text }),
   prepare: (text: string, pid?: string, block?: string) => postCoded<{ prepared: Prepared; stress_applied: boolean; stress_missing: boolean }>("/text/prepare", { text, pid, block }),
   dictionary: () => getCoded<{ entries: DictEntry[] }>("/dictionary"),
   saveDictionary: (entries: DictEntry[]) => sendCoded<{ entries: DictEntry[] }>("PUT", "/dictionary", { entries }),

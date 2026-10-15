@@ -973,6 +973,7 @@ speech-export-block = Juntando { $n } de { $total }…
 speech-export-loudness = Ajustando o volume ao predefinido…
 speech-untitled = Sem título
 speech-narrator = Narrador
+speech-lines = Falas
 speech-no-project = O projeto { $pid } não existe.
 media-loudnorm-silent = O áudio está em silêncio: não há volume para ajustar.
 media-bad-format = { $format } não é um formato de exportação: WAV, FLAC, MP3, OGG ou M4A.
