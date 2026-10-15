@@ -34,6 +34,7 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
   const [allowDuration, setAllowDuration] = useState(false);
   const [withStems, setWithStems] = useState(false);
   const [stems, setStems] = useState<string | null>(null);
+  const [table, setTable] = useState<string | null>(null);
   type Part = { file: string; subtitles: string; timings: string; chapters: string | null; duration: number };
   const [parts, setParts] = useState<Part[] | null>(null);
   const [timings, setTimings] = useState<string | null>(null);
@@ -62,7 +63,7 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
     setError(null);
     try {
       const { job_id } = await speechApi.export(pid, format, undefined, perBlock, perBlock ? 0 : Math.max(partMinutes, 0), allowDuration, { sample_rate: rate || undefined, bits: bits || undefined, kbps: kbps || undefined }, !perBlock && partMinutes === -1, !perBlock && withStems);
-      const r = (await followJob(job_id, "export")) as { file: string; files?: string[]; subtitles?: string; subtitle_files?: string[]; timings?: string; player?: string; recipe?: string; chapters?: string | null; parts?: Part[] | null; acx?: AcxReport | null; stems?: string | null };
+      const r = (await followJob(job_id, "export")) as { file: string; files?: string[]; subtitles?: string; subtitle_files?: string[]; timings?: string; player?: string; recipe?: string; chapters?: string | null; parts?: Part[] | null; acx?: AcxReport | null; stems?: string | null; table?: string };
       if (r.files) { setClips(r.files); setRecipe(r.recipe ?? null); return; }
       setAcx(r.acx ?? null);
       setFile(r.file);
@@ -73,6 +74,7 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
       setRecipe(r.recipe ?? null);
       setParts(r.parts ?? null);
       setStems(r.stems ?? null);
+      setTable(r.table ?? null);
       onDone(r.file);
     } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
   };
@@ -170,6 +172,7 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
                 )) : <FileActions pid={pid} file={file} primary />}
                 {!parts && chapterList && <FileActions pid={pid} file={chapterList} label={t("speech.saveChapters")} />}
                 {!parts && subs.map((f) => <FileActions key={f} pid={pid} file={f} label={t("speech.saveSubs", { ext: f.slice(f.lastIndexOf(".")) })} />)}
+                {!parts && table && <FileActions pid={pid} file={table} label={t("speech.saveTable")} />}
                 {!parts && player && <FileActions pid={pid} file={player} label={t("speech.savePlayer")} />}
                 {!parts && timings && <FileActions pid={pid} file={timings} label={t("speech.saveTimings")} />}
                 {!parts && recipe && <FileActions pid={pid} file={recipe} label={t("speech.saveRecipe")} />}

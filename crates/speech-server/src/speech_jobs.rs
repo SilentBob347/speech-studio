@@ -1108,6 +1108,25 @@ impl<'a> Placer<'a> {
     }
 }
 
+/// The lines of an exported file as a table (RFC 4180, UTF-8 with a BOM so spreadsheets read any script): where each
+/// line sounds in the file, its chapter, speaker and text, and the take, engine and voice it was voiced with. `from`
+/// is where the file starts in the whole export, for a part.
+fn lines_csv(rows: &[(&(f64, f64, String, String), &(f64, Value))], chapters: &[(f64, f64, String)], from: f64) -> Result<Vec<u8>, String> {
+    let clock = |s: f64| {
+        let ms = (s.max(0.0) * 1000.0).round() as u64;
+        format!("{:02}:{:02}:{:02}.{:03}", ms / 3_600_000, ms / 60_000 % 60, ms / 1000 % 60, ms % 1000)
+    };
+    let mut out = csv::Writer::from_writer(b"\xEF\xBB\xBF".to_vec());
+    let fail = |e: csv::Error| e.to_string();
+    out.write_record(["n", "start", "end", "chapter", "speaker", "text", "take", "engine", "voice", "block"]).map_err(fail)?;
+    for (k, ((start, end, speaker, text), (_, made))) in rows.iter().enumerate() {
+        let chapter = chapters.iter().rev().find(|c| c.0 <= *start + 1e-6).map(|c| c.2.as_str()).unwrap_or_default();
+        let field = |key: &str| made[key].as_str().map(str::to_string).or_else(|| made[key].as_u64().map(|n| n.to_string())).unwrap_or_default();
+        out.write_record([(k + 1).to_string(), clock(start - from), clock(end - from), chapter.to_string(), speaker.clone(), text.clone(), field("take"), field("engine"), field("voice"), field("block")]).map_err(fail)?;
+    }
+    out.into_inner().map_err(|e| e.to_string())
+}
+
 /// The gain the loudness step put on each sample of the mix (level and limiter alike), for the speakers' tracks: where
 /// the mix was near silence (room tone may have been added there) the last gain carries on.
 fn gain_envelope(before: &[f32], after: &[f32]) -> Vec<f32> {
@@ -1570,6 +1589,9 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
             std::fs::write(exports.join(&file), text).map_err(|e| format!("{file}: {e}"))?;
             subtitle_files.push(file);
         }
+        let table = format!("{name}.csv");
+        let rows: Vec<(&(f64, f64, String, String), &(f64, Value))> = cues.iter().zip(made.iter()).filter(|(c, _)| within(c.0)).collect();
+        std::fs::write(exports.join(&table), lines_csv(&rows, &chapters, *a)?).map_err(|e| format!("{table}: {e}"))?;
         let lyrics = format!("{name}.lrc");
         std::fs::write(exports.join(&lyrics), lrc(&part_timed)).map_err(|e| format!("{lyrics}: {e}"))?;
         subtitle_files.push(lyrics);
@@ -1589,7 +1611,7 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         std::fs::write(exports.join(&timings), serde_json::to_vec_pretty(&body).map_err(|e| e.to_string())?).map_err(|e| format!("{timings}: {e}"))?;
         let player = format!("{name}.player.html");
         std::fs::write(exports.join(&player), crate::read_along::player_html(&project.name, &file, &timed_blocks)).map_err(|e| format!("{player}: {e}"))?;
-        outputs.push(json!({ "file": file, "subtitles": subtitles, "subtitle_files": subtitle_files, "timings": timings, "player": player, "recipe": recipe, "chapters": chapter_list, "path": target.to_string_lossy(), "duration": z - a }));
+        outputs.push(json!({ "file": file, "table": table, "subtitles": subtitles, "subtitle_files": subtitle_files, "timings": timings, "player": player, "recipe": recipe, "chapters": chapter_list, "path": target.to_string_lossy(), "duration": z - a }));
     }
     let stems_zip = if opts.stems && !stems.is_empty() {
         progress(json!({ "type": "progress", "stage": "speech_export", "msg": t!("speech-export-stems", count = stems.len() as i64), "pct": 99 }));
@@ -1610,7 +1632,7 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         None
     };
     let first = outputs.first().cloned().unwrap_or(Value::Null);
-    Ok(json!({ "stems": stems_zip, "file": first["file"], "subtitles": first["subtitles"], "subtitle_files": first["subtitle_files"], "timings": first["timings"], "player": first["player"], "recipe": first["recipe"], "chapters": first["chapters"], "path": first["path"], "parts": if outputs.len() > 1 { Value::Array(outputs) } else { Value::Null }, "tag_problems": tag_problems, "acx": acx_report, "duration": total, "marks": marks, "lufs_before": levelled.map(|l| l.before), "lufs": levelled.map(|l| l.after) }))
+    Ok(json!({ "stems": stems_zip, "table": first["table"], "file": first["file"], "subtitles": first["subtitles"], "subtitle_files": first["subtitle_files"], "timings": first["timings"], "player": first["player"], "recipe": first["recipe"], "chapters": first["chapters"], "path": first["path"], "parts": if outputs.len() > 1 { Value::Array(outputs) } else { Value::Null }, "tag_problems": tag_problems, "acx": acx_report, "duration": total, "marks": marks, "lufs_before": levelled.map(|l| l.before), "lufs": levelled.map(|l| l.after) }))
 }
 
 /// How a block was voiced: the take in the file and what made it, to make it again.
@@ -1796,6 +1818,21 @@ mod tests {
             let sum = a[n] * g[n] + b[n] * g[n];
             assert!((sum - after[n]).abs() < 1e-4, "{n}: {sum} {}", after[n]);
         }
+    }
+
+    #[test]
+    fn the_lines_table_quotes_what_needs_it_and_times_lines_within_the_part() {
+        let cues = [(61.5, 63.25, "Анна".to_string(), "Да, \"конечно\", приходи".to_string()), (64.0, 65.0, "Олег".to_string(), "Иду".to_string())];
+        let made = [(61.5, json!({ "block": "b1", "take": 2, "engine": "higgs", "voice": "anna" })), (64.0, json!({ "block": "b2", "take": 1, "engine": "higgs", "voice": "" }))];
+        let rows: Vec<_> = cues.iter().zip(made.iter()).collect();
+        let chapters = [(0.0, 62.0, "Глава 1".to_string()), (62.0, 70.0, "Глава 2".to_string())];
+        let bytes = lines_csv(&rows, &chapters, 60.0).unwrap();
+        assert!(bytes.starts_with(b"\xEF\xBB\xBF"));
+        let text = String::from_utf8(bytes[3..].to_vec()).unwrap();
+        let lines: Vec<&str> = text.lines().collect();
+        assert_eq!(lines[0], "n,start,end,chapter,speaker,text,take,engine,voice,block");
+        assert_eq!(lines[1], r#"1,00:00:01.500,00:00:03.250,Глава 1,Анна,"Да, ""конечно"", приходи",2,higgs,anna,b1"#);
+        assert_eq!(lines[2], "2,00:00:04.000,00:00:05.000,Глава 2,Олег,Иду,1,higgs,,b2");
     }
 
     #[test]

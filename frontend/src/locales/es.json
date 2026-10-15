@@ -1213,6 +1213,7 @@
     "stems": "Pistas por personaje (ZIP)",
     "stemsHint": "Junto al archivo, un archivo comprimido con una pista FLAC por personaje tan larga como el archivo: solo sus réplicas en su sitio, con el mismo volumen que en el archivo. Sumadas, las pistas dan el propio archivo, cómodo para mezclar en un editor.",
     "saveStems": "Guardar las pistas por personaje",
+    "saveTable": "Tabla de réplicas (CSV)",
     "partsHint": "Las partes se cortan en los límites de los capítulos, cada una con sus capítulos, texto y subtítulos. Con un archivo por capítulo cada capítulo es un archivo propio y el volumen se fija para todo el libro de una vez, así los capítulos suenan al mismo nivel.",
     "partN": "Parte {{n}} · {{h}} h",
     "saveTimings": "Texto con tiempos (JSON)",
