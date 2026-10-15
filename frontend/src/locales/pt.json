@@ -327,7 +327,8 @@
     "modeListening": "Modo Listening",
     "new": "Recomeçar no modo atual",
     "settings": "Configurações",
-    "helpWindow": "Ajuda"
+    "helpWindow": "Ajuda",
+    "palette": "Paleta de comandos"
   },
   "setup": {
     "takenFrom": "aproveitado de {{app}} sem baixar",
@@ -1811,5 +1812,14 @@
     "filter_approved": "aprovados ({{n}})",
     "filter_fix": "para corrigir ({{n}})",
     "approveSelected": "Aprovar"
+  },
+  "palette": {
+    "title": "Comandos",
+    "placeholder": "Encontrar uma ação: exportar, vozes, configurações…",
+    "none": "Nada encontrado",
+    "groups": {
+      "window": "Janela",
+      "editor": "Projeto"
+    }
   }
 }

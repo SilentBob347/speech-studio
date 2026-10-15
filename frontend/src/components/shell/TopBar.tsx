@@ -5,6 +5,7 @@ import { LANGS, setLang, type Lang } from "../../lib/i18n";
 import { OPEN_HELP_EVENT, OPEN_SETTINGS_EVENT, SETTINGS_SECTIONS } from "../../lib/settingsNav";
 import { JOURNAL_CHANGED, bridgeError, takeArgs, textArg, useBridgeCommand, useChanged } from "../../lib/mcpBridge";
 import { errorText } from "../../lib/voices";
+import { useCommands, type Command } from "../../lib/commands";
 import { useStore, type Activity, type Mode } from "../../store";
 import type { JobKind } from "../../lib/api";
 import en from "../../locales/en.json";
@@ -204,6 +205,19 @@ export default function TopBar() {
     return { open: "settings", section };
   });
   useBridgeCommand("open_help", (args) => { takeArgs("ui_open_help", args, []); setHelp(true); return { open: "help" }; });
+  const group = t("palette.groups.window");
+  const setMode = useStore((s) => s.setMode);
+  useCommands("topbar", [
+    ...(ready ? [
+      { id: "mode-speech", label: t("hotkeys.modeSpeech"), group, run: () => setMode("speech") },
+      { id: "mode-listening", label: t("hotkeys.modeListening"), group, run: () => setMode("listening") },
+      { id: "new", label: t("nav.newTitle"), group, run: startFresh },
+      { id: "voices", label: t("voices.title"), group, run: () => setVoices(true) },
+      { id: "assistant", label: t("chat.title"), group, run: () => setAssistant((open) => !open) },
+    ] : []),
+    { id: "help", label: t("help.title"), group, run: () => setHelp(true) },
+    ...SETTINGS_SECTIONS.map((section): Command => ({ id: `settings-${section}`, label: `${t("prefs.title")}: ${t(`prefs.sections.${section}`)}`, group, run: () => openSettingsAt(section) })),
+  ]);
   return (
     <header className="flex items-center gap-2 px-3 md:gap-3 md:px-5 h-14 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
       <span className="flex items-center gap-2 font-bold tracking-tight shrink-0">

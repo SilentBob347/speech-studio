@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MoreHorizontal, type LucideIcon } from "lucide-react";
 import { named } from "../lib/a11y";
+import { useCommands } from "../lib/commands";
 
 export type MoreItem = { icon: LucideIcon; label: string; act: () => void; disabled?: boolean; narrowOnly?: boolean; belowLarge?: boolean };
 
@@ -9,6 +10,8 @@ export type MoreItem = { icon: LucideIcon; label: string; act: () => void; disab
 export default function EditorMore({ items, className = "" }: { items: MoreItem[]; className?: string }) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
+  const group = t("palette.groups.editor");
+  useCommands(useId(), items.map((item) => ({ id: item.label, label: item.label, group, run: item.act, disabled: item.disabled })));
   useEffect(() => {
     if (!open) return;
     const close = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };

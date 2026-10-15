@@ -327,7 +327,8 @@
     "modeListening": "Listening mode",
     "new": "Start over in the current mode",
     "settings": "Settings",
-    "helpWindow": "Help"
+    "helpWindow": "Help",
+    "palette": "Command palette"
   },
   "setup": {
     "takenFrom": "taken from {{app}} instead of downloading",
@@ -1811,5 +1812,14 @@
     "filter_approved": "approved ({{n}})",
     "filter_fix": "to fix ({{n}})",
     "approveSelected": "Approve"
+  },
+  "palette": {
+    "title": "Commands",
+    "placeholder": "Find an action: export, voices, settings…",
+    "none": "Nothing found",
+    "groups": {
+      "window": "Window",
+      "editor": "Project"
+    }
   }
 }

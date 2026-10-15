@@ -327,7 +327,8 @@
     "modeListening": "Mode Listening",
     "new": "Recommencer dans le mode actuel",
     "settings": "Paramètres",
-    "helpWindow": "Aide"
+    "helpWindow": "Aide",
+    "palette": "Palette de commandes"
   },
   "setup": {
     "takenFrom": "repris de {{app}} sans téléchargement",
@@ -1811,5 +1812,14 @@
     "filter_approved": "validés ({{n}})",
     "filter_fix": "à corriger ({{n}})",
     "approveSelected": "Valider"
+  },
+  "palette": {
+    "title": "Commandes",
+    "placeholder": "Chercher une action : export, voix, réglages…",
+    "none": "Aucun résultat",
+    "groups": {
+      "window": "Fenêtre",
+      "editor": "Projet"
+    }
   }
 }

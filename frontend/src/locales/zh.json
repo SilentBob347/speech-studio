@@ -327,7 +327,8 @@
     "modeListening": "Listening 模式",
     "new": "在当前模式中重新开始",
     "settings": "设置",
-    "helpWindow": "帮助"
+    "helpWindow": "帮助",
+    "palette": "命令面板"
   },
   "setup": {
     "takenFrom": "已从 {{app}} 获取，无需下载",
@@ -1811,5 +1812,14 @@
     "filter_approved": "已通过（{{n}}）",
     "filter_fix": "待修改（{{n}}）",
     "approveSelected": "通过"
+  },
+  "palette": {
+    "title": "命令",
+    "placeholder": "查找操作：导出、声音、设置…",
+    "none": "未找到",
+    "groups": {
+      "window": "窗口",
+      "editor": "项目"
+    }
   }
 }

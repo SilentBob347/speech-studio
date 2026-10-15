@@ -327,7 +327,8 @@
     "modeListening": "Режим Listening",
     "new": "Начать текущий режим заново",
     "settings": "Настройки",
-    "helpWindow": "Справка"
+    "helpWindow": "Справка",
+    "palette": "Палитра команд"
   },
   "setup": {
     "takenFrom": "взят из {{app}} без скачивания",
@@ -1811,5 +1812,14 @@
     "filter_approved": "утверждённые ({{n}})",
     "filter_fix": "на исправление ({{n}})",
     "approveSelected": "Утвердить"
+  },
+  "palette": {
+    "title": "Команды",
+    "placeholder": "Найти действие: экспорт, голоса, настройки…",
+    "none": "Ничего не нашлось",
+    "groups": {
+      "window": "Окно",
+      "editor": "Проект"
+    }
   }
 }

@@ -297,7 +297,7 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
               <p className="mt-0.5 flex flex-wrap items-center gap-1 text-[11px]" aria-label={t("speech.heardDiff")}>
                 <span className="text-[var(--color-muted)]">{t("speech.heardDiff")}</span>
                 {off.map((s, k) => (
-                  <span key={k} className="px-1 rounded border border-[var(--color-warn)]/50 text-[var(--color-warn)]">
+                  <span key={k} className="px-1 rounded border border-[var(--color-warn)]/50 text-[var(--color-warn)] whitespace-nowrap">
                     {s.op === "deleted" ? <s>{s.expected}</s> : s.op === "inserted" ? `+${s.heard}` : `${s.expected} → ${s.heard}`}
                   </span>
                 ))}

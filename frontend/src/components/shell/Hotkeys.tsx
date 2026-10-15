@@ -4,6 +4,8 @@ import { Keyboard, X } from "lucide-react";
 import { named } from "../../lib/a11y";
 import { openHelp, openSettings } from "../../lib/settingsNav";
 import { useStore } from "../../store";
+import { useCommands } from "../../lib/commands";
+import CommandPalette from "./CommandPalette";
 
 // Фокус в поле ввода или открытая модалка -> горячие клавиши окна не перехватываем.
 function typing(e: KeyboardEvent): boolean {
@@ -32,6 +34,7 @@ function ShortcutsHelp({ onClose }: { onClose: () => void }) {
     ["Ctrl + 2", t("hotkeys.modeListening")],
     ["Ctrl + N", t("hotkeys.new")],
     ["Ctrl + ,", t("hotkeys.settings")],
+    ["Ctrl + K", t("hotkeys.palette")],
     ["F1", t("hotkeys.helpWindow")],
     ["F10", t("hotkeys.fsWindow")],
     ["?", t("hotkeys.help")],
@@ -60,10 +63,18 @@ function ShortcutsHelp({ onClose }: { onClose: () => void }) {
 
 /** The window's own shortcuts: modes, a fresh start, settings, help, full screen and the `?` list of them all. */
 export default function Hotkeys() {
+  const { t } = useTranslation();
   const [shown, setShown] = useState(false);
+  const [palette, setPalette] = useState(false);
+  const group = t("palette.groups.window");
+  useCommands("hotkeys", [
+    { id: "fullscreen", label: t("hotkeys.fsWindow"), group, run: toggleFullscreen },
+    { id: "shortcuts", label: t("hotkeys.title"), group, run: () => setShown(true) },
+  ]);
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (e.key === "F10") { e.preventDefault(); toggleFullscreen(); return; }
+      if ((e.ctrlKey || e.metaKey) && (e.code === "KeyK" || e.key.toLowerCase() === "k") && !modalOpen()) { e.preventDefault(); setPalette(true); return; }
       if (typing(e) || modalOpen()) return;
       const s = useStore.getState();
       const ctrl = e.ctrlKey || e.metaKey;
@@ -78,5 +89,10 @@ export default function Hotkeys() {
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, []);
-  return shown ? <ShortcutsHelp onClose={() => setShown(false)} /> : null;
+  return (
+    <>
+      {shown && <ShortcutsHelp onClose={() => setShown(false)} />}
+      {palette && <CommandPalette onClose={() => setPalette(false)} />}
+    </>
+  );
 }
