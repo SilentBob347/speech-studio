@@ -5,7 +5,9 @@ export type Take = {
   source: string; synth_secs: number; retried: string[];
   qc: QcCheck | null; cost: number | null; estimate: number | null; text: string; direction: string; fit_stretch: number; fit_lead: number; fit_over: boolean; first_ms?: number;
 };
-export type QcCheck = { text_checked: boolean; wer: number; words: number; inserted: number; deleted: number; substituted: number; heard: string; passed: boolean; similarity: number | null; similar: boolean | null; issues: QcIssue[] };
+export type QcCheck = { text_checked: boolean; wer: number; words: number; inserted: number; deleted: number; substituted: number; heard: string; passed: boolean; similarity: number | null; similar: boolean | null; issues: QcIssue[];
+  /** The words heard, each with its start and end in the take. */
+  timed?: [string, number, number][] };
 export type QcIssue = "tail" | "stretched" | "gap" | "repeat" | "noise";
 export type QcSettings = { asr_check: boolean; strictness: "strict" | "normal" | "lenient"; takes: number; similarity: boolean };
 export type Block = {

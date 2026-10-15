@@ -73,11 +73,11 @@ export function cues(text: string): Cue[] {
 }
 
 /** The text cut at every cue edge, each piece with the cues over it, for colouring a copy of the text. */
-export function spans(text: string, list: Cue[]): { text: string; kinds: CueKind[] }[] {
+export function spans<K extends string>(text: string, list: { from: number; to: number; kind: K }[]): { text: string; kinds: K[] }[] {
   const edges = new Set<number>([0, text.length]);
   for (const c of list) { edges.add(c.from); edges.add(c.to); }
   const cuts = [...edges].filter((n) => n >= 0 && n <= text.length).sort((a, b) => a - b);
-  const out: { text: string; kinds: CueKind[] }[] = [];
+  const out: { text: string; kinds: K[] }[] = [];
   for (let i = 0; i + 1 < cuts.length; i++) {
     const [a, b] = [cuts[i], cuts[i + 1]];
     if (a === b) continue;

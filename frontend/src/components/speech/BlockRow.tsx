@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, ChevronDown, Combine, Eye, EyeOff, GripVertical, Loader2, Pause, Pin, Play, Plus, RefreshCw, Scissors, SlidersHorizontal, SpellCheck, Trash2, X } from "lucide-react";
-import { activeTake, cueTime, MARKERS, withCase, type Block, type BlockState, type Marker, type SpeechParams, type StressWord } from "../../lib/speech";
+import { activeTake, cueTime, MARKERS, withCase, type Block, type BlockState, type Marker, type SpeechParams, type StressWord, type Take } from "../../lib/speech";
 import { askCloneTerms } from "../../lib/cloudConsent";
 import { named } from "../../lib/a11y";
 import { useSortable } from "@dnd-kit/sortable";
@@ -16,6 +16,7 @@ import { useEngines } from "../../lib/engines";
 import PrepareView from "./PrepareView";
 import { wordDiff, words } from "../../lib/wordDiff";
 import { cues, spans, withoutCue, type Cue } from "../../lib/prosody";
+import { wordAt, wordTimes } from "../../lib/readAlong";
 
 const STATE_DOT: Record<BlockState | "rendering", string> = {
   pending: "bg-[var(--color-muted)]",
@@ -71,7 +72,27 @@ function TakeCompare({ block, active, playingTake, onAB }: { block: Block; activ
   );
 }
 
-function AutoText({ value, onCommit, label, inputRef, stale, locked }: { value: string; onCommit: (v: string) => void; label: string; inputRef: React.RefObject<HTMLTextAreaElement | null>; stale: boolean; locked: boolean }) {
+/** The word of the block sounding now, while `active`: followed frame by frame, the row redrawn only when it changes. */
+function useSpokenWord(audio: React.RefObject<HTMLAudioElement | null> | undefined, text: string, take: Take | null, active: boolean): [number, number] | null {
+  const [word, setWord] = useState<[number, number] | null>(null);
+  const times = useMemo(() => (take && (!take.text || take.text === text) ? wordTimes(text, take.duration, take.qc?.timed) : []), [text, take]);
+  useEffect(() => {
+    if (!active || !audio || !times.length) { setWord(null); return; }
+    let frame = 0;
+    let last = "";
+    const tick = () => {
+      const at = audio.current ? wordAt(times, audio.current.currentTime) : null;
+      const k = at ? at.join(":") : "";
+      if (k !== last) { last = k; setWord(at); }
+      frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [active, audio, times]);
+  return word;
+}
+
+function AutoText({ value, onCommit, label, inputRef, stale, locked, reading }: { value: string; onCommit: (v: string) => void; label: string; inputRef: React.RefObject<HTMLTextAreaElement | null>; stale: boolean; locked: boolean; reading: [number, number] | null }) {
   const [draft, setDraft] = useState(value);
   const [seen, setSeen] = useState(value);
   if (value !== seen) { setSeen(value); setDraft(value); }
@@ -90,21 +111,24 @@ function AutoText({ value, onCommit, label, inputRef, stale, locked }: { value: 
     const timer = window.setTimeout(() => onCommit(draft), 700);
     return () => window.clearTimeout(timer);
   }, [draft, value, onCommit]);
-  const marks = useMemo(() => cues(draft), [draft]);
+  const marks = useMemo(() => [...cues(draft), ...(reading && draft === value ? [{ kind: "read" as const, from: reading[0], to: reading[1] }] : [])], [draft, value, reading]);
   const area = (
     <textarea ref={inputRef} value={draft} rows={1} aria-label={label} spellCheck readOnly={locked}
       onChange={(e) => setDraft(e.target.value)} onBlur={(e) => { const typed = e.currentTarget.value; if (typed !== value) onCommit(typed); }}
       className={`relative block w-full resize-none overflow-hidden bg-transparent text-[14px] leading-relaxed focus:outline-none placeholder:text-[var(--color-muted)] ${stale ? "underline decoration-dotted decoration-[var(--color-warn)] underline-offset-4" : ""}`} />
   );
-  if (!marks.length) return area;
   return (
     <div className="relative">
-      <div aria-hidden className="absolute inset-0 pointer-events-none whitespace-pre-wrap [overflow-wrap:break-word] text-[14px] leading-relaxed text-transparent">
-        {spans(draft, marks).map((s, k) => s.kinds.length
-          ? <span key={k} className="rounded-sm underline decoration-2 underline-offset-[5px]" style={{ textDecorationColor: `var(--color-cue-${s.kinds[s.kinds.length - 1]})`, background: `color-mix(in srgb, var(--color-cue-${s.kinds[s.kinds.length - 1]}) 20%, transparent)` }}>{s.text}</span>
-          : s.text)}
+      {marks.length > 0 && <div aria-hidden className="absolute inset-0 pointer-events-none whitespace-pre-wrap [overflow-wrap:break-word] text-[14px] leading-relaxed text-transparent">
+        {spans(draft, marks).map((s, k) => {
+          if (s.kinds.includes("read")) return <span key={k} className="rounded-sm" style={{ background: "color-mix(in srgb, var(--color-accent) 35%, transparent)" }}>{s.text}</span>;
+          const kind = s.kinds[s.kinds.length - 1];
+          return kind
+            ? <span key={k} className="rounded-sm underline decoration-2 underline-offset-[5px]" style={{ textDecorationColor: `var(--color-cue-${kind})`, background: `color-mix(in srgb, var(--color-cue-${kind}) 20%, transparent)` }}>{s.text}</span>
+            : s.text;
+        })}
         {"​"}
-      </div>
+      </div>}
       {area}
     </div>
   );
@@ -141,7 +165,7 @@ function sentenceStart(value: string, cursor: number): number {
   return start;
 }
 
-export default function BlockRow({ pid, engine, projectEngine, speakerEngine, voice, block, index, state, fit, rendering, playing, playingTake, simple, variants, inheritedParams, tint, stressing, doubts, selected, selecting, open, side, a }: {
+export default function BlockRow({ pid, engine, projectEngine, speakerEngine, voice, block, index, state, fit, rendering, playing, playingTake, playhead, simple, variants, inheritedParams, tint, stressing, doubts, selected, selecting, open, side, a }: {
   pid: string;
   /** The engine that voices this block (its own, its speaker's or the project's). */
   engine: string;
@@ -165,6 +189,8 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
   playing: boolean;
   /** The take sounding now while this block plays. */
   playingTake: number | null;
+  /** The player this block sounds in while it plays, to follow the word being read. */
+  playhead?: React.RefObject<HTMLAudioElement | null>;
   /** The beginner's mode: the panel keeps what voicing a block needs and leaves out notes, review, tags and own refs. */
   simple: boolean;
   /** The sampling the block gets from its speaker or the project when it has none of its own. */
@@ -179,6 +205,8 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
   const [howRead, setHowRead] = useState(false);
   const text = useRef<HTMLTextAreaElement>(null);
   const take = activeTake(block);
+  const sounding = (playingTake != null ? block.takes.find((tk) => tk.n === playingTake) : null) ?? take;
+  const reading = useSpokenWord(playhead, block.text, sounding, playing);
   const insertTag = (tag: string, place: TagPlace) => {
     const el = text.current;
     const value = el?.value ?? block.text;
@@ -351,7 +379,7 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
           )}
         </div>
         <div className="col-span-3 order-last min-w-0 sm:order-none sm:flex-1">
-          <AutoText value={block.text} onCommit={a.setText} label={t("speech.blockText", { n: index + 1 })} inputRef={text} stale={state === "stale"} locked={block.review === "approved"} />
+          <AutoText value={block.text} onCommit={a.setText} label={t("speech.blockText", { n: index + 1 })} inputRef={text} stale={state === "stale"} locked={block.review === "approved"} reading={reading} />
           <CueList text={text} value={block.text} locked={block.review === "approved"} onChange={a.setText} />
           {doubts.length > 0 && (
             <div className="mt-1 flex flex-wrap items-center gap-1 text-[11px]">
