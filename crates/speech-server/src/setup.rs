@@ -1340,7 +1340,8 @@ fn vram_estimate(id: &str) -> u64 {
         "higgs" => gb(5.6),
         "higgs-q6_k" => gb(5.1),
         "higgs-q4_k_m" => gb(4.2),
-        "drama3" => gb(22.6),
+        // меньшее, на чём она идёт: эксперты в оперативной памяти (целиком модель занимает 22,6)
+        "drama3" => gb(5.0),
         "gemma" => gb(8.5),
         "gemma-q5_0" => gb(9.9),
         "gemma-q6_k" => gb(11.2),
@@ -3266,6 +3267,21 @@ mod tests {
         fit_to_vram(&mut comps, 0);
         assert_eq!(required(&comps), ["higgs", "gemma", "higgs-engine"]);
         assert!(comps.iter().all(|c| c.fits_vram.is_none()));
+    }
+
+    #[test]
+    fn drama_downloads_on_a_6_gb_card_and_not_on_a_4_gb_one() {
+        let drama = || {
+            let mut comps = vec![model("drama3", 0.0, Requirement::Optional)];
+            comps[0].vram = vram_estimate("drama3");
+            comps
+        };
+        let mut comps = drama();
+        fit_to_vram(&mut comps, 6 * 1024 * 1024 * 1024);
+        assert_eq!(comps[0].fits_vram, Some(true), "its experts live in RAM, the card keeps a cache");
+        let mut comps = drama();
+        fit_to_vram(&mut comps, 4 * 1024 * 1024 * 1024);
+        assert_eq!(comps[0].fits_vram, Some(false));
     }
 
     #[test]
