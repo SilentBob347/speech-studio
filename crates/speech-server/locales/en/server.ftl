@@ -1149,3 +1149,4 @@ music-making = { $studio } is making the song: { $detail }
 music-placing = Putting the song on the track…
 music-track = Music
 listen-export-rules = No subtitle rules “{ $rules }”; there are: { $known }
+itn-no-lang = Numbers as digits are not known for { $lang }: only ru, en, es, fr, pt, de, it, nl, da

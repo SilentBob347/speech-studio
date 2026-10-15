@@ -1169,3 +1169,4 @@ music-making = { $studio } делает песню: { $detail }
 music-placing = Кладу песню на дорожку…
 music-track = Музыка
 listen-export-rules = Нет правил субтитров «{ $rules }»; есть: { $known }
+itn-no-lang = Числа цифрами для языка { $lang } не умею: только ru, en, es, fr, pt, de, it, nl, da

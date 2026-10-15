@@ -219,7 +219,7 @@ pub async fn subtitle_rules() -> Json<Value> {
     Json(json!({ "rules": dub_captions::PROFILES.iter().map(|p| json!({ "name": p.name, "max_line_len": p.max_line_len, "max_lines": p.max_lines, "max_cps": p.max_cps, "min_display_ms": p.min_display_ms, "max_display_ms": p.max_display_ms })).collect::<Vec<_>>() }))
 }
 
-/// POST /listen/{pid}/export {format, speakers?, times?, rules?} — файл транскрипта в exports проекта: {file, text,
+/// POST /listen/{pid}/export {format, speakers?, times?, rules?, digits?} — файл транскрипта в exports проекта: {file, text,
 /// too_fast}; с `rules` (профиль вещателя) субтитры раскладываются на экраны по его правилам.
 pub async fn export(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<Value>) -> Response {
     let format = body.get("format").and_then(Value::as_str).unwrap_or("srt").to_string();
@@ -234,18 +234,20 @@ pub async fn export(State(st): State<AppState>, AxPath(pid): AxPath<String>, Jso
         speakers: body.get("speakers").and_then(Value::as_bool).unwrap_or(true),
         times: body.get("times").and_then(Value::as_bool).unwrap_or(true),
         rules,
+        digits: body.get("digits").and_then(Value::as_bool).unwrap_or(false),
     };
     let ws = st.workspace.clone();
     let res = joined(tokio::task::spawn_blocking(move || -> Result<Value, String> {
         let project = lp::load(&ws, &pid)?;
         let text = crate::transcript_out::render(&project, &format, &o)?;
-        let fast = o.rules.filter(|_| matches!(format.as_str(), "srt" | "vtt" | "ass")).map(|rules| crate::transcript_out::by_rules(&crate::transcript_out::shown_rows(&project), rules, &project.settings.lang).1);
+        let (rows, unknown) = if o.digits { crate::transcript_out::with_digits(crate::transcript_out::shown_rows(&project), &project.settings.lang)? } else { (crate::transcript_out::shown_rows(&project), 0) };
+        let fast = o.rules.filter(|_| matches!(format.as_str(), "srt" | "vtt" | "ass")).map(|rules| crate::transcript_out::by_rules(&rows, rules, &project.settings.lang).1);
         let dir = lp::dir(&ws, &pid).join("exports");
         std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
         let base: String = project.name.chars().map(|c| if c.is_control() || "<>:\"/\\|?*".contains(c) { ' ' } else { c }).collect::<String>().trim().to_string();
         let file = format!("{}.{format}", if base.is_empty() { "transcript" } else { &base });
         crate::voice_library::write_atomic(&dir.join(&file), text.as_bytes())?;
-        Ok(json!({ "file": file, "text": text, "too_fast": fast }))
+        Ok(json!({ "file": file, "text": text, "too_fast": fast, "digits_unknown": o.digits.then_some(unknown) }))
     })
     .await);
     saved(res, StatusCode::BAD_REQUEST)

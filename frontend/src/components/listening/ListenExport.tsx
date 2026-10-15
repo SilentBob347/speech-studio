@@ -14,7 +14,8 @@ export default function ListenExport({ pid, onClose }: { pid: string; onClose: (
   const [format, setFormat] = useState<TranscriptFormat>("srt");
   const [speakers, setSpeakers] = useState(true);
   const [times, setTimes] = useState(true);
-  const [made, setMade] = useState<{ file: string; text: string; too_fast: number | null } | null>(null);
+  const [made, setMade] = useState<{ file: string; text: string; too_fast: number | null; digits_unknown: number | null } | null>(null);
+  const [digits, setDigits] = useState(false);
   const [rules, setRules] = useState("");
   const [profiles, setProfiles] = useState<SubtitleRules[]>([]);
   useEffect(() => { listenApi.subtitleRules().then((r) => setProfiles(r.rules), (e: unknown) => setError(errorText(e))); }, []);
@@ -26,7 +27,7 @@ export default function ListenExport({ pid, onClose }: { pid: string; onClose: (
   const make = async () => {
     setBusy(true);
     setError(null);
-    try { setMade(await listenApi.export(pid, format, speakers, times, subtitles ? rules : "")); } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
+    try { setMade(await listenApi.export(pid, format, speakers, times, subtitles ? rules : "", format !== "json" && digits)); } catch (e) { setError(errorText(e)); } finally { setBusy(false); }
   };
   const copy = async () => {
     if (!made) return;
@@ -46,6 +47,7 @@ export default function ListenExport({ pid, onClose }: { pid: string; onClose: (
         <p className="text-[11px] text-[var(--color-muted)]">{t(`listen.format_${format}`)}</p>
         <div className="flex flex-wrap gap-3 text-[13px]">
           {format !== "json" && <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={speakers} onChange={(e) => changed(setSpeakers)(e.target.checked)} className="w-4 h-4 accent-[var(--color-accent)]" />{t("listen.withSpeakers")}</label>}
+          {format !== "json" && <label className="flex items-center gap-2 cursor-pointer" title={t("listen.digitsHint")}><input type="checkbox" checked={digits} onChange={(e) => changed(setDigits)(e.target.checked)} className="w-4 h-4 accent-[var(--color-accent)]" />{t("listen.digits")}</label>}
           {format === "txt" && <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={times} onChange={(e) => changed(setTimes)(e.target.checked)} className="w-4 h-4 accent-[var(--color-accent)]" />{t("listen.withTimes")}</label>}
         </div>
         {subtitles && (
@@ -58,6 +60,7 @@ export default function ListenExport({ pid, onClose }: { pid: string; onClose: (
             <span className="block text-[11px] text-[var(--color-muted)]">{t(rules ? "listen.rulesHint" : "listen.rulesNoneHint")}</span>
           </label>
         )}
+        {made?.digits_unknown ? <p className="text-[11px] text-[var(--color-warn)]">{t("listen.digitsUnknown", { count: made.digits_unknown })}</p> : null}
         {made?.too_fast ? <p className="text-[11px] text-[var(--color-warn)]">{t("listen.tooFast", { count: made.too_fast })}</p> : null}
         {made && <pre className="flex-1 min-h-24 max-h-72 overflow-auto rounded-md bg-[var(--color-surface-2)] border border-[var(--color-border)] p-2 text-[11px] mono whitespace-pre-wrap">{made.text.slice(0, 6000)}</pre>}
         {error && <p role="alert" className="text-[12px] text-[var(--color-warn)] break-words">{error}</p>}

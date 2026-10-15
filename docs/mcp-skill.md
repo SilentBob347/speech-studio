@@ -165,7 +165,7 @@ connected and the address to paste.
 - **Projects**: `listen_create_from_file` (`listen_upload` uploads a copy), `listen_record_start` /
   `listen_record_stop` (a recording from the microphone), `listen_audio` (its sound as a file), `listen_get`, `listen_update` (rename speakers, edit or hide lines, mark
   words `cut`, recognition settings, corrections), `listen_transcribe`, `listen_cut` (a new recording without the
-  marked words), `listen_stats` (who speaks how much: talk time, share, words, pace, longest stretch), `listen_export` (with `rules`, a broadcaster's subtitle rules from `listen_subtitle_rules`, srt, vtt and ass go onto screens by its line length, lines and longest showing; without it the lines are exported as recognised), `listen_check`, `listen_align` (the reference text laid over the recording, each word
+  marked words), `listen_stats` (who speaks how much: talk time, share, words, pace, longest stretch), `listen_export` (with `digits` numbers said in words come out as digits - "двадцать пять" as 25, "сорок пятом" as 45-м - in ru, en, es, fr, pt, de, it, nl, da, the transcript itself unchanged; with `rules`, a broadcaster's subtitle rules from `listen_subtitle_rules`, srt, vtt and ass go onto screens by its line length, lines and longest showing; without it the lines are exported as recognised), `listen_check`, `listen_align` (the reference text laid over the recording, each word
   at the time it was heard; put the lines back with `listen_update`), `listen_to_speech` (the transcript as a Speech project),
   `listen_voices` (each speaker's best clean speech into the voice library). Who a speaker is, by voice:
   `listen_speakers_match` (the most alike named speaker or library voice, with its score and whether it is the same

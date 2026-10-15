@@ -83,7 +83,7 @@ export const listenApi = {
   transcribe: (pid: string) => postCoded<{ job_id: string }>(`/listen/${pid}/transcribe`, {}),
   cut: (pid: string) => postCoded<{ job_id: string }>(`/listen/${pid}/cut`, {}),
   /** With `rules` (a broadcaster's, from subtitleRules) subtitles go onto screens by its rules; without, as recognised. */
-  export: (pid: string, format: TranscriptFormat, speakers: boolean, times: boolean, rules = "") => postCoded<{ file: string; text: string; too_fast: number | null }>(`/listen/${pid}/export`, { format, speakers, times, rules: rules || undefined }),
+  export: (pid: string, format: TranscriptFormat, speakers: boolean, times: boolean, rules = "", digits = false) => postCoded<{ file: string; text: string; too_fast: number | null; digits_unknown: number | null }>(`/listen/${pid}/export`, { format, speakers, times, rules: rules || undefined, digits: digits || undefined }),
   subtitleRules: () => getCoded<{ rules: SubtitleRules[] }>("/listen/subtitle-rules"),
   stats: (pid: string) => getCoded<SpeakerStats>(`/listen/${pid}/stats`),
   check: (pid: string, reference: string) => postCoded<ReferenceCheck>(`/listen/${pid}/check`, { reference }),

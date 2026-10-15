@@ -1143,3 +1143,4 @@ music-making = { $studio } está fazendo a música: { $detail }
 music-placing = Colocando a música na faixa…
 music-track = Música
 listen-export-rules = Não há regras de legenda “{ $rules }”; há: { $known }
+itn-no-lang = Números em algarismos não são conhecidos para { $lang }: só ru, en, es, fr, pt, de, it, nl, da

@@ -13,6 +13,8 @@ pub struct Opts {
     /// Subtitle rules of a broadcaster (`dub_captions::PROFILES`): lines laid out on screens by their
     /// line length and lines per screen, at the heard word times, and held to their shortest and longest showing.
     pub rules: Option<&'static dub_captions::RulesProfile>,
+    /// Numbers said in words written as digits (`itn`), the transcript itself staying as heard.
+    pub digits: bool,
 }
 
 /// A subtitle line: its time, who says it and what.
@@ -31,6 +33,29 @@ pub fn shown_rows(p: &ListenProject) -> Vec<Row> {
         .collect()
 }
 
+/// The lines with numbers said in words written as digits, each in its language (`auto`: Russian by its letters);
+/// answers also how many lines are in a language whose numbers are not known and stay as they are.
+pub fn with_digits(rows: Vec<Row>, lang: &str) -> Result<(Vec<Row>, usize), String> {
+    let mut unknown = 0;
+    let mut out = Vec::with_capacity(rows.len());
+    for mut r in rows {
+        let line_lang = crate::prep::block_lang(&r.text, lang);
+        if crate::itn::knows(&line_lang) {
+            r.text = crate::itn::digits(&r.text, &line_lang)?;
+            r.words = Vec::new();
+        } else {
+            unknown += 1;
+        }
+        out.push(r);
+    }
+    Ok((out, unknown))
+}
+
+/// Lines as screens of subtitles under a broadcaster's rules: a line goes onto a new screen where its words no longer
+/// fit the screen's lines or would show longer than the rules allow (a screen changes when the voice reaches its first
+/// word), each screen wrapped into balanced lines, cut after a sentence's end or a comma where one is near, then held
+/// to the shortest and longest showing and small gaps bridged (dub-captions, SubtitleEdit's rules). Answers the
+/// screens and how many of them still read faster than the rules allow.
 pub fn by_rules(rows: &[Row], p: &dub_captions::RulesProfile, lang: &str) -> (Vec<Row>, usize) {
     use dub_captions::{balanced_wrap, normalize, violates_cps, NormalizeOpts, TimingSeg};
     let room = (p.max_line_len * p.max_lines.max(1)) as f64;
@@ -152,9 +177,10 @@ pub fn render(p: &ListenProject, format: &str, o: &Opts) -> Result<String, Strin
     if format == "json" {
         return serde_json::to_string_pretty(&json_value(p)).map_err(|e| e.to_string());
     }
+    let rows = if o.digits { with_digits(shown_rows(p), &p.settings.lang)?.0 } else { shown_rows(p) };
     let rows = match o.rules.filter(|_| matches!(format, "srt" | "vtt" | "ass")) {
-        Some(rules) => by_rules(&shown_rows(p), rules, &p.settings.lang).0,
-        None => shown_rows(p),
+        Some(rules) => by_rules(&rows, rules, &p.settings.lang).0,
+        None => rows,
     };
     render_rows(&rows, format, o).ok_or_else(|| t!("listen-export-format", format = format.to_string()))
 }
@@ -238,7 +264,7 @@ mod tests {
     #[test]
     fn every_format_names_speakers_and_skips_hidden_lines() {
         let p = project();
-        let o = Opts { speakers: true, times: true, rules: None };
+        let o = Opts { speakers: true, times: true, rules: None, digits: false };
         let srt = render(&p, "srt", &o).unwrap();
         assert!(srt.starts_with("1\n00:00:00,000 --> 00:00:01,500\nАнна: Привет <всем>\n"));
         assert!(srt.contains("01:01:01,250 --> 01:01:02,000") && !srt.contains("Скрыто"));
@@ -246,7 +272,7 @@ mod tests {
         assert!(vtt.contains("<v Анна>Привет &lt;всем&gt;") && vtt.contains("01:01:01.250"));
         assert!(render(&p, "ass", &o).unwrap().contains("Dialogue: 0,1:01:01.25,1:01:02.00,Default,Борис,0,0,0,,Пока"));
         assert_eq!(render(&p, "txt", &o).unwrap(), "[0:00] Анна: Привет <всем>\n[1:01:01] Борис: Пока\n");
-        assert_eq!(render(&p, "txt", &Opts { speakers: false, times: false, rules: None }).unwrap(), "Привет <всем>\nПока\n");
+        assert_eq!(render(&p, "txt", &Opts { speakers: false, times: false, rules: None, digits: false }).unwrap(), "Привет <всем>\nПока\n");
         let json: Value = serde_json::from_str(&render(&p, "json", &o).unwrap()).unwrap();
         assert_eq!(json["lines"].as_array().unwrap().len(), 2);
     }
@@ -268,7 +294,7 @@ mod tests {
         }
         let joined: String = screens.iter().map(|s| s.text.replace('\n', " ")).collect::<Vec<_>>().join(" ");
         assert_eq!(joined, text);
-        let plain = render_rows(std::slice::from_ref(&row), "srt", &Opts { speakers: false, times: true, rules: None }).unwrap();
+        let plain = render_rows(std::slice::from_ref(&row), "srt", &Opts { speakers: false, times: true, rules: None, digits: false }).unwrap();
         assert!(plain.contains(text));
     }
 }

@@ -1564,6 +1564,9 @@
     "repeat": "Locutar de nuevo con los mismos parámetros"
   },
   "listen": {
+    "digits": "Números en cifras",
+    "digitsHint": "«veinticinco» → «25»; un número menor que 10 dicho solo queda en palabra. Solo en el archivo exportado: la transcripción no cambia. Idiomas: ru, en, es, fr, pt, de, it, nl, da.",
+    "digitsUnknown": "Líneas en un idioma cuyos números no conozco, dejadas como están: {{count}}. Indique el idioma de la grabación en sus ajustes.",
     "loop": "Repetir la frase",
     "loopHint": "Reproducir en bucle la frase bajo el cursor para volver a oír un tramo difícil; pulse otra vez para parar",
     "stats": "Quién habla cuánto",

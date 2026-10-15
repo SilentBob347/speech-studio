@@ -1564,6 +1564,9 @@
     "repeat": "Voice again with the same parameters"
   },
   "listen": {
+    "digits": "Numbers as digits",
+    "digitsHint": "“twenty five” → “25”; a number below 10 said alone stays a word. Only in the exported file — the transcript stays as it is. Languages: ru, en, es, fr, pt, de, it, nl, da.",
+    "digitsUnknown": "Lines in a language whose numbers are not known, left as they are: {{count}}. Set the recording's language in its settings.",
     "loop": "Repeat the phrase",
     "loopHint": "Play the phrase under the playhead round and round to hear a hard bit again; press again to stop",
     "stats": "Who talks how much",

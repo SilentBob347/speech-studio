@@ -1564,6 +1564,9 @@
     "repeat": "Narrar de novo com os mesmos parâmetros"
   },
   "listen": {
+    "digits": "Números em algarismos",
+    "digitsHint": "«vinte e cinco» → «25»; um número abaixo de 10 dito sozinho fica por extenso. Só no arquivo exportado — a transcrição não muda. Idiomas: ru, en, es, fr, pt, de, it, nl, da.",
+    "digitsUnknown": "Linhas num idioma cujos números não conheço, deixadas como estão: {{count}}. Defina o idioma da gravação nas configurações dela.",
     "loop": "Repetir a frase",
     "loopHint": "Tocar em loop a frase sob o cursor para ouvir de novo um trecho difícil; toque de novo para parar",
     "stats": "Quem fala quanto",

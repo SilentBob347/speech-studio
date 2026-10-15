@@ -1143,3 +1143,4 @@ music-making = { $studio } está haciendo la canción: { $detail }
 music-placing = Colocando la canción en la pista…
 music-track = Música
 listen-export-rules = No hay reglas de subtítulos «{ $rules }»; hay: { $known }
+itn-no-lang = No sé escribir números en cifras para { $lang }: solo ru, en, es, fr, pt, de, it, nl, da

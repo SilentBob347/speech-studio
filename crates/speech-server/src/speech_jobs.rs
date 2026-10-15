@@ -1615,7 +1615,7 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         let rows: Vec<crate::transcript_out::Row> = part_cues.iter().map(|(a, z, who, text)| crate::transcript_out::Row { start: *a, end: *z, speaker: who.clone(), text: text.clone(), words: Vec::new() }).collect();
         let mut subtitle_files = vec![subtitles.clone()];
         for format in ["vtt", "ass"] {
-            let text = crate::transcript_out::render_rows(&rows, format, &crate::transcript_out::Opts { speakers: true, times: true, rules: None }).unwrap_or_default();
+            let text = crate::transcript_out::render_rows(&rows, format, &crate::transcript_out::Opts { speakers: true, times: true, rules: None, digits: false }).unwrap_or_default();
             let file = format!("{name}.{format}");
             std::fs::write(exports.join(&file), text).map_err(|e| format!("{file}: {e}"))?;
             subtitle_files.push(file);
