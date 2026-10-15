@@ -154,7 +154,7 @@ export default function TopBar() {
   });
   useBridgeCommand("open_help", (args) => { takeArgs("ui_open_help", args, []); setHelp(true); return { open: "help" }; });
   return (
-    <header className="flex items-center gap-3 px-5 h-14 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
+    <header className="flex items-center gap-2 px-3 md:gap-3 md:px-5 h-14 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
       <span className="flex items-center gap-2 font-bold tracking-tight shrink-0">
         <img src="/favicon.svg" alt="" width={20} height={20} className="rounded-[5px] shadow-[0_0_10px_color-mix(in_oklab,var(--color-accent)_30%,transparent)]" />
         {t("app.name")}
@@ -162,23 +162,23 @@ export default function TopBar() {
       </span>
       {ready && <ModeSwitcher />}
       <StatusBar />
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
         <div id="dock-slot" className="flex items-center gap-2 shrink-0" />
         {ready && (
           <button onClick={() => setVoices(true)} title={t("voices.title")} aria-label={t("voices.title")}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] font-medium text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-colors">
+            className="inline-flex items-center gap-1.5 px-2 xl:px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] font-medium text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-colors">
             <Users size={13} /><span className="hidden xl:inline">{t("voices.open")}</span>
           </button>
         )}
         {ready && (
           <button onClick={() => setAssistant((open) => !open)} title={t("chat.title")} aria-label={t("chat.title")} aria-pressed={assistant}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[12px] font-medium transition-colors ${assistant ? "border-[var(--color-accent)] text-[var(--color-accent)]" : "border-[var(--color-border)] text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"}`}>
+            className={`inline-flex items-center gap-1.5 px-2 xl:px-3 py-1.5 rounded-lg border text-[12px] font-medium transition-colors ${assistant ? "border-[var(--color-accent)] text-[var(--color-accent)]" : "border-[var(--color-border)] text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)]"}`}>
             <Bot size={13} /><span className="hidden xl:inline">{t("chat.title")}</span>
           </button>
         )}
         {ready && (
           <button onClick={startFresh} title={t("nav.newTitle")} aria-label={t("nav.newTitle")}
-            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[12px] font-bold text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-colors shadow-sm">
+            className="inline-flex items-center gap-1 px-2 xl:px-3 py-1.5 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[12px] font-bold text-[var(--color-text)] hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] transition-colors shadow-sm">
             <Plus size={13} /><span className="hidden xl:inline">{t("nav.new")}</span>
           </button>
         )}
