@@ -18,6 +18,21 @@ pub const VERSION: u32 = 1;
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct EngineNeed {
     pub id: String,
+    /// Движок с моделью и квантом (`qwen3-tts:Q4_K_M`), как его пишет дубль; пусто в файлах до версий.
+    #[serde(default)]
+    pub version: String,
+}
+
+/// Движки проекта и его дублей с версиями, каждый один раз.
+fn engines_of(project: &SpeechProject, current: String) -> Vec<EngineNeed> {
+    let mut seen: Vec<EngineNeed> = vec![EngineNeed { id: project.settings.engine.clone(), version: current }];
+    for t in project.blocks().flat_map(|b| b.takes.iter()).filter(|t| !t.engine.is_empty()) {
+        let need = EngineNeed { id: t.engine.split(':').next().unwrap_or_default().to_string(), version: t.engine.clone() };
+        if !seen.contains(&need) {
+            seen.push(need);
+        }
+    }
+    seen
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -89,7 +104,7 @@ pub fn pack(p: &SpeechPaths, pid: &str, with_audio: bool) -> Result<(String, u64
         app_version: env!("CARGO_PKG_VERSION").into(),
         created: sp::now(),
         name: project.name.clone(),
-        engines: vec![EngineNeed { id: project.settings.engine.clone() }],
+        engines: engines_of(&project, crate::speech_jobs::engine_tag(p, &project)),
         with_audio,
         voices,
         assets: files.iter().map(|(path, b)| Asset { path: path.clone(), size: b.len() as u64, sha256: sha(b) }).collect(),
@@ -235,5 +250,19 @@ mod tests {
         broken[at] ^= 0xff;
         assert!(unpack(&pb, &broken).is_err());
         assert!(unpack(&pb, b"not a zip").is_err());
+    }
+
+    #[test]
+    fn the_manifest_names_each_engine_with_its_version_once() {
+        let mut project = sp::from_text("Тест", "Привет.\n\nПока.", "Рассказчик");
+        project.settings.engine = "qwen3-tts".into();
+        let tags = ["higgs:q8_0", "qwen3-tts:Q4_K_M"];
+        for (b, tag) in project.chapters[0].blocks.iter_mut().zip(tags) {
+            b.takes.push(sp::Take { n: 1, engine: tag.into(), ..Default::default() });
+            b.takes.push(sp::Take { n: 2, engine: tag.into(), ..Default::default() });
+        }
+        let need = engines_of(&project, "qwen3-tts:Q4_K_M".into());
+        let got: Vec<(&str, &str)> = need.iter().map(|e| (e.id.as_str(), e.version.as_str())).collect();
+        assert_eq!(got, vec![("qwen3-tts", "qwen3-tts:Q4_K_M"), ("higgs", "higgs:q8_0")]);
     }
 }

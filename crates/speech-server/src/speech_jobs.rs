@@ -66,7 +66,7 @@ pub fn keys(p: &SpeechPaths, project: &SpeechProject) -> BTreeMap<String, String
 }
 
 /// Что за движок и модель озвучивают проект — часть ключа дубля.
-fn engine_tag(p: &SpeechPaths, project: &SpeechProject) -> String {
+pub(crate) fn engine_tag(p: &SpeechPaths, project: &SpeechProject) -> String {
     if project.settings.engine == "openrouter" {
         let (m, v) = crate::cloud_tts::model_and_voice(&p.models_root, &project.settings.cloud_model, &project.settings.cloud_voice).unwrap_or_default();
         format!("openrouter:{m}:{v}")
