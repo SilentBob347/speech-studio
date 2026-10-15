@@ -1055,6 +1055,8 @@
     "queueBlocks": "Bloques: {{n}}",
     "queueFrom": "Desde un bloque hasta el final",
     "queueAll": "Todo lo cambiado",
+    "queueEdit": "Editar",
+    "queueEditHint": "Quitarlo de la cola y seleccionar sus bloques: ajusta la selección y locuta lo seleccionado",
     "unqueue": "Quitar de la cola",
     "queueClear": "Vaciar la cola",
     "qcSimilarity": "similitud de voz {{s}}",

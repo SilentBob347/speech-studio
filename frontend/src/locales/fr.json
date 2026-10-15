@@ -1055,6 +1055,8 @@
     "queueBlocks": "Blocs : {{n}}",
     "queueFrom": "D’un bloc à la fin",
     "queueAll": "Tout ce qui a changé",
+    "queueEdit": "Modifier",
+    "queueEditHint": "Le retirer de la file et sélectionner ses blocs : ajustez la sélection et doublez la sélection",
     "unqueue": "Retirer de la file",
     "queueClear": "Vider la file",
     "qcSimilarity": "similarité de voix {{s}}",

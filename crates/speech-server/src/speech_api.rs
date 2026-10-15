@@ -215,7 +215,6 @@ pub async fn delete(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> 
         Ok(Ok(())) => {
             let by = crate::mcp::current_actor();
             crate::mcp::tell_windows(json!({ "changed": "project", "pid": pid, "deleted": true, "by": by }));
-            crate::mcp::tell_windows(json!({ "changed": "projects", "pid": pid, "by": by }));
             Json(json!({ "deleted": pid })).into_response()
         }
         Ok(Err(e)) => refuse(StatusCode::INTERNAL_SERVER_ERROR, "delete_failed", e),

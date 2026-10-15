@@ -1055,6 +1055,8 @@
     "queueBlocks": "Blocks: {{n}}",
     "queueFrom": "From a block to the end",
     "queueAll": "Everything changed",
+    "queueEdit": "Edit",
+    "queueEditHint": "Take it off the queue and select its blocks: change the selection and voice the selected",
     "unqueue": "Remove from the queue",
     "queueClear": "Clear the queue",
     "qcSimilarity": "voice similarity {{s}}",

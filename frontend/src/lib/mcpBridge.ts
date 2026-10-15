@@ -189,7 +189,7 @@ export function label(element: Element): string {
     const tied = element.labels?.[0] ? labelText(element.labels[0]) : "";
     return (tied || title || nearbyText(element) || element.getAttribute("placeholder") || "").slice(0, 80);
   }
-  return (title || textOf(element) || iconName(element) || nearbyText(element)).slice(0, 80);
+  return (textOf(element) || title || iconName(element) || nearbyText(element)).slice(0, 80);
 }
 
 let nextRef = 1;

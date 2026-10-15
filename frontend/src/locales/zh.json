@@ -1055,6 +1055,8 @@
     "queueBlocks": "文本块：{{n}}",
     "queueFrom": "从某块到结尾",
     "queueAll": "所有改动",
+    "queueEdit": "编辑",
+    "queueEditHint": "从队列中取出并选中其段落：调整选择后为选中的段落配音",
     "unqueue": "移出队列",
     "queueClear": "清空队列",
     "qcSimilarity": "声音相似度 {{s}}",

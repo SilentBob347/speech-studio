@@ -18,7 +18,7 @@ import { usePublishEditor } from "../../lib/editorBridge";
 import ErrorNote from "../ErrorNote";
 import RecastDialog from "./RecastDialog";
 import { CLOUD_ENGINE_NAMES, askCloud, askDirector } from "../../lib/cloudConsent";
-import { bridgeError, flash } from "../../lib/mcpBridge";
+import { JOBS_CHANGED, bridgeError, flash, isMine, useChanged } from "../../lib/mcpBridge";
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type Announcements, type DragEndEvent, type UniqueIdentifier } from "@dnd-kit/core";
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import BlockRow, { type BlockActions } from "./BlockRow";
@@ -262,9 +262,36 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
       await followJob(job_id, "synth");
     } catch (e) { setJobError(errorText(e)); } finally { setJob(null); }
   };
+  /** A voicing of this project started elsewhere (the agent, another window) is followed here as if started here. */
+  const adoptJob = useCallback((id: string) => {
+    void speechApi.queue(pid).then((r) => setQueueList(r.queue), () => undefined);
+    if (latestJob.current?.id === id) return;
+    setJob({ id, ids: null });
+    void api.watchJob(id, () => undefined).catch(() => undefined).finally(() => setJob((j) => (j?.id === id ? null : j)));
+  }, [pid]);
+  useChanged(JOBS_CHANGED, (n) => {
+    if (n.pid !== pid || n.kind !== "synth" || isMine(n) || !n.job_id) return;
+    adoptJob(n.job_id);
+  });
+  useEffect(() => {
+    api.jobs(pid).then((r) => {
+      const running = r.jobs.find((j) => j.kind === "synth" && j.pid === pid && (j.status === "running" || j.status === "queued"));
+      if (running) adoptJob(running.id);
+    }, () => undefined);
+  }, [pid, adoptJob]);
   const stopSynth = async () => {
     if (!job) return;
     try { await api.cancelJob(job.id); } catch (e) { setJobError(errorText(e)); }
+  };
+  /** A queued voicing taken back for editing: off the queue, its blocks selected to change and queue again. */
+  const editQueued = async (q: QueuedSynth) => {
+    const order = blocks.map((b) => b.id);
+    const ids = q.scope.ids ?? (q.scope.from ? order.slice(Math.max(0, order.indexOf(q.scope.from))) : order);
+    await speechApi.unqueue(pid, q.n);
+    setQueueList((await speechApi.queue(pid)).queue);
+    setQueueOpen(false);
+    if (ids[0]) showBlock(ids[0]);
+    setSelected(ids);
   };
   const skip = (step: 1 | -1) => {
     const order = blocks.map((b) => b.id);
@@ -461,6 +488,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
                   {synthQueue.map((q) => (
                     <div key={q.n} className="flex items-center gap-2">
                       <span className="flex-1 truncate">{q.scope.ids ? t("speech.queueBlocks", { n: q.scope.ids.length }) : q.scope.from ? t("speech.queueFrom") : t("speech.queueAll")}</span>
+                      <button onClick={() => void editQueued(q)} className="px-1.5 rounded text-[11px] text-[var(--color-muted)] hover:text-[var(--color-accent)]" title={t("speech.queueEditHint")}>{t("speech.queueEdit")}</button>
                       <button onClick={() => speechApi.unqueue(pid, q.n).then(() => speechApi.queue(pid)).then((r) => setQueueList(r.queue), () => undefined)} className="p-0.5 rounded text-[var(--color-muted)] hover:text-[var(--color-warn)]" {...named(t("speech.unqueue"))}><X size={12} /></button>
                     </div>
                   ))}

@@ -41,7 +41,7 @@ describe("the page's side of the bridge", () => {
     const stream = FakeStream.last!;
     expect(stream.url.endsWith("/mcp/window")).toBe(true);
     await stream.send({ window: 7 });
-    document.body.innerHTML = `<button title="Export">x</button>`;
+    document.body.innerHTML = `<button title="Export"><svg></svg></button>`;
     posted.length = 0;
     await stream.send({ id: "w1", window: 8, command: "read_page", args: {} });
     expect(posted.filter((p) => p.url.endsWith("/mcp/window/result"))).toEqual([]);
@@ -67,7 +67,7 @@ describe("the page's side of the bridge", () => {
   it("clicks by label inside an open dialog, not the control of the same name behind it", async () => {
     const stream = FakeStream.last!;
     const clicked: string[] = [];
-    document.body.innerHTML = `<button id="behind" title="Delete">x</button>
+    document.body.innerHTML = `<button id="behind" title="Delete"><svg></svg></button>
       <div role="alertdialog" aria-modal="true"><button id="cancel">Cancel</button><button id="confirm">Delete</button></div>`;
     for (const id of ["behind", "confirm"]) document.getElementById(id)!.addEventListener("click", () => clicked.push(id));
     posted.length = 0;
@@ -123,7 +123,7 @@ describe("the page's side of the bridge", () => {
 describe("what the agent reads of the page", () => {
   it("lists an open dialog first and a list's row as one line with its fields' values", () => {
     document.body.innerHTML = `
-      <div data-mcp-context="segment s1 0:01.0→0:02.0 SPK 1: Hi"><button title="Play">p</button><textarea>Привет</textarea></div>
+      <div data-mcp-context="segment s1 0:01.0→0:02.0 SPK 1: Hi"><button title="Play"><svg></svg></button><textarea>Привет</textarea></div>
       <div role="dialog" aria-modal="true"><button>Cancel</button><button>Delete project</button></div>`;
     const page = readPage();
     const lines = page.split("\n");
@@ -131,6 +131,13 @@ describe("what the agent reads of the page", () => {
     expect(lines[1]).toMatch(/button "Cancel"$/);
     const row = lines.find((line) => line.startsWith("segment s1"))!;
     expect(row).toMatch(/: e\d+ open, e\d+ Play, e\d+ textarea="Привет"$/);
+  });
+
+  it("names a button by its words before its tooltip, and an icon button by its tooltip", () => {
+    document.body.innerHTML = `<button title="Take it off the queue">Edit</button><button title="Play"><svg></svg></button>`;
+    const page = readPage();
+    expect(page).toMatch(/button "Edit"/);
+    expect(page).toMatch(/button "Play"/);
   });
 
   it("names a list by its label's words, not by the options inside the label", () => {
@@ -141,7 +148,7 @@ describe("what the agent reads of the page", () => {
   it("reads a row that is not a control itself as one line without an open entry, under the page's own title", () => {
     document.body.innerHTML = `
       <main data-mcp-page="Speech: Cafe"><h2>Cast</h2>
-        <ul><li data-mcp-row="block 1 Anna ready 3.4s: Hi"><button title="Play">p</button><textarea>Hi</textarea></li></ul></main>`;
+        <ul><li data-mcp-row="block 1 Anna ready 3.4s: Hi"><button title="Play"><svg></svg></button><textarea>Hi</textarea></li></ul></main>`;
     const lines = readPage().split("\n");
     expect(lines[0]).toBe("Page: Speech: Cafe");
     expect(lines).toContainEqual(expect.stringMatching(/^block 1 Anna ready 3\.4s: Hi: e\d+ Play, e\d+ textarea="Hi"$/));
