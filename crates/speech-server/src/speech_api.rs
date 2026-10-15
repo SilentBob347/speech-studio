@@ -212,7 +212,12 @@ pub async fn delete(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> 
         return refuse(StatusCode::NOT_FOUND, "no_project", t!("speech-no-project", pid = pid));
     }
     match joined(tokio::task::spawn_blocking(move || trash::delete(&dir).map_err(|e| e.to_string())).await) {
-        Ok(Ok(())) => Json(json!({ "deleted": pid })).into_response(),
+        Ok(Ok(())) => {
+            let by = crate::mcp::current_actor();
+            crate::mcp::tell_windows(json!({ "changed": "project", "pid": pid, "deleted": true, "by": by }));
+            crate::mcp::tell_windows(json!({ "changed": "projects", "pid": pid, "by": by }));
+            Json(json!({ "deleted": pid })).into_response()
+        }
         Ok(Err(e)) => refuse(StatusCode::INTERNAL_SERVER_ERROR, "delete_failed", e),
         Err(r) => r,
     }

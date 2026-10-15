@@ -912,6 +912,7 @@
     "hide": "Hide",
     "playFromHere": "Listen from here",
     "deleteBlock": "Delete the block",
+    "projectGone": "This project was deleted; it is in the recycle bin",
     "allProjects": "All projects",
     "saving": "saving…",
     "undo": "Undo",

@@ -268,7 +268,9 @@ pub fn load(workspace: &Path, pid: &str) -> Result<ListenProject, String> {
         return Err(format!("bad project id {pid}"));
     }
     let p = crate::speech_project::path(workspace, pid);
-    let text = std::fs::read_to_string(&p).map_err(|e| format!("{}: {e}", p.display()))?;
+    let text = std::fs::read_to_string(&p).map_err(|e| {
+        if e.kind() == std::io::ErrorKind::NotFound { t!("project-missing", pid = pid.to_string()) } else { format!("{}: {e}", p.display()) }
+    })?;
     let v: Value = serde_json::from_str(&text).map_err(|e| format!("{}: {e}", p.display()))?;
     if v.get("kind").and_then(Value::as_str) != Some(KIND) {
         return Err(format!("project {pid} is not a listening project"));

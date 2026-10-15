@@ -490,7 +490,7 @@ export const JOBS_CHANGED = "speech:jobs-changed";
 export const JOURNAL_CHANGED = "speech:journal-changed";
 
 /** A notice of the studio: what changed, which project, its revision, who changed it, and a job's facts. */
-export type ChangeNotice = { changed: string; pid?: string | null; rev?: number; by?: string; job?: boolean; job_id?: string; kind?: string; project_id?: string | null };
+export type ChangeNotice = { changed: string; pid?: string | null; rev?: number; by?: string; job?: boolean; job_id?: string; kind?: string; project_id?: string | null; deleted?: boolean };
 
 /** Whether a change was made by this window itself. */
 export const isMine = (notice: ChangeNotice): boolean => notice.by === `window:${WINDOW_ID}`;

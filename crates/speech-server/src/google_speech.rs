@@ -165,7 +165,7 @@ fn retried<T>(what: &str, progress: &dyn Fn(Value), mut f: impl FnMut() -> Resul
                 progress(json!({ "type": "progress", "stage": "speech_synth", "msg": t!("google-retry", what = what.to_string(), attempt = attempt as i64, of = READ_ATTEMPTS as i64, secs = wait as i64, error = e.chars().take(200).collect::<String>()) }));
                 pause(wait)?;
             }
-            Err(e) => return Err(t!("google-read-failed", what = what.to_string(), attempts = READ_ATTEMPTS as i64, error = e)),
+            Err(e) => return Err(t!("google-read-failed", what = what.to_string(), attempts = READ_ATTEMPTS as i64, error = explain(&e))),
         }
     }
 }
@@ -173,6 +173,28 @@ fn retried<T>(what: &str, progress: &dyn Fn(Value), mut f: impl FnMut() -> Resul
 /// Отказ по деньгам или доступу (предоплата кончилась, потолок трат, ключ без прав): следующие запросы не пройдут.
 fn account_refused(error: &str) -> bool {
     error.contains(" 402 ") || error.contains(" 403 ") || error.contains("spending cap") || error.contains("prepayment")
+}
+
+/// Ответ Google, который пользователь может исправить сам, — фразой с действием; остальное — как прислал Google.
+pub fn explain(error: &str) -> String {
+    let low = error.to_lowercase();
+    let code = [" 402 ", " 403 ", " 429 ", " 400 "].iter().find(|c| error.contains(**c)).map(|c| c.trim()).unwrap_or("");
+    let said = if low.contains("prepayment") || code == "402" {
+        t!("google-err-prepayment")
+    } else if low.contains("spending cap") {
+        t!("google-err-cap")
+    } else if low.contains("api_key_invalid") || low.contains("api key not valid") {
+        t!("google-err-key")
+    } else if code == "403" {
+        t!("google-err-access")
+    } else if code == "429" {
+        t!("google-err-rate")
+    } else if low.contains("prohibited_content") || low.contains("block reason") || low.contains("\"safety\"") {
+        return t!("google-err-filter");
+    } else {
+        return error.to_string();
+    };
+    if code.is_empty() { said } else { format!("{said} (Google {code})") }
 }
 
 /// Обычный запрос: 429 и 5xx повторяются с паузой, отказ фильтра и прочее — сразу ошибка.
@@ -201,10 +223,10 @@ pub fn phrase(repo_root: &Path, models_root: &Path, project_dir: &Path, pid: &st
     }
     let failed: HashMap<String, String> = std::fs::read(failed_path(project_dir)).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default();
     if let Some(error) = failed.get(&key) {
-        return Err(t!("google-phrase-failed", error = error.clone()));
+        return Err(t!("google-phrase-failed", error = explain(error)));
     }
     crate::cloud::check_limit(repo_root, models_root, None)?;
-    let response = direct(&client()?, s, text, style)?;
+    let response = direct(&client()?, s, text, style).map_err(|e| explain(&e))?;
     let samples = keep(project_dir, &key, &response)?;
     let cost = spend(repo_root, pid, s, &response["usageMetadata"], false);
     Ok((samples, cost))
@@ -388,7 +410,7 @@ fn batch_run(c: &crate::google_tts::Client, repo_root: &Path, models_root: &Path
                 }
                 journal["rejected"] = e.clone().into();
                 crate::google_tts::save(&path, &journal)?;
-                return Err(if code == 429 { t!("google-batch-queue-full", error = e) } else { t!("google-batch-rejected", error = e) });
+                return Err(if code == 429 { t!("google-batch-queue-full", error = explain(&e)) } else { t!("google-batch-rejected", error = explain(&e)) });
             }
         }
     }
@@ -497,6 +519,11 @@ mod tests {
         assert!(account_refused("Google 403 Forbidden: permission denied"));
         assert!(!account_refused("Google 429 Too Many Requests: rate limit"));
         assert!(!account_refused("Google TTS unfinished: \"PROHIBITED_CONTENT\""));
+        assert!(explain("Google 402 Payment Required: {\"error\":{\"message\":\"Your prepayment credits are depleted\"}}").ends_with("(Google 402)"));
+        assert!(!explain("Google 402 Payment Required: {\"error\":{\"message\":\"Your prepayment credits are depleted\"}}").contains("depleted"));
+        assert_ne!(explain("Google 429 Too Many Requests: monthly spending cap reached"), explain("Google 429 Too Many Requests: rate limit"));
+        assert!(!explain("Google TTS unfinished: \"PROHIBITED_CONTENT\"").contains("PROHIBITED"));
+        assert_eq!(explain("Google: connection reset"), "Google: connection reset");
     }
 
     #[test]
@@ -514,7 +541,7 @@ mod tests {
         crate::google_tts::save(&failed_path(dir.path()), &json!({ key.clone(): "PROHIBITED_CONTENT" })).unwrap();
         let root = tempfile::tempdir().unwrap();
         let error = phrase(root.path(), root.path(), dir.path(), "p", &s, "Привет", "", 1).unwrap_err();
-        assert!(error.contains("PROHIBITED_CONTENT"), "{error}");
+        assert!(error.contains(&explain("PROHIBITED_CONTENT")) && !error.contains("PROHIBITED_CONTENT"), "{error}");
     }
 
     #[test]

@@ -99,6 +99,13 @@ function useEditedProject<T>(pid: string, doc: Doc<T>) {
 
   useChanged(PROJECT_CHANGED, (n) => {
     if (n.pid !== pid) return;
+    if (n.deleted) {
+      if (timer.current) { window.clearTimeout(timer.current); timer.current = null; }
+      latest.current = null;
+      setProject(null);
+      setError(i18n.t("speech.projectGone"));
+      return;
+    }
     if (isMine(n) && !n.job) return;
     if (timer.current) return;
     // the project was changed by an agent or another window: the old snapshots would undo their change too

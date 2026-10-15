@@ -49,7 +49,7 @@ function AssistantChoice() {
       {(["openrouter", "agent"] as const).map((value) => (
         <label key={value} className="flex items-start gap-2 text-[12px] cursor-pointer">
           <input type="radio" name="assistant" checked={who === value} disabled={who === null} onChange={() => choose(value)} className="mt-0.5 accent-[var(--color-accent)]" />
-          <span>{t(value === "agent" ? "chat.whoAgent" : "chat.whoModel")}<span className="block text-[11px] text-[var(--color-muted)]">{t(value === "agent" ? "chat.whoAgentHint" : "chat.whoModelHint")}</span></span>
+          <span>{t(value === "agent" ? "chat.whoAgent" : "chat.whoModel")}{" "}<span className="block text-[11px] text-[var(--color-muted)]">{t(value === "agent" ? "chat.whoAgentHint" : "chat.whoModelHint")}</span></span>
         </label>
       ))}
       {failed && <p role="alert" className="text-[11px] text-[var(--color-warn)]">{failed}</p>}

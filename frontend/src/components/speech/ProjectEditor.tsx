@@ -417,7 +417,16 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   });
 
   if (!project) {
-    return <main className="flex-1 grid place-items-center">{error ? <p role="alert" className="text-[13px] text-[var(--color-warn)]">{error}</p> : <Loader2 size={20} className="animate-spin text-[var(--color-muted)]" />}</main>;
+    return (
+      <main className="flex-1 grid place-items-center px-4">
+        {error ? (
+          <div className="max-w-md text-center space-y-3">
+            <p role="alert" className="text-[13px] text-[var(--color-warn)] break-words">{error}</p>
+            <button onClick={onBack} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)]"><ArrowLeft size={13} />{t("speech.allProjects")}</button>
+          </div>
+        ) : <Loader2 size={20} className="animate-spin text-[var(--color-muted)]" />}
+      </main>
+    );
   }
   const bar = "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] font-medium hover:border-[var(--color-accent)] disabled:opacity-40 transition-colors";
   return (

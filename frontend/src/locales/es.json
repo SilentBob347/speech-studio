@@ -912,6 +912,7 @@
     "hide": "Ocultar",
     "playFromHere": "Escuchar desde aquí",
     "deleteBlock": "Eliminar el bloque",
+    "projectGone": "Este proyecto se eliminó; está en la papelera",
     "allProjects": "Todos los proyectos",
     "saving": "guardando…",
     "undo": "Deshacer",
