@@ -919,7 +919,8 @@
     "license": "License",
     "licenseHint": "CC-BY-4.0 or in words: “personal use only”",
     "rotate": "A different reference piece for each take",
-    "rotateHint": "When the reference is longer than {{s}} s, each new take takes the next of its four best pieces: takes vary more and the voice does not hang on one clip."
+    "rotateHint": "When the reference is longer than {{s}} s, each new take takes the next of its four best pieces: takes vary more and the voice does not hang on one clip.",
+    "trimReset": "Whole again"
   },
   "speech": {
     "projectSettings": "Project settings",
@@ -1275,7 +1276,9 @@
     "retakeNote": "What to change in take #{{n}}",
     "retakeNoteHint": "softer and sadder; faster at the end",
     "retakeRun": "Redo",
-    "retakeChain": "Take #{{n}} was made with: {{text}}"
+    "retakeChain": "Take #{{n}} was made with: {{text}}",
+    "takeEdges": "Trim on the waveform: take #{{n}}",
+    "takeEdgesSet": "Take #{{n}} plays from {{a}} to {{z}} s — adjust"
   },
   "tags": {
     "emotion": "Emotion",

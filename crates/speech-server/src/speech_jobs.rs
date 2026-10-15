@@ -1050,7 +1050,11 @@ pub fn timeline(project: &SpeechProject) -> Vec<Value> {
     for b in project.blocks().filter(|b| !b.hidden && !b.text.trim().is_empty()) {
         let take = b.active.and_then(|n| b.takes.iter().find(|t| t.n == n));
         let lang = match project.lang_of(b) { "auto" => if crate::stress::is_russian(&b.text, "auto") { "ru" } else { "en" }, own => own };
-        let secs = take.map(|t| if project.settings.tidy_pauses { t.tidy.unwrap_or(t.duration) } else { t.duration }).unwrap_or_else(|| dub_core::fit::estimate(&crate::speech_text::visible(&b.text), dub_core::fit::table_cps(lang)));
+        let secs = take.map(|t| match t.cut {
+            Some([a, z]) => z - a,
+            None if project.settings.tidy_pauses => t.tidy.unwrap_or(t.duration),
+            None => t.duration,
+        }).unwrap_or_else(|| dub_core::fit::estimate(&crate::speech_text::visible(&b.text), dub_core::fit::table_cps(lang)));
         let start = placer.place(b, take.map(|t| t.fit_lead).unwrap_or(0.0), (secs * RATE as f64) as usize) as f64 / RATE as f64;
         let end = start + secs;
         let overlap = furthest.filter(|(_, prev_end)| *prev_end > start + 1e-3).map(|(id, prev_end)| json!({ "with": id, "secs": round3(prev_end - start) }));
@@ -1216,6 +1220,13 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         let wav = work.path().join(format!("{i}.wav"));
         crate::media::extract_audio(&src, &wav, SR, 1)?;
         let (samples, _) = crate::wavio::read_mono_f32(&wav)?;
+        let samples = match take.cut {
+            Some([a, z]) => {
+                let a = ((a * SR as f64) as usize).min(samples.len());
+                samples[a..((z * SR as f64) as usize).clamp(a, samples.len())].to_vec()
+            }
+            None => samples,
+        };
         let tidied = project.settings.tidy_pauses.then(|| crate::tts_trim::tidy(&samples, SR));
         let place = |secs: f64| tidied.as_ref().map_or(secs, |t| t.at(secs));
         let samples = match &tidied { Some(t) => t.samples.clone(), None => samples };
@@ -1243,7 +1254,8 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         }
         cues.push((at as f64 / SR as f64, (at + samples.len()) as f64 / SR as f64, b.speaker.clone(), crate::speech_text::visible(&b.text)));
         made.push((at as f64 / SR as f64, recipe_block(b, take)));
-        let words = take.qc.as_ref().map(|q| q.timed.iter().map(|(w, a, z)| (w.clone(), at as f64 / SR as f64 + place(*a), at as f64 / SR as f64 + place(*z))).collect()).unwrap_or_default();
+        let [from, to] = take.cut.unwrap_or([0.0, f64::INFINITY]);
+        let words = take.qc.as_ref().map(|q| q.timed.iter().filter(|(_, a, z)| *a >= from && *z <= to).map(|(w, a, z)| (w.clone(), at as f64 / SR as f64 + place(a - from), at as f64 / SR as f64 + place(z - from))).collect()).unwrap_or_default();
         timed.push((at as f64 / SR as f64, (at + samples.len()) as f64 / SR as f64, b.speaker.clone(), crate::speech_text::visible(&b.text), words));
         if mix.len() < at + samples.len() {
             mix.resize(at + samples.len(), 0.0);

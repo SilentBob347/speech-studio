@@ -919,7 +919,8 @@
     "license": "Licença",
     "licenseHint": "CC-BY-4.0 ou com palavras: «só uso pessoal»",
     "rotate": "Outro trecho de referência a cada tomada",
-    "rotateHint": "Se a referência passar de {{s}} s, cada nova tomada usa o próximo dos seus quatro melhores trechos: as tomadas variam mais e a voz não depende de um só clipe."
+    "rotateHint": "Se a referência passar de {{s}} s, cada nova tomada usa o próximo dos seus quatro melhores trechos: as tomadas variam mais e a voz não depende de um só clipe.",
+    "trimReset": "Inteira de novo"
   },
   "speech": {
     "projectSettings": "Configurações do projeto",
@@ -1275,7 +1276,9 @@
     "retakeNote": "O que mudar na tomada #{{n}}",
     "retakeNoteHint": "mais suave e mais triste; mais rápido no fim",
     "retakeRun": "Refazer",
-    "retakeChain": "A tomada #{{n}} foi feita com: {{text}}"
+    "retakeChain": "A tomada #{{n}} foi feita com: {{text}}",
+    "takeEdges": "Cortar na forma de onda: tomada #{{n}}",
+    "takeEdgesSet": "A tomada #{{n}} toca de {{a}} a {{z}} s — ajustar"
   },
   "tags": {
     "emotion": "Emoção",

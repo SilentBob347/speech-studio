@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, ChevronDown, Combine, Eye, EyeOff, GripVertical, Loader2, Pause, Pin, Play, Plus, RefreshCw, Scissors, SlidersHorizontal, SpellCheck, Trash2, X } from "lucide-react";
-import { activeTake, cueTime, MARKERS, withCase, type Block, type BlockState, type Marker, type SpeechParams, type StressWord, type Take } from "../../lib/speech";
+import { activeTake, cueTime, MARKERS, speechApi, withCase, type Block, type BlockState, type Marker, type SpeechParams, type StressWord, type Take } from "../../lib/speech";
 import { askCloneTerms } from "../../lib/cloudConsent";
 import { named } from "../../lib/a11y";
 import { useSortable } from "@dnd-kit/sortable";
@@ -14,6 +14,7 @@ import EngineSelect from "./EngineSelect";
 import TagPalette, { type TagPlace } from "./TagPalette";
 import { useEngines } from "../../lib/engines";
 import PrepareView from "./PrepareView";
+import RefTrim from "../voices/RefTrim";
 import { wordDiff, words } from "../../lib/wordDiff";
 import { cues, spans, withoutCue, type Cue } from "../../lib/prosody";
 import { wordAt, wordTimes } from "../../lib/readAlong";
@@ -342,6 +343,16 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
       </div>
       <WordNoteField block={block} a={a} text={text} />
       <OwnRefField block={block} a={a} />
+      {take && (
+        <details className="rounded-md border border-[var(--color-border)] px-2 py-1.5">
+          <summary className="cursor-pointer text-[11px] text-[var(--color-muted)]">{take.cut ? t("speech.takeEdgesSet", { n: take.n, a: take.cut[0].toFixed(1), z: take.cut[1].toFixed(1) }) : t("speech.takeEdges", { n: take.n })}</summary>
+          <div className="mt-2">
+            <RefTrim url={speechApi.takeUrl(pid, take.file)} initial={take.cut ?? null} busy={false}
+              onApply={(a0, z) => a.patch({ takes: block.takes.map((tk) => (tk.n === take.n ? { ...tk, cut: [Math.round(a0 * 100) / 100, Math.round(z * 100) / 100] as [number, number] } : tk)) })}
+              onReset={() => a.patch({ takes: block.takes.map((tk) => (tk.n === take.n ? { ...tk, cut: null } : tk)) })} />
+          </div>
+        </details>
+      )}
       <details open={howRead} onToggle={(e) => setHowRead(e.currentTarget.open)} className="rounded-md border border-[var(--color-border)] px-2 py-1.5">
         <summary className="cursor-pointer text-[11px] text-[var(--color-muted)]">{t("speech.howRead")}</summary>
         {howRead && <div className="mt-2"><PrepareView pid={pid} block={block.id} text={block.text} /></div>}

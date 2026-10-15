@@ -919,7 +919,8 @@
     "license": "许可",
     "licenseHint": "CC-BY-4.0 或文字说明：“仅限个人使用”",
     "rotate": "每个版本使用不同的参考片段",
-    "rotateHint": "参考音频长于 {{s}} 秒时，每个新版本依次使用四个最佳片段中的下一个：版本更多样，声音不依赖单一片段。"
+    "rotateHint": "参考音频长于 {{s}} 秒时，每个新版本依次使用四个最佳片段中的下一个：版本更多样，声音不依赖单一片段。",
+    "trimReset": "恢复完整"
   },
   "speech": {
     "projectSettings": "项目设置",
@@ -1275,7 +1276,9 @@
     "retakeNote": "录音 #{{n}} 要改什么",
     "retakeNoteHint": "更柔和更悲伤；结尾快一点",
     "retakeRun": "重做",
-    "retakeChain": "录音 #{{n}} 的指示：{{text}}"
+    "retakeChain": "录音 #{{n}} 的指示：{{text}}",
+    "takeEdges": "按波形裁剪：录音 #{{n}}",
+    "takeEdgesSet": "录音 #{{n}} 播放 {{a}} 至 {{z}} 秒 — 调整"
   },
   "tags": {
     "emotion": "情绪",

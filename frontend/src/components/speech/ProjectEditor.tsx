@@ -284,7 +284,10 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
     const a = new Audio(`${speechApi.takeUrl(pid, take.file)}?n=${take.n}`);
     a.volume = volume.current;
     a.playbackRate = rate.current;
-    if (at > 0) a.addEventListener("loadedmetadata", () => { a.currentTime = Math.min(at, Math.max(0, a.duration - 0.05)); }, { once: true });
+    const [from, to] = take.cut ?? [0, Infinity];
+    const startAt = Math.max(at, from);
+    if (startAt > 0) a.addEventListener("loadedmetadata", () => { a.currentTime = Math.min(startAt, Math.max(0, a.duration - 0.05)); }, { once: true });
+    if (to < Infinity) a.addEventListener("timeupdate", () => { if (a.currentTime >= to && !a.paused) { a.pause(); if (audio.current === a) setPlaying(null); } });
     audio.current = a;
     setPlaying(b.id);
     setPlayingTake(take.n);

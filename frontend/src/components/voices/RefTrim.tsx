@@ -5,8 +5,9 @@ import { named } from "../../lib/a11y";
 
 const BARS = 160;
 
-/** The reference's waveform with a start and an end to keep: listen to the piece, then cut the reference to it. */
-export default function RefTrim({ url, limit, busy, onApply }: { url: string; limit: number; busy: boolean; onApply: (start: number, end: number) => void }) {
+/** A recording's waveform with a start and an end to keep: listen to the piece, then keep it. With `limit` the length
+ * a reference should have is checked; `initial` is the piece kept before, `onReset` gives the whole recording back. */
+export default function RefTrim({ url, limit, initial, busy, onApply, onReset }: { url: string; limit?: number; initial?: [number, number] | null; busy: boolean; onApply: (start: number, end: number) => void; onReset?: () => void }) {
   const { t } = useTranslation();
   const [peaks, setPeaks] = useState<number[] | null>(null);
   const [duration, setDuration] = useState(0);
@@ -14,6 +15,7 @@ export default function RefTrim({ url, limit, busy, onApply }: { url: string; li
   const [error, setError] = useState<string | null>(null);
   const [playing, setPlaying] = useState(false);
   const player = useRef<HTMLAudioElement | null>(null);
+  const [from, to] = initial ?? [null, null];
   useEffect(() => {
     let alive = true;
     const ctx = new AudioContext();
@@ -33,12 +35,12 @@ export default function RefTrim({ url, limit, busy, onApply }: { url: string; li
         const loudest = Math.max(...out, 1e-6);
         setPeaks(out.map((p) => p / loudest));
         setDuration(audio.duration);
-        setRange([0, Math.min(audio.duration, limit)]);
+        setRange(from != null && to != null ? [from, to] : [0, Math.min(audio.duration, limit ?? audio.duration)]);
       })
       .catch((e: unknown) => { if (alive) setError(e instanceof Error ? e.message : String(e)); })
       .finally(() => { void ctx.close(); });
     return () => { alive = false; player.current?.pause(); };
-  }, [url, limit]);
+  }, [url, limit, from, to]);
   const [start, end] = range;
   const length = end - start;
   const listen = () => {
@@ -71,11 +73,14 @@ export default function RefTrim({ url, limit, busy, onApply }: { url: string; li
       </label>
       <div className="flex flex-wrap items-center gap-2">
         <button onClick={listen} className="p-1.5 rounded-md border border-[var(--color-border)] text-[var(--color-text)] hover:border-[var(--color-accent)]" {...named(playing ? t("voices.trimStop") : t("voices.trimListen"))}>{playing ? <Pause size={13} /> : <Play size={13} />}</button>
-        <span className={`text-[11px] tabnum ${length > limit || length < 3 ? "text-[var(--color-warn)]" : "text-[var(--color-muted)]"}`}>
-          {t("voices.trimLength", { s: length.toFixed(1) })}{length > limit ? ` · ${t("voices.trimTooLong", { s: limit })}` : length < 3 ? ` · ${t("voices.trimTooShort")}` : ""}
-        </span>
-        <button onClick={() => { player.current?.pause(); onApply(start, end); }} disabled={busy || (start === 0 && end >= duration)}
-          className="ml-auto inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[11px] font-semibold disabled:opacity-40">
+        {limit == null ? <span className="text-[11px] tabnum text-[var(--color-muted)]">{t("voices.trimLength", { s: length.toFixed(1) })}</span> : (
+          <span className={`text-[11px] tabnum ${length > limit || length < 3 ? "text-[var(--color-warn)]" : "text-[var(--color-muted)]"}`}>
+            {t("voices.trimLength", { s: length.toFixed(1) })}{length > limit ? ` · ${t("voices.trimTooLong", { s: limit })}` : length < 3 ? ` · ${t("voices.trimTooShort")}` : ""}
+          </span>
+        )}
+        {onReset && initial && <button onClick={() => { player.current?.pause(); onReset(); }} disabled={busy} className="ml-auto px-2.5 py-1 rounded-md border border-[var(--color-border)] text-[11px] hover:border-[var(--color-accent)] disabled:opacity-40">{t("voices.trimReset")}</button>}
+        <button onClick={() => { player.current?.pause(); onApply(start, end); }} disabled={busy || (start === 0 && end >= duration) || (initial != null && start === initial[0] && end === initial[1])}
+          className={`${onReset && initial ? "" : "ml-auto "}inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[11px] font-semibold disabled:opacity-40`}>
           {busy ? <Loader2 size={12} className="animate-spin" /> : <Scissors size={12} />}{t("voices.trimApply")}
         </button>
       </div>

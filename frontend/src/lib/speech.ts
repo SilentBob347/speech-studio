@@ -4,6 +4,8 @@ export type Take = {
   n: number; file: string; duration: number; seed: number; temperature: number; key: string; created: number;
   source: string; synth_secs: number; retried: string[];
   qc: QcCheck | null; cost: number | null; estimate: number | null; text: string; direction: string; fit_stretch: number; fit_lead: number; fit_over: boolean; first_ms?: number;
+  /** The part of the take the project uses when its edges were moved on the waveform; the file stays whole. */
+  cut?: [number, number] | null;
 };
 export type QcCheck = { text_checked: boolean; wer: number; words: number; inserted: number; deleted: number; substituted: number; heard: string; passed: boolean; similarity: number | null; similar: boolean | null; issues: QcIssue[];
   /** The words heard, each with its start and end in the take. */

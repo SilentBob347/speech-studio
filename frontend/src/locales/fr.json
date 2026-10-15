@@ -919,7 +919,8 @@
     "license": "Licence",
     "licenseHint": "CC-BY-4.0 ou en clair : « usage personnel seulement »",
     "rotate": "Un autre extrait de référence à chaque prise",
-    "rotateHint": "Si la référence dépasse {{s}} s, chaque nouvelle prise prend le suivant de ses quatre meilleurs extraits : les prises varient davantage et la voix ne dépend pas d'un seul clip."
+    "rotateHint": "Si la référence dépasse {{s}} s, chaque nouvelle prise prend le suivant de ses quatre meilleurs extraits : les prises varient davantage et la voix ne dépend pas d'un seul clip.",
+    "trimReset": "Remettre en entier"
   },
   "speech": {
     "projectSettings": "Réglages du projet",
@@ -1275,7 +1276,9 @@
     "retakeNote": "Que changer dans la prise #{{n}}",
     "retakeNoteHint": "plus doux et plus triste ; plus vite à la fin",
     "retakeRun": "Refaire",
-    "retakeChain": "La prise #{{n}} a été faite avec : {{text}}"
+    "retakeChain": "La prise #{{n}} a été faite avec : {{text}}",
+    "takeEdges": "Rogner sur la forme d’onde : prise #{{n}}",
+    "takeEdgesSet": "La prise #{{n}} joue de {{a}} à {{z}} s — ajuster"
   },
   "tags": {
     "emotion": "Émotion",

@@ -56,6 +56,10 @@ pub struct Take {
     /// Длина дубля в склейке с ровными паузами, с.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tidy: Option<f64>,
+    /// The part of the take the project uses, start and end in seconds, when its edges were moved on the waveform;
+    /// the take's file stays as the model made it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cut: Option<[f64; 2]>,
     /// Размер файла дубля при записи; 0 — не записан (дубли старых проектов), файл тогда не сверяется.
     #[serde(skip_serializing_if = "is_zero")]
     pub bytes: u64,
@@ -374,6 +378,9 @@ impl SpeechProject {
                     if !b.takes.iter().any(|t| t.n == n) {
                         return Err(format!("block {} points at take {n}, which it does not have", b.id));
                     }
+                }
+                if let Some(t) = b.takes.iter().find(|t| t.cut.is_some_and(|[a, z]| !(a >= 0.0 && z > a + 0.05 && z <= t.duration + 0.05))) {
+                    return Err(format!("block {} take {}: cut is a start and an end inside 0..{} seconds", b.id, t.n, t.duration));
                 }
                 if let (Some(a), Some(z)) = (b.start, b.end) {
                     if !(a >= 0.0 && z > a) {
