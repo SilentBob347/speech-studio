@@ -1122,6 +1122,7 @@
     "native_ja": "japonês nativo",
     "native_ko": "coreano nativo",
     "engineVoices": "Vozes do modelo",
+    "recordVoice": "Gravar uma nova voz pelo microfone…",
     "recentVoices": "Recentes",
     "libraryClone": "Biblioteca — clonagem",
     "directionIgnored": "{{engine}} não lê indicações: elas não mudam o som.",

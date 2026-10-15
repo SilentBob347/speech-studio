@@ -1,10 +1,16 @@
+import { useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
+import { api, slot } from "../../lib/api";
+import VoiceRecorder from "../voices/VoiceRecorder";
 import { prettyVoice, recentVoices, rememberVoice, useVoices } from "../../lib/voices";
 import { useEngines } from "../../lib/engines";
 import Combobox, { type ComboOption } from "../Combobox";
 
 /** A voice from the library, or the engine's own base voice (no clone); for an engine with voices of its own, those
  * first — alone when it does not clone, beside the library when it does. `inherit` adds "as the project". */
+const RECORD = "\u0000record";
+
 export default function VoicePicker({ value, onChange, inherit, label, className, engine }: {
   value: string | null;
   onChange: (v: string | null) => void;
@@ -14,7 +20,8 @@ export default function VoicePicker({ value, onChange, inherit, label, className
   engine?: string;
 }) {
   const { t } = useTranslation();
-  const { listing } = useVoices();
+  const { listing, reload } = useVoices();
+  const [recording, setRecording] = useState<boolean | null>(null);
   const caps = useEngines()?.find((e) => e.id === engine);
   const presets = caps?.presets ?? [];
   const clones = !presets.length || caps?.clone !== "none";
@@ -46,9 +53,17 @@ export default function VoicePicker({ value, onChange, inherit, label, className
     })),
     ...recent.flatMap((name) => voices.filter((v) => v.name === name).map((v) => voiceOption(v, t("speech.recentVoices")))),
     ...voices.filter((v) => !recent.includes(v.name)).map((v) => voiceOption(v, lib)),
+    ...(clones ? [{ value: RECORD, label: t("speech.recordVoice"), group: lib }] : []),
   ];
-  return (
-    <Combobox value={value ?? ""} options={options} onChange={(v) => { if (v && voices.some((x) => x.name === v)) rememberVoice(v); onChange(v || null); }} label={label} noResults={t("speech.noVoiceFound")}
+  const record = () => { api.capabilities().then((c) => setRecording((slot(c.selection ?? undefined, "voice_clean") ?? "1") !== "0"), () => setRecording(true)); };
+  const picker = (
+    <Combobox value={value ?? ""} options={options} onChange={(v) => { if (v === RECORD) { record(); return; } if (v && voices.some((x) => x.name === v)) rememberVoice(v); onChange(v || null); }} label={label} noResults={t("speech.noVoiceFound")}
       className={outer.join(" ")} inputClassName={`w-full text-[var(--color-text)] ${inner.join(" ")} focus:border-[var(--color-accent)] focus:outline-none`} />
+  );
+  return recording === null ? picker : (
+    <>
+      {picker}
+      {createPortal(<VoiceRecorder clean={recording} onClose={() => setRecording(null)} onRecorded={(name) => { setRecording(null); reload(); rememberVoice(name); onChange(name); }} />, document.body)}
+    </>
   );
 }
