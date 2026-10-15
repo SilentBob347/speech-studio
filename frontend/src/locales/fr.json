@@ -1149,7 +1149,7 @@
     "abWith": "Comparer avec",
     "ab": "A/B",
     "abHint": "Passer de la prise #{{a}} à la #{{b}} au même moment",
-    "saveRecipe": "Comment c'est fait (.json) : moteurs, voix, graines et réglages"
+    "saveRecipe": "Comment c'est fait (JSON)"
   },
   "tags": {
     "emotion": "Émotion",

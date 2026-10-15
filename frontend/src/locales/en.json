@@ -1149,7 +1149,7 @@
     "abWith": "Compare with",
     "ab": "A/B",
     "abHint": "Switch between take #{{a}} and #{{b}} from the same moment",
-    "saveRecipe": "How it was made (.json): engines, voices, seeds and settings"
+    "saveRecipe": "How it was made (JSON)"
   },
   "tags": {
     "emotion": "Emotion",

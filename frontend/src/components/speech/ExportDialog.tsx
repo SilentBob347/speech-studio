@@ -106,7 +106,6 @@ export default function ExportDialog({ pid, project, onClose, onVoiceMissing, on
             </div>
             <fieldset className="flex flex-wrap items-center gap-2 text-[12px]">
               <legend className="sr-only">{t("speech.quality")}</legend>
-              <span className="text-[var(--color-muted)]">{t("speech.quality")}</span>
               <label className="inline-flex items-center gap-1.5">{t("speech.rate")}
                 <select value={rate} onChange={(e) => setRate(Number(e.target.value))} className={pickClass}>
                   <option value={0}>{t("speech.qualityAuto")}</option>

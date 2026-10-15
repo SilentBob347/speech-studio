@@ -1149,7 +1149,7 @@
     "abWith": "对比",
     "ab": "A/B",
     "abHint": "在第 #{{a}} 条和第 #{{b}} 条之间从同一时刻切换",
-    "saveRecipe": "制作方式（.json）：引擎、声音、种子和设置"
+    "saveRecipe": "制作方式（JSON）"
   },
   "tags": {
     "emotion": "情绪",
