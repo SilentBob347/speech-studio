@@ -1564,6 +1564,10 @@
     "repeat": "Narrar de novo com os mesmos parâmetros"
   },
   "listen": {
+    "quickTitle": "Reconhecimento rápido",
+    "quickHint": "Escolha um arquivo e ele é reconhecido na hora com o reconhecedor e o idioma escolhidos acima; copie ou salve o texto. A gravação fica na lista para abrir depois.",
+    "quickPick": "Escolher arquivo",
+    "quickOpen": "Abrir no editor",
     "digits": "Números em algarismos",
     "digitsHint": "«vinte e cinco» → «25»; um número abaixo de 10 dito sozinho fica por extenso. Só no arquivo exportado — a transcrição não muda. Idiomas: ru, en, es, fr, pt, de, it, nl, da.",
     "digitsUnknown": "Linhas num idioma cujos números não conheço, deixadas como estão: {{count}}. Defina o idioma da gravação nas configurações dela.",

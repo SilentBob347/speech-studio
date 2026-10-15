@@ -1564,6 +1564,10 @@
     "repeat": "Redire avec les mêmes paramètres"
   },
   "listen": {
+    "quickTitle": "Reconnaissance rapide",
+    "quickHint": "Choisissez un fichier : il est reconnu aussitôt avec le reconnaisseur et la langue choisis plus haut ; copiez ou enregistrez le texte. L’enregistrement reste dans la liste pour l’ouvrir plus tard.",
+    "quickPick": "Choisir un fichier",
+    "quickOpen": "Ouvrir dans l’éditeur",
     "digits": "Nombres en chiffres",
     "digitsHint": "« vingt-cinq » → « 25 » ; un nombre inférieur à 10 dit seul reste en lettres. Seulement dans le fichier exporté — la transcription ne change pas. Langues : ru, en, es, fr, pt, de, it, nl, da.",
     "digitsUnknown": "Lignes dans une langue dont les nombres ne sont pas connus, laissées telles quelles : {{count}}. Indiquez la langue de l’enregistrement dans ses réglages.",

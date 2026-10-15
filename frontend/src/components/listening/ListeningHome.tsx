@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Ear, FileAudio, Loader2, Mic, Square, Trash2 } from "lucide-react";
+import { Ear, FileAudio, Loader2, Mic, Sparkles, Square, Trash2 } from "lucide-react";
 import { api } from "../../lib/api";
-import { listenApi, clock, TRANSCRIPT_FORMATS, type ListenCard, type ListenEngine, type ListenProject, type TranscriptFormat } from "../../lib/listen";
+import { listenApi, clock, MEDIA, prepare, TRANSCRIPT_FORMATS, type ListenCard, type ListenEngine, type ListenProject, type Start, type TranscriptFormat } from "../../lib/listen";
+import QuickListen from "./QuickListen";
 import BatchList, { type BatchItem } from "../BatchList";
 import { ENGINES } from "./ListenSettings";
 import { LANG_CHOICES } from "../speech/langs";
@@ -13,9 +14,7 @@ import { named } from "../../lib/a11y";
 import ConfirmDialog from "../ConfirmDialog";
 import UrlImport from "../UrlImport";
 
-const MEDIA = "audio/*,video/*,.mkv,.avi,.wma,.opus,.flac,.m4a";
 const START = "listen.start";
-type Start = { engine: ListenEngine; lang: string };
 
 function savedStart(): Start {
   try {
@@ -25,16 +24,12 @@ function savedStart(): Start {
 }
 
 /** A new recording takes the engine and language picked on the start screen; one recognised before keeps its own. */
-async function prepare(pid: string, project: ListenProject, start: Start): Promise<void> {
-  if (project.made || (project.settings.engine === start.engine && project.settings.lang === start.lang)) return;
-  await listenApi.put(pid, { ...project, settings: { ...project.settings, engine: start.engine, lang: start.lang } });
-}
-
 /** Listening's start: a recording from a file (several at once go to recognition one after another), a link or the
  * microphone, and the recordings opened before. */
 export default function ListeningHome({ onOpen }: { onOpen: (pid: string) => void }) {
   const { t, i18n } = useTranslation();
   const [projects, setProjects] = useState<ListenCard[] | null>(null);
+  const [quick, setQuick] = useState(false);
   const [find, setFind] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -104,9 +99,13 @@ export default function ListeningHome({ onOpen }: { onOpen: (pid: string) => voi
 
   return (
     <main className="flex-1 min-h-0 overflow-y-auto">
+      {quick && <QuickListen start={start} onClose={() => setQuick(false)} onOpen={(pid) => { setQuick(false); onOpen(pid); }} />}
       <div className="max-w-5xl mx-auto px-6 py-8 grid gap-8 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <section aria-labelledby="listen-new" className="space-y-4">
-          <h1 id="listen-new" className="text-xl font-bold tracking-tight flex items-center gap-2"><Ear size={20} className="text-[var(--color-accent)]" />{t("listen.newTitle")}</h1>
+          <div className="flex items-center gap-2">
+            <h1 id="listen-new" className="text-xl font-bold tracking-tight flex items-center gap-2"><Ear size={20} className="text-[var(--color-accent)]" />{t("listen.newTitle")}</h1>
+            <button onClick={() => setQuick(true)} title={t("listen.quickHint")} className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)]"><Sparkles size={13} className="text-[var(--color-accent)]" />{t("listen.quickTitle")}</button>
+          </div>
           <p className="text-[13px] text-[var(--color-muted)] leading-relaxed">{t("listen.newHint")}</p>
           <div className="grid gap-2 grid-cols-2">
             <label className="text-[11px] text-[var(--color-muted)] space-y-1">

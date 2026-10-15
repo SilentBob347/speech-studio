@@ -1564,6 +1564,10 @@
     "repeat": "Voice again with the same parameters"
   },
   "listen": {
+    "quickTitle": "Quick recognition",
+    "quickHint": "Pick a file and it is recognised at once with the recogniser and language chosen above; copy or save the text. The recording stays in the list to open later.",
+    "quickPick": "Pick a file",
+    "quickOpen": "Open in the editor",
     "digits": "Numbers as digits",
     "digitsHint": "“twenty five” → “25”; a number below 10 said alone stays a word. Only in the exported file — the transcript stays as it is. Languages: ru, en, es, fr, pt, de, it, nl, da.",
     "digitsUnknown": "Lines in a language whose numbers are not known, left as they are: {{count}}. Set the recording's language in its settings.",

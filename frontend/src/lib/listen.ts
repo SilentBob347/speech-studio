@@ -172,3 +172,14 @@ export const speakerColor = (key: string) => SPEAKER_COLORS[(Number.parseInt(key
 export type SubtitleRules = { name: string; max_line_len: number; max_lines: number; max_cps: number; min_display_ms: number; max_display_ms: number };
 /** Who speaks how much: per speaker talk seconds, share of all talk (%), lines, words, words a minute, longest stretch. */
 export type SpeakerStats = { talk_seconds: number; duration: number; speakers: { speaker: string; name: string; seconds: number; share: number; lines: number; words: number; wpm: number; longest: number }[] };
+
+/** What Listening opens: sound and video files. */
+export const MEDIA = "audio/*,video/*,.mkv,.avi,.wma,.opus,.flac,.m4a";
+/** The recogniser and language a new recording starts with. */
+export type Start = { engine: ListenEngine; lang: string };
+
+/** A new recording takes the start's recogniser and language, unless it was made already. */
+export async function prepare(pid: string, project: ListenProject, start: Start): Promise<void> {
+  if (project.made || (project.settings.engine === start.engine && project.settings.lang === start.lang)) return;
+  await listenApi.put(pid, { ...project, settings: { ...project.settings, engine: start.engine, lang: start.lang } });
+}
