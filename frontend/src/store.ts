@@ -24,6 +24,8 @@ type State = {
   fresh: number;                     // растёт на каждое «Новое»: открытый режим начинает с чистого листа
   progress: { stage: string; msg: string; pct: number | null; since: number; eta: number | null };   // since — начало стадии; eta — сколько секунд осталось по её скорости
   activities: Activity[];            // журнал «что делает приложение» — статус-строка в шапке + разворот в лог; хранится сервером
+  speechEngine: string | null;       // имя движка открытого проекта Speech: его и показывает подвал
+  setSpeechEngine: (engine: string | null) => void;
   setStage: (s: Stage) => void;
   setMode: (m: Mode) => void;
   startFresh: () => void;
@@ -55,6 +57,8 @@ export const useStore = create<State>((set) => ({
   fresh: 0,
   progress: { stage: "", msg: "", pct: null, since: 0, eta: null },
   activities: [],
+  speechEngine: null,
+  setSpeechEngine: (speechEngine) => set({ speechEngine }),
   setStage: (stage) => set({ stage }),
   setMode: (mode) => {
     try { localStorage.setItem(MODE_KEY, mode); } catch { /* the mode is only remembered where storage works */ }

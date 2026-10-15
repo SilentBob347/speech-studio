@@ -30,21 +30,22 @@ export default function App() {
     if (stage === "setup" || !tel || tel.acknowledged || tel.disabledByEnv) return;
     setTelemetry(tel.enabled, true).catch((e: Error) => console.warn("[hub] the statistics default was not saved:", e.message)).finally(hubChanged);
   }, [stage, hub?.telemetry.acknowledged]);   // eslint-disable-line react-hooks/exhaustive-deps
-  const [cap, setCap] = useState("");
+  const [cap, setCap] = useState<{ device: string; tts: string; rest: string[] } | null>(null);
+  const speechEngine = useStore((s) => s.speechEngine);
   const [capOffline, setCapOffline] = useState(false);
   useEffect(() => {
     if (stage !== "ready") return;
     api.capabilities().then((c) => {
       const sel = (c as { selection?: Record<string, string> }).selection ?? {};
       const asr = sel.asr_engine === "whisper" ? `whisper ${sel.whisper_model || "auto"}` : `${c.asr_model}${sel.asr ? ` ${sel.asr}` : ""}`;
-      const parts = [c.device];
-      if (c.models?.tts) parts.push(`TTS ${c.models.tts}${c.tts_quant ? ` ${c.tts_quant}` : ""}`);
-      parts.push(`ASR ${asr}`);
-      if (c.models?.llm) parts.push(`LLM ${modelName(c.models.llm)}`);
-      setCap(parts.join(" · "));
+      const rest = [`ASR ${asr}`];
+      if (c.models?.llm) rest.push(`LLM ${modelName(c.models.llm)}`);
+      setCap({ device: c.device, tts: c.models?.tts ? `${c.models.tts}${c.tts_quant ? ` ${c.tts_quant}` : ""}` : "", rest });
       setCapOffline(false);
     }).catch(() => setCapOffline(true));
   }, [stage]);
+  const tts = mode === "speech" && speechEngine ? speechEngine : cap?.tts;
+  const capText = cap ? [cap.device, ...(tts ? [`TTS ${tts}`] : []), ...cap.rest].join(" · ") : "";
   // Сетевая ошибка (fetch отклонён TypeError) = сервиса нет на порту -> экран «сервер не отвечает»; HTTP-ошибка
   // значит, что сервис ответил, и ведёт к режимам.
   useEffect(() => {
@@ -61,7 +62,7 @@ export default function App() {
       {stage === "setup" && <FirstRun />}
       {stage === "ready" && (mode === "speech" ? <SpeechPage /> : <ListeningPage />)}
       <footer className="mono h-6 px-4 flex items-center gap-2 text-[10px] text-[var(--color-muted)] border-t border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
-        <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] shrink-0" /><span className="truncate" title={capOffline ? t("status.backendOffline") : cap}>{capOffline ? t("status.backendOffline") : cap}</span>
+        <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] shrink-0" /><span className="truncate" title={capOffline ? t("status.backendOffline") : capText}>{capOffline ? t("status.backendOffline") : capText}</span>
       </footer>
       <BridgeHost />
       <CloudConsentHost />

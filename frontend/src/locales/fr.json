@@ -820,6 +820,7 @@
   "speech": {
     "baseVoice": "Voix de base du moteur",
     "pickVoice": "Choisissez une voix",
+    "noVoiceFound": "Aucune voix de ce nom",
     "voiceMissing": "{{name}} (n’est plus dans la bibliothèque)",
     "newTitle": "Nouveau projet",
     "newHint": "Collez un texte : les paragraphes deviennent des blocs, et les lignes comme « Anna : … » ou « [Anna] … » un dialogue avec une voix par locuteur.",

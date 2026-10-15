@@ -6,6 +6,7 @@ import { activeTake, newId, spliceChars, SPEAKER_TINTS, speechApi, stressDoubts,
 import { openSettings } from "../../lib/settingsNav";
 import { useSpeechProject } from "../../lib/useSpeechProject";
 import { useLivePlayback } from "../../lib/livePlayback";
+import { useEngines } from "../../lib/engines";
 import { followJob } from "../../lib/followJob";
 import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
@@ -89,6 +90,13 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   }, [undo, redo]);
   useEffect(() => () => { audio.current?.pause(); }, []);
   useLivePlayback(pid);
+  const setSpeechEngine = useStore((s) => s.setSpeechEngine);
+  const engines = useEngines();
+  const projectEngine = project ? engines?.find((e) => e.id === project.settings.engine)?.name ?? project.settings.engine : null;
+  useEffect(() => {
+    setSpeechEngine(projectEngine);
+    return () => setSpeechEngine(null);
+  }, [projectEngine, setSpeechEngine]);
 
   const blocks = useMemo(() => (project ? blockList(project) : []), [project]);
   const speakers = useMemo(() => [...new Set(blocks.map((b) => b.speaker).filter(Boolean))], [blocks]);
@@ -450,7 +458,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
       {history && <HistoryDialog pid={pid} onClose={() => setHistory(false)} onRepeat={(block, seed) => { setHistory(false); void runSynth({ ids: [block], force: true, seed }); }} />}
       {dictionary && <DictionaryDialog pid={pid} project={project} onChange={edit} onClose={() => setDictionary(false)} />}
       {recast && (
-        <RecastDialog speaker={recast.speaker} from={project.cast[recast.speaker] ?? null} to={recast.to} blocks={castBlocks(recast.speaker)}
+        <RecastDialog speaker={recast.speaker} from={project.cast[recast.speaker] ?? null} to={recast.to} blocks={castBlocks(recast.speaker)} engine={project.settings.engine}
           onApply={(revoice) => {
             const ids = castBlocks(recast.speaker).map((b) => b.id);
             setCast(recast.speaker, recast.to);

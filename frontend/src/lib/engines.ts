@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { speechApi, type EngineCaps } from "./speech";
+import { prettyVoice } from "./voices";
 
 let cache: EngineCaps[] | null = null;
 let loading: Promise<EngineCaps[]> | null = null;
@@ -22,4 +23,11 @@ export function useEngines(): EngineCaps[] | null {
     return () => { mounted = false; };
   }, []);
   return engines;
+}
+
+/** A voice as people read it: the engine's name for one of its own voices (`engine` is an engine id, or a take's
+ * engine tag such as `qwen3-tts:Q4_K_M`), else the library voice's pretty name. */
+export function voiceName(voice: string, engines: EngineCaps[] | null, engine?: string): string {
+  const id = engine?.split(":")[0];
+  return engines?.find((e) => e.id === id)?.presets.find((p) => p.id === voice)?.name ?? prettyVoice(voice);
 }

@@ -1,20 +1,21 @@
 import { useTranslation } from "react-i18next";
 import { Users, X } from "lucide-react";
 import type { Block } from "../../lib/speech";
-import { prettyVoice } from "../../lib/voices";
+import { useEngines, voiceName } from "../../lib/engines";
 import { useEscapeLayer } from "../../lib/escape";
 import { named } from "../../lib/a11y";
 
 /** A character's voice changed across the project (Pandrator Recast): the blocks it touches, before anything changes;
  * the old takes stay in each block's history and undo takes the change back. */
-export default function RecastDialog({ speaker, from, to, blocks, onApply, onClose }: {
-  speaker: string; from: string | null; to: string | null; blocks: Block[];
+export default function RecastDialog({ speaker, from, to, blocks, engine, onApply, onClose }: {
+  speaker: string; from: string | null; to: string | null; blocks: Block[]; engine: string;
   onApply: (revoice: boolean) => void; onClose: () => void;
 }) {
   const { t } = useTranslation();
   useEscapeLayer(onClose);
   const voiced = blocks.filter((b) => b.takes.length > 0).length;
-  const name = (v: string | null) => (v ? prettyVoice(v) : t("speech.voiceAsProject"));
+  const engines = useEngines();
+  const name = (v: string | null) => (v ? voiceName(v, engines, engine) : t("speech.voiceAsProject"));
   return (
     <div className="fixed inset-0 z-[60] grid place-items-center glass-scrim anim-fade" onClick={onClose}>
       <div role="dialog" aria-modal="true" aria-labelledby="recast-title" className="w-[min(94vw,520px)] max-h-[86vh] flex flex-col rounded-xl glass-panel anim-pop p-5" onClick={(e) => e.stopPropagation()}>

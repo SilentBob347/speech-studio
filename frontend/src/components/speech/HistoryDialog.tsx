@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { History, Loader2, Pause, Play, RotateCcw, X } from "lucide-react";
 import { speechApi, type HistoryTake } from "../../lib/speech";
 import { errorText } from "../../lib/voices";
+import { useEngines, voiceName } from "../../lib/engines";
 import { named } from "../../lib/a11y";
 import { useEscapeLayer } from "../../lib/escape";
 
@@ -12,6 +13,7 @@ type Sort = "created" | "duration" | "rtf";
 export default function HistoryDialog({ pid, onRepeat, onClose }: { pid: string; onRepeat: (block: string, seed: number) => void; onClose: () => void }) {
   const { t, i18n } = useTranslation();
   useEscapeLayer(onClose);
+  const engines = useEngines();
   const [takes, setTakes] = useState<HistoryTake[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sort, setSort] = useState<Sort>("created");
@@ -69,7 +71,7 @@ export default function HistoryDialog({ pid, onRepeat, onClose }: { pid: string;
                     <tr key={key} className={`border-t border-[var(--color-border)] ${r.active ? "" : "opacity-80"}`}>
                       <td className="px-2 py-1"><button onClick={() => play(r)} className="p-1 rounded text-[var(--color-muted)] hover:text-[var(--color-text)]" {...named(playing === key ? t("speech.stopPlaying") : t("speech.play"))}>{playing === key ? <Pause size={13} /> : <Play size={13} />}</button></td>
                       <td className="px-2 py-1 max-w-[28ch] truncate" title={r.text}><span className="text-[var(--color-muted)]">#{r.n}{r.active ? " ★" : ""} </span>{r.text}</td>
-                      <td className="px-2 py-1 truncate max-w-[16ch]" title={r.voice}>{r.voice || t("speech.baseVoice")}</td>
+                      <td className="px-2 py-1 truncate max-w-[16ch]" title={r.voice}>{r.voice ? voiceName(r.voice, engines, r.engine) : t("speech.baseVoice")}</td>
                       <td className="px-2 py-1 mono text-[11px] text-[var(--color-muted)]">{t("history.paramLine", { seed: r.seed, t: r.temperature.toFixed(2), k: r.top_k, p: r.top_p.toFixed(2) })}{r.wer != null ? ` · ${t("speech.takeWer", { wer: Math.round(r.wer * 100) })}` : ""}</td>
                       <td className="px-2 py-1 text-right tabnum">{r.duration.toFixed(1)}{t("settings.sec")}</td>
                       <td className="px-2 py-1 text-right tabnum" title={t("history.rtfHint")}>×{r.rtf > 0 ? (1 / r.rtf).toFixed(1) : "—"}</td>
