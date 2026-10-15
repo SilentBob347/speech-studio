@@ -208,8 +208,8 @@ export default function FirstRun() {
                       <span className="font-semibold text-[14px] truncate">{c.name}</span>
                       <span className={`text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wide ${c.requirement === "required" ? "bg-[color-mix(in_oklab,var(--color-accent)_16%,transparent)] text-[var(--color-accent)]" : "bg-[var(--color-surface-2)] text-[var(--color-muted)]"}`}>{reqLabel(c.requirement)}</span>
                     </div>
-                    <div className="text-[12px] text-[var(--color-muted)] truncate">{c.purpose}</div>
-                    {c.delivery === "external" && c.detail && <div className="mono text-[10.5px] text-[var(--color-muted)] truncate">{c.detail}</div>}
+                    <div className="text-[12px] text-[var(--color-muted)] break-words">{c.purpose}</div>
+                    {c.delivery === "external" && c.detail && <div className="mono text-[10.5px] text-[var(--color-muted)] break-words">{c.detail}</div>}
                     {pct != null && (
                       <div className="mt-1.5 h-1.5 rounded-full bg-[var(--color-surface-2)] overflow-hidden">
                         <div className="h-full bg-[var(--color-accent)] transition-[width] duration-200" style={{ width: `${pct}%` }} />

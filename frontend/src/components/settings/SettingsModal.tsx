@@ -86,13 +86,10 @@ export default function SettingsModal({ target, request, panes, onClose }: { tar
         <nav aria-label={t("prefs.title")} className="hidden sm:flex w-56 shrink-0 flex-col gap-1 border-r border-[var(--color-border)] p-3 overflow-y-auto">
           <h2 className="px-2 pt-1 pb-2 font-semibold">{t("prefs.title")}</h2>
           {available.map(({ id, icon: Icon }) => (
-            <button key={id} type="button" onClick={() => choose(id)} aria-current={section === id ? "page" : undefined}
+            <button key={id} type="button" onClick={() => choose(id)} aria-current={section === id ? "page" : undefined} title={t(LABEL[id][1])}
               className={`flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors ${section === id ? "bg-[var(--color-surface-2)] text-[var(--color-text)] shadow-[inset_2px_0_0_var(--color-accent)]" : "text-[var(--color-muted)] hover:bg-[var(--color-surface-2)]/60 hover:text-[var(--color-text)]"}`}>
               <Icon size={15} className={`mt-0.5 shrink-0 ${section === id ? "text-[var(--color-accent)]" : ""}`} />
-              <span className="min-w-0">
-                <span className="block truncate text-[13px] font-medium">{t(LABEL[id][0])}</span>
-                <span className="block truncate text-[10px] text-[var(--color-muted)]">{t(LABEL[id][1])}</span>
-              </span>
+              <span className="min-w-0 text-[13px] font-medium">{t(LABEL[id][0])}</span>
             </button>
           ))}
         </nav>
@@ -101,7 +98,7 @@ export default function SettingsModal({ target, request, panes, onClose }: { tar
           <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] px-5 py-3.5">
             <div className="min-w-0">
               <h3 id={titleId} className="truncate font-semibold">{t(label)}</h3>
-              <p className="truncate text-[11px] text-[var(--color-muted)]">{t(hint)}</p>
+              <p className="text-[11px] text-[var(--color-muted)]">{t(hint)}</p>
             </div>
             <button type="button" onClick={onClose} aria-label={t("prefs.close")} title={t("prefs.close")}
               className="shrink-0 p-1.5 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)] transition-colors"><X size={16} /></button>

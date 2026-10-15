@@ -123,7 +123,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
             <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-[var(--color-muted)]" />
             <div className="min-w-0 flex-1">
               <div className="text-[12px] font-medium truncate">{t("cloud.threads")}</div>
-              <div className="mono text-[10px] text-[var(--color-muted)] truncate">{t("cloud.threadsHint")}</div>
+              <div className="mono text-[10px] text-[var(--color-muted)] break-words">{t("cloud.threadsHint")}</div>
             </div>
             <select value={selv("or_concurrency") || "6"} onChange={(e) => setSel("or_concurrency", e.target.value)}
               className="shrink-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[11px] mono focus:border-[var(--color-accent)] focus:outline-none">
@@ -148,7 +148,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${c.installed ? "bg-[var(--color-accent)]" : "bg-[var(--color-muted)]"}`} />
         <div className="min-w-0 flex-1">
           <div className="text-[12px] font-medium truncate">{c.name}</div>
-          <div className="mono text-[10px] text-[var(--color-muted)] truncate">{c.purpose} · {c.vram ? `${fmtBytes(c.vram)} VRAM · ` : ""}{fmtBytes(c.size)} {t("settings.disk")}</div>
+          <div className="mono text-[10px] text-[var(--color-muted)] break-words">{c.purpose} · {c.vram ? `${fmtBytes(c.vram)} VRAM · ` : ""}{fmtBytes(c.size)} {t("settings.disk")}</div>
           {c.takenFrom && <div className="text-[10px] text-[var(--color-accent)]">{t("setup.takenFrom", { app: PROGRAMS[c.takenFrom] ?? c.takenFrom })}</div>}
         </div>
         {active ? (
@@ -193,7 +193,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
           <div className="min-w-0 flex-1">
             <div className="text-[12px] font-medium truncate">{base}</div>
             {hint && <div className="text-[10px] leading-snug text-[var(--color-muted)]">{hint}</div>}
-            <div className="mono text-[10px] text-[var(--color-muted)] truncate">{c.vram ? `${fmtBytes(c.vram)} VRAM · ` : ""}{fmtBytes(c.size)} {t("settings.disk")}{c.installed ? "" : ` · ${t("settings.notInstalled")}`}</div>
+            <div className="mono text-[10px] text-[var(--color-muted)] break-words">{c.vram ? `${fmtBytes(c.vram)} VRAM · ` : ""}{fmtBytes(c.size)} {t("settings.disk")}{c.installed ? "" : ` · ${t("settings.notInstalled")}`}</div>
           </div>
           <select value={pick} onChange={(e) => {
               const id = e.target.value;
@@ -376,7 +376,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
                 <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-[var(--color-accent)]" />
                 <div className="min-w-0 flex-1">
                   <div className="text-[12px] font-medium truncate">{t("settings.whisperCompute")}</div>
-                  <div className="mono text-[10px] text-[var(--color-muted)] truncate">{t("settings.whisperComputeHint")}</div>
+                  <div className="mono text-[10px] text-[var(--color-muted)] break-words">{t("settings.whisperComputeHint")}</div>
                 </div>
                 <select value={whisperCompute} onChange={(e) => { setWhisperCompute(e.target.value); api.setSelection("whisper_compute", e.target.value).catch(() => {}); }}
                   className="shrink-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[11px] mono focus:border-[var(--color-accent)] focus:outline-none">
@@ -425,7 +425,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
                 <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-[var(--color-muted)]" />
                 <div className="min-w-0 flex-1">
                   <div className="text-[12px] font-medium truncate">{row.label}</div>
-                  <div className="mono text-[10px] text-[var(--color-muted)] truncate">{row.hint}</div>
+                  <div className="mono text-[10px] text-[var(--color-muted)] break-words">{row.hint}</div>
                 </div>
                 <select value={cur} onChange={(e) => { api.setSelection(row.key, e.target.value).then(loadCap).catch((er) => setErr(er instanceof Error ? er.message : String(er))); }}
                   className="shrink-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[11px] mono focus:border-[var(--color-accent)] focus:outline-none">

@@ -26,7 +26,7 @@ export default function PresetsSection({ onApplied }: { onApplied?: () => void }
           <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-[var(--color-accent)]" />
           <div className="min-w-0 flex-1">
             <div className="text-[12px] font-medium truncate">{hw ? (hw.hasGpu ? t("hwPreset.gpu", { name: hw.gpuName, gb: hw.totalVramGb.toFixed(0) }) : t("hwPreset.noGpu")) : "…"}</div>
-            <div className="mono text-[10px] text-[var(--color-muted)] truncate">{curP?.subtitle ?? t("hwPreset.ram", { gb: hw?.totalRamGb.toFixed(0) ?? "?" })}</div>
+            <div className="mono text-[10px] text-[var(--color-muted)] break-words">{curP?.subtitle ?? t("hwPreset.ram", { gb: hw?.totalRamGb.toFixed(0) ?? "?" })}</div>
           </div>
           <select value={cur} onChange={(e) => apply(e.target.value)} disabled={busy}
             className="shrink-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[11px] mono focus:border-[var(--color-accent)] focus:outline-none disabled:opacity-50">
