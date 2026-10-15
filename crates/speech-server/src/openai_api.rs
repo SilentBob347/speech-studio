@@ -89,7 +89,7 @@ fn answered(mut row: Logged, started: Instant, result: Result<Response, Failure>
 fn authorised(headers: &HeaderMap) -> Result<(), Failure> {
     let Some((token, _)) = crate::credentials::api_token() else { return Ok(()) };
     let given = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok()).and_then(|v| v.strip_prefix("Bearer ")).unwrap_or_default();
-    if given == token {
+    if bool::from(subtle::ConstantTimeEq::ct_eq(given.as_bytes(), token.as_bytes())) {
         Ok(())
     } else {
         Err(Failure { status: StatusCode::UNAUTHORIZED, kind: "invalid_request_error", message: "Incorrect API key provided.".into() })

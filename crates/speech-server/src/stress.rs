@@ -28,7 +28,7 @@ const ACCENT_MIN_SCORE: f32 = 0.55;
 const DOUBT_MARGIN: f32 = 0.2;
 
 pub(crate) static MARKUP: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)<\|[^|\n]*\|>|\[\[[^\[\]]*\]\]|\[\s*pause[^\]]*\]|sil\s*<\[[^\]]*\]>|<\[[^\]]*\]>").expect("markup")
+    Regex::new(r"(?i)<\|[^|\n]*\|>|\[\[[^\[\]]*\]\]|\[\s*pause[^\]]*\]|\[\s*rate\s*:[^\]]*\]|sil\s*<\[[^\]]*\]>|<\[[^\]]*\]>").expect("markup")
 });
 static TOKEN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[\w]+|[^\w\s]+").expect("token"));
 
@@ -601,7 +601,7 @@ mod tests {
 
     #[test]
     fn markup_is_neither_a_word_nor_a_sentence_end() {
-        let plan = Plan::new("Раз. [pause 1.5s] Два <|emotion:anger|> три! [[каша]]");
+        let plan = Plan::new("Раз. [pause 1.5s] Два <|emotion:anger|> три! [[каша]] [rate:0,8]");
         let words: Vec<String> = plan
             .sentences()
             .into_iter()

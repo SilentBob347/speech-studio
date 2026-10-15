@@ -42,6 +42,7 @@ export class LivePlayer {
     if (ev.kind === "restart") { this.stop(); return; }
     if (ev.kind !== "chunk") return;
     this.ctx ??= this.makeContext();
+    if (this.ctx.state === "suspended") void this.ctx.resume();
     const samples = samplesOf(ev.data);
     const buffer = this.ctx.createBuffer(1, samples.length, ev.sr);
     buffer.copyToChannel(samples, 0);

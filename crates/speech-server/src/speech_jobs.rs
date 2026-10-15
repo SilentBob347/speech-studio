@@ -309,6 +309,7 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
             }
             Piece::Rate(r) => rate = r,
             Piece::Say(text) => {
+                let retimed = (rate - 1.0).abs() > 1e-3;
                 let (say, ig) = stx::for_engine(&text, lang, &project.settings.engine);
                 ignored.accent |= ig.accent;
                 ignored.phonemes |= ig.phonemes;
@@ -325,7 +326,7 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
                     instruct: Some(b.direction.trim()).filter(|d| !d.is_empty() && crate::qwen_tts::is_engine(&project.settings.engine)),
                     params: &params,
                     fresh_seed: fresh.wrapping_add(k as u64),
-                    live: Some(live.clone()),
+                    live: (!retimed).then(|| live.clone()),
                 };
                 let s = tts_host::synth(&engine, &req)?;
                 if k == 0 || seed == 0 {
@@ -335,7 +336,13 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
                 secs += s.seconds;
                 retried.extend(s.defects.iter().map(|d| d.to_string()));
                 let samples = resample_to(s.samples, s.sr);
-                out.extend(if (rate - 1.0).abs() > 1e-3 { at_rate(&samples, rate)? } else { samples });
+                if retimed {
+                    let samples = at_rate(&samples, rate)?;
+                    live.chunk(&samples, SR);
+                    out.extend(samples);
+                } else {
+                    out.extend(samples);
+                }
             }
         }
     }

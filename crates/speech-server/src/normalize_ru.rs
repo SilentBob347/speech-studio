@@ -928,8 +928,8 @@ mod tests {
 
     #[test]
     fn markup_and_stress_marks_stay_and_unknown_is_listed() {
-        let n = normalize("В 5 км <|emotion:awe|> [pause 300ms] з+амок, iPhone 15X");
-        assert_eq!(n.text, "В пять километров <|emotion:awe|> [pause 300ms] з+амок, iPhone пятнадцать X");
+        let n = normalize("В 5 км <|emotion:awe|> [pause 300ms] [rate:1.5] з+амок, iPhone 15X");
+        assert_eq!(n.text, "В пять километров <|emotion:awe|> [pause 300ms] [rate:1.5] з+амок, iPhone пятнадцать X");
         assert!(n.unknown.contains(&"iPhone".to_string()));
     }
 

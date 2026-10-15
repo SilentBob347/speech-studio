@@ -16,6 +16,9 @@ function fakeContext() {
   const buffers: { samples: Float32Array; rate: number }[] = [];
   const ctx = {
     currentTime: 10,
+    state: "suspended",
+    resumed: 0,
+    resume: async () => { ctx.resumed++; ctx.state = "running"; },
     destination: {},
     createBuffer: (_channels: number, length: number, rate: number) => {
       const b = { samples: new Float32Array(length), rate, duration: length / rate, copyToChannel(s: Float32Array) { b.samples.set(s); } };
@@ -25,7 +28,7 @@ function fakeContext() {
     createBufferSource: () => { const n = new FakeNode(); nodes.push(n); return n; },
     close: async () => {},
   };
-  return { ctx: ctx as unknown as AudioContext, nodes, buffers };
+  return { ctx: ctx as unknown as AudioContext, raw: ctx, nodes, buffers };
 }
 
 const piece = (values: number[]) => btoa(String.fromCharCode(...new Uint8Array(new Float32Array(values).buffer)));
@@ -39,6 +42,7 @@ describe("live playback", () => {
     player.handle({ kind: "chunk", project: "p1", block: "b1", sr: 4, data: piece([1, 1]) });
     player.handle({ kind: "chunk", project: "other", block: "x", sr: 4, data: piece([1]) });
     expect(fake.nodes).toHaveLength(2);
+    expect(fake.raw.resumed).toBe(1);
     expect(Array.from(fake.buffers[0].samples)).toEqual([0.5, -0.5, 0.25, 0]);
     expect(fake.nodes[0].startedAt).toBeCloseTo(10.05);
     expect(fake.nodes[1].startedAt).toBeCloseTo(11.05);

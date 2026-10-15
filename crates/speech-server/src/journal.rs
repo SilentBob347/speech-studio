@@ -4,6 +4,7 @@
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 
 use axum::extract::Path as UrlPath;
@@ -36,6 +37,8 @@ struct Journal {
     root: PathBuf,
     path: PathBuf,
     lines: Mutex<Vec<Line>>,
+    /// The next line's id: it only grows, so an id a window has seen is never given to another line.
+    next: AtomicU64,
 }
 
 static JOURNAL: OnceLock<Journal> = OnceLock::new();
@@ -52,7 +55,8 @@ pub fn open(root: &Path) {
             }
         }
     }
-    let _ = JOURNAL.set(Journal { root: root.to_path_buf(), path, lines: Mutex::new(lines) });
+    let next = lines.iter().map(|l| l.id).max().unwrap_or(0) + 1;
+    let _ = JOURNAL.set(Journal { root: root.to_path_buf(), path, lines: Mutex::new(lines), next: AtomicU64::new(next) });
 }
 
 fn journal() -> Result<&'static Journal, String> {
@@ -82,7 +86,7 @@ pub fn note(line: Line) -> Result<Line, String> {
     let j = journal()?;
     let line = {
         let mut lines = j.lines.lock().unwrap_or_else(|p| p.into_inner());
-        let line = Line { id: lines.last().map_or(1, |l| l.id + 1), at: chrono::Utc::now().timestamp_millis(), ..line };
+        let line = Line { id: j.next.fetch_add(1, Ordering::Relaxed), at: chrono::Utc::now().timestamp_millis(), ..line };
         lines.push(line.clone());
         if lines.len() > KEPT {
             let extra = lines.len() - KEPT;
