@@ -1236,7 +1236,14 @@
     "normalizeGroup_phones": "phone numbers",
     "normalizeGroup_web": "e-mail and sites",
     "normalizeGroup_codes": "codes",
-    "normalizeGroup_roman": "Roman numerals"
+    "normalizeGroup_roman": "Roman numerals",
+    "langVoices": "Voices by language",
+    "langVoicesHint": "A block in another language (set in its settings) without a voice of its own speaks with that language's voice: Russian text with English passages read by an English voice.",
+    "langVoiceOf": "Voice for {{lang}}",
+    "langVoiceRemove": "Remove the voice for {{lang}}",
+    "langVoiceAdd": "Add a language…",
+    "blockLang": "Block language",
+    "blockLangProject": "the project's"
   },
   "tags": {
     "emotion": "Emotion",

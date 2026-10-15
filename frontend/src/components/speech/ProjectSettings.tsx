@@ -6,6 +6,7 @@ import { type Loudness, type ParamSpec, type SeedMode, type SpeechProject } from
 import { named } from "../../lib/a11y";
 import { useEscapeLayer } from "../../lib/escape";
 import { LANG_CHOICES } from "./langs";
+import VoicePicker from "./VoicePicker";
 import OpenRouterModelSelect from "../OpenRouterModelSelect";
 import CloudModelPicker from "../cloud/CloudModelPicker";
 import CloudForm from "../cloud/CloudForm";
@@ -137,6 +138,21 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
             })}
           </select>
         </label>
+        <fieldset className="space-y-1.5">
+          <legend className={label}>{t("speech.langVoices")}</legend>
+          <p className="text-[11px] text-[var(--color-muted)]">{t("speech.langVoicesHint")}</p>
+          {Object.entries(s.lang_voices ?? {}).map(([lang, voice]) => (
+            <div key={lang} className="flex items-center gap-2">
+              <span className="w-10 text-[12px] font-medium uppercase">{lang}</span>
+              <VoicePicker engine={s.engine} value={voice || null} onChange={(v) => set((p) => { p.settings.lang_voices = { ...(p.settings.lang_voices ?? {}), [lang]: v ?? "" }; })} label={t("speech.langVoiceOf", { lang: lang.toUpperCase() })} className={`${field} flex-1`} />
+              <button onClick={() => set((p) => { const next = { ...(p.settings.lang_voices ?? {}) }; delete next[lang]; p.settings.lang_voices = next; })} className="p-1 rounded text-[var(--color-muted)] hover:text-[var(--color-warn)]" {...named(t("speech.langVoiceRemove", { lang: lang.toUpperCase() }))}><X size={13} /></button>
+            </div>
+          ))}
+          <select value="" onChange={(e) => { const lang = e.target.value; if (lang) set((p) => { p.settings.lang_voices = { ...(p.settings.lang_voices ?? {}), [lang]: "" }; }); }} aria-label={t("speech.langVoiceAdd")} className={`${field} w-auto`}>
+            <option value="">{t("speech.langVoiceAdd")}</option>
+            {LANG_CHOICES.filter((l) => l !== "auto" && l !== s.lang && !(l in (s.lang_voices ?? {}))).map((l) => <option key={l} value={l}>{l.toUpperCase()}</option>)}
+          </select>
+        </fieldset>
         <label className="flex items-start gap-2 text-[13px] cursor-pointer">
           <input type="checkbox" checked={s.normalize} onChange={(e) => set((p) => { p.settings.normalize = e.target.checked; })} className="mt-0.5 w-4 h-4 accent-[var(--color-accent)]" />
           <span>{t("speech.normalize")}<span className="block text-[11px] text-[var(--color-muted)]">{t("speech.normalizeHint")}</span></span>

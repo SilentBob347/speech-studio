@@ -1236,7 +1236,14 @@
     "normalizeGroup_phones": "电话号码",
     "normalizeGroup_web": "邮箱和网址",
     "normalizeGroup_codes": "编码",
-    "normalizeGroup_roman": "罗马数字"
+    "normalizeGroup_roman": "罗马数字",
+    "langVoices": "按语言的声音",
+    "langVoicesHint": "使用其他语言的块（在其设置中选择）若没有自己的声音，会用该语言的声音：俄语文本中的英语段落由英语声音朗读。",
+    "langVoiceOf": "{{lang}} 的声音",
+    "langVoiceRemove": "移除 {{lang}} 的声音",
+    "langVoiceAdd": "添加语言…",
+    "blockLang": "块语言",
+    "blockLangProject": "与项目相同"
   },
   "tags": {
     "emotion": "情绪",

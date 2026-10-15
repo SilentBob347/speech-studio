@@ -97,9 +97,9 @@ connected and the address to paste.
   again answer with the same file at once. Longer work answers `done: false` with its job: `studio_wait`, then call
   again.
 - **Projects**: `projects_list`, `project_create` (paragraphs become blocks; "Anna: ..." lines become a dialogue),
-  `project_get`, `project_update` (send the whole project back with your edits; changed blocks go stale),
+  `project_get`, `project_update` (send the whole project back with your edits; changed blocks go stale; a block's `lang` marks a passage in another language, and `settings.lang_voices` gives each such language a voice; `settings.normalize_off` leaves groups of normalisation as written),
   `project_synth` (new and stale blocks, or `ids`, `force`, `from`), `project_export_check` (what keeps the export back:
-  missing, stale, failed, a take file changed after voicing, a take longer than its cue), `project_enrich` (the director suggests expression tags by meaning, words kept; apply the after texts with `project_update`), `block_ref_set` (a block's own reference clip and its text instead of a voice; `whole` continues that clip's speech), `project_export` (one file
+  missing, stale, failed, a take file changed after voicing, a take longer than its cue), `project_enrich` (the director suggests expression tags by meaning, or with `mode` punctuation the punctuation for reading aloud, words kept; apply the after texts with `project_update`), `block_ref_set` (a block's own reference clip and its text instead of a voice; `whole` continues that clip's speech), `project_export` (one file
   with subtitles in SRT, VTT, ASS and LRC, M4B with chapters, `part_minutes` for long books, or `per_block`; `allow_duration` lets only the
   too-long takes through), `project_lint` (before voicing: what would go wrong block by block, errors and warnings), `project_exports`, `project_exports_all` (every built audio file of every project, newest first, with its recipe: how it was made), `project_timeline` (blocks on the export's time scale with overlaps; a
   block's `cut_previous` cuts the reply it interrupts, a previous block's `pause_ms` of 0 joins them), `project_delete`.

@@ -8,6 +8,7 @@ import { named } from "../../lib/a11y";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import VoicePicker from "./VoicePicker";
+import { LANG_CHOICES } from "./langs";
 import EngineSelect from "./EngineSelect";
 import TagPalette, { type TagPlace } from "./TagPalette";
 import { useEngines } from "../../lib/engines";
@@ -175,6 +176,13 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
           <EngineSelect value={block.engine ?? null} projectEngine={projectEngine} inheritEngine={speakerEngine ?? projectEngine} voice={voice} onChange={(e, v) => a.patch(v === undefined ? { engine: e } : { engine: e, voice: v })}
             inherit={speakerEngine ? t("speech.engineAsSpeaker") : t("speech.engineAsProject")} label={t("speech.blockEngine")}
             className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]" />
+        </label>
+        <label className="text-[11px] text-[var(--color-muted)]">{t("speech.blockLang")}
+          <select value={block.lang ?? ""} onChange={(e) => a.patch({ lang: e.target.value })} aria-label={t("speech.blockLang")}
+            className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]">
+            <option value="">{t("speech.blockLangProject")}</option>
+            {LANG_CHOICES.filter((l) => l !== "auto").map((l) => <option key={l} value={l}>{l.toUpperCase()}</option>)}
+          </select>
         </label>
         <label className="text-[11px] text-[var(--color-muted)]">{t("speech.pauseAfter")}
           <input type="number" step={50} min={-2000} max={10000} value={block.pause_ms ?? ""} placeholder={t("speech.pauseAuto")}

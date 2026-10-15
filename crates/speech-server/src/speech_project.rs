@@ -122,6 +122,9 @@ pub struct Block {
     /// Заметки к словам блока: цитата, заметка и цвет маркера (вслух не читаются).
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub word_notes: Vec<WordNote>,
+    /// Язык блока, когда он не язык проекта (вставка на другом языке); пусто — язык проекта.
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub lang: String,
     /// Время реплики субтитров, с: в проекте по таймкодам блок звучит в нём.
     pub start: Option<f64>,
     pub end: Option<f64>,
@@ -191,11 +194,15 @@ pub struct Settings {
     pub cloud_voice: String,
     /// Значения формы облачной модели fal или Runware (голос, скорость…), кроме текста.
     pub cloud_values: serde_json::Map<String, Value>,
+    /// The voice of each language a block is written in when it is not the project's: Russian text with English
+    /// passages read by an English voice. A block's own voice comes first.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub lang_voices: BTreeMap<String, String>,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { lang: "auto".into(), engine: "higgs".into(), params: Params::default(), voice: None, pause_same_ms: 300, pause_switch_ms: 600, loudness: "video".into(), qc: QcSettings::default(), auto_stress: true, normalize: true, normalize_off: Vec::new(), timeline: false, max_stretch: 1.25, lead_into_silence: true, room_tone: false, breaths: false, continuation: false, tidy_pauses: true, cloud_model: String::new(), cloud_voice: String::new(), cloud_values: serde_json::Map::new() }
+        Settings { lang: "auto".into(), engine: "higgs".into(), params: Params::default(), voice: None, pause_same_ms: 300, pause_switch_ms: 600, loudness: "video".into(), qc: QcSettings::default(), auto_stress: true, normalize: true, normalize_off: Vec::new(), timeline: false, max_stretch: 1.25, lead_into_silence: true, room_tone: false, breaths: false, continuation: false, tidy_pauses: true, cloud_model: String::new(), cloud_voice: String::new(), cloud_values: serde_json::Map::new(), lang_voices: BTreeMap::new() }
     }
 }
 
@@ -280,7 +287,18 @@ impl SpeechProject {
     }
 
     pub fn voice_of(&self, b: &Block) -> Option<String> {
-        b.voice.clone().filter(|v| !v.is_empty()).or_else(|| self.cast.get(&b.speaker).cloned().filter(|v| !v.is_empty())).or_else(|| self.settings.voice.clone().filter(|v| !v.is_empty()))
+        let own_lang = (!b.lang.is_empty() && b.lang != self.settings.lang).then(|| self.settings.lang_voices.get(&b.lang)).flatten();
+        b.voice
+            .clone()
+            .filter(|v| !v.is_empty())
+            .or_else(|| own_lang.cloned().filter(|v| !v.is_empty()))
+            .or_else(|| self.cast.get(&b.speaker).cloned().filter(|v| !v.is_empty()))
+            .or_else(|| self.settings.voice.clone().filter(|v| !v.is_empty()))
+    }
+
+    /// The block's language: its own when it has one, else the project's (`auto` included).
+    pub fn lang_of<'a>(&'a self, b: &'a Block) -> &'a str {
+        if b.lang.is_empty() { &self.settings.lang } else { &b.lang }
     }
 
     /// Ид блоков и глав уникальны, у каждого блока есть ид, пустые главы допустимы, ссылки на дубли верны.
@@ -317,6 +335,9 @@ impl SpeechProject {
                 }
                 if !b.marker.is_empty() && !MARKERS.contains(&b.marker.as_str()) {
                     return Err(format!("block {} marker {:?} is not one of {MARKERS:?}", b.id, b.marker));
+                }
+                if !(b.lang.is_empty() || (2..=3).contains(&b.lang.len()) && b.lang.chars().all(|c| c.is_ascii_lowercase())) {
+                    return Err(format!("block {} lang {:?} is not a language code such as en", b.id, b.lang));
                 }
                 if !matches!(b.review.as_str(), "" | "approved" | "fix") {
                     return Err(format!("block {} review {:?} is not approved, fix or none", b.id, b.review));
@@ -640,6 +661,20 @@ pub fn with_status(project: &SpeechProject, keys: &BTreeMap<String, String>) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_block_in_another_language_speaks_with_that_language_s_voice() {
+        let mut p = SpeechProject::default();
+        p.settings.lang = "ru".into();
+        p.settings.voice = Some("Анна".into());
+        p.settings.lang_voices.insert("en".into(), "Emma".into());
+        let mut b = Block { speaker: "Рассказчик".into(), text: "Hello there.".into(), lang: "en".into(), ..Default::default() };
+        assert_eq!((p.voice_of(&b).as_deref(), p.lang_of(&b)), (Some("Emma"), "en"));
+        b.voice = Some("Boris".into());
+        assert_eq!(p.voice_of(&b).as_deref(), Some("Boris"));
+        let ru = Block { speaker: "Рассказчик".into(), text: "Привет.".into(), ..Default::default() };
+        assert_eq!((p.voice_of(&ru).as_deref(), p.lang_of(&ru)), (Some("Анна"), "ru"));
+    }
 
     #[test]
     fn paragraphs_become_blocks_and_long_ones_are_cut_at_sentences() {

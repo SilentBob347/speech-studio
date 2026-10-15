@@ -18,6 +18,8 @@ export type Block = {
   word_notes?: WordNote[];
   /** Review: approved (its text closed, "voice all again" keeps it) or to fix; empty — not reviewed. */
   review?: Review;
+  /** The block's language when it is not the project's; empty — the project's. */
+  lang?: string;
 };
 export type Review = "" | "approved" | "fix";
 export type WordNote = { quote: string; note: string; marker: Marker | "" };
@@ -58,6 +60,8 @@ export type SpeechSettings = {
   /** Groups of the normalizer left as written: numbers, dates, time, money, phones, web, codes, roman. */
   normalize_off: string[];
   timeline: boolean; max_stretch: number; lead_into_silence: boolean; room_tone: boolean; breaths: boolean; continuation: boolean; tidy_pauses: boolean; cloud_model: string; cloud_voice: string; cloud_values: Record<string, unknown>;
+  /** The voice of each language a block is in when it is not the project's. */
+  lang_voices?: Record<string, string>;
 };
 export type AcxReport = { passed: boolean; checks: { name: "rms" | "peak" | "noise_floor" | "head" | "tail" | "inner_silence" | "length"; value: number; passed: boolean }[] };
 export type DictKind = "word" | "regex" | "phonemes";
@@ -116,7 +120,8 @@ export type RecipeBlock = { block: string; speaker: string; text: string; take: 
 /** Something that would go wrong voicing a block (`error`) or not be read as written (`warn`). */
 export type LintIssue = { block: string; level: "error" | "warn"; kind: string; detail: unknown };
 
-export const voiceOf = (p: SpeechProject, b: Block) => b.voice || p.cast[b.speaker] || p.settings.voice || null;
+export const voiceOf = (p: SpeechProject, b: Block) =>
+  b.voice || (b.lang && b.lang !== p.settings.lang ? p.settings.lang_voices?.[b.lang] : null) || p.cast[b.speaker] || p.settings.voice || null;
 export type TimelineBlock = { block: string; speaker: string; start: number; end: number; voiced: boolean; overlap: { with: string; secs: number } | null; cut_previous: boolean };
 export type ExportProblem = { block: string; state: BlockState | "missing" | "modified" | "duration" };
 

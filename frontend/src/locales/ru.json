@@ -1236,7 +1236,14 @@
     "normalizeGroup_phones": "телефоны",
     "normalizeGroup_web": "почта и сайты",
     "normalizeGroup_codes": "коды и артикулы",
-    "normalizeGroup_roman": "римские цифры"
+    "normalizeGroup_roman": "римские цифры",
+    "langVoices": "Голоса по языкам",
+    "langVoicesHint": "Блок на другом языке (язык выбирается в его настройках) без своего голоса говорит голосом своего языка: русский текст с английскими вставками — английским голосом.",
+    "langVoiceOf": "Голос для {{lang}}",
+    "langVoiceRemove": "Убрать голос для {{lang}}",
+    "langVoiceAdd": "Добавить язык…",
+    "blockLang": "Язык блока",
+    "blockLangProject": "как у проекта"
   },
   "tags": {
     "emotion": "Эмоция",
