@@ -1055,9 +1055,9 @@ fn tools() -> &'static [Tool] {
             // ---------------------------------------------------------------- voices
             Tool {
                 name: "voices_list",
-                description: "The voices of the studio's library: each with its card (gender, age, lang, tags, source, consent, favorite, kind, cleaned, transcript_auto), the transcript of its reference and whether it has a photo and a kept original. broken lists a voice whose card file is damaged, with the reason.",
-                schema: nothing,
-                call: |_| get("/voices".into()),
+                description: "The voices of the studio's library: each with its card (gender, age, lang, tags, source, consent, favorite, kind, cleaned, transcript_auto), the transcript of its reference and whether it has a photo and a kept original. broken lists a voice whose card file is damaged, with the reason. brief true answers only {\"voices\":[{\"name\",\"card\":{\"kind\",\"lang\",\"gender\"}}],\"broken\"}: the transcripts make the full answer large.",
+                schema: || object(json!({ "brief": { "type": "boolean" } }), &[]),
+                call: |args| get(if args.get("brief").and_then(Value::as_bool).unwrap_or(false) { "/voices?brief=true" } else { "/voices" }.into()),
             },
             Tool {
                 name: "voices_catalog",

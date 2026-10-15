@@ -25,8 +25,8 @@ pub(super) fn tools() -> Vec<Tool> {
     vec![
         Tool {
             name: "speak_text",
-            description: "A text voiced into an audio file in one call: voice is a voice name of voices_list (none: the engine's base voice), engine higgs (default), drama3 or openrouter, lang a code or auto, format wav, flac, mp3, ogg or m4a (default flac). Lines like \"Anna: ...\" give a dialogue with the cast of the voices named after the speakers. The first call makes a Speech project (project_id) and voices it; calling again with the same text and arguments answers with the file at once. The answer names the file on this computer.",
-            schema: || object(json!({ "text": { "type": "string" }, "voice": { "type": "string" }, "engine": { "type": "string", "enum": ["higgs", "drama3", "openrouter"] }, "lang": { "type": "string" }, "format": { "type": "string", "enum": ["wav", "flac", "mp3", "ogg", "m4a"] }, "direction": { "type": "string", "description": "how it should sound (tone, pace), for the engines that take it" }, "seconds": seconds_arg() }), &["text"]),
+            description: "A text voiced into an audio file in one call: voice is a voice name of voices_list (none: the engine's base voice), engine an id of engines_list (default higgs), lang a code or auto, format wav, flac, mp3, ogg or m4a (default flac). Lines like \"Anna: ...\" give a dialogue with the cast of the voices named after the speakers. The first call makes a Speech project (project_id) and voices it; calling again with the same text and arguments answers with the file at once. The answer names the file on this computer.",
+            schema: || object(json!({ "text": { "type": "string" }, "voice": { "type": "string" }, "engine": { "type": "string", "enum": crate::engines::all().iter().map(|e| e.id).collect::<Vec<_>>() }, "lang": { "type": "string" }, "format": { "type": "string", "enum": ["wav", "flac", "mp3", "ogg", "m4a"] }, "direction": { "type": "string", "description": "how it should sound (tone, pace), for the engines that take it" }, "seconds": seconds_arg() }), &["text"]),
             call: |_| composite("speak_text"),
         },
         Tool {

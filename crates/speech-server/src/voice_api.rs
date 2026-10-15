@@ -46,10 +46,20 @@ pub fn listing(dir: &Path) -> Value {
     })
 }
 
-/// GET /voices — голоса с карточками; голос с испорченной карточкой — в `broken` с причиной.
-pub async fn list(State(st): State<AppState>) -> Response {
+/// GET /voices — голоса с карточками; голос с испорченной карточкой — в `broken` с причиной. `?brief=true` — только
+/// имя и kind, lang, gender карточки: расшифровки рефов раздувают ответ на сотни голосов.
+pub async fn list(State(st): State<AppState>, Query(q): Query<std::collections::HashMap<String, String>>) -> Response {
     let dir = st.voices_dir.clone();
+    let brief = q.get("brief").is_some_and(|v| v == "true" || v == "1");
     match joined(tokio::task::spawn_blocking(move || listing(&dir)).await) {
+        Ok(v) if brief => Json(json!({
+            "voices": v["voices"].as_array().into_iter().flatten().map(|voice| json!({
+                "name": voice["name"],
+                "card": { "kind": voice["card"]["kind"], "lang": voice["card"]["lang"], "gender": voice["card"]["gender"] },
+            })).collect::<Vec<_>>(),
+            "broken": v["broken"],
+        }))
+        .into_response(),
         Ok(v) => Json(v).into_response(),
         Err(r) => r,
     }
