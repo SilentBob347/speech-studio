@@ -718,70 +718,6 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           <button onClick={() => setSelected([])} className="ml-auto p-1 rounded text-[var(--color-muted)] hover:text-[var(--color-text)]" {...named(t("speech.selectNone"))}><X size={14} /></button>
         </div>
       )}
-      {timelineOpen && (
-        <ProjectTimeline pid={pid} speakers={speakers} tintOf={tintOf} textOf={(id) => blocks.find((b) => b.id === id)?.text ?? ""} refresh={saving ? undefined : project} onClose={() => setTimelineOpen(false)}
-          cueTimed={project.settings.timeline}
-          tracks={project.tracks ?? []}
-          onTrackClip={(trackId, clipId, change) => edit((p) => {
-            const clip = p.tracks?.find((tr) => tr.id === trackId)?.clips.find((c) => c.id === clipId);
-            if (!clip) return p;
-            if (change.start !== undefined) clip.start = Math.max(0, change.start);
-            if (change.cut !== undefined) clip.cut = change.cut;
-            if (change.mix) clip.mix = change.mix;
-            return p;
-          })}
-          onTrack={(trackId, change) => edit((p) => {
-            if (change.remove) { p.tracks = (p.tracks ?? []).filter((tr) => tr.id !== trackId); return p; }
-            const track = p.tracks?.find((tr) => tr.id === trackId);
-            if (!track) return p;
-            if (change.gain_db !== undefined) track.gain_db = change.gain_db;
-            if (change.muted !== undefined) track.muted = change.muted;
-            return p;
-          })}
-          onAddFiles={(files, trackId) => { void (async () => {
-            try { await flush(); await speechApi.tracksUpload(pid, files, trackId, "", null); reload(); }
-            catch (e) { setJobError(errorText(e)); }
-          })(); }}
-          onMusic={() => setMusicOpen(true)}
-          onPlayMedia={(file, [from, to]) => {
-            audio.current?.pause();
-            const a = new Audio(speechApi.mediaUrl(pid, file));
-            a.volume = volume.current;
-            a.addEventListener("loadedmetadata", () => { a.currentTime = from; }, { once: true });
-            a.addEventListener("timeupdate", () => { if (a.currentTime >= to) a.pause(); });
-            audio.current = a;
-            a.play().catch((e: unknown) => setJobError(errorText(e)));
-          }}
-          onPlay={(id) => { const b = blocks.find((x) => x.id === id); if (b) playBlock(b, []); }}
-          onMontage={(id, change: Montage) => edit((p) => {
-            const at = locate(p, id);
-            if (!at) return p;
-            const b = p.chapters[at[0]].blocks[at[1]];
-            if (change.mix) b.mix = change.mix;
-            if (change.cut !== undefined) {
-              const take = activeTake(b);
-              if (take) take.cut = change.cut;
-            }
-            if (change.pause) {
-              const before = locate(p, change.pause.prev);
-              if (before) p.chapters[before[0]].blocks[before[1]].pause_ms = change.pause.ms;
-            }
-            if (change.shift !== undefined && b.start != null && b.end != null) {
-              b.start = Math.max(0, b.start + change.shift);
-              b.end = Math.max(b.start, b.end + change.shift);
-            }
-            return p;
-          })}
-          onJump={(id) => document.getElementById(`block-${id}`)?.scrollIntoView({ block: "center", behavior: "smooth" })}
-          onChoose={(id, previous, choice: OverlapChoice) => edit((p) => {
-            const at = locate(p, id);
-            const before = locate(p, previous);
-            if (!at || !before) return p;
-            p.chapters[at[0]].blocks[at[1]].cut_previous = choice === "cut";
-            if (choice === "join") p.chapters[before[0]].blocks[before[1]].pause_ms = 0;
-            return p;
-          })} />
-      )}
       {musicOpen && <MusicDialog pid={pid} tracks={(project.tracks ?? []).map((tr) => ({ id: tr.id, name: tr.name }))} flush={flush} onClose={() => setMusicOpen(false)} onDone={() => { setMusicOpen(false); reload(); }} />}
       {searching && (
         <SearchReplace blocks={blocks} onClose={() => setSearching(false)}
@@ -886,6 +822,70 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
         </div>
         <aside ref={setSide} aria-label={t("speech.blockPanel")} className={`${wide && panel ? "block" : "hidden"} w-80 shrink-0 border-l border-[var(--color-border)] bg-[var(--color-surface)]/60 overflow-y-auto`} />
       </div>
+      {timelineOpen && (
+        <ProjectTimeline pid={pid} speakers={speakers} tintOf={tintOf} textOf={(id) => blocks.find((b) => b.id === id)?.text ?? ""} refresh={saving ? undefined : project} onClose={() => setTimelineOpen(false)}
+          cueTimed={project.settings.timeline}
+          tracks={project.tracks ?? []}
+          onTrackClip={(trackId, clipId, change) => edit((p) => {
+            const clip = p.tracks?.find((tr) => tr.id === trackId)?.clips.find((c) => c.id === clipId);
+            if (!clip) return p;
+            if (change.start !== undefined) clip.start = Math.max(0, change.start);
+            if (change.cut !== undefined) clip.cut = change.cut;
+            if (change.mix) clip.mix = change.mix;
+            return p;
+          })}
+          onTrack={(trackId, change) => edit((p) => {
+            if (change.remove) { p.tracks = (p.tracks ?? []).filter((tr) => tr.id !== trackId); return p; }
+            const track = p.tracks?.find((tr) => tr.id === trackId);
+            if (!track) return p;
+            if (change.gain_db !== undefined) track.gain_db = change.gain_db;
+            if (change.muted !== undefined) track.muted = change.muted;
+            return p;
+          })}
+          onAddFiles={(files, trackId) => { void (async () => {
+            try { await flush(); await speechApi.tracksUpload(pid, files, trackId, "", null); reload(); }
+            catch (e) { setJobError(errorText(e)); }
+          })(); }}
+          onMusic={() => setMusicOpen(true)}
+          onPlayMedia={(file, [from, to]) => {
+            audio.current?.pause();
+            const a = new Audio(speechApi.mediaUrl(pid, file));
+            a.volume = volume.current;
+            a.addEventListener("loadedmetadata", () => { a.currentTime = from; }, { once: true });
+            a.addEventListener("timeupdate", () => { if (a.currentTime >= to) a.pause(); });
+            audio.current = a;
+            a.play().catch((e: unknown) => setJobError(errorText(e)));
+          }}
+          onPlay={(id) => { const b = blocks.find((x) => x.id === id); if (b) playBlock(b, []); }}
+          onMontage={(id, change: Montage) => edit((p) => {
+            const at = locate(p, id);
+            if (!at) return p;
+            const b = p.chapters[at[0]].blocks[at[1]];
+            if (change.mix) b.mix = change.mix;
+            if (change.cut !== undefined) {
+              const take = activeTake(b);
+              if (take) take.cut = change.cut;
+            }
+            if (change.pause) {
+              const before = locate(p, change.pause.prev);
+              if (before) p.chapters[before[0]].blocks[before[1]].pause_ms = change.pause.ms;
+            }
+            if (change.shift !== undefined && b.start != null && b.end != null) {
+              b.start = Math.max(0, b.start + change.shift);
+              b.end = Math.max(b.start, b.end + change.shift);
+            }
+            return p;
+          })}
+          onJump={(id) => document.getElementById(`block-${id}`)?.scrollIntoView({ block: "center", behavior: "smooth" })}
+          onChoose={(id, previous, choice: OverlapChoice) => edit((p) => {
+            const at = locate(p, id);
+            const before = locate(p, previous);
+            if (!at || !before) return p;
+            p.chapters[at[0]].blocks[at[1]].cut_previous = choice === "cut";
+            if (choice === "join") p.chapters[before[0]].blocks[before[1]].pause_ms = 0;
+            return p;
+          })} />
+      )}
       <Transport blocks={transportBlocks} audio={audio} playing={playing} paused={paused} rate={speed} start={selected[0] ?? blocks[0]?.id ?? null} tint={tintOf}
         onPlay={listenFrom} onPause={pauseAudio} onResume={resumeAudio} onStop={stopAudio} onSkip={skip} onRate={changeRate} onShow={showBlock} onEdit={editSpoken} />
       {enriched && (
