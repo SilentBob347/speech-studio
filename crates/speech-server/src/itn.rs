@@ -1,6 +1,6 @@
 //! Numbers said in words written as digits in a transcript ("двадцать пять" → "25"), for its export: Russian by the
 //! number words of every case and gender `num2words2` writes for the voicing (`normalize_ru`), read back; English,
-//! Spanish, French, Portuguese, German, Italian, Dutch and Danish by `text2num`. A number below ten said alone stays a
+//! Spanish, French, Portuguese, German, Italian, Dutch and Danish by `text2num`; Chinese by its numerals (`zh`). A number below ten said alone stays a
 //! word, as `text2num` keeps it ("один из нас"). The transcript itself and its word times stay as heard.
 
 use std::collections::HashMap;
