@@ -52,7 +52,7 @@ async function follow(t: TFunction<"t">, notice: ChangeNotice & { job_id: string
     });
     useStore.getState().setProgress("done", t("bridge.jobDone", { kind }), null);
   } catch (problem) {
-    useStore.getState().setProgress("error", t("bridge.jobFailed", { kind, error: String(problem) }), null);
+    useStore.getState().setProgress("error", t("bridge.jobFailed", { kind, error: problem instanceof Error ? problem.message : String(problem) }), null);
   }
 }
 
