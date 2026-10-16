@@ -23,6 +23,7 @@ export function useTalk({ fed }: { fed: boolean }) {
   const [speaking, setSpeaking] = useState(false);
   const micLevel = useRef(0);
   const fedLevel = useRef(0);
+  const fedBands = useRef<number[]>([]);
   const seen = useRef(-1);
   const texts = useRef(new Map<string, string>());
 
@@ -77,7 +78,7 @@ export function useTalk({ fed }: { fed: boolean }) {
   }, [running]);
 
   useEffect(() => {
-    if (fed) return receiveTalkFeed((talking, level) => { fedLevel.current = level; setSpeaking(talking); });
+    if (fed) return receiveTalkFeed((talking, level, bands) => { fedLevel.current = level; fedBands.current = bands; setSpeaking(talking); });
     const id = window.setInterval(() => setSpeaking(aloudPlayback()?.speaking ?? false), 100);
     return () => window.clearInterval(id);
   }, [fed]);
@@ -140,5 +141,23 @@ export function useTalk({ fed }: { fed: boolean }) {
     [speaking, fed],
   );
 
-  return { state, running, muted, toggleMute, type, heard, partial, saying, turns, lastPerson, lastAgent, agent, error, speaking, loudness, toggleMic, silence };
+  // the agent's voice is heard in bands; the person's microphone is heard by the studio, which tells only its loudness,
+  // so their bands are that loudness shaped like a voice: strongest low, a drift so they do not move as one
+  const bands = useCallback((n: number): number[] => {
+    if (speaking) {
+      if (!fed) return aloudPlayback()?.bands(n) ?? new Array<number>(n).fill(0);
+      const src = fedBands.current;
+      if (!src.length) return new Array<number>(n).fill(fedLevel.current);
+      return Array.from({ length: n }, (_, i) => src[Math.min(src.length - 1, Math.floor((i * src.length) / n))]);
+    }
+    const level = micLevel.current;
+    const now = performance.now() / 1000;
+    return Array.from({ length: n }, (_, i) => {
+      const shape = 1 - 0.6 * (i / Math.max(1, n - 1));
+      const drift = 0.75 + 0.25 * Math.sin(now * 7 + i * 1.7);
+      return Math.min(1, level * 1.6 * shape * drift);
+    });
+  }, [speaking, fed]);
+
+  return { state, running, muted, bands, toggleMute, type, heard, partial, saying, turns, lastPerson, lastAgent, agent, error, speaking, loudness, toggleMic, silence };
 }

@@ -63,6 +63,24 @@ export class LivePlayer {
     return Math.min(1, Math.sqrt(sum / data.length) * 4);
   }
 
+  /** What plays now split into `n` frequency bands from low to high, each 0..1, spaced as the ear hears pitch. */
+  bands(n: number): number[] {
+    if (!this.out || !this.ctx) return new Array<number>(n).fill(0);
+    const data = new Uint8Array(this.out.frequencyBinCount);
+    this.out.getByteFrequencyData(data);
+    const nyquist = this.ctx.sampleRate / 2;
+    const bin = (hz: number) => Math.min(data.length - 1, Math.max(1, Math.round((hz / nyquist) * data.length)));
+    const low = 80;
+    const high = 8000;
+    return Array.from({ length: n }, (_, i) => {
+      const a = bin(low * (high / low) ** (i / n));
+      const z = Math.max(a + 1, bin(low * (high / low) ** ((i + 1) / n)));
+      let sum = 0;
+      for (let k = a; k < z; k++) sum += data[k];
+      return sum / (z - a) / 255;
+    });
+  }
+
   /** How loud it plays, 0..1; the loudness `level` reports is taken before it, so a muted voice still moves the picture. */
   setVolume(volume: number): void {
     this.volume = volume;

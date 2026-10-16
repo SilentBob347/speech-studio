@@ -29,8 +29,8 @@ export default function TalkPage() {
 
   return (
     <main className="flex-1 min-h-0 flex" data-mcp-page={t("talk.title")}>
-      <section className="flex-1 min-w-0 flex flex-col items-center justify-between px-4 py-6 md:py-8">
-        <div className="w-full max-w-3xl flex items-center justify-between gap-3">
+      <section className="flex-1 min-w-0 min-h-0 flex flex-col items-center gap-3 px-4 py-4 md:py-6">
+        <div className="w-full max-w-3xl shrink-0 flex items-center justify-between gap-3">
           <h1 className="text-[15px] font-semibold">{t("talk.title")} <Hint text={t("talk.hint")} /></h1>
           <div role="radiogroup" aria-label={t("talk.style")} className="flex items-center gap-0.5 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] p-0.5 text-[12px]">
             {TALK_STYLES.map((s) => (
@@ -45,10 +45,10 @@ export default function TalkPage() {
           </span>
         </div>
 
-        <div className="flex flex-col items-center gap-5 w-full max-w-3xl">
-          <TalkVisual look={look} state={state} level={loudness} token={state === "thinking" ? "--color-accent-2" : "--color-accent"} className={look === "wave" ? "h-56 w-full max-w-2xl" : "h-64 w-64 md:h-80 md:w-80"} />
+        <div className="flex-1 min-h-0 w-full max-w-3xl overflow-y-auto flex flex-col items-center justify-center gap-4">
+          <TalkVisual look={look} state={state} level={loudness} bands={talk.bands} token={state === "thinking" ? "--color-accent-2" : "--color-accent"} className={look === "wave" || look === "bars" || look === "matrix" ? "shrink-0 h-[clamp(7rem,26vh,14rem)] w-full max-w-2xl" : "shrink-0 h-[clamp(8rem,34vh,20rem)] aspect-square"} />
           <p role="status" aria-live="polite" className="text-[15px] font-medium">{t(`talk.state_${state}`)}</p>
-          <div className="w-full space-y-3 text-center min-h-20">
+          <div className="w-full space-y-2 text-center">
             <p className="text-[13px] text-[var(--color-muted)]">{partial || lastPerson?.text || (running ? t("talk.saySomething") : "")}</p>
             <p className="text-[18px] md:text-[20px] leading-snug">{saying ?? lastAgent?.text ?? ""}</p>
           </div>

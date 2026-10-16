@@ -1,5 +1,5 @@
 import { useTranslation } from "react-i18next";
-import { Mic, MicOff, Phone, PhoneOff, Square, X } from "lucide-react";
+import { AudioLines, Mic, MicOff, Square, X } from "lucide-react";
 import { named } from "../../lib/a11y";
 import { useTalkPrefs } from "../../lib/talkPrefs";
 import { Tip } from "../Hint";
@@ -24,7 +24,7 @@ export default function TalkWidget() {
   return (
     <main data-tauri-drag-region title={t("talk.widgetMove")} className="flex h-full w-full items-center p-1.5 select-none">
       <div data-tauri-drag-region className="flex h-full w-full items-center gap-2 rounded-full border border-white/10 bg-[#0d1117]/85 pl-1.5 pr-2 text-white shadow-[0_8px_30px_rgba(0,0,0,0.45)] backdrop-blur-xl">
-        <TalkVisual look={look} state={state} level={loudness} token={state === "thinking" ? "--color-accent-2" : "--color-accent"} className={look === "wave" ? "pointer-events-none h-12 w-20 shrink-0" : "pointer-events-none h-14 w-14 shrink-0"} />
+        <TalkVisual look={look} state={state} level={loudness} bands={talk.bands} token={state === "thinking" ? "--color-accent-2" : "--color-accent"} className={look === "wave" || look === "bars" || look === "matrix" ? "pointer-events-none h-12 w-20 shrink-0" : "pointer-events-none h-14 w-14 shrink-0"} />
         <div data-tauri-drag-region className="min-w-0 flex-1 leading-tight">
           <p role="status" aria-live="polite" className="text-[11px] font-medium text-white/60">{t(`talk.state_${state}`)}</p>
           <p className={`truncate text-[13px] ${error ? "text-[var(--color-warn)]" : ""}`} title={line}>{line}</p>
@@ -38,7 +38,7 @@ export default function TalkWidget() {
         )}
         <Tip text={running ? t("talk.micOffHint") : t("talk.micOnHint")}>
           <button onClick={() => void talk.toggleMic()} className={`${button} ${running ? "bg-[var(--color-bad)]" : "bg-[var(--color-accent)] text-[var(--color-on-accent)]"}`} {...named(running ? t("talk.micOff") : t("talk.micOn"))}>
-            {running ? <PhoneOff size={15} /> : <Phone size={15} />}
+            {running ? <X size={15} /> : <AudioLines size={15} />}
           </button>
         </Tip>
         <Tip text={t("talk.silenceHint")}>

@@ -372,6 +372,24 @@ pub(super) fn tools() -> Vec<Tool> {
             call: |args| get(format!("/speech/listen/next{}", query(&[("after", args.get("after").and_then(Value::as_u64).map(|v| v.to_string())), ("seconds", args.get("seconds").and_then(Value::as_u64).map(|v| v.to_string()))]))),
         },
         Tool {
+            name: "mic_test_start",
+            description: "Test a microphone as call apps do: it records while voice_record_level shows how loud it hears, until mic_test_stop.",
+            schema: || object(json!({ "device": { "type": "string", "description": "a microphone of voice_record_devices; none: the default one" } }), &[]),
+            call: |args| post("/record/test".into(), json!({ "device": args.get("device") })),
+        },
+        Tool {
+            name: "mic_test_stop",
+            description: "End the microphone test: how long it heard, how loud at most, and the file of what it heard (mic_test_audio).",
+            schema: nothing,
+            call: |_| post("/record/test/stop".into(), json!({})),
+        },
+        Tool {
+            name: "mic_test_audio",
+            description: "The last microphone test's recording as a file on this computer.",
+            schema: nothing,
+            call: |_| get("/record/test/audio".into()),
+        },
+        Tool {
             name: "voice_listen_mute",
             description: "Mute the conversation's microphone (muted true) or turn it back on, as the person's mute button in Live does: while muted it hears silence, and the conversation, what was heard and voice_listen go on.",
             schema: || object(json!({ "muted": { "type": "boolean" } }), &["muted"]),

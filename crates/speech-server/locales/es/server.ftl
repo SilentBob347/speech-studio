@@ -1185,3 +1185,5 @@ talk-widget-title = Speech Studio Live
 say-no-session = No hay ninguna sesión de voz «{ $session }»: inicia una nueva.
 listen-live-not-running = El reconocimiento en vivo no está activo: primero enciende el micrófono en Live.
 say-no-text = El texto está vacío: escribe qué decirle al agente.
+record-test-other = Hay otra grabación en curso, no una prueba de micrófono.
+record-test-none = Todavía no se ha probado el micrófono.

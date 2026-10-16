@@ -2422,6 +2422,15 @@
     "outputNamesHint": "El navegador nombra los altavoces solo después de permitir el micrófono.",
     "outputUnsupported": "Este navegador no puede elegir el altavoz.",
     "expand": "Ampliar",
-    "collapse": "Contraer"
+    "collapse": "Contraer",
+    "style_bars": "Barras",
+    "style_radial": "Círculo",
+    "style_matrix": "Matriz",
+    "inputLevel": "Nivel del micrófono",
+    "outputLevel": "Nivel del altavoz",
+    "speakToTest": "Di algo: la barra debería moverse.",
+    "hearBack": "Escucharte",
+    "hearingBack": "Suena lo que oyó el micrófono…",
+    "testSpeaker": "Probar"
   }
 }

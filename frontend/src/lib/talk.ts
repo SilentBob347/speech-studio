@@ -12,6 +12,8 @@ export const talkApi = {
   type: (text: string) => postCoded<{ ok: boolean }>("/speech/listen/text", { text }),
   heard: () => getCoded<LiveHeard>("/listen/record/live"),
   level: () => getCoded<{ level: number }>("/record/level"),
+  micTest: (device: string) => postCoded<{ testing: boolean }>("/record/test", { device }),
+  micTestStop: () => postCoded<{ seconds: number; peak: number }>("/record/test/stop", {}),
   session: (id: string) => getCoded<{ session: string; open: boolean; phrases: SayPhrase[] }>(`/speech/say/${encodeURIComponent(id)}`),
   silence: () => sendCoded<unknown>("DELETE", "/speech/say"),
 };

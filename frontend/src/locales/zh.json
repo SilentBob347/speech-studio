@@ -2422,6 +2422,15 @@
     "outputNamesHint": "只有在允许使用麦克风后，浏览器才会显示扬声器名称。",
     "outputUnsupported": "此浏览器无法选择扬声器。",
     "expand": "展开",
-    "collapse": "收起"
+    "collapse": "收起",
+    "style_bars": "柱状",
+    "style_radial": "环形",
+    "style_matrix": "点阵",
+    "inputLevel": "麦克风电平",
+    "outputLevel": "扬声器电平",
+    "speakToTest": "说点什么：电平条应该会动。",
+    "hearBack": "回放自己",
+    "hearingBack": "正在播放麦克风听到的声音…",
+    "testSpeaker": "测试"
   }
 }

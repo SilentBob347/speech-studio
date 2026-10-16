@@ -1,10 +1,10 @@
 export type TalkState = "off" | "muted" | "listening" | "hearing" | "thinking" | "speaking";
-export type TalkStyle = "aura" | "wave";
-export const TALK_STYLES: TalkStyle[] = ["aura", "wave"];
+export type TalkStyle = "aura" | "wave" | "bars" | "radial" | "matrix";
+export const TALK_STYLES: TalkStyle[] = ["aura", "wave", "bars", "radial", "matrix"];
 
 /** What every look of the talk screen is drawn from: the conversation's state, how loud whoever speaks is right now
  * (read each frame, never through React), and the theme colour it is painted in. */
-export type VisualProps = { state: TalkState; level: () => number; token: string; className?: string };
+export type VisualProps = { state: TalkState; level: () => number; bands: (n: number) => number[]; token: string; className?: string };
 
 /** A theme token's colour as a shader takes it, and whether the page is light. */
 export function readTheme(token: string, probe: CanvasRenderingContext2D): { color: [number, number, number]; light: boolean } {

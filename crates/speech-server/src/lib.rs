@@ -468,6 +468,9 @@ pub fn build_router(state: AppState) -> Router {
         .route("/record/level", get(record_level))
         .route("/record/start", post(record_start))
         .route("/record/stop", post(record_stop))
+        .route("/record/test", post(record_test))
+        .route("/record/test/stop", post(record_test_stop))
+        .route("/record/test/audio", get(record_test_audio))
         .route("/voices", get(voice_api::list))
         .route("/voices/download-pack", post(voices_download_pack))
         .route("/voices/catalog", get(voices_catalog))
@@ -919,6 +922,54 @@ async fn record_devices() -> Json<Value> {
 /// GET /record/level — текущий пик 0..1 (метр уровня).
 async fn record_level() -> Json<Value> {
     Json(json!({ "level": record::level() }))
+}
+
+/// Where a microphone test is recorded: one file, each test replaces the last.
+fn mic_test_path(st: &AppState) -> PathBuf {
+    st.workspace.join(".mic-test.wav")
+}
+
+/// POST /record/test {device?} — a microphone test, as call apps have one: records until /record/test/stop while
+/// /record/level shows how loud it hears; the recording is then played back to the person.
+async fn record_test(State(st): State<AppState>, body: Option<Json<Value>>) -> Response {
+    let device = body.as_ref().and_then(|Json(v)| v.get("device")).and_then(Value::as_str).filter(|d| !d.is_empty()).map(str::to_string);
+    let path = mic_test_path(&st);
+    match tokio::task::spawn_blocking(move || record::start(&path, device)).await {
+        Ok(Ok(())) => Json(json!({ "testing": true })).into_response(),
+        Ok(Err(e)) => (StatusCode::CONFLICT, Json(json!({ "error": "record_busy", "detail": e }))).into_response(),
+        Err(e) => join_failure(e),
+    }
+}
+
+/// POST /record/test/stop — ends the microphone test: how long it heard and how loud at most; the file to play back.
+async fn record_test_stop(State(st): State<AppState>) -> Response {
+    let path = match tokio::task::spawn_blocking(record::stop).await {
+        Ok(Ok(p)) => p,
+        Ok(Err(e)) => return (StatusCode::BAD_REQUEST, Json(json!({ "error": "record_failed", "detail": e }))).into_response(),
+        Err(e) => return join_failure(e),
+    };
+    if path != mic_test_path(&st) {
+        return (StatusCode::CONFLICT, Json(json!({ "error": "not_a_test", "detail": t!("record-test-other") }))).into_response();
+    }
+    let (seconds, peak) = match hound::WavReader::open(&path) {
+        Ok(mut r) => {
+            let spec = r.spec();
+            let samples: Vec<f32> = r.samples::<i16>().filter_map(Result::ok).map(|s| s as f32 / i16::MAX as f32).collect();
+            let seconds = samples.len() as f64 / (spec.sample_rate as f64 * spec.channels as f64);
+            (seconds, samples.iter().fold(0.0f32, |m, s| m.max(s.abs())))
+        }
+        Err(e) => return internal_error(format!("{}: {e}", path.display())),
+    };
+    Json(json!({ "path": path.display().to_string(), "seconds": (seconds * 100.0).round() / 100.0, "peak": (peak * 1000.0).round() / 1000.0 })).into_response()
+}
+
+/// GET /record/test/audio — the last microphone test's recording.
+async fn record_test_audio(State(st): State<AppState>, req: axum::http::Request<axum::body::Body>) -> Response {
+    let path = mic_test_path(&st);
+    if !path.is_file() {
+        return (StatusCode::NOT_FOUND, Json(json!({ "error": "no_file", "detail": t!("record-test-none") }))).into_response();
+    }
+    serve_file_range(&path, req, None).await
 }
 
 /// POST /record/start {name, device?} — начать запись голоса в новый файл voices/<имя>.wav (занятое имя получает номер).

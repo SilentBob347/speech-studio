@@ -2422,6 +2422,15 @@
     "outputNamesHint": "The browser names speakers only after you allow the microphone.",
     "outputUnsupported": "This browser cannot choose the speaker.",
     "expand": "Expand",
-    "collapse": "Collapse"
+    "collapse": "Collapse",
+    "style_bars": "Bars",
+    "style_radial": "Radial",
+    "style_matrix": "Matrix",
+    "inputLevel": "Microphone level",
+    "outputLevel": "Speaker level",
+    "speakToTest": "Say something: the bar should move.",
+    "hearBack": "Hear yourself",
+    "hearingBack": "Playing what the microphone heard…",
+    "testSpeaker": "Test"
   }
 }

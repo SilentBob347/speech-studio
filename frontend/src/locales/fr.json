@@ -2422,6 +2422,15 @@
     "outputNamesHint": "Le navigateur ne nomme les haut-parleurs qu'après l'autorisation du micro.",
     "outputUnsupported": "Ce navigateur ne sait pas choisir le haut-parleur.",
     "expand": "Agrandir",
-    "collapse": "Réduire"
+    "collapse": "Réduire",
+    "style_bars": "Barres",
+    "style_radial": "Cercle",
+    "style_matrix": "Matrice",
+    "inputLevel": "Niveau du micro",
+    "outputLevel": "Niveau du haut-parleur",
+    "speakToTest": "Dites quelque chose : la barre doit bouger.",
+    "hearBack": "Vous réécouter",
+    "hearingBack": "Lecture de ce que le micro a entendu…",
+    "testSpeaker": "Tester"
   }
 }
