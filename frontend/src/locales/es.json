@@ -2336,6 +2336,26 @@
     "mic": "Una grabación del micrófono pasa a ser enseguida una grabación de Escucha y se reconoce. Elija el dispositivo a la derecha.",
     "watchFormats": "Los formatos en que guardar la transcripción de cada grabación: subtítulos (SRT, VTT, ASS), texto (TXT) o todo con tiempos de palabras (JSON).",
     "withSpeakers": "Indicar quién habla: «Hablante 1:» o el nombre que le dio.",
-    "withTimes": "Poner la hora de inicio delante de cada réplica del texto."
+    "withTimes": "Poner la hora de inicio delante de cada réplica del texto.",
+    "listenSpeakers": "Cuántas personas hablan en la grabación. «Auto» deja que el modelo decida; si sabe el número, indíquelo y las réplicas se separarán mejor.",
+    "vad_threshold": "Qué seguridad necesita el modelo para tomar un sonido por habla, de 0 a 1. Más alto puede perder habla suave; más bajo deja entrar ruido. Normalmente 0,5.",
+    "vad_hysteresis": "Cuánto debe bajar la seguridad por debajo del umbral para que termine el habla. Más alto conserva los finales suaves de las palabras.",
+    "vad_min_speech_ms": "Un sonido más corto no cuenta como habla: chasquidos, toses y golpes se descartan.",
+    "vad_min_silence_ms": "Una pausa más corta no corta el habla: las respiraciones breves entre palabras quedan dentro del fragmento.",
+    "vad_pad_ms": "Un margen en los bordes de cada fragmento para no cortar el primer y el último sonido de una palabra.",
+    "voiceGender": "Quién habla en la referencia. «Elegir voces» asigna voces a los personajes por género y edad.",
+    "voiceLang": "El código de dos letras del idioma de la referencia: ru, en, de. Con él se eligen voces para personajes de proyectos en ese idioma.",
+    "voiceTags": "Sus propias palabras separadas por comas para buscar en la biblioteca: tranquila, grave, narrador.",
+    "voiceSource": "De dónde viene la voz: grabación propia, archivo, sitio web. Ayuda a recordar si puede usarla.",
+    "voiceConsent": "Si el dueño de la voz permitió clonarla. Una voz ajena sin consentimiento es solo para pruebas personales.",
+    "voiceLicense": "Las condiciones de uso de la grabación, por ejemplo CC-BY-4.0. Vacío: no se sabe.",
+    "voiceVariantOf": "Convertir esta voz en una variante de otra: la misma persona, otra emoción. Un bloque cambia de variante con un botón.",
+    "voiceCatalog": "Abrir voces rusas listas de una colección en la nube: escucharlas y descargar las necesarias a la biblioteca.",
+    "voicePack": "Descargar un conjunto de voces VibeVoice listas con sus textos de referencia, para empezar sin grabaciones propias.",
+    "voiceZipIn": "Añadir voces desde un ZIP: el sonido, el texto de referencia y la ficha de cada voz.",
+    "voiceZipOut": "Guardar las voces marcadas en un ZIP con sus fichas y textos, para llevarlas a otro ordenador.",
+    "cleanToggle": "Las voces nuevas se separan de la música y el ruido al añadirlas. El original se conserva.",
+    "dictLang": "La regla solo funciona en texto de este idioma. «Cualquiera»: en todos.",
+    "dictVoice": "La regla solo funciona con esta voz: útil si una voz se equivoca en una palabra y las demás no."
   }
 }

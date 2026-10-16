@@ -2336,6 +2336,26 @@
     "mic": "A recording from the microphone becomes a Listening recording at once and is recognised. Choose the device on the right.",
     "watchFormats": "The formats to save each recording's transcript in: subtitles (SRT, VTT, ASS), text (TXT) or everything with word times (JSON).",
     "withSpeakers": "Mark who speaks: «Speaker 1:» or the name you gave the speaker.",
-    "withTimes": "Put the start time before each line of the text."
+    "withTimes": "Put the start time before each line of the text.",
+    "listenSpeakers": "How many people speak in the recording. Auto lets the model decide; if you know the number, set it and lines split between people more reliably.",
+    "vad_threshold": "How sure the model must be that a sound is speech, 0 to 1. Higher may lose quiet speech; lower lets noise in. Usually 0.5.",
+    "vad_hysteresis": "How far below the threshold the certainty must drop for speech to end. Larger keeps quiet word endings.",
+    "vad_min_speech_ms": "Sound shorter than this is not speech: clicks, coughs and knocks are dropped.",
+    "vad_min_silence_ms": "A pause shorter than this does not cut the speech: short breaths between words stay inside the piece.",
+    "vad_pad_ms": "A margin at the edges of each piece so the first and last sound of a word is not cut off.",
+    "voiceGender": "Who speaks in the reference. Pick voices matches characters by gender and age.",
+    "voiceLang": "The two-letter language code of the reference: ru, en, de. Voices are picked for characters of a project in that language by it.",
+    "voiceTags": "Your own words, comma-separated, for searching the library: calm, low, narrator.",
+    "voiceSource": "Where the voice came from: your recording, an archive, a site. Helps you recall whether you may use it.",
+    "voiceConsent": "Whether the voice's owner allowed cloning it. Someone else's voice without consent is for private experiments only.",
+    "voiceLicense": "The terms the voice recording may be used under, for example CC-BY-4.0. Empty means unknown.",
+    "voiceVariantOf": "Make this voice a delivery of another: the same person, another emotion. A block switches variants with one button.",
+    "voiceCatalog": "Open ready Russian voices from a cloud collection: listen and download the ones you need into the library.",
+    "voicePack": "Download a set of ready VibeVoice voices with their reference texts, to start without recordings of your own.",
+    "voiceZipIn": "Add voices from a ZIP: each voice's sound, reference text and card.",
+    "voiceZipOut": "Save the ticked voices to a ZIP with their cards and texts, to move them to another computer.",
+    "cleanToggle": "New voices are separated from music and noise as they are added. The original is kept.",
+    "dictLang": "The rule works only in text in this language. Any means in all.",
+    "dictVoice": "The rule works only for this voice: handy when one voice gets a word wrong and the others do not."
   }
 }

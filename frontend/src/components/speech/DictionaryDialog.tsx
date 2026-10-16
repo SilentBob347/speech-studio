@@ -8,6 +8,7 @@ import { useEscapeLayer } from "../../lib/escape";
 import VoicePicker from "./VoicePicker";
 import { LANG_CHOICES } from "./langs";
 import { followJob } from "../../lib/followJob";
+import Hint, { Tip } from "../Hint";
 
 type Tried = { before: { file: string; text: string }; after: { file: string; text: string } };
 
@@ -173,11 +174,11 @@ export default function DictionaryDialog({ pid, project, onChange, onClose }: {
         </div>
         <div className="flex flex-wrap items-center gap-2 px-5 py-2.5">
           <button onClick={() => add()} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[12px] font-medium"><Plus size={13} />{t("dict.add")}</button>
-          <button onClick={() => file.current?.click()} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)]" title={t("dict.importHint")}><FileUp size={13} />{t("dict.import")}</button>
+          <Tip text={t("dict.importHint")}><button onClick={() => file.current?.click()} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)]"><FileUp size={13} />{t("dict.import")}</button></Tip>
           <input ref={file} type="file" accept=".dic,.rex,.bxd" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void importFile(f); }} />
-          <button onClick={() => void findUnknown()} disabled={looking} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)] disabled:opacity-40" title={t("dict.unknownHint")}>
+          <Tip text={t("dict.unknownHint")}><button onClick={() => void findUnknown()} disabled={looking} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)] disabled:opacity-40" title={t("dict.unknownHint")}>
             {looking ? <Loader2 size={13} className="animate-spin" /> : <SearchCheck size={13} />}{t("dict.unknown")}
-          </button>
+          </button></Tip>
           <select value={reviewShown} onChange={(e) => setReviewShown(e.target.value as typeof reviewShown)} aria-label={t("dict.reviewShow")} className={`${field} ml-auto w-40`}>
             {(["all", "none", "approved", "fix"] as const).map((r) => <option key={r} value={r}>{t(`dict.reviewShow_${r}`, { n: r === "all" ? entries.length : entries.filter((e) => (e.review || "none") === r).length })}</option>)}
           </select>
@@ -215,13 +216,13 @@ export default function DictionaryDialog({ pid, project, onChange, onClose }: {
                       <div className="grid gap-2 sm:grid-cols-4 px-2 pb-2 text-[11px] text-[var(--color-muted)]">
                         <label className="flex items-center gap-1.5"><input type="checkbox" checked={e.case_sensitive} onChange={(ev) => patch(e.id, { case_sensitive: ev.target.checked })} className="accent-[var(--color-accent)]" />{t("dict.caseSensitive")}</label>
                         <label className="flex items-center gap-1.5"><input type="checkbox" checked={e.whole_word} disabled={e.kind === "regex"} onChange={(ev) => patch(e.id, { whole_word: ev.target.checked })} className="accent-[var(--color-accent)]" />{t("dict.wholeWord")}</label>
-                        <label>{t("dict.lang")}
+                        <label>{t("dict.lang")} <Hint text={t("hint.dictLang")} />
                           <select value={e.lang} onChange={(ev) => patch(e.id, { lang: ev.target.value })} className={`${field} mt-1 w-full`}>
                             <option value="">{t("dict.any")}</option>
                             {LANG_CHOICES.filter((l) => l !== "auto").map((l) => <option key={l} value={l}>{l.toUpperCase()}</option>)}
                           </select>
                         </label>
-                        <label>{t("dict.voice")}
+                        <label>{t("dict.voice")} <Hint text={t("hint.dictVoice")} />
                           <VoicePicker value={e.voice || null} onChange={(v) => patch(e.id, { voice: v ?? "" })} inherit={t("dict.any")} label={t("dict.voice")} className={`${field} mt-1 w-full`} />
                         </label>
                         <TryByEar pid={pid} project={project} entry={e} />

@@ -14,7 +14,7 @@ import { PROJECTS_CHANGED, useChanged } from "../../lib/mcpBridge";
 import { named } from "../../lib/a11y";
 import ConfirmDialog from "../ConfirmDialog";
 import UrlImport from "../UrlImport";
-import Hint from "../Hint";
+import Hint, { Tip } from "../Hint";
 
 const START = "listen.start";
 
@@ -106,7 +106,7 @@ export default function ListeningHome({ onOpen }: { onOpen: (pid: string) => voi
         <section aria-labelledby="listen-new" className="space-y-4">
           <div className="flex items-center gap-2">
             <h1 id="listen-new" className="text-xl font-bold tracking-tight flex items-center gap-2"><Ear size={20} className="text-[var(--color-accent)]" />{t("listen.newTitle")}</h1>
-            <button onClick={() => setQuick(true)} className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)]"><Sparkles size={13} className="text-[var(--color-accent)]" />{t("listen.quickTitle")}</button><Hint text={t("listen.quickHint")} />
+            <Tip text={t("listen.quickHint")} className="ml-auto inline-flex"><button onClick={() => setQuick(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)]"><Sparkles size={13} className="text-[var(--color-accent)]" />{t("listen.quickTitle")}</button></Tip>
           </div>
           <p className="text-[13px] text-[var(--color-muted)] leading-relaxed">{t("listen.newHint")}</p>
           <div className="grid gap-2 grid-cols-2">

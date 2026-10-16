@@ -18,6 +18,7 @@ import GpuNotice from "../GpuNotice";
 import DownloadProgress from "../DownloadProgress";
 import RemoveComponent from "../RemoveComponent";
 import ConfirmDialog from "../ConfirmDialog";
+import Hint from "../Hint";
 
 // Модели и компоненты в настройках: список из /setup/status с кнопками скачки/докачки и прогрессом.
 // part="cloud" — раздел «Облако» (ключ OpenRouter и потоки) на том же состоянии выбора.
@@ -122,8 +123,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
           <div className="flex items-center gap-2.5">
             <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-[var(--color-muted)]" />
             <div className="min-w-0 flex-1">
-              <div className="text-[12px] font-medium truncate">{t("cloud.threads")}</div>
-              <div className="mono text-[10px] text-[var(--color-muted)] break-words">{t("cloud.threadsHint")}</div>
+              <div className="text-[12px] font-medium truncate">{t("cloud.threads")} <Hint text={t("cloud.threadsHint")} /></div>
             </div>
             <select value={selv("or_concurrency") || "6"} onChange={(e) => setSel("or_concurrency", e.target.value)}
               className="shrink-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[11px] mono focus:border-[var(--color-accent)] focus:outline-none">
@@ -147,8 +147,8 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
       <div key={c.id} className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border)]">
         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${c.installed ? "bg-[var(--color-accent)]" : "bg-[var(--color-muted)]"}`} />
         <div className="min-w-0 flex-1">
-          <div className="text-[12px] font-medium truncate">{c.name}</div>
-          <div className="mono text-[10px] text-[var(--color-muted)] break-words">{c.purpose} · {c.vram ? `${fmtBytes(c.vram)} VRAM · ` : ""}{fmtBytes(c.size)} {t("settings.disk")}</div>
+          <div className="text-[12px] font-medium truncate">{c.name} {c.purpose && <Hint text={c.purpose} />}</div>
+          <div className="mono text-[10px] text-[var(--color-muted)] break-words">{c.vram ? `${fmtBytes(c.vram)} VRAM · ` : ""}{fmtBytes(c.size)} {t("settings.disk")}</div>
           {c.takenFrom && <div className="text-[10px] text-[var(--color-accent)]">{t("setup.takenFrom", { app: PROGRAMS[c.takenFrom] ?? c.takenFrom })}</div>}
         </div>
         {active ? (
@@ -191,8 +191,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
         <div className="flex items-center gap-2.5">
           <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${variants.some((v) => v.installed) ? "bg-[var(--color-accent)]" : "bg-[var(--color-muted)]"}`} />
           <div className="min-w-0 flex-1">
-            <div className="text-[12px] font-medium truncate">{base}</div>
-            {hint && <div className="text-[10px] leading-snug text-[var(--color-muted)]">{hint}</div>}
+            <div className="text-[12px] font-medium truncate">{base} {hint && <Hint text={hint} />}</div>
             <div className="mono text-[10px] text-[var(--color-muted)] break-words">{c.vram ? `${fmtBytes(c.vram)} VRAM · ` : ""}{fmtBytes(c.size)} {t("settings.disk")}{c.installed ? "" : ` · ${t("settings.notInstalled")}`}</div>
           </div>
           <select value={pick} onChange={(e) => {
@@ -299,12 +298,10 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
                 role="switch" aria-checked={(selv("or_tts_autocast") || "1") !== "0"} aria-label={t("cloud.autocast")} className={`relative w-9 h-5 rounded-full transition-colors shrink-0 ${(selv("or_tts_autocast") || "1") !== "0" ? "bg-[var(--color-accent)]" : "bg-[var(--color-surface)] border border-[var(--color-border)]"}`}>
                 <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${(selv("or_tts_autocast") || "1") !== "0" ? "left-[18px]" : "left-0.5"}`} />
               </button>
-              <span className="text-[12px]">{t("cloud.autocast")}</span>
+              <span className="text-[12px]">{t("cloud.autocast")} <Hint text={t("cloud.autocastHint")} /></span>
               <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--color-accent)]/20 text-[var(--color-accent)] uppercase tracking-wider">{t("cloud.beta")}</span>
             </div>
-            {(selv("or_tts_autocast") || "1") !== "0" ? (
-              <div className="text-[11px] text-[var(--color-muted)]">{t("cloud.autocastHint")}</div>
-            ) : (
+            {(selv("or_tts_autocast") || "1") === "0" && (
               <select value={selv("or_tts_voice")} onChange={(e) => setSel("or_tts_voice", e.target.value)} className={orSelectCls}>
                 <option value="">{t("cloud.oneVoice")}</option>
                 {orVoices.map((v) => <option key={v.name} value={v.name}>{v.gender === "male" ? "♂" : v.gender === "female" ? "♀" : "•"} {v.name}{v.age === "teen" ? ` · ${t("voice.ageTeen")}` : v.age === "child" ? ` · ${t("voice.ageChild")}` : ""}</option>)}
@@ -319,7 +316,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
             {get("drama3") && <>
               <p className="text-[11px] text-[var(--color-muted)] px-1">{t("settings.dramaNote")}</p>
               <div className="flex items-center gap-2 px-1">
-                <label htmlFor="drama-vram" className="text-[12px] flex-1">{t("settings.dramaVram")}</label>
+                <label htmlFor="drama-vram" className="text-[12px] flex-1">{t("settings.dramaVram")} <Hint text={t("settings.dramaVramHint")} /></label>
                 <select id="drama-vram" value={dramaVram} onChange={(e) => {
                   const v = e.target.value;
                   setDramaVram(v);
@@ -330,7 +327,6 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
                   {[5, 6, 8, 10, 12, 16, 20, 24].map(gb => <option key={gb} value={String(gb)}>{gb} {t("units.gb")}</option>)}
                 </select>
               </div>
-              <p className="text-[11px] text-[var(--color-muted)] px-1">{t("settings.dramaVramHint")}</p>
             </>}
             {rowOf("supertonic3")}
             {variantPicker("Qwen3-TTS 1.7B", ["qwen3-tts", "qwen3-tts-q8_0"])}
@@ -375,8 +371,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
               <div className="flex items-center gap-2.5">
                 <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-[var(--color-accent)]" />
                 <div className="min-w-0 flex-1">
-                  <div className="text-[12px] font-medium truncate">{t("settings.whisperCompute")}</div>
-                  <div className="mono text-[10px] text-[var(--color-muted)] break-words">{t("settings.whisperComputeHint")}</div>
+                  <div className="text-[12px] font-medium truncate">{t("settings.whisperCompute")} <Hint text={t("settings.whisperComputeHint")} /></div>
                 </div>
                 <select value={whisperCompute} onChange={(e) => { setWhisperCompute(e.target.value); api.setSelection("whisper_compute", e.target.value).catch(() => {}); }}
                   className="shrink-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[11px] mono focus:border-[var(--color-accent)] focus:outline-none">
@@ -424,8 +419,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
               <div className="flex items-center gap-2.5">
                 <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-[var(--color-muted)]" />
                 <div className="min-w-0 flex-1">
-                  <div className="text-[12px] font-medium truncate">{row.label}</div>
-                  <div className="mono text-[10px] text-[var(--color-muted)] break-words">{row.hint}</div>
+                  <div className="text-[12px] font-medium truncate">{row.label} <Hint text={row.hint} /></div>
                 </div>
                 <select value={cur} onChange={(e) => { api.setSelection(row.key, e.target.value).then(loadCap).catch((er) => setErr(er instanceof Error ? er.message : String(er))); }}
                   className="shrink-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[11px] mono focus:border-[var(--color-accent)] focus:outline-none">

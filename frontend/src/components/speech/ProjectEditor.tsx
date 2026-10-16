@@ -43,7 +43,7 @@ import ProjectTimeline, { type Montage, type OverlapChoice } from "./ProjectTime
 import MusicDialog from "./MusicDialog";
 import EngineSelect from "./EngineSelect";
 import HistoryDialog from "./HistoryDialog";
-import Hint from "../Hint";
+import Hint, { Tip } from "../Hint";
 
 function blockList(p: SpeechProject): Block[] {
   return p.chapters.flatMap((c) => c.blocks);
@@ -799,13 +799,12 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
             <input type="checkbox" checked={!!project.settings.one_voice} onChange={(e) => edit((p) => { p.settings.one_voice = e.target.checked; return p; })} className="mt-0.5 w-3.5 h-3.5 accent-[var(--color-accent)]" />
             <span>{t("speech.oneVoice")} <Hint text={t("speech.oneVoiceHint")} /></span>
           </label>
-          <div className="flex items-center gap-1.5">
+          <Tip text={t("speech.autoCastHint")} className="flex">
             <button onClick={() => void autoCast()} disabled={picking || !speakers.length || !!project.settings.one_voice}
               className="flex-1 inline-flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)] disabled:opacity-40">
               {picking ? <Loader2 size={13} className="animate-spin" /> : <Wand2 size={13} />}{t("speech.autoCast")}
             </button>
-            <Hint text={t("speech.autoCastHint")} />
-          </div>
+          </Tip>
           {speakers.map((s) => (
             <label key={s} className={`block text-[11px] ${project.settings.one_voice ? "opacity-50" : ""}`}>
               <span className="flex items-baseline gap-1.5"><span className="font-semibold" style={{ color: tintOf(s) }}>{s}</span><span className="text-[10px] tabnum text-[var(--color-muted)]">{t("speech.castBlocks", { n: blocks.filter((b) => b.speaker === s && !b.hidden).length })}</span><Hint text={t("hint.castCard")} /></span>

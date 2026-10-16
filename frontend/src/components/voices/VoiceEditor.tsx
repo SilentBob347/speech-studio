@@ -11,6 +11,7 @@ import VoiceAvatar from "./VoiceAvatar";
 import RefNeeds from "./RefNeeds";
 import RefTrim from "./RefTrim";
 import { DENOISE_LEVELS } from "../../lib/listen";
+import Hint, { Tip } from "../Hint";
 
 const GENDERS: VoiceGender[] = ["", "female", "male"];
 const AGES: VoiceAge[] = ["", "child", "teen", "adult", "senior"];
@@ -142,7 +143,7 @@ export default function VoiceEditor({ voice, all, onClose, onChanged, onRenamed,
         </div>
         <div className="grid grid-cols-3 gap-2">
           <div>
-            <label className={label} htmlFor="ve-gender">{t("voices.gender")}</label>
+            <label className={label} htmlFor="ve-gender">{t("voices.gender")} <Hint text={t("hint.voiceGender")} /></label>
             <select id="ve-gender" value={voice.card.gender} onChange={(e) => setCard({ gender: e.target.value as VoiceGender })} className={field}>
               {GENDERS.map((g) => <option key={g} value={g}>{t(`voices.gender_${g || "unknown"}`)}</option>)}
             </select>
@@ -154,35 +155,35 @@ export default function VoiceEditor({ voice, all, onClose, onChanged, onRenamed,
             </select>
           </div>
           <div>
-            <label className={label} htmlFor="ve-lang">{t("voices.lang")}</label>
+            <label className={label} htmlFor="ve-lang">{t("voices.lang")} <Hint text={t("hint.voiceLang")} /></label>
             <input id="ve-lang" value={lang} onChange={(e) => setLang(e.target.value)} maxLength={3} className={`${field} mono`} />
           </div>
         </div>
         <div>
-          <label className={label} htmlFor="ve-tags">{t("voices.tags")}</label>
+          <label className={label} htmlFor="ve-tags">{t("voices.tags")} <Hint text={t("hint.voiceTags")} /></label>
           <input id="ve-tags" value={tags} onChange={(e) => setTags(e.target.value)} placeholder={t("voices.tagsHint")} className={field} />
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className={label} htmlFor="ve-source">{t("voices.source")}</label>
+            <label className={label} htmlFor="ve-source">{t("voices.source")} <Hint text={t("hint.voiceSource")} /></label>
             <input id="ve-source" value={source} onChange={(e) => setSource(e.target.value)} placeholder={t("voices.sourceHint")} className={field} />
           </div>
           <div>
-            <label className={label} htmlFor="ve-consent">{t("voices.consent")}</label>
+            <label className={label} htmlFor="ve-consent">{t("voices.consent")} <Hint text={t("hint.voiceConsent")} /></label>
             <select id="ve-consent" value={voice.card.consent} onChange={(e) => setCard({ consent: e.target.value as VoiceConsent })} className={field}>
               {CONSENTS.map((c) => <option key={c} value={c}>{t(`voices.consent_${c || "unknown"}`)}</option>)}
             </select>
           </div>
         </div>
         <div>
-          <label className={label} htmlFor="ve-license">{t("voices.license")}</label>
+          <label className={label} htmlFor="ve-license">{t("voices.license")} <Hint text={t("hint.voiceLicense")} /></label>
           <input id="ve-license" list="ve-licenses" value={license} onChange={(e) => setLicense(e.target.value)} onBlur={() => { if (license.trim() !== voice.card.license) void setCard({ license: license.trim() }); }} placeholder={t("voices.licenseHint")} className={field} />
           <datalist id="ve-licenses">{["CC0-1.0", "CC-BY-4.0", "CC-BY-SA-4.0", "CC-BY-NC-4.0", "CC-BY-NC-SA-4.0"].map((l) => <option key={l} value={l} />)}</datalist>
         </div>
         {!all.some((v) => v.card.variant_of === voice.name) && (
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className={label} htmlFor="ve-variant-of">{t("voices.variantOf")}</label>
+              <label className={label} htmlFor="ve-variant-of">{t("voices.variantOf")} <Hint text={t("hint.voiceVariantOf")} /></label>
               <select id="ve-variant-of" value={voice.card.variant_of} onChange={(e) => setCard(e.target.value ? { variant_of: e.target.value, variant: variant.trim() || t("voices.variantDefault") } : { variant_of: "", variant: "" })} className={field}>
                 <option value="">{t("voices.variantNone")}</option>
                 {all.filter((v) => v.name !== voice.name && !v.card.variant_of).map((v) => <option key={v.name} value={v.name}>{prettyVoice(v.name)}</option>)}
@@ -198,7 +199,7 @@ export default function VoiceEditor({ voice, all, onClose, onChanged, onRenamed,
         )}
         <div>
           <div className="flex items-center justify-between mb-1">
-            <label className={label + " mb-0"} htmlFor="ve-text">{t("voices.transcript")}</label>
+            <label className={label + " mb-0"} htmlFor="ve-text">{t("voices.transcript")} <Hint text={t("voices.transcriptHint")} /></label>
             <span className="text-[10px] text-[var(--color-muted)]">{voice.transcript ? (voice.card.transcript_auto ? t("voices.transcriptAuto") : t("voices.transcriptManual")) : t("voices.transcriptNoneShort")}</span>
           </div>
           <textarea id="ve-text" value={transcript} onChange={(e) => setTranscript(e.target.value)} rows={4} placeholder={t("voices.transcriptHint")} className={`${field} resize-y leading-relaxed`} />
@@ -209,8 +210,8 @@ export default function VoiceEditor({ voice, all, onClose, onChanged, onRenamed,
         <RefNeeds hasText={!!voice.transcript?.trim()} />
         <div>
           <div className="flex items-center justify-between mb-1">
-            <span className={label + " mb-0"}>{t("voices.pieces")}</span>
-            <button onClick={findPieces} disabled={!!busy || !voice.transcript} title={voice.transcript ? t("voices.piecesHint") : t("voices.piecesNeedText")}
+            <span className={label + " mb-0"}>{t("voices.pieces")} <Hint text={t("voices.piecesHint")} /></span>
+            <button onClick={findPieces} disabled={!!busy || !voice.transcript} title={voice.transcript ? undefined : t("voices.piecesNeedText")}
               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-[var(--color-border)] text-[12px] text-[var(--color-accent-2)] hover:border-[var(--color-accent)] disabled:opacity-40">
               {busy === "pieces" ? <Loader2 size={12} className="animate-spin" /> : <Crop size={12} />}{t("voices.findPieces")}
             </button>
@@ -221,7 +222,7 @@ export default function VoiceEditor({ voice, all, onClose, onChanged, onRenamed,
           </div>
           <label className="mb-2 flex items-start gap-2 text-[12px] cursor-pointer">
             <input type="checkbox" checked={voice.card.rotate} onChange={(e) => void setCard({ rotate: e.target.checked })} className="mt-0.5 w-3.5 h-3.5 accent-[var(--color-accent)]" />
-            <span><span className="block">{t("voices.rotate")}</span><span className="block text-[11px] text-[var(--color-muted)]">{t("voices.rotateHint", { s: refLimit })}</span></span>
+            <span>{t("voices.rotate")} <Hint text={t("voices.rotateHint", { s: refLimit })} /></span>
           </label>
           {trimming && <div className="mb-2"><RefTrim url={api.voiceSampleUrl(voice.name, false, voice.size)} limit={refLimit} busy={busy === "apply"} onApply={trim} /></div>}
           {pieces && pieces.length === 0 && <p className="text-[12px] text-[var(--color-muted)]">{t("voices.noPieces")}</p>}
@@ -250,17 +251,17 @@ export default function VoiceEditor({ voice, all, onClose, onChanged, onRenamed,
               {busy === "restore" ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />}{t("voices.restore")}
             </button>
           ) : null}
-          <button onClick={clean} disabled={!!busy} title={t("voices.cleanHint")} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)] disabled:opacity-40">
+          <Tip text={t("voices.cleanHint")}><button onClick={clean} disabled={!!busy} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)] disabled:opacity-40">
             {busy === "clean" ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}{voice.card.cleaned ? t("voices.cleanAgain") : t("voices.clean")}
-          </button>
-          <span className="inline-flex items-stretch rounded-lg border border-[var(--color-border)] focus-within:border-[var(--color-accent)]">
-            <button onClick={denoise} disabled={!!busy} title={t("voices.denoiseHint")} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] hover:text-[var(--color-accent)] disabled:opacity-40">
+          </button></Tip>
+          <Tip text={t("voices.denoiseHint")}><span className="inline-flex items-stretch rounded-lg border border-[var(--color-border)] focus-within:border-[var(--color-accent)]">
+            <button onClick={denoise} disabled={!!busy} className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] hover:text-[var(--color-accent)] disabled:opacity-40">
               {busy === "denoise" ? <Loader2 size={12} className="animate-spin" /> : <AudioLines size={12} />}{t("voices.denoise")}
             </button>
             <select value={denoiseDb} onChange={(e) => setDenoiseDb(Number(e.target.value))} disabled={!!busy} aria-label={t("denoise.strength")} className="bg-transparent border-l border-[var(--color-border)] px-1.5 text-[11px] text-[var(--color-muted)] focus:outline-none">
               {DENOISE_LEVELS.map((db) => <option key={db} value={db}>{db ? t("denoise.db", { db }) : t("denoise.full")}</option>)}
             </select>
-          </span>
+          </span></Tip>
           <button onClick={() => setConfirmDelete(true)} disabled={!!busy} className="ml-auto inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] text-[var(--color-muted)] hover:text-[var(--color-warn)] hover:border-[var(--color-warn)] disabled:opacity-40">
             <Trash2 size={12} />{t("voices.delete")}
           </button>

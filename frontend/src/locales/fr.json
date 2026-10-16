@@ -2336,6 +2336,26 @@
     "mic": "Un enregistrement au micro devient aussitôt un enregistrement d’Écoute et est reconnu. Choisissez l’appareil à droite.",
     "watchFormats": "Les formats dans lesquels enregistrer la transcription de chaque enregistrement : sous-titres (SRT, VTT, ASS), texte (TXT) ou tout avec les temps des mots (JSON).",
     "withSpeakers": "Indiquer qui parle : « Locuteur 1 : » ou le nom que vous lui avez donné.",
-    "withTimes": "Mettre l’heure de début devant chaque réplique du texte."
+    "withTimes": "Mettre l’heure de début devant chaque réplique du texte.",
+    "listenSpeakers": "Combien de personnes parlent dans l’enregistrement. « Auto » laisse le modèle décider ; si vous savez, indiquez-le et les répliques se répartissent mieux.",
+    "vad_threshold": "À quel degré de certitude un son compte comme parole, de 0 à 1. Plus haut peut perdre la parole faible ; plus bas laisse entrer le bruit. En général 0,5.",
+    "vad_hysteresis": "De combien la certitude doit passer sous le seuil pour que la parole se termine. Plus grand garde les fins de mots faibles.",
+    "vad_min_speech_ms": "Un son plus court n’est pas de la parole : clics, toux et coups sont écartés.",
+    "vad_min_silence_ms": "Une pause plus courte ne coupe pas la parole : les brèves respirations entre les mots restent dans le morceau.",
+    "vad_pad_ms": "Une marge aux bords de chaque morceau pour ne pas couper le premier et le dernier son d’un mot.",
+    "voiceGender": "Qui parle dans la référence. « Choisir les voix » attribue les voix aux personnages selon le genre et l’âge.",
+    "voiceLang": "Le code à deux lettres de la langue de la référence : ru, en, de. Il sert à choisir des voix pour les personnages d’un projet dans cette langue.",
+    "voiceTags": "Vos propres mots séparés par des virgules pour chercher dans la bibliothèque : calme, grave, narrateur.",
+    "voiceSource": "D’où vient la voix : votre enregistrement, une archive, un site. Utile pour se rappeler si on peut l’utiliser.",
+    "voiceConsent": "Le propriétaire de la voix a-t-il autorisé son clonage. Une voix d’autrui sans accord : seulement pour des essais personnels.",
+    "voiceLicense": "Les conditions d’usage de l’enregistrement, par exemple CC-BY-4.0. Vide : inconnu.",
+    "voiceVariantOf": "Faire de cette voix une variante d’une autre : la même personne, une autre émotion. Un bloc change de variante d’un bouton.",
+    "voiceCatalog": "Ouvrir des voix russes prêtes d’une collection en ligne : les écouter et télécharger celles qu’il faut dans la bibliothèque.",
+    "voicePack": "Télécharger un ensemble de voix VibeVoice prêtes avec leurs textes de référence, pour commencer sans vos propres enregistrements.",
+    "voiceZipIn": "Ajouter des voix depuis un ZIP : le son, le texte de référence et la fiche de chaque voix.",
+    "voiceZipOut": "Enregistrer les voix cochées dans un ZIP avec leurs fiches et textes, pour les transférer sur un autre ordinateur.",
+    "cleanToggle": "Les nouvelles voix sont séparées de la musique et du bruit à l’ajout. L’original est conservé.",
+    "dictLang": "La règle ne s’applique qu’au texte dans cette langue. « N’importe laquelle » : à toutes.",
+    "dictVoice": "La règle ne s’applique qu’à cette voix : pratique quand une voix se trompe sur un mot et pas les autres."
   }
 }

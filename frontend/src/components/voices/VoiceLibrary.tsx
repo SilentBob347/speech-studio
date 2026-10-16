@@ -15,6 +15,7 @@ import VoiceEditor from "./VoiceEditor";
 import VoiceRecorder from "./VoiceRecorder";
 import VoiceCatalog from "./VoiceCatalog";
 import VoiceDesigner from "./VoiceDesigner";
+import Hint, { Tip } from "../Hint";
 
 const AUDIO_ACCEPT = "audio/*,.wav,.mp3,.flac,.m4a,.ogg";
 const chip = "inline-flex items-center px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wide bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-muted)]";
@@ -149,11 +150,11 @@ export default function VoiceLibrary({ onClose, onPick }: { onClose: () => void;
           <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5">
             <button onClick={() => setRecording(true)} className={tool}><Mic size={13} />{t("voices.record")}</button>
             <button onClick={() => fileInput.current?.click()} disabled={!!busy} className={tool}>{busy === "import" ? <Loader2 size={13} className="animate-spin" /> : <FileAudio size={13} />}{t("voices.importFiles")}</button>
-            <button onClick={() => setCatalog(true)} className={tool}><Cloud size={13} />{t("voices.catalog")}</button>
-            <button onClick={() => setDesigning(true)} className={tool} title={t("voices.designHint")}><Wand2 size={13} />{t("voices.design")}</button>
-            <button onClick={pack} disabled={!!busy} className={tool}>{busy === "pack" ? <Loader2 size={13} className="animate-spin" /> : <Package size={13} />}{t("voices.pack")}</button>
-            <button onClick={() => zipInput.current?.click()} disabled={!!busy} className={tool}>{busy === "zip" ? <Loader2 size={13} className="animate-spin" /> : <FolderInput size={13} />}{t("voices.importZip")}</button>
-            <button onClick={exportZip} disabled={!selected.size || !!busy} className={tool}>{busy === "export" ? <Loader2 size={13} className="animate-spin" /> : <Archive size={13} />}{t("voices.exportPicked", { n: selected.size })}</button>
+            <Tip text={t("hint.voiceCatalog")}><button onClick={() => setCatalog(true)} className={tool}><Cloud size={13} />{t("voices.catalog")}</button></Tip>
+            <Tip text={t("voices.designHint")}><button onClick={() => setDesigning(true)} className={tool}><Wand2 size={13} />{t("voices.design")}</button></Tip>
+            <Tip text={t("hint.voicePack")}><button onClick={pack} disabled={!!busy} className={tool}>{busy === "pack" ? <Loader2 size={13} className="animate-spin" /> : <Package size={13} />}{t("voices.pack")}</button></Tip>
+            <Tip text={t("hint.voiceZipIn")}><button onClick={() => zipInput.current?.click()} disabled={!!busy} className={tool}>{busy === "zip" ? <Loader2 size={13} className="animate-spin" /> : <FolderInput size={13} />}{t("voices.importZip")}</button></Tip>
+            <Tip text={t("hint.voiceZipOut")}><button onClick={exportZip} disabled={!selected.size || !!busy} className={tool}>{busy === "export" ? <Loader2 size={13} className="animate-spin" /> : <Archive size={13} />}{t("voices.exportPicked", { n: selected.size })}</button></Tip>
             <button onClick={onClose} {...named(t("a11y.close"))} className="ml-1 p-1.5 text-[var(--color-muted)] hover:text-[var(--color-text)]"><X size={16} /></button>
           </div>
           <input ref={fileInput} type="file" multiple accept={AUDIO_ACCEPT} className="hidden" onChange={(e) => { const f = [...(e.target.files ?? [])]; e.target.value = ""; if (f.length) importFiles(f, cleanOn); }} />
@@ -181,13 +182,13 @@ export default function VoiceLibrary({ onClose, onPick }: { onClose: () => void;
           </select>
           <button onClick={() => setFilter({ ...filter, fav: !filter.fav })} aria-pressed={filter.fav} className={`${tool} ${filter.fav ? "border-[var(--color-warn)] text-[var(--color-warn)]" : ""}`}><Star size={13} fill={filter.fav ? "currentColor" : "none"} />{t("voices.favorites")}</button>
           {untranscribed.length > 0 && (
-            <button onClick={transcribeAll} disabled={!!busy} title={t("voices.transcribeAllHint")} className={tool}>
+            <Tip text={t("voices.transcribeAllHint")}><button onClick={transcribeAll} disabled={!!busy} className={tool}>
               {busy === "transcribeAll" ? <Loader2 size={13} className="animate-spin" /> : <ScanText size={13} />}{t("voices.transcribeAll", { n: untranscribed.length })}
-            </button>
+            </button></Tip>
           )}
-          <label className="ml-auto inline-flex items-center gap-2 text-[12px] cursor-pointer" title={t("voices.cleanHint")}>
+          <label className="ml-auto inline-flex items-center gap-2 text-[12px] cursor-pointer">
             <input type="checkbox" checked={cleanOn} onChange={(e) => setCleanOn(e.target.checked)} className="w-3.5 h-3.5 accent-[var(--color-accent)]" />
-            <Sparkles size={13} className="text-[var(--color-accent)]" />{t("voices.cleanToggle")}
+            <Sparkles size={13} className="text-[var(--color-accent)]" />{t("voices.cleanToggle")} <Hint text={t("hint.cleanToggle")} />
           </label>
         </div>
 

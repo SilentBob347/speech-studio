@@ -18,7 +18,7 @@ import RefTrim from "../voices/RefTrim";
 import HeardDiff from "./HeardDiff";
 import { cues, spans, withoutCue, type Cue } from "../../lib/prosody";
 import { wordAt, wordTimes } from "../../lib/readAlong";
-import Hint from "../Hint";
+import Hint, { Tip } from "../Hint";
 
 const STATE_DOT: Record<BlockState | "rendering", string> = {
   pending: "bg-[var(--color-muted)]",
@@ -325,7 +325,7 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
         {block.takes.length > 1 && take && <TakeCompare block={block} active={take.n} playingTake={playingTake} onAB={a.ab} />}
         {!simple && (
           <div className="col-span-full">
-            <button onClick={a.compare} disabled={!block.text.trim()} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)] disabled:opacity-40"><Scale size={13} />{t("ab.open")}</button> <Hint text={t("ab.hint")} />
+            <Tip text={t("ab.hint")}><button onClick={a.compare} disabled={!block.text.trim()} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)] disabled:opacity-40"><Scale size={13} />{t("ab.open")}</button></Tip>
           </div>
         )}
       </div>
