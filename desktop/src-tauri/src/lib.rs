@@ -59,21 +59,23 @@ fn open_in_browser(app: &tauri::AppHandle, url: &tauri::Url) {
     }
 }
 
-/// The radio as a widget: a small window with no frame, no shadow and no background, kept over every other window;
-/// the one already open is brought forward. Built off the WebView2 callback that asked for it: a window made inside
-/// that callback deadlocks WebView2.
+/// Live as a widget: a bar with no frame, no shadow and no background, kept over every other window; the one already
+/// open is brought forward. Built off the WebView2 callback that asked for it: a window made inside that callback
+/// deadlocks WebView2. The bar's close button goes to `?widget&close`, which closes this window alone: a page closing
+/// itself (`window.close()`) would end the whole app.
 fn open_talk_widget(app: tauri::AppHandle, url: tauri::Url) {
     tauri::async_runtime::spawn(async move {
         if let Some(win) = app.get_webview_window("widget") {
             if let Err(e) = win.show().and_then(|_| win.set_focus()) {
-                eprintln!("[ERROR] виджет рации не вышел на передний план: {e}");
+                eprintln!("[ERROR] виджет Live не вышел на передний план: {e}");
             }
             return;
         }
+        let for_close = app.clone();
         let built = WebviewWindowBuilder::new(&app, "widget", WebviewUrl::External(url))
             .title(speech_server::i18n::text("talk-widget-title", &[]))
-            .inner_size(340.0, 460.0)
-            .min_inner_size(240.0, 320.0)
+            .inner_size(420.0, 84.0)
+            .min_inner_size(300.0, 72.0)
             .transparent(true)
             .decorations(false)
             .shadow(false)
@@ -81,9 +83,23 @@ fn open_talk_widget(app: tauri::AppHandle, url: tauri::Url) {
             .skip_taskbar(true)
             .resizable(true)
             .disable_drag_drop_handler()
+            .on_navigation(move |target| {
+                if !target.query_pairs().any(|(key, _)| key == "close") {
+                    return true;
+                }
+                let app = for_close.clone();
+                tauri::async_runtime::spawn(async move {
+                    if let Some(win) = app.get_webview_window("widget") {
+                        if let Err(e) = win.close() {
+                            eprintln!("[ERROR] виджет Live не закрылся: {e}");
+                        }
+                    }
+                });
+                false
+            })
             .build();
         if let Err(e) = built {
-            eprintln!("[ERROR] виджет рации не открылся: {e}");
+            eprintln!("[ERROR] виджет Live не открылся: {e}");
         }
     });
 }

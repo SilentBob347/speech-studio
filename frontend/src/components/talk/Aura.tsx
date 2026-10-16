@@ -5,6 +5,7 @@ type Look = { speed: number; scale: number; amplitude: number; frequency: number
 
 const LOOKS: Record<TalkState, Look> = {
   off: { speed: 10, scale: 0.2, amplitude: 1.2, frequency: 0.4, brightness: 0.7, pulse: 0 },
+  muted: { speed: 8, scale: 0.25, amplitude: 1.0, frequency: 0.4, brightness: 0.9, pulse: 0 },
   listening: { speed: 20, scale: 0.3, amplitude: 1.0, frequency: 0.7, brightness: 1.75, pulse: 0.25 },
   hearing: { speed: 35, scale: 0.3, amplitude: 0.9, frequency: 0.9, brightness: 1.8, pulse: 0 },
   thinking: { speed: 30, scale: 0.3, amplitude: 0.5, frequency: 1.0, brightness: 1.5, pulse: 1.0 },

@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { onTalkPrefs, talkPrefs, type TalkPrefs } from "./talkPrefs";
 import { BASE } from "./api";
 
 const KEY = "speech-live-playback";
@@ -30,6 +31,9 @@ function samplesOf(data: string): Float32Array<ArrayBuffer> {
 export class LivePlayer {
   private ctx: AudioContext | null = null;
   private out: AnalyserNode | null = null;
+  private gain: GainNode | null = null;
+  private volume = 1;
+  private sink = "";
   private cursor = 0;
   private playing: AudioBufferSourceNode[] = [];
   private readonly pid: string | null;
@@ -59,6 +63,28 @@ export class LivePlayer {
     return Math.min(1, Math.sqrt(sum / data.length) * 4);
   }
 
+  /** How loud it plays, 0..1; the loudness `level` reports is taken before it, so a muted voice still moves the picture. */
+  setVolume(volume: number): void {
+    this.volume = volume;
+    if (this.gain) this.gain.gain.value = volume;
+  }
+
+  /** The speaker it plays on, by device id; empty is the system's default. */
+  async setOutput(id: string): Promise<void> {
+    this.sink = id;
+    await this.applyOutput();
+  }
+
+  private async applyOutput(): Promise<void> {
+    const ctx = this.ctx as (AudioContext & { setSinkId?: (id: string) => Promise<void> }) | null;
+    if (!ctx) return;
+    if (!ctx.setSinkId) {
+      if (this.sink) throw new Error("this browser cannot choose the speaker");
+      return;
+    }
+    await ctx.setSinkId(this.sink);
+  }
+
   handle(ev: LiveEvent): void {
     if (ev.kind === "lagged" || !this.accepts(ev)) return;
     if (ev.kind === "restart" || ev.kind === "stop") { this.stop(); return; }
@@ -67,7 +93,10 @@ export class LivePlayer {
     if (!this.out) {
       this.out = this.ctx.createAnalyser();
       this.out.fftSize = 1024;
-      this.out.connect(this.ctx.destination);
+      this.gain = this.ctx.createGain();
+      this.gain.gain.value = this.volume;
+      this.out.connect(this.gain).connect(this.ctx.destination);
+      if (this.sink) void this.applyOutput().catch((e: unknown) => console.error("[ERROR] aloud speaker:", e));
     }
     if (this.ctx.state === "suspended") void this.ctx.resume();
     const samples = samplesOf(ev.data);
@@ -94,6 +123,7 @@ export class LivePlayer {
     void this.ctx?.close();
     this.ctx = null;
     this.out = null;
+    this.gain = null;
   }
 }
 
@@ -135,9 +165,16 @@ export function useAloudPlayback(): void {
   useEffect(() => {
     const player = new LivePlayer(null);
     aloudPlayer = player;
+    const apply = (p: TalkPrefs) => {
+      player.setVolume(p.muted ? 0 : p.volume);
+      player.setOutput(p.output).catch((e: unknown) => console.error("[ERROR] aloud speaker:", e));
+    };
+    apply(talkPrefs());
+    const unfollow = onTalkPrefs(apply);
     const source = new EventSource(`${BASE}/speech/live`);
     source.onmessage = (msg: MessageEvent<string>) => player.handle(JSON.parse(msg.data) as LiveEvent);
     return () => {
+      unfollow();
       source.close();
       player.close();
       aloudPlayer = null;

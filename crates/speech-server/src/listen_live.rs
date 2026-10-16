@@ -30,6 +30,8 @@ struct Live {
     /// The phrase being said: where it started and what it says so far, until a pause ends it.
     partial: Option<(f64, String)>,
     error: Option<String>,
+    /// The person turned the microphone off for a while: what it hears is taken as silence, the session goes on.
+    muted: bool,
     stop: Arc<AtomicBool>,
     worker: Option<std::thread::JoinHandle<()>>,
 }
@@ -52,7 +54,7 @@ pub fn start(repo_root: &Path, models_root: &Path, lang: &str) -> Result<(), Str
     }
     let (to, from) = channel::<Vec<f32>>();
     let stop = Arc::new(AtomicBool::new(false));
-    *live().lock().unwrap_or_else(|p| p.into_inner()) = Some(Live { lines: Vec::new(), partial: None, error: None, stop: stop.clone(), worker: None });
+    *live().lock().unwrap_or_else(|p| p.into_inner()) = Some(Live { lines: Vec::new(), partial: None, error: None, muted: false, stop: stop.clone(), worker: None });
     crate::record::tap(Some(to));
     std::env::set_var("DUB_ASR_BACKEND", crate::models::stage_backend(models_root, "asr_backend"));
     let lang = if lang == "auto" { String::new() } else { lang.to_string() };
@@ -66,6 +68,28 @@ pub fn start(repo_root: &Path, models_root: &Path, lang: &str) -> Result<(), Str
     Ok(())
 }
 
+/// A piece of the microphone as recognition takes it: silence while the person has it muted.
+fn heard_as(mut chunk: Vec<f32>) -> Vec<f32> {
+    if with(|l| l.muted).unwrap_or(false) {
+        chunk.fill(0.0);
+    }
+    chunk
+}
+
+/// Mutes or unmutes the microphone of the running session.
+pub fn mute(muted: bool) -> Result<(), String> {
+    with(|l| l.muted = muted).ok_or_else(|| t!("listen-live-not-running"))
+}
+
+/// A line the person typed instead of saying it, put after what was heard last.
+pub fn type_line(text: &str) -> Result<(), String> {
+    with(|l| {
+        let at = l.lines.last().map(|line| line.1).unwrap_or(0.0);
+        l.lines.push((at, at, text.to_string()));
+    })
+    .ok_or_else(|| t!("listen-live-not-running"))
+}
+
 /// What live recognition has heard so far, and why it stopped when it did.
 pub fn state() -> Value {
     match live().lock().unwrap_or_else(|p| p.into_inner()).as_ref() {
@@ -74,8 +98,9 @@ pub fn state() -> Value {
             "lines": l.lines.iter().map(|(a, z, text)| json!({ "start": a, "end": z, "text": text })).collect::<Vec<_>>(),
             "partial": l.partial.as_ref().map(|(a, text)| json!({ "start": a, "text": text })),
             "error": l.error,
+            "muted": l.muted,
         }),
-        None => json!({ "running": false, "lines": [], "partial": null, "error": null }),
+        None => json!({ "running": false, "lines": [], "partial": null, "error": null, "muted": false }),
     }
 }
 
@@ -135,12 +160,12 @@ fn listen(choice: crate::models::AsrChoice, vad: PathBuf, lang: &str, from: Rece
     };
     while !ended {
         match from.recv_timeout(Duration::from_millis(300)) {
-            Ok(chunk) => pending.extend(chunk),
+            Ok(chunk) => pending.extend(heard_as(chunk)),
             Err(RecvTimeoutError::Timeout) => {}
             Err(RecvTimeoutError::Disconnected) => ended = true,
         }
         while let Ok(chunk) = from.try_recv() {
-            pending.extend(chunk);
+            pending.extend(heard_as(chunk));
         }
         ended |= stop.load(Ordering::Relaxed);
         let sr = rate().max(1);
@@ -207,7 +232,7 @@ mod tests {
         let (x, sr) = crate::wavio::read_mono_f32(Path::new(&std::env::var("LIVE_WAV").expect("LIVE_WAV"))).unwrap();
         let choice = crate::asr_util::choice(&root, &models, "ru", "test").unwrap();
         std::env::set_var("DUB_ASR_BACKEND", crate::models::stage_backend(&models, "asr_backend"));
-        *live().lock().unwrap() = Some(Live { lines: Vec::new(), partial: None, error: None, stop: Arc::new(AtomicBool::new(false)), worker: None });
+        *live().lock().unwrap() = Some(Live { lines: Vec::new(), partial: None, error: None, muted: false, stop: Arc::new(AtomicBool::new(false)), worker: None });
         let (to, from) = channel::<Vec<f32>>();
         let feeder = std::thread::spawn(move || {
             for chunk in x.chunks((sr / 10) as usize) {

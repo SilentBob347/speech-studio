@@ -560,6 +560,8 @@ pub fn build_router(state: AppState) -> Router {
         .route("/speech/say/{session}", get(say_api::state).post(say_api::text).delete(say_api::stop))
         .route("/speech/listen", post(say_api::listen_start).delete(say_api::listen_stop))
         .route("/speech/listen/next", get(say_api::listen_next))
+        .route("/speech/listen/mute", post(say_api::listen_mute))
+        .route("/speech/listen/text", post(say_api::listen_text))
         .route("/projects/{pid}/export", post(speech_api::export))
         .route("/projects/{pid}/blocks/{bid}/ref", post(speech_api::own_ref))
         .route("/projects/{pid}/blocks/{bid}/ab", post(speech_api::ab))

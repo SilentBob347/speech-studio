@@ -1,6 +1,6 @@
-export type TalkState = "off" | "listening" | "hearing" | "thinking" | "speaking";
-export type TalkStyle = "orb" | "aura" | "wave";
-export const TALK_STYLES: TalkStyle[] = ["orb", "aura", "wave"];
+export type TalkState = "off" | "muted" | "listening" | "hearing" | "thinking" | "speaking";
+export type TalkStyle = "aura" | "wave";
+export const TALK_STYLES: TalkStyle[] = ["aura", "wave"];
 
 /** What every look of the talk screen is drawn from: the conversation's state, how loud whoever speaks is right now
  * (read each frame, never through React), and the theme colour it is painted in. */

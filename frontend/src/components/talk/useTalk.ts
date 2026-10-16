@@ -2,42 +2,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api, BASE, type McpStatus } from "../../lib/api";
 import { aloudPlayback, type LiveEvent } from "../../lib/livePlayback";
 import { receiveTalkFeed } from "../../lib/talkFeed";
+import { talkPrefs } from "../../lib/talkPrefs";
 import { talkApi, type HeardLine } from "../../lib/talk";
 import { errorText } from "../../lib/voices";
-import { TALK_STYLES, type TalkState, type TalkStyle } from "./visual";
+import type { TalkState } from "./visual";
 
 export type Turn = { who: "person" | "agent"; text: string; at: number };
-
-const STYLE_KEY = "speech.talk.style";
-
-function savedStyle(): TalkStyle {
-  try {
-    const v = localStorage.getItem(STYLE_KEY);
-    return TALK_STYLES.includes(v as TalkStyle) ? (v as TalkStyle) : "orb";
-  } catch {
-    return "orb";
-  }
-}
-
-/** The look of the talk screen, the same in the window and in the widget: a change in one shows in the other. */
-export function useTalkStyle(): [TalkStyle, (s: TalkStyle) => void] {
-  const [style, setStyle] = useState(savedStyle);
-  useEffect(() => {
-    const follow = (e: StorageEvent) => { if (e.key === STYLE_KEY) setStyle(savedStyle()); };
-    window.addEventListener("storage", follow);
-    return () => window.removeEventListener("storage", follow);
-  }, []);
-  const choose = useCallback((s: TalkStyle) => {
-    setStyle(s);
-    try { localStorage.setItem(STYLE_KEY, s); } catch { /* the choice lives for this window only */ }
-  }, []);
-  return [style, choose];
-}
 
 /** A spoken conversation with an agent through the studio: what the person says heard live, what the agent says as it
  * starts each phrase, and the state of both. `fed`: the sound plays in another window, which sends its loudness. */
 export function useTalk({ fed }: { fed: boolean }) {
   const [running, setRunning] = useState(false);
+  const [muted, setMuted] = useState(false);
   const [heard, setHeard] = useState<HeardLine[]>([]);
   const [partial, setPartial] = useState("");
   const [saying, setSaying] = useState<string | null>(null);
@@ -55,6 +31,7 @@ export function useTalk({ fed }: { fed: boolean }) {
     const id = window.setInterval(() => {
       talkApi.heard().then((h) => {
         setRunning(h.running);
+        setMuted(h.muted);
         setHeard(h.lines);
         setPartial(h.partial?.text ?? "");
         if (h.error) setError(h.error);
@@ -112,7 +89,7 @@ export function useTalk({ fed }: { fed: boolean }) {
     return () => window.clearInterval(id);
   }, []);
 
-  const toggleMic = useCallback(async (lang: string) => {
+  const toggleMic = useCallback(async () => {
     setError(null);
     try {
       if (running) {
@@ -120,7 +97,8 @@ export function useTalk({ fed }: { fed: boolean }) {
         setRunning(false);
         setPartial("");
       } else {
-        await talkApi.listenStart(lang);
+        const { lang, device } = talkPrefs();
+        await talkApi.listenStart(lang, device || undefined);
         setRunning(true);
       }
     } catch (e) {
@@ -128,11 +106,32 @@ export function useTalk({ fed }: { fed: boolean }) {
     }
   }, [running]);
 
+  const toggleMute = useCallback(async () => {
+    setError(null);
+    try {
+      setMuted((await talkApi.mute(!muted)).muted);
+    } catch (e) {
+      setError(errorText(e));
+    }
+  }, [muted]);
+
+  const type = useCallback(async (text: string) => {
+    setError(null);
+    try {
+      await talkApi.type(text);
+      return true;
+    } catch (e) {
+      setError(errorText(e));
+      return false;
+    }
+  }, []);
+
   const silence = useCallback(() => { talkApi.silence().catch((e: unknown) => setError(errorText(e))); }, []);
 
   const lastPerson = turns.filter((x) => x.who === "person").at(-1);
   const lastAgent = turns.filter((x) => x.who === "agent").at(-1);
   const state: TalkState = speaking ? "speaking"
+    : running && muted ? "muted"
     : partial ? "hearing"
     : running && lastPerson && (!lastAgent || lastAgent.at < lastPerson.at) && agent?.agent_connected ? "thinking"
     : running ? "listening" : "off";
@@ -141,5 +140,5 @@ export function useTalk({ fed }: { fed: boolean }) {
     [speaking, fed],
   );
 
-  return { state, running, heard, partial, saying, turns, lastPerson, lastAgent, agent, error, speaking, loudness, toggleMic, silence };
+  return { state, running, muted, toggleMute, type, heard, partial, saying, turns, lastPerson, lastAgent, agent, error, speaking, loudness, toggleMic, silence };
 }

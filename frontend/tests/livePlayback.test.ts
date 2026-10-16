@@ -26,7 +26,8 @@ function fakeContext() {
       return b;
     },
     createBufferSource: () => { const n = new FakeNode(); nodes.push(n); return n; },
-    createAnalyser: () => ({ fftSize: 0, connect() {}, getFloatTimeDomainData() {} }),
+    createAnalyser: () => ({ fftSize: 0, connect: (next: unknown) => next, getFloatTimeDomainData() {} }),
+    createGain: () => ({ gain: { value: 1 }, connect: (next: unknown) => next }),
     close: async () => {},
   };
   return { ctx: ctx as unknown as AudioContext, raw: ctx, nodes, buffers };

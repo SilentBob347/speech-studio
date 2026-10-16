@@ -349,12 +349,15 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "say_stop",
-            description: "Stop speaking now: what waits is dropped, the phrase being voiced is cut off and the window falls silent - for when the person starts talking over the studio. Without session every session stops.",
-            schema: || object(json!({ "session": { "type": "string" } }), &[]),
-            call: |args| match given(args, "session") {
-                Some(sid) => send(Method::DELETE, format!("/speech/say/{}", segment(&sid)), json!({})),
-                None => send(Method::DELETE, "/speech/say".into(), json!({})),
-            },
+            description: "Stop speaking in this session now: what waits is dropped, the phrase being voiced is cut off and the window falls silent - for when the person starts talking over the studio.",
+            schema: || object(json!({ "session": { "type": "string" } }), &["session"]),
+            call: |args| send(Method::DELETE, format!("/speech/say/{}", segment(&text(args, "session")?)), json!({})),
+        },
+        Tool {
+            name: "say_silence",
+            description: "Stop everything said aloud now, in every session, as Live's stop button does.",
+            schema: nothing,
+            call: |_| send(Method::DELETE, "/speech/say".into(), json!({})),
         },
         Tool {
             name: "voice_listen_start",
@@ -367,6 +370,18 @@ pub(super) fn tools() -> Vec<Tool> {
             description: "Wait for what the person says next: the phrases heard after the first `after` (the `heard` of the last answer, 0 at first), each ended by a pause, waiting up to seconds (at most 55; an answer with no lines and listening true means wait again). partial is what they are saying right now.",
             schema: || object(json!({ "after": { "type": "integer", "minimum": 0 }, "seconds": seconds() }), &[]),
             call: |args| get(format!("/speech/listen/next{}", query(&[("after", args.get("after").and_then(Value::as_u64).map(|v| v.to_string())), ("seconds", args.get("seconds").and_then(Value::as_u64).map(|v| v.to_string()))]))),
+        },
+        Tool {
+            name: "voice_listen_mute",
+            description: "Mute the conversation's microphone (muted true) or turn it back on, as the person's mute button in Live does: while muted it hears silence, and the conversation, what was heard and voice_listen go on.",
+            schema: || object(json!({ "muted": { "type": "boolean" } }), &["muted"]),
+            call: |args| post("/speech/listen/mute".into(), json!({ "muted": args.get("muted").and_then(Value::as_bool).unwrap_or(true) })),
+        },
+        Tool {
+            name: "voice_listen_type",
+            description: "Put a phrase into the conversation as if the person said it, as typing in Live's text field does: voice_listen gives it next.",
+            schema: || object(json!({ "text": { "type": "string" } }), &["text"]),
+            call: |args| post("/speech/listen/text".into(), json!({ "text": text(args, "text")? })),
         },
         Tool {
             name: "voice_listen_stop",

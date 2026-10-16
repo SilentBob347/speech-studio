@@ -280,6 +280,27 @@ pub async fn listen_start(State(st): State<AppState>, body: Option<Json<Value>>)
     started
 }
 
+/// POST /speech/listen/mute {muted} — the microphone muted or back on; the conversation and what was heard go on.
+pub async fn listen_mute(Json(body): Json<Value>) -> Response {
+    let muted = body.get("muted").and_then(Value::as_bool).unwrap_or(true);
+    match crate::listen_live::mute(muted) {
+        Ok(()) => Json(json!({ "muted": muted })).into_response(),
+        Err(e) => refuse(StatusCode::CONFLICT, "not_listening", e),
+    }
+}
+
+/// POST /speech/listen/text {text} — a phrase the person typed, given to the agent like one they said.
+pub async fn listen_text(Json(body): Json<Value>) -> Response {
+    let text = body.get("text").and_then(Value::as_str).map(str::trim).unwrap_or_default();
+    if text.is_empty() {
+        return refuse(StatusCode::BAD_REQUEST, "no_text", t!("say-no-text"));
+    }
+    match crate::listen_live::type_line(text) {
+        Ok(()) => Json(json!({ "ok": true })).into_response(),
+        Err(e) => refuse(StatusCode::CONFLICT, "not_listening", e),
+    }
+}
+
 /// GET /speech/listen/next?after=N&seconds=S — the person's phrases after the first N, waiting up to S seconds (at most 55)
 /// for one; the studio's own voice heard back is left out.
 pub async fn listen_next(axum::extract::Query(q): axum::extract::Query<HashMap<String, String>>) -> Json<Value> {
