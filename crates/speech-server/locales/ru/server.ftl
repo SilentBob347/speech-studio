@@ -1205,3 +1205,6 @@ speech-fix-no-take = У блока нет дубля, который можно 
 speech-fix-sentence = Переозвучиваю фразу { $n }…
 speech-restore-gone = Проекта нет в корзине: её очистили или он удалён не отсюда.
 speech-restore-exists = Проект уже на месте.
+speak-aloud-no-window = Сказать вслух негде: окно Speech Studio не открыто. Откройте его — звук пойдёт из студии, пока фраза озвучивается.
+say-session-name = Разговор { $time }
+say-no-session = Сессии речи «{ $session }» нет: начните новую.

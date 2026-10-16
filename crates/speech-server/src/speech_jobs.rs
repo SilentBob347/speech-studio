@@ -24,6 +24,25 @@ pub struct SpeechPaths {
     pub threads: i32,
 }
 
+/// Loads what voicing `engine` with `voice` in `lang` takes before its first phrase: the engine as that phrase will
+/// use it (a clone or the engine's own voice) and, for Russian, the stress model.
+pub fn warm(p: &SpeechPaths, engine: &str, voice: Option<&str>, lang: &str) -> Result<(), String> {
+    let clones = voice.is_some_and(|v| crate::voice_library::audio_path(&p.voices_dir, v).is_some());
+    if engine == crate::models::DRAMA_TTS {
+        tts_host::drama(&p.models_root)?;
+    } else if engine == crate::supertonic::ENGINE {
+        tts_host::supertonic(&p.models_root)?;
+    } else if crate::qwen_tts::is_engine(engine) {
+        tts_host::qwen(&p.models_root, clones, engine == crate::qwen_tts::ENGINE_STRESS)?;
+    } else if engine == "higgs" {
+        tts_host::engine(&higgs_config(p))?;
+    }
+    if matches!(lang, "ru" | "auto" | "") && crate::stress::installed(&p.repo_root) {
+        crate::stress::shared(&p.models_root)?;
+    }
+    Ok(())
+}
+
 pub fn higgs_config(p: &SpeechPaths) -> HiggsConfig {
     let sel = crate::models::load_selection(&p.models_root);
     let (model_root, quant) = crate::models::resolve_tts(&p.models_root, &sel);

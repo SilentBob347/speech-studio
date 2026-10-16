@@ -335,6 +335,48 @@ pub(super) fn tools() -> Vec<Tool> {
             call: |args| stream(Method::GET, "/speech/live".into(), None, args),
         },
         Tool {
+            name: "say_start",
+            description: "Start speaking aloud in the studio as you write: say_text sends your text piece by piece while you write it, each finished phrase is voiced at once and heard from the studio's window, without waiting for the end. voice is a voice of voices_list or an engine's own voice, engine an id of engines_list (default qwen3-tts: the first sound in about 0.1 s), lang a code or auto, direction how it should sound. Refused when the studio's window is not open, there being nothing to play it on. Answers the session id.",
+            schema: || object(json!({ "voice": { "type": "string" }, "engine": { "type": "string" }, "lang": { "type": "string" }, "direction": { "type": "string" } }), &[]),
+            call: |args| post("/speech/say".into(), args.clone()),
+        },
+        Tool {
+            name: "say_text",
+            description: "More text for a say_start session, as soon as you have it - a few words are enough; a phrase is said once it is finished (a full stop, a question or exclamation mark, a line break, or a long phrase at its comma). end true says what is left and closes the session. Answers at once.",
+            schema: || object(json!({ "session": { "type": "string" }, "text": { "type": "string" }, "end": { "type": "boolean" } }), &["session", "text"]),
+            call: |args| post(format!("/speech/say/{}", segment(&text(args, "session")?)), json!({ "text": text(args, "text")?, "end": args.get("end").and_then(Value::as_bool).unwrap_or(false) })),
+        },
+        Tool {
+            name: "say_stop",
+            description: "Stop speaking now: what waits is dropped, the phrase being voiced is cut off and the window falls silent - for when the person starts talking over the studio.",
+            schema: || object(json!({ "session": { "type": "string" } }), &["session"]),
+            call: |args| send(Method::DELETE, format!("/speech/say/{}", segment(&text(args, "session")?)), json!({})),
+        },
+        Tool {
+            name: "voice_listen_start",
+            description: "Turn the studio's microphone on for a spoken conversation: each phrase the person ends with a pause is recognised for voice_listen, and their speaking over the studio stops its speech at once (the studio's own voice heard back is told apart). lang a code or auto. Pair it with say_start for a talking agent: listen, answer with say_text as you write, listen again.",
+            schema: || object(json!({ "lang": { "type": "string" }, "device": { "type": "string", "description": "a microphone of voice_record_devices; none: the default one" } }), &[]),
+            call: |args| post("/speech/listen".into(), args.clone()),
+        },
+        Tool {
+            name: "voice_listen",
+            description: "Wait for what the person says next: the phrases heard after the first `after` (the `heard` of the last answer, 0 at first), each ended by a pause, waiting up to seconds (at most 55; an answer with no lines and listening true means wait again). partial is what they are saying right now.",
+            schema: || object(json!({ "after": { "type": "integer", "minimum": 0 }, "seconds": seconds() }), &[]),
+            call: |args| get(format!("/speech/listen/next{}", query(&[("after", args.get("after").and_then(Value::as_u64).map(|v| v.to_string())), ("seconds", args.get("seconds").and_then(Value::as_u64).map(|v| v.to_string()))]))),
+        },
+        Tool {
+            name: "voice_listen_stop",
+            description: "Turn the conversation's microphone off; its recording and what was heard stay a Listening project.",
+            schema: nothing,
+            call: |_| send(Method::DELETE, "/speech/listen".into(), json!({})),
+        },
+        Tool {
+            name: "say_state",
+            description: "A say_start session: each phrase with whether it was said, is waiting or failed, how soon its first sound came (first_ms) and its length; the text not yet a phrase; whether the session is open.",
+            schema: || object(json!({ "session": { "type": "string" } }), &["session"]),
+            call: |args| get(format!("/speech/say/{}", segment(&text(args, "session")?))),
+        },
+        Tool {
             name: "job_events",
             description: "A job's progress as the window follows it, for seconds or until it ends: every stage, message and percent in order (studio_wait answers only where it got).",
             schema: || object(json!({ "job_id": { "type": "string" }, "seconds": seconds() }), &["job_id"]),

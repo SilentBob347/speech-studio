@@ -26,6 +26,7 @@ function fakeContext() {
       return b;
     },
     createBufferSource: () => { const n = new FakeNode(); nodes.push(n); return n; },
+    createAnalyser: () => ({ fftSize: 0, connect() {}, getFloatTimeDomainData() {} }),
     close: async () => {},
   };
   return { ctx: ctx as unknown as AudioContext, raw: ctx, nodes, buffers };
@@ -34,6 +35,21 @@ function fakeContext() {
 const piece = (values: number[]) => btoa(String.fromCharCode(...new Uint8Array(new Float32Array(values).buffer)));
 
 describe("live playback", () => {
+  it("plays what is voiced aloud on any screen and leaves it to no project's player", () => {
+    const fake = fakeContext();
+    const aloud = new LivePlayer(null, () => fake.ctx);
+    const editor = new LivePlayer("p1", () => fake.ctx);
+    const said = { kind: "chunk" as const, project: "say1", block: "b1", sr: 24000, data: piece([0.1, 0.2]), aloud: true };
+    aloud.handle(said);
+    editor.handle({ ...said, project: "p1" });
+    aloud.handle({ kind: "chunk", project: "p1", block: "b2", sr: 24000, data: piece([0.3]) });
+    expect(fake.nodes.length).toBe(1);
+    expect(aloud.speaking).toBe(true);
+    aloud.handle({ kind: "stop", project: "say1", aloud: true });
+    expect(fake.nodes[0].stopped).toBe(true);
+    expect(aloud.speaking).toBe(false);
+  });
+
   it("plays the pieces of its project back to back and drops a restarted take", () => {
     const fake = fakeContext();
     const player = new LivePlayer("p1", () => fake.ctx);

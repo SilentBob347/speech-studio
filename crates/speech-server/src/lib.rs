@@ -59,6 +59,7 @@ mod tts_text;
 mod tts_trim;
 mod speaker_profiles;
 mod ssml;
+mod say_api;
 mod speech_api;
 mod speech_jobs;
 mod speech_project;
@@ -555,6 +556,10 @@ pub fn build_router(state: AppState) -> Router {
         .route("/projects/{pid}/queue/{n}", axum::routing::delete(speech_api::queue_remove))
         .route("/history", get(speech_api::history))
         .route("/speech/live", get(live::events))
+        .route("/speech/say", post(say_api::start))
+        .route("/speech/say/{session}", get(say_api::state).post(say_api::text).delete(say_api::stop))
+        .route("/speech/listen", post(say_api::listen_start).delete(say_api::listen_stop))
+        .route("/speech/listen/next", get(say_api::listen_next))
         .route("/projects/{pid}/export", post(speech_api::export))
         .route("/projects/{pid}/blocks/{bid}/ref", post(speech_api::own_ref))
         .route("/projects/{pid}/blocks/{bid}/ab", post(speech_api::ab))

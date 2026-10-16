@@ -981,3 +981,6 @@ speech-fix-no-take = 该块没有可修复的配音：请先配音。
 speech-fix-sentence = 正在重新配音第 { $n } 句…
 speech-restore-gone = 回收站中没有该项目：回收站已清空，或项目是在别处删除的。
 speech-restore-exists = 项目已在原位。
+speak-aloud-no-window = 无处朗读：Speech Studio 窗口没有打开。打开窗口后，声音会在配音时从工作室直接播放。
+say-session-name = 对话 { $time }
+say-no-session = 没有语音会话“{ $session }”：请开始新的会话。

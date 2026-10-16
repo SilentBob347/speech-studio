@@ -1185,3 +1185,6 @@ speech-fix-no-take = The block has no take to mend: voice it first.
 speech-fix-sentence = Voicing sentence { $n } again…
 speech-restore-gone = The project is not in the recycle bin: it was emptied or the project was deleted elsewhere.
 speech-restore-exists = The project is already in place.
+speak-aloud-no-window = There is nowhere to say it aloud: the Speech Studio window is not open. Open it, and the sound plays from the studio as the phrase is voiced.
+say-session-name = Conversation { $time }
+say-no-session = There is no speech session “{ $session }”: start a new one.

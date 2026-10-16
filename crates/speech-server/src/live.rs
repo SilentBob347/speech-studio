@@ -16,6 +16,44 @@ fn channel() -> &'static broadcast::Sender<Value> {
     TX.get_or_init(|| broadcast::channel(1024).0)
 }
 
+/// The projects whose voicing the window plays aloud wherever it is, as it comes (an agent asked to say something).
+fn aloud_set() -> &'static Mutex<std::collections::HashSet<String>> {
+    static SET: OnceLock<Mutex<std::collections::HashSet<String>>> = OnceLock::new();
+    SET.get_or_init(Default::default)
+}
+
+/// Plays `project`'s voicing aloud until the guard is dropped; refused when no window listens, there being nothing
+/// to play it on.
+pub fn aloud(project: &str) -> Result<Aloud, String> {
+    if channel().receiver_count() == 0 {
+        return Err(t!("speak-aloud-no-window"));
+    }
+    aloud_set().lock().unwrap_or_else(|p| p.into_inner()).insert(project.to_string());
+    Ok(Aloud(project.to_string()))
+}
+
+pub struct Aloud(String);
+
+impl Drop for Aloud {
+    fn drop(&mut self) {
+        aloud_set().lock().unwrap_or_else(|p| p.into_inner()).remove(&self.0);
+    }
+}
+
+/// Whether a window listens to the voicing, and so can play it.
+pub fn listening() -> bool {
+    channel().receiver_count() > 0
+}
+
+/// The window stops playing `project` now and drops what it queued.
+pub fn silence(project: &str) {
+    let _ = channel().send(json!({ "kind": "stop", "project": project, "aloud": true }));
+}
+
+fn is_aloud(project: &str) -> bool {
+    aloud_set().lock().unwrap_or_else(|p| p.into_inner()).contains(project)
+}
+
 /// One block being voiced: its pieces in order, a restart when a defective take is said again, its end.
 pub struct Phrase {
     project: String,
@@ -51,7 +89,7 @@ impl Phrase {
         if tx.receiver_count() == 0 {
             return;
         }
-        let mut ev = json!({ "kind": kind, "project": self.project, "block": self.block });
+        let mut ev = json!({ "kind": kind, "project": self.project, "block": self.block, "aloud": is_aloud(&self.project) });
         if let (Some(ev), Value::Object(extra)) = (ev.as_object_mut(), extra) {
             ev.extend(extra);
         }

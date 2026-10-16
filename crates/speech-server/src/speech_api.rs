@@ -270,6 +270,7 @@ pub async fn synth(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json
         force: body.get("force").and_then(Value::as_bool).unwrap_or(false),
         seed: body.get("seed").and_then(Value::as_u64),
     };
+    let aloud = body.get("aloud").and_then(Value::as_bool).unwrap_or(false);
     for _ in 0..40 {
         if let Some((job_id, jobs::JobKind::Synth)) = st.jobs.active_for(&pid).await {
             if let Some(n) = speech_jobs::try_queue(&pid, &scope) {
@@ -278,7 +279,12 @@ pub async fn synth(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json
         }
         let p = paths(&st);
         let (pid2, scope2) = (pid.clone(), scope.clone());
+        let playing = match aloud.then(|| crate::live::aloud(&pid)).transpose() {
+            Ok(playing) => playing,
+            Err(e) => return refuse(StatusCode::CONFLICT, "no_window", e),
+        };
         let job: jobs::JobFn = Box::new(move |progress: jobs::ProgressFn| {
+            let _playing = playing;
             let cb = |ev: Value| progress(ev);
             speech_jobs::synth(&p, &pid2, &scope2, &cb)
         });

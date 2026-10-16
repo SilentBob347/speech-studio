@@ -1179,3 +1179,6 @@ speech-fix-no-take = Le bloc n’a pas de prise à réparer : doublez-le d’abo
 speech-fix-sentence = Nouveau doublage de la phrase { $n }…
 speech-restore-gone = Le projet n’est pas dans la corbeille : elle a été vidée ou le projet a été supprimé ailleurs.
 speech-restore-exists = Le projet est déjà en place.
+speak-aloud-no-window = Impossible de le dire à voix haute : la fenêtre de Speech Studio n’est pas ouverte. Ouvrez-la, et le son sortira du studio pendant que la phrase est dite.
+say-session-name = Conversation { $time }
+say-no-session = Il n’y a pas de session de parole « { $session } » : commencez-en une nouvelle.
