@@ -130,20 +130,24 @@ export default function Aura({ state, level, token, className }: VisualProps) {
     let looked = performance.now();
     let phase = 0;
     let last = performance.now();
+    let loud = 0;
+    let swell = 0;
     let frame = 0;
     const draw = (time: number) => {
       const dt = Math.min(0.1, (time - last) / 1000);
       last = time;
       fitCanvas(el, gl);
       const goal = target.current;
-      const ease = 1 - Math.exp(-dt / 0.18);
-      for (const key of ["scale", "amplitude", "frequency", "brightness"] as const) now[key] += (goal[key] - now[key]) * ease;
-      now.speed = goal.speed;
-      const loud = Math.min(1, Math.max(0, levelRef.current()));
+      // every value glides to its goal: a state change or a step of the loudness never jumps the picture
+      const glide = (seconds: number) => 1 - Math.exp(-dt / seconds);
+      for (const key of ["scale", "amplitude", "frequency", "brightness", "speed", "pulse"] as const) now[key] += (goal[key] - now[key]) * glide(0.45);
+      const raw = Math.min(1, Math.max(0, levelRef.current()));
+      loud += (raw - loud) * glide(raw > loud ? 0.06 : 0.3);
       const reactive = target.current === LOOKS.speaking || target.current === LOOKS.hearing;
-      const scale = reactive ? now.scale - 0.1 + 0.2 * loud : now.scale;
+      swell += ((reactive ? loud : 0) - swell) * glide(0.12);
+      const scale = now.scale - 0.06 + 0.16 * swell;
       phase += dt * (calm.matches ? 0.3 : 1) * now.speed;
-      const pulse = goal.pulse * Math.sin(time / 1000 * Math.PI / 0.35) * 0.5;
+      const pulse = now.pulse * Math.sin((time / 1000) * Math.PI / 0.9) * 0.35;
       if (time - looked > 500) { theme = readTheme(tokenRef.current, probe); looked = time; }
       gl.uniform3fv(loc.color, theme.color);
       gl.uniform2f(loc.res, el.width, el.height);
