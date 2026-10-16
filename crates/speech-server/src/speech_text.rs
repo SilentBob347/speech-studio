@@ -348,7 +348,7 @@ pub fn phrases(text: &str, max: usize) -> Vec<(String, u32)> {
 }
 
 /// Предложения: конец — `.`, `!`, `?` или `…` с пробелом после, кроме сокращений.
-fn sentences(text: &str) -> Vec<&str> {
+pub(crate) fn sentences(text: &str) -> Vec<&str> {
     const ABBREVIATIONS: &[&str] = &["Dr.", "Mr.", "Mrs.", "Ms.", "Prof.", "Sr.", "Jr.", "St.", "etc.", "vs.", "i.e.", "e.g.", "т.е.", "т.д.", "т.п.", "др.", "г.", "гг.", "им.", "ул.", "св."];
     let mut out = Vec::new();
     let mut start = 0;

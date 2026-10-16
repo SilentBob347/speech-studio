@@ -1288,6 +1288,92 @@ fn voiced<'a>(b: &'a sp::Block, state: &str, key: &str) -> Option<&'a sp::Take> 
     }
 }
 
+/// A failed take of block `id` mended (`take_fix`): the sentences gone wrong voiced again alone and put in their place,
+/// a tail or a gap cut, or the block voiced again whole when nothing can be mended in place. The new take is checked by
+/// recognition and becomes the active one when it does better than the old.
+pub fn fix_take(p: &SpeechPaths, pid: &str, id: &str, progress: &dyn Fn(Value)) -> Result<Value, String> {
+    let project = sp::load(&p.workspace, pid)?;
+    let b = project.blocks().find(|b| b.id == id).cloned().ok_or_else(|| t!("speech-no-block", id = id.to_string()))?;
+    let old = b.active.and_then(|n| b.takes.iter().find(|t| t.n == n)).cloned().ok_or_else(|| t!("speech-fix-no-take"))?;
+    if !old.qc.as_ref().is_some_and(|c| c.text_checked) {
+        check_takes(p, pid, &BTreeMap::from([(id.to_string(), vec![old.n])]), true, progress)?;
+    }
+    let project = sp::load(&p.workspace, pid)?;
+    let b = project.blocks().find(|b| b.id == id).cloned().ok_or_else(|| t!("speech-no-block", id = id.to_string()))?;
+    let old = b.takes.iter().find(|t| t.n == old.n).cloned().ok_or_else(|| t!("speech-fix-no-take"))?;
+    let qc = old.qc.clone().unwrap_or_default();
+    if qc.ok() {
+        mark_checked(p, pid, &[id.to_string()], &[])?;
+        return Ok(json!({ "mode": "none", "take": old.n, "passed": true }));
+    }
+    let lang = crate::prep::block_lang(&b.text, project.lang_of(&b));
+    let pause = stx::pieces(&b.text).iter().filter_map(|x| if let Piece::Pause(ms) = x { Some(*ms as f64 / 1000.0) } else { None }).fold(0.0, f64::max);
+    let plan = crate::take_fix::plan(&b.text, &lang, &qc, old.duration, pause);
+    let n = if plan.whole || plan.edits.is_empty() {
+        let made = voice_block(p, pid, id, 1, "patch", progress)?;
+        *made.first().ok_or_else(|| t!("speech-fix-no-take"))?
+    } else {
+        let mut pieces = std::collections::BTreeMap::new();
+        for e in &plan.edits {
+            if let crate::take_fix::Edit::Revoice { sentence, .. } = e {
+                progress(json!({ "type": "progress", "stage": "speech_fix", "msg": t!("speech-fix-sentence", n = (*sentence + 1) as i64), "pct": 20 }));
+                let mut one = b.clone();
+                one.text = plan.sentences[*sentence].clone();
+                let (samples, _, _) = synth_block(p, pid, &project, &one, old.n)?;
+                pieces.insert(*sentence, crate::tts_trim::trim_edges(&samples, SR).0);
+            }
+        }
+        let tmp = tempfile::Builder::new().prefix("fix-").tempdir().map_err(|e| e.to_string())?;
+        let wav = tmp.path().join("take.wav");
+        crate::media::extract_audio(&takes_dir(p, pid).join(&old.file), &wav, SR, 1)?;
+        let (x, sr) = crate::wavio::read_mono_f32(&wav)?;
+        let out = crate::take_fix::splice(&x, sr, &plan.edits, &pieces);
+        let mut fresh = sp::load(&p.workspace, pid)?;
+        let key = keys(p, &fresh).remove(id).unwrap_or_default();
+        let block = fresh.block_mut(id).ok_or_else(|| t!("speech-no-block", id = id.to_string()))?;
+        let n = block.takes.iter().map(|t| t.n).max().unwrap_or(0) + 1;
+        let file = format!("{id}-{n}.flac");
+        let path = takes_dir(p, pid).join(&file);
+        write_flac(&out, &path)?;
+        let mut take = old.clone();
+        take.n = n;
+        take.file = file;
+        take.duration = out.len() as f64 / sr as f64;
+        take.bytes = std::fs::metadata(&path).map_err(|e| e.to_string())?.len();
+        take.key = key;
+        take.source = "patch".into();
+        take.created = sp::now();
+        take.qc = None;
+        take.cut = None;
+        take.tidy = None;
+        take.text = b.text.clone();
+        block.takes.push(take);
+        if block.pinned.is_none() {
+            block.active = Some(n);
+        }
+        sp::save(&p.workspace, pid, &fresh)?;
+        n
+    };
+    let failed = check_takes(p, pid, &BTreeMap::from([(id.to_string(), vec![n])]), true, progress)?;
+    let mut fresh = sp::load(&p.workspace, pid)?;
+    let rank = |c: &crate::qc::Check| (!c.ok(), c.wer, c.issues.len());
+    if let Some(block) = fresh.block_mut(id) {
+        let new = block.takes.iter().find(|t| t.n == n).and_then(|t| t.qc.clone()).unwrap_or_default();
+        if block.pinned.is_none() && rank(&new) > rank(&qc) {
+            block.active = Some(old.n);
+        }
+        let kept = block.active;
+        sp::save(&p.workspace, pid, &fresh)?;
+        let still = if kept == Some(n) { failed.clone() } else { vec![id.to_string()] };
+        mark_checked(p, pid, &[id.to_string()], &still)?;
+        let mode = if plan.whole || plan.edits.is_empty() { "whole" } else { "patch" };
+        let sentences: Vec<usize> = plan.edits.iter().filter_map(|e| if let crate::take_fix::Edit::Revoice { sentence, .. } = e { Some(sentence + 1) } else { None }).collect();
+        let cuts = plan.edits.iter().filter(|e| matches!(e, crate::take_fix::Edit::Cut { .. })).count();
+        return Ok(json!({ "mode": mode, "take": n, "active": kept, "passed": failed.is_empty(), "sentences": sentences, "cuts": cuts }));
+    }
+    Err(t!("speech-no-block", id = id.to_string()))
+}
+
 /// A take of block `id` by each side of a blind comparison: the engine and voice set on a copy of the block, the take
 /// kept beside the others and the active one left as it was; the answer is the take of each side in order.
 pub fn ab_takes(p: &SpeechPaths, pid: &str, id: &str, sides: &[sp::AbSide], progress: &dyn Fn(Value)) -> Result<Value, String> {

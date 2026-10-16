@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { CheckCircle2, Loader2, ScanSearch, X } from "lucide-react";
+import { CheckCircle2, Loader2, ScanSearch, Wrench, X } from "lucide-react";
 import { speechApi, type Block, type QualityLight, type QualityReport as Report } from "../../lib/speech";
 import { followJob } from "../../lib/followJob";
 import { errorText } from "../../lib/voices";
@@ -34,6 +34,8 @@ export default function QualityReport({ pid, blocks, onJump, onChanged, onClose 
   const [r, setR] = useState<Report | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+  const [fixing, setFixing] = useState<string | null>(null);
+  const [fixed, setFixed] = useState<Record<string, string>>({});
   useEscapeLayer(() => { if (!checking) onClose(); });
   const load = () => speechApi.quality(pid).then(setR, (e: unknown) => setError(errorText(e)));
   useEffect(() => { void load(); }, [pid]);
@@ -45,6 +47,19 @@ export default function QualityReport({ pid, blocks, onJump, onChanged, onClose 
       onChanged();
       await load();
     } catch (e) { setError(errorText(e)); } finally { setChecking(false); }
+  };
+  const fix = async (ids: string[]) => {
+    setChecking(true);
+    setError(null);
+    try {
+      for (const id of ids) {
+        setFixing(id);
+        const r = (await followJob((await speechApi.fix(pid, id)).job_id, "synth")) as { mode: string; passed: boolean; sentences: number[]; cuts: number };
+        setFixed((all) => ({ ...all, [id]: r.passed ? t(`quality.fixed_${r.mode === "whole" ? "whole" : "patch"}`, { sentences: r.sentences.join(", "), cuts: r.cuts }) : t("quality.fixFailed") }));
+        onChanged();
+      }
+      await load();
+    } catch (e) { setError(errorText(e)); } finally { setFixing(null); setChecking(false); }
   };
   const number = (id: string) => blocks.findIndex((b) => b.id === id) + 1;
   return (
@@ -75,12 +90,16 @@ export default function QualityReport({ pid, blocks, onJump, onChanged, onClose 
                 </div>
               )}
               {r.checked > 0 && r.worst.length === 0 && <p className="flex items-center gap-2 text-[13px]"><CheckCircle2 size={15} style={{ color: "var(--color-good)" }} />{t("quality.allPassed")}</p>}
+              {r.worst.length > 1 && (
+                <button onClick={() => void fix(r.worst.map((w) => w.block))} disabled={checking} title={t("quality.fixHint")} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)] disabled:opacity-40"><Wrench size={13} />{t("quality.fixAll", { n: r.worst.length })}</button>
+              )}
+              {Object.entries(fixed).filter(([id]) => !r.worst.some((w) => w.block === id)).map(([id, note]) => <p key={id} className="text-[12px]">{t("lint.block", { n: number(id), speaker: blocks.find((b) => b.id === id)?.speaker ?? "" })}: {note}</p>)}
               {r.worst.length > 0 && <h3 className="text-[12px] font-semibold">{t("quality.worst", { n: r.worst.length })}{r.worst.length > 1 && <span className="font-normal text-[var(--color-muted)]"> · {t("quality.worstFirst")}</span>}</h3>}
               <ul className="space-y-2">
                 {r.worst.map((w) => (
-                  <li key={w.block}>
+                  <li key={w.block} className="flex items-start gap-2 rounded-lg border border-[var(--color-border)] hover:border-[var(--color-accent)]">
                     <button onClick={() => { onJump(w.block); onClose(); }} data-mcp-row={`block ${number(w.block)} ${w.speaker}`}
-                      className="w-full text-left rounded-lg border border-[var(--color-border)] hover:border-[var(--color-accent)] px-3 py-2 space-y-1">
+                      className="flex-1 min-w-0 text-left px-3 py-2 space-y-1">
                       <span className="block text-[11px] text-[var(--color-muted)] truncate">{[t("lint.block", { n: number(w.block), speaker: w.speaker }), w.chapter, t("quality.take", { n: w.take })].filter(Boolean).join(" · ")}</span>
                       <span className="block text-[12px] line-clamp-2">{w.text}</span>
                       {w.text_checked && <HeardDiff off={w.off} />}
@@ -90,6 +109,10 @@ export default function QualityReport({ pid, blocks, onJump, onChanged, onClose 
                         {w.issues.map((i) => <span key={i} className="px-1.5 rounded bg-[var(--color-surface-2)] text-[var(--color-warn)]">{t(`speech.qcIssue_${i}`)}</span>)}
                         {!w.text_checked && <span className="px-1.5 rounded bg-[var(--color-surface-2)] text-[var(--color-muted)]">{t("quality.wordsUnchecked")}</span>}
                       </span>
+                      {fixed[w.block] && <span className="block text-[11px] text-[var(--color-muted)]">{fixed[w.block]}</span>}
+                    </button>
+                    <button onClick={() => void fix([w.block])} disabled={checking} title={t("quality.fixHint")} className="shrink-0 m-2 inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)] disabled:opacity-40">
+                      {fixing === w.block ? <Loader2 size={12} className="animate-spin" /> : <Wrench size={12} />}{t("quality.fix")}
                     </button>
                   </li>
                 ))}

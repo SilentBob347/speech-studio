@@ -340,6 +340,23 @@ pub async fn quality(State(st): State<AppState>, AxPath(pid): AxPath<String>) ->
     }
 }
 
+/// A failed take mended where it went wrong, or the block voiced again when it cannot be.
+pub async fn fix(State(st): State<AppState>, AxPath((pid, bid)): AxPath<(String, String)>) -> Response {
+    if let Err(e) = sp::load(&st.workspace, &pid) {
+        return refuse(StatusCode::NOT_FOUND, "no_project", e);
+    }
+    let p = paths(&st);
+    let pid2 = pid.clone();
+    let job: jobs::JobFn = Box::new(move |progress: jobs::ProgressFn| {
+        let cb = |ev: Value| progress(ev);
+        speech_jobs::fix_take(&p, &pid2, &bid, &cb)
+    });
+    match st.jobs.enqueue(jobs::JobMeta::new(jobs::JobKind::Synth, Some(&pid)), job).await {
+        Ok(job_id) => Json(json!({ "job_id": job_id })).into_response(),
+        Err(e) => crate::enqueue_error(e),
+    }
+}
+
 /// A blind comparison: a take of the block by each of two engines (and voices), for the window to play unnamed.
 pub async fn ab(State(st): State<AppState>, AxPath((pid, bid)): AxPath<(String, String)>, Json(body): Json<Value>) -> Response {
     if let Err(e) = sp::load(&st.workspace, &pid) {

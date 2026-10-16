@@ -2264,7 +2264,13 @@
     "wer": "erreurs de mots {{wer}} %",
     "otherVoice": "voix différente de celle choisie",
     "wordsUnchecked": "mots non comparés",
-    "worstFirst": "les pires d’abord"
+    "worstFirst": "les pires d’abord",
+    "fix": "Réparer",
+    "fixAll": "Tout réparer ({{n}})",
+    "fixHint": "Redouble seulement les phrases fautives et les insère dans la prise, coupe la traîne et les longues pauses. Un défaut de tout le son ou un bloc d’une phrase est redoublé en entier. La nouvelle prise devient active seulement si elle passe mieux la vérification.",
+    "fixed_patch": "réparée : phrases {{sentences}} redoublées, pauses et traînes coupées : {{cuts}}",
+    "fixed_whole": "redoublée en entier, vérification passée",
+    "fixFailed": "la nouvelle prise a aussi échoué : écoutez et choisissez une prise vous-même"
   },
   "ab": {
     "open": "Comparer les moteurs à l’aveugle",

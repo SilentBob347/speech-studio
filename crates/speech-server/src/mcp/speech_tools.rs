@@ -85,6 +85,15 @@ pub(super) fn tools() -> Vec<Tool> {
             call: |args| get(project_path(args, "/export-check")?),
         },
         Tool {
+            name: "block_fix",
+            description: "Mend a block's failed active take where it went wrong: its words, sentence by sentence, are aligned with the words recognition heard (the take is checked first if it was not), a sentence with words missed, extra, wrong or stretched is voiced again alone and put in its place at the take's loudness, a tail after the last word is cut and a long gap shortened; a defect of the whole sound, another voice or a block of one sentence is voiced again whole. A job (studio_wait): its result is mode (patch, whole, none - the take passes), the new take, the active take (the new one only when it checks better), passed, the sentences voiced again and the cuts.",
+            schema: || object(json!({ "pid": pid(), "bid": { "type": "string" } }), &["pid", "bid"]),
+            call: |args| {
+                let bid = args.get("bid").and_then(Value::as_str).ok_or("bid is required")?;
+                post(project_path(args, &format!("/blocks/{bid}/fix"))?, json!({}))
+            },
+        },
+        Tool {
             name: "block_ab",
             description: "A blind comparison of two local engines on a block: a job (studio_wait) that makes a take with each side's engine and voice (voice omitted: the block's own), keeping the block's active take. Its result is the take of each side. To pick one, project_update the block: its engine and voice set to that side's, active to its take, and the vote appended to the block's ab list ({sides: [{engine, voice, take}, ...], picked: the index of the side, or null for no difference heard}); the window plays the takes unnamed for the user to choose.",
             schema: || object(json!({ "pid": pid(), "bid": { "type": "string" }, "sides": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "object", "properties": { "engine": { "type": "string", "enum": crate::engines::all().iter().filter(|e| !crate::engines::is_cloud(e.id)).map(|e| e.id).collect::<Vec<_>>() }, "voice": { "type": "string" } }, "required": ["engine"] } } }), &["pid", "bid", "sides"]),

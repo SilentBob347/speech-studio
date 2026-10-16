@@ -120,12 +120,12 @@ pub fn word_diff(expected: &[String], heard: &[String]) -> Vec<WordOp> {
 }
 
 /// Звука после последнего распознанного слова больше этого — хвост (бормотание, шум, повтор без слов).
-const TAIL_SECS: f64 = 1.0;
+pub(crate) const TAIL_SECS: f64 = 1.0;
 /// Слово звучит дольше этого и дольше `STRETCH_PER_LETTER` на букву — затянуто.
-const STRETCH_SECS: f64 = 1.2;
-const STRETCH_PER_LETTER: f64 = 0.3;
+pub(crate) const STRETCH_SECS: f64 = 1.2;
+pub(crate) const STRETCH_PER_LETTER: f64 = 0.3;
 /// Тишина между словами длиннее этого (сверх пауз, заданных в тексте) — разрыв.
-const GAP_SECS: f64 = 1.5;
+pub(crate) const GAP_SECS: f64 = 1.5;
 
 /// Модель повторила кусок: два–четыре слова услышаны дважды подряд, а в тексте блока они подряд не повторяются.
 pub fn repeated(expected: &[String], heard: &[String]) -> bool {
@@ -145,7 +145,8 @@ pub fn timing_issues(words: &[crate::ref_pick::Word], duration: f64, pause_secs:
     if duration - last.end > TAIL_SECS {
         issues.push("tail".to_string());
     }
-    if words.iter().any(|w| {
+    // a number heard in digits stands for several spoken words, so its length says nothing of stretching
+    if words.iter().filter(|w| !w.word.chars().any(|c| c.is_ascii_digit())).any(|w| {
         let letters = w.word.chars().filter(|c| c.is_alphabetic()).count().max(1) as f64;
         let d = w.end - w.start;
         d > STRETCH_SECS && d > letters * STRETCH_PER_LETTER
@@ -196,6 +197,13 @@ pub fn check(expected: &str, heard: &str, strictness: &str) -> Check {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_number_in_digits_is_not_a_stretched_word() {
+        let w = |word: &str, start: f64, end: f64| crate::ref_pick::Word { word: word.into(), start, end };
+        assert!(timing_issues(&[w("встреча", 0.0, 0.6), w("18.30.", 1.84, 3.12)], 3.2, 0.0).is_empty());
+        assert_eq!(timing_issues(&[w("встреча", 0.0, 0.6), w("да", 1.0, 3.0)], 3.2, 0.0), vec!["stretched".to_string()]);
+    }
 
     #[test]
     fn every_defect_has_a_name_in_every_catalogue() {

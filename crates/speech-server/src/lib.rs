@@ -91,6 +91,7 @@ mod voice_fx;
 mod tracks;
 mod listen_watch;
 mod hard_corpus;
+mod take_fix;
 mod listen_live;
 mod itn;
 mod music_studios;
@@ -556,6 +557,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/projects/{pid}/export", post(speech_api::export))
         .route("/projects/{pid}/blocks/{bid}/ref", post(speech_api::own_ref))
         .route("/projects/{pid}/blocks/{bid}/ab", post(speech_api::ab))
+        .route("/projects/{pid}/blocks/{bid}/fix", post(speech_api::fix))
         .route("/projects/{pid}/enrich", post(director_api::enrich))
         .route("/projects/{pid}/package", post(speech_api::package))
         .route("/speechproj/import", post(speech_api::import_package))

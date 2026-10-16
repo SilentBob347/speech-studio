@@ -2264,7 +2264,13 @@
     "wer": "word errors {{wer}}%",
     "otherVoice": "voice unlike the chosen one",
     "wordsUnchecked": "words not checked",
-    "worstFirst": "worst first"
+    "worstFirst": "worst first",
+    "fix": "Mend",
+    "fixAll": "Mend all ({{n}})",
+    "fixHint": "Voice again only the sentences gone wrong and splice them into the take, cut the tail and long pauses. A defect of the whole sound or a one-sentence block is voiced again whole. The new take becomes the active one only if it checks better than the old.",
+    "fixed_patch": "mended: sentences {{sentences}} voiced again, pauses and tails cut: {{cuts}}",
+    "fixed_whole": "voiced again whole, passed the check",
+    "fixFailed": "the new take failed the check too: listen and pick a take yourself"
   },
   "ab": {
     "open": "Compare engines blind",

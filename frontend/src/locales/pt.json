@@ -2264,7 +2264,13 @@
     "wer": "erros de palavras {{wer}}%",
     "otherVoice": "voz diferente da escolhida",
     "wordsUnchecked": "palavras não conferidas",
-    "worstFirst": "as piores primeiro"
+    "worstFirst": "as piores primeiro",
+    "fix": "Consertar",
+    "fixAll": "Consertar todas ({{n}})",
+    "fixHint": "Locuta de novo só as frases com erro e as insere na tomada; corta a cauda e as pausas longas. Um defeito de todo o som ou um bloco de uma frase é locutado de novo inteiro. A tomada nova vira a ativa só se passar melhor na verificação.",
+    "fixed_patch": "consertada: frases {{sentences}} locutadas de novo, pausas e caudas cortadas: {{cuts}}",
+    "fixed_whole": "locutada de novo inteira, passou na verificação",
+    "fixFailed": "a tomada nova também não passou: ouça e escolha uma tomada você mesmo"
   },
   "ab": {
     "open": "Comparar motores às cegas",

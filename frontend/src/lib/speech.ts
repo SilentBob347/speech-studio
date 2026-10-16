@@ -205,6 +205,8 @@ export const speechApi = {
   lint: (pid: string) => getCoded<{ issues: LintIssue[] }>(`/projects/${pid}/lint`),
   autoCast: (pid: string) => getCoded<{ picks: { speaker: string; voice: string | null }[] }>(`/projects/${pid}/auto-cast`),
   exportCheck: (pid: string) => getCoded<{ problems: ExportProblem[] }>(`/projects/${pid}/export-check`),
+  /** Mends the block's failed take where it went wrong, or voices the block again whole. */
+  fix: (pid: string, bid: string) => postCoded<{ job_id: string }>(`/projects/${pid}/blocks/${bid}/fix`, {}),
   /** A take of the block by each side's engine and voice, the active take kept; the job's result names the takes. */
   ab: (pid: string, bid: string, sides: { engine: string; voice: string | null }[]) => postCoded<{ job_id: string }>(`/projects/${pid}/blocks/${bid}/ab`, { sides: sides.map((s) => (s.voice ? s : { engine: s.engine })) }),
   quality: (pid: string) => getCoded<QualityReport>(`/projects/${pid}/quality`),

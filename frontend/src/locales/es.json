@@ -2264,7 +2264,13 @@
     "wer": "errores de palabras {{wer}} %",
     "otherVoice": "la voz no se parece a la elegida",
     "wordsUnchecked": "palabras sin cotejar",
-    "worstFirst": "las peores primero"
+    "worstFirst": "las peores primero",
+    "fix": "Reparar",
+    "fixAll": "Reparar todas ({{n}})",
+    "fixHint": "Vuelve a locutar solo las frases con error y las inserta en la toma; recorta la cola y las pausas largas. Un defecto de todo el sonido o un bloque de una frase se locuta de nuevo entero. La toma nueva pasa a ser la activa solo si supera mejor la revisión.",
+    "fixed_patch": "reparada: frases {{sentences}} locutadas de nuevo, pausas y colas recortadas: {{cuts}}",
+    "fixed_whole": "locutada de nuevo entera, pasó la revisión",
+    "fixFailed": "la toma nueva tampoco pasó la revisión: escúchela y elija una toma usted"
   },
   "ab": {
     "open": "Comparar motores a ciegas",
