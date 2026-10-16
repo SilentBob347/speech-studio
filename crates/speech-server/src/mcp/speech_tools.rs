@@ -43,6 +43,12 @@ pub(super) fn tools() -> Vec<Tool> {
             call: |args| post("/projects".into(), args.clone()),
         },
         Tool {
+            name: "project_restore",
+            description: "Take a deleted project back: project_delete moves a project (Speech or Listening) to the system's recycle bin, and this restores the one deleted last under that pid, as the window's Undo does. Fails when the bin was emptied or the project is already in place.",
+            schema: project_only,
+            call: |args| post(project_path(args, "/restore")?, json!({})),
+        },
+        Tool {
             name: "project_get",
             description: "A Speech project whole: settings, cast (speaker -> voice), chapters with blocks, each block with its text, speaker, voice, direction, takes (with their check: WER, similarity, issues) and status (new, stale, ready, error).",
             schema: project_only,

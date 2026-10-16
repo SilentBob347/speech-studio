@@ -12,9 +12,9 @@ import { speechApi } from "../../lib/speech";
 import { errorText } from "../../lib/voices";
 import { PROJECTS_CHANGED, useChanged } from "../../lib/mcpBridge";
 import { named } from "../../lib/a11y";
-import ConfirmDialog from "../ConfirmDialog";
 import UrlImport from "../UrlImport";
 import Hint, { Tip } from "../Hint";
+import UndoToast from "../UndoToast";
 
 const START = "listen.start";
 
@@ -36,7 +36,10 @@ export default function ListeningHome({ onOpen }: { onOpen: (pid: string) => voi
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [drag, setDrag] = useState(false);
-  const [removing, setRemoving] = useState<ListenCard | null>(null);
+  const [removed, setRemoved] = useState<ListenCard | null>(null);
+  const remove = async (card: ListenCard) => {
+    try { await speechApi.remove(card.pid); setRemoved(card); load(); } catch (e) { setError(errorText(e)); }
+  };
   const [batch, setBatch] = useState<BatchItem[] | null>(null);
   const [batchRunning, setBatchRunning] = useState(false);
   const [formats, setFormats] = useState<TranscriptFormat[]>(["srt", "txt"]);
@@ -175,17 +178,14 @@ export default function ListeningHome({ onOpen }: { onOpen: (pid: string) => voi
                       {[clock(p.duration), p.transcribed ? t("listen.cardLines", { n: p.lines, speakers: p.speakers }) : t("listen.cardNew"), when(p.created || p.mtime)].join(" · ")}
                     </span>
                   </button>
-                  <button onClick={() => setRemoving(p)} className="p-2 mr-1 rounded text-[var(--color-muted)] pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 focus:opacity-100 hover:text-[var(--color-warn)]" {...named(t("listen.remove", { name: p.name }))}><Trash2 size={14} /></button>
+                  <button onClick={() => void remove(p)} className="p-2 mr-1 rounded text-[var(--color-muted)] pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 focus:opacity-100 hover:text-[var(--color-warn)]" {...named(t("listen.remove", { name: p.name }))}><Trash2 size={14} /></button>
                 </li>
               ))}
             </ul>
           )}
         </section>
       </div>
-      {removing && (
-        <ConfirmDialog title={t("speech.deleteProject")} message={t("listen.removeMessage", { name: removing.name })} confirmLabel={t("speech.delete")} danger
-          onCancel={() => setRemoving(null)} onConfirm={async () => { await speechApi.remove(removing.pid); setRemoving(null); load(); }} />
-      )}
+      {removed && <UndoToast key={removed.pid} text={t("undo.deleted", { name: removed.name || t("speech.untitled") })} onUndo={async () => { await speechApi.restore(removed.pid); load(); }} onClose={() => setRemoved(null)} />}
     </main>
   );
 }

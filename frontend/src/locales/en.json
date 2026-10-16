@@ -2359,5 +2359,9 @@
     "podcastMinutes": "The podcast's rough length. It decides how many lines the model writes.",
     "listenSpeakersBar": "Who speaks in the recording. A corrected name goes into the export. The buttons beside hide the speaker's lines, make a voice of them and remember them for other recordings.",
     "assistantLlm": "The language model that helps with the text: expression tags and punctuation, casting a book by roles, writing a podcast."
+  },
+  "undo": {
+    "deleted": "«{{name}}» moved to the recycle bin",
+    "restore": "Undo"
   }
 }

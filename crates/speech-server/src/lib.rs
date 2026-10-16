@@ -548,6 +548,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/projects/{pid}/cast", post(director_api::cast))
         .route("/projects", get(speech_api::list).post(speech_api::create))
         .route("/projects/{pid}", get(speech_api::get).put(speech_api::put).delete(speech_api::delete))
+        .route("/projects/{pid}/restore", post(speech_api::restore))
         .route("/projects/{pid}/synth", post(speech_api::synth))
         .route("/projects/{pid}/queue", get(speech_api::queue).delete(speech_api::queue_clear))
         .route("/projects/{pid}/google", get(speech_api::google_report))

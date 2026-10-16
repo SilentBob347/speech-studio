@@ -7,7 +7,6 @@ import { speechApi, type BookPreview, type ProjectCard } from "../../lib/speech"
 import { errorText } from "../../lib/voices";
 import { PROJECTS_CHANGED, useChanged } from "../../lib/mcpBridge";
 import { named } from "../../lib/a11y";
-import ConfirmDialog from "../ConfirmDialog";
 import VoicePicker from "./VoicePicker";
 import { LANG_CHOICES } from "./langs";
 import { useEngines } from "../../lib/engines";
@@ -18,6 +17,7 @@ import RenderLibrary from "./RenderLibrary";
 import QuickSpeak from "./QuickSpeak";
 import type { ExportFormat } from "../../lib/speech";
 import Hint from "../Hint";
+import UndoToast from "../UndoToast";
 
 const FORMATS: ExportFormat[] = ["mp3", "wav", "flac", "ogg", "m4a"];
 
@@ -45,7 +45,10 @@ export default function ProjectsHome({ onOpen }: { onOpen: (pid: string) => void
   const [projects, setProjects] = useState<ProjectCard[] | null>(null);
   const [find, setFind] = useState("");
   const [tab, setTab] = useState<"projects" | "renders">("projects");
-  const [removing, setRemoving] = useState<ProjectCard | null>(null);
+  const [removed, setRemoved] = useState<ProjectCard | null>(null);
+  const remove = async (card: ProjectCard) => {
+    try { await speechApi.remove(card.pid); setRemoved(card); load(); } catch (e) { setError(errorText(e)); }
+  };
   const packFile = useRef<HTMLInputElement>(null);
   const subsFile = useRef<HTMLInputElement>(null);
   const bookFile = useRef<HTMLInputElement>(null);
@@ -237,17 +240,14 @@ export default function ProjectsHome({ onOpen }: { onOpen: (pid: string) => void
                   <div className="text-[13px] font-medium truncate">{p.name || t("speech.untitled")}</div>
                   <div className="text-[11px] text-[var(--color-muted)]">{when(p.mtime)} · {t("speech.readyOf", { ready: p.ready ?? 0, total: p.blocks ?? 0 })}</div>
                 </button>
-                <button onClick={() => setRemoving(p)} {...named(t("speech.deleteProject"))} className="p-2 mr-1 rounded-md text-[var(--color-muted)] pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 focus:opacity-100 hover:text-[var(--color-warn)]"><Trash2 size={14} /></button>
+                <button onClick={() => void remove(p)} {...named(t("speech.deleteProject"))} className="p-2 mr-1 rounded-md text-[var(--color-muted)] pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 focus:opacity-100 hover:text-[var(--color-warn)]"><Trash2 size={14} /></button>
               </li>
             ))}
           </ul>
           </>}
         </section>
       </div>
-      {removing && (
-        <ConfirmDialog title={t("speech.deleteProject")} message={t("speech.deleteProjectMessage", { name: removing.name || t("speech.untitled") })} confirmLabel={t("speech.delete")} danger
-          onCancel={() => setRemoving(null)} onConfirm={async () => { await speechApi.remove(removing.pid); setRemoving(null); load(); }} />
-      )}
+      {removed && <UndoToast key={removed.pid} text={t("undo.deleted", { name: removed.name || t("speech.untitled") })} onUndo={async () => { await speechApi.restore(removed.pid); load(); }} onClose={() => setRemoved(null)} />}
       {quick && <QuickSpeak onClose={() => setQuick(false)} onOpen={(pid) => { setQuick(false); onOpen(pid); }} />}
       {podcast && <PodcastWriter onClose={() => setPodcast(false)} onCreated={(pid) => { setPodcast(false); onOpen(pid); }} />}
       {book && <BookImport preview={book} onClose={() => setBook(null)} onCreated={(pid) => { setBook(null); onOpen(pid); }} />}

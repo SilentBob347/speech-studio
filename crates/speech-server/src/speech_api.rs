@@ -229,6 +229,36 @@ pub async fn delete(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> 
     }
 }
 
+/// POST /projects/{pid}/restore — the project deleted last under this id taken back from the system's recycle bin.
+pub async fn restore(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Response {
+    if !sp::is_pid(&pid) {
+        return refuse(StatusCode::BAD_REQUEST, "bad_request", format!("bad project id {pid}"));
+    }
+    let dir = st.workspace.join(&pid);
+    if dir.join("project.json").is_file() {
+        return refuse(StatusCode::CONFLICT, "project_exists", t!("speech-restore-exists"));
+    }
+    let res = joined(tokio::task::spawn_blocking(move || -> Result<(), String> {
+        let item = trash::os_limited::list()
+            .map_err(|e| e.to_string())?
+            .into_iter()
+            .filter(|i| i.original_path() == dir)
+            .max_by_key(|i| i.time_deleted)
+            .ok_or_else(|| t!("speech-restore-gone"))?;
+        trash::os_limited::restore_all([item]).map_err(|e| e.to_string())
+    })
+    .await);
+    match res {
+        Ok(Ok(())) => {
+            let by = crate::mcp::current_actor();
+            crate::mcp::tell_windows(json!({ "changed": "project", "pid": pid, "restored": true, "by": by }));
+            Json(json!({ "restored": pid })).into_response()
+        }
+        Ok(Err(e)) => refuse(StatusCode::NOT_FOUND, "restore_failed", e),
+        Err(r) => r,
+    }
+}
+
 /// POST /projects/{pid}/synth {ids?, from?, force?} — озвучить блоки задачей.
 pub async fn synth(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<Value>) -> Response {
     if let Err(e) = sp::load(&st.workspace, &pid) {

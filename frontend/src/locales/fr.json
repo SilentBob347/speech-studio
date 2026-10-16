@@ -2359,5 +2359,9 @@
     "podcastMinutes": "La durée approximative du podcast. Elle fixe combien de répliques le modèle écrit.",
     "listenSpeakersBar": "Qui parle dans l’enregistrement. Un nom corrigé passe dans l’export. Les boutons à côté masquent ses répliques, en font une voix et le retiennent pour d’autres enregistrements.",
     "assistantLlm": "Le modèle de langage qui aide pour le texte : balises d’expression et ponctuation, distribution d’un livre par rôles, écriture d’un podcast."
+  },
+  "undo": {
+    "deleted": "« {{name}} » mis à la corbeille",
+    "restore": "Annuler"
   }
 }

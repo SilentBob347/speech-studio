@@ -2359,5 +2359,9 @@
     "podcastMinutes": "La duración aproximada del pódcast. De ella depende cuántas réplicas escribe el modelo.",
     "listenSpeakersBar": "Quién habla en la grabación. Un nombre corregido pasa a la exportación. Los botones de al lado ocultan sus réplicas, hacen de él una voz y lo recuerdan para otras grabaciones.",
     "assistantLlm": "El modelo de lenguaje que ayuda con el texto: etiquetas de expresión y puntuación, repartir un libro por papeles, escribir un pódcast."
+  },
+  "undo": {
+    "deleted": "«{{name}}» enviado a la papelera",
+    "restore": "Deshacer"
   }
 }

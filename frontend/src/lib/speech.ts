@@ -198,6 +198,8 @@ export const speechApi = {
     return sendCoded<SpeechProject>("PUT", `/projects/${pid}`, body);
   },
   remove: (pid: string) => sendCoded<{ deleted: string }>("DELETE", `/projects/${pid}`),
+  /** Takes back from the recycle bin the project deleted last under this id. */
+  restore: (pid: string) => postCoded<{ restored: string }>(`/projects/${pid}/restore`, {}),
   synth: (pid: string, scope: { ids?: string[]; from?: string; force?: boolean; seed?: number }) => postCoded<{ job_id: string; queued?: number }>(`/projects/${pid}/synth`, scope),
   queue: (pid: string) => getCoded<{ queue: QueuedSynth[] }>(`/projects/${pid}/queue`),
   unqueue: (pid: string, n?: number) => sendCoded<{ removed: number }>("DELETE", n == null ? `/projects/${pid}/queue` : `/projects/${pid}/queue/${n}`),

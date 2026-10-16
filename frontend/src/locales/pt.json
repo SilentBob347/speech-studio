@@ -2359,5 +2359,9 @@
     "podcastMinutes": "A duração aproximada do podcast. Dela depende quantas falas o modelo escreve.",
     "listenSpeakersBar": "Quem fala na gravação. Um nome corrigido vai para a exportação. Os botões ao lado ocultam as falas, fazem dele uma voz e o lembram para outras gravações.",
     "assistantLlm": "O modelo de linguagem que ajuda com o texto: tags de expressão e pontuação, dividir um livro por papéis, escrever um podcast."
+  },
+  "undo": {
+    "deleted": "«{{name}}» enviado à lixeira",
+    "restore": "Desfazer"
   }
 }
