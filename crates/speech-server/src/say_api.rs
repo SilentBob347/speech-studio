@@ -20,7 +20,15 @@ const LONG_PHRASE: usize = 120;
 struct Session {
     buf: String,
     direction: String,
+    /// Grows with every piece of text, so a later flush can tell no text came since.
+    pieces: u64,
 }
+
+/// A text stopped at the end of a phrase this long is taken as finished: an agent's last sentence has nothing after it.
+const SETTLE_MS: u64 = 600;
+
+/// The blocks a person's speaking cut off before they were said.
+static INTERRUPTED: LazyLock<Mutex<std::collections::HashSet<String>>> = LazyLock::new(Default::default);
 
 static SESSIONS: LazyLock<Mutex<HashMap<String, Session>>> = LazyLock::new(Default::default);
 
@@ -49,6 +57,9 @@ pub fn interrupt(st: &AppState) -> bool {
     let open: Vec<String> = sessions().keys().cloned().collect();
     let speaking = !open.is_empty() || !SAID.lock().unwrap_or_else(|p| p.into_inner()).is_empty();
     for sid in open.iter() {
+        if let Ok(project) = sp::load(&st.workspace, sid) {
+            INTERRUPTED.lock().unwrap_or_else(|p| p.into_inner()).extend(project.blocks().filter(|b| b.takes.is_empty()).map(|b| b.id.clone()));
+        }
         crate::speech_jobs::unqueue(sid, None);
         crate::live::silence(sid);
     }
@@ -100,6 +111,12 @@ pub fn cut(buf: &mut String, end: bool) -> Vec<String> {
     out
 }
 
+/// Whether the text ends where a phrase does: its stop mark, maybe a closing quote, then nothing.
+fn ends_a_phrase(buf: &str) -> bool {
+    let t = buf.trim_end().trim_end_matches(['"', '»', ')', '”']);
+    t.ends_with(['.', '!', '?', '…', '。', '！', '？'])
+}
+
 /// POST /speech/say {voice?, engine?, lang?, direction?, name?} — a session said aloud as its text comes; refused when no
 /// window listens, there being nothing to play it on.
 pub async fn start(State(st): State<AppState>, Json(body): Json<Value>) -> Response {
@@ -124,7 +141,7 @@ pub async fn start(State(st): State<AppState>, Json(body): Json<Value>) -> Respo
     if let Err(e) = sp::save(&st.workspace, &pid, &project) {
         return refuse(StatusCode::INTERNAL_SERVER_ERROR, "save_failed", e);
     }
-    sessions().insert(pid.clone(), Session { buf: String::new(), direction: field("direction").unwrap_or_default() });
+    sessions().insert(pid.clone(), Session { buf: String::new(), direction: field("direction").unwrap_or_default(), pieces: 0 });
     let (paths, engine, voice, lang) = (crate::speech_api::paths(&st), project.settings.engine.clone(), project.settings.voice.clone(), project.settings.lang.clone());
     tokio::task::spawn_blocking(move || {
         if let Err(e) = crate::speech_jobs::warm(&paths, &engine, voice.as_deref(), &lang) {
@@ -139,19 +156,42 @@ pub async fn start(State(st): State<AppState>, Json(body): Json<Value>) -> Respo
 pub async fn text(State(st): State<AppState>, AxPath(sid): AxPath<String>, Json(body): Json<Value>) -> Response {
     let piece = body.get("text").and_then(Value::as_str).unwrap_or_default();
     let end = body.get("end").and_then(Value::as_bool).unwrap_or(false);
-    let (phrases, direction) = {
+    let (phrases, direction, pieces) = {
         let mut all = sessions();
         let Some(session) = all.get_mut(&sid) else {
             return refuse(StatusCode::NOT_FOUND, "no_session", t!("say-no-session", session = sid));
         };
         session.buf.push_str(piece);
+        session.pieces += 1;
         let phrases = cut(&mut session.buf, end);
         let direction = session.direction.clone();
+        let pieces = session.pieces;
         if end {
             all.remove(&sid);
         }
-        (phrases, direction)
+        (phrases, direction, pieces)
     };
+    if !end {
+        let (st2, sid2) = (st.clone(), sid.clone());
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(SETTLE_MS)).await;
+            let settled = {
+                let mut all = sessions();
+                match all.get_mut(&sid2) {
+                    Some(s) if s.pieces == pieces && ends_a_phrase(&s.buf) => Some((cut(&mut s.buf, true), s.direction.clone())),
+                    _ => None,
+                }
+            };
+            if let Some((phrases, direction)) = settled {
+                let _ = voice(st2, sid2, phrases, direction).await;
+            }
+        });
+    }
+    voice(st, sid, phrases, direction).await
+}
+
+/// Puts the phrases into the session's project and voices them aloud.
+async fn voice(st: AppState, sid: String, phrases: Vec<String>, direction: String) -> Response {
     if phrases.is_empty() {
         return Json(json!({ "voicing": 0 })).into_response();
     }
@@ -179,6 +219,11 @@ pub async fn text(State(st): State<AppState>, AxPath(sid): AxPath<String>, Json(
     Json(json!({ "voicing": ids.len(), "blocks": ids })).into_response()
 }
 
+/// DELETE /speech/say — every session stops speaking now, as when the person interrupts.
+pub async fn stop_all(State(st): State<AppState>) -> Json<Value> {
+    Json(json!({ "stopped": interrupt(&st) }))
+}
+
 /// DELETE /speech/say/{session} — stop now: what is queued is dropped, the phrase being voiced is cancelled, the window
 /// stops its sound.
 pub async fn stop(State(st): State<AppState>, AxPath(sid): AxPath<String>) -> Response {
@@ -202,7 +247,7 @@ pub async fn state(State(st): State<AppState>, AxPath(sid): AxPath<String>) -> R
         .blocks()
         .map(|b| {
             let take = b.takes.iter().find(|t| Some(t.n) == b.active);
-            json!({ "text": b.text, "state": if b.error.is_some() { "failed" } else if take.is_some() { "said" } else { "waiting" }, "first_ms": take.and_then(|t| t.first_ms), "seconds": take.map(|t| t.duration) })
+            json!({ "id": b.id, "text": b.text, "state": if take.is_some() { "said" } else if INTERRUPTED.lock().unwrap_or_else(|p| p.into_inner()).contains(&b.id) { "interrupted" } else if b.error.is_some() { "failed" } else { "waiting" }, "error": b.error.as_ref().map(|e| e.text.clone()), "first_ms": take.and_then(|t| t.first_ms), "seconds": take.map(|t| t.duration) })
         })
         .collect();
     Json(json!({ "session": sid, "open": pending.is_some(), "waiting_text": pending.unwrap_or_default(), "phrases": phrases })).into_response()

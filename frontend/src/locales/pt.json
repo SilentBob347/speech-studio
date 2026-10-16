@@ -732,7 +732,9 @@
     "speech": "Speech",
     "listening": "Listening",
     "speechHint": "Dê voz a um texto com as suas vozes ({{keys}})",
-    "listeningHint": "Reconheça a fala e verifique uma locução ({{keys}})"
+    "listeningHint": "Reconheça a fala e verifique uma locução ({{keys}})",
+    "talk": "Conversa",
+    "talkHint": "Converse com um agente por voz"
   },
   "voices": {
     "open": "Vozes",
@@ -2365,5 +2367,34 @@
   "undo": {
     "deleted": "«{{name}}» enviado à lixeira",
     "restore": "Desfazer"
+  },
+  "talk": {
+    "title": "Conversa",
+    "hint": "Um agente conectado por MCP ouve você pelo microfone e responde em voz alta enquanto escreve. Fale por cima para interrompê-lo.",
+    "agentOn": "Agente conectado",
+    "agentOff": "Sem agente",
+    "state_off": "Microfone desligado",
+    "state_listening": "Ouvindo",
+    "state_hearing": "Estou ouvindo você",
+    "state_thinking": "Pensando",
+    "state_speaking": "Falando",
+    "saySomething": "Diga algo…",
+    "connect": "Conecte um agente ao estúdio:",
+    "copy": "Copiar o comando",
+    "ask": "Depois peça: “fale comigo por voz pelo Speech Studio”.",
+    "lang": "Idioma",
+    "langAuto": "Automático",
+    "micOn": "Ligar o microfone",
+    "micOff": "Desligar o microfone",
+    "micOnHint": "O estúdio ouve cada frase que você termina com uma pausa e a passa ao agente.",
+    "micOffHint": "Para de ouvir; a conversa fica como gravação no Listening.",
+    "silence": "Parar a fala",
+    "silenceHint": "Corta o agente na hora, como falar por cima dele.",
+    "history": "Conversa",
+    "historyHint": "Mostra ou esconde a conversa em texto.",
+    "empty": "Nada foi dito ainda.",
+    "you": "Você",
+    "agent": "Agente",
+    "heardCount": "Frases ouvidas: {{n}}"
   }
 }

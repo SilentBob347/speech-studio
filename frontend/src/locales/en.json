@@ -732,7 +732,9 @@
     "speech": "Speech",
     "listening": "Listening",
     "speechHint": "Voice text with your voices ({{keys}})",
-    "listeningHint": "Recognise speech and check a voicing ({{keys}})"
+    "listeningHint": "Recognise speech and check a voicing ({{keys}})",
+    "talk": "Talk",
+    "talkHint": "Talk with an agent by voice"
   },
   "voices": {
     "open": "Voices",
@@ -2365,5 +2367,34 @@
   "undo": {
     "deleted": "«{{name}}» moved to the recycle bin",
     "restore": "Undo"
+  },
+  "talk": {
+    "title": "Talk",
+    "hint": "An agent connected over MCP hears you through the microphone and answers aloud as it writes. Speak over it to interrupt.",
+    "agentOn": "Agent connected",
+    "agentOff": "No agent",
+    "state_off": "Microphone off",
+    "state_listening": "Listening",
+    "state_hearing": "Hearing you",
+    "state_thinking": "Thinking",
+    "state_speaking": "Speaking",
+    "saySomething": "Say something…",
+    "connect": "Connect an agent to the studio:",
+    "copy": "Copy the command",
+    "ask": "Then ask it: “talk with me by voice through Speech Studio”.",
+    "lang": "Language",
+    "langAuto": "Auto",
+    "micOn": "Turn the microphone on",
+    "micOff": "Turn the microphone off",
+    "micOnHint": "The studio hears each phrase you end with a pause and gives it to the agent.",
+    "micOffHint": "Stops listening; the conversation stays a Listening recording.",
+    "silence": "Stop speaking",
+    "silenceHint": "Cuts the agent off now, as speaking over it does.",
+    "history": "Conversation",
+    "historyHint": "Shows or hides the conversation as text.",
+    "empty": "Nothing said yet.",
+    "you": "You",
+    "agent": "Agent",
+    "heardCount": "Phrases heard: {{n}}"
   }
 }

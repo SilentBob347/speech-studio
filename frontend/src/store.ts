@@ -2,8 +2,8 @@ import { create } from "zustand";
 import { journalApi, type JournalLine } from "./lib/api";
 
 export type Stage = "boot" | "offline" | "setup" | "ready";
-export type Mode = "speech" | "listening";
-export const MODES: readonly Mode[] = ["speech", "listening"];
+export type Mode = "speech" | "listening" | "talk";
+export const MODES: readonly Mode[] = ["speech", "listening", "talk"];
 // строка журнала «что делает приложение»; agent — действие агента по MCP; verb/noun/target — изменение агента, словами окна
 export type Activity = { t: number; text: string; kind: "work" | "done" | "error" | "agent"; verb?: string; noun?: string; target?: string };
 
@@ -12,7 +12,7 @@ const MODE_KEY = "speech-studio:mode";
 function savedMode(): Mode {
   try {
     const m = new URLSearchParams(location.search).get("mode") ?? localStorage.getItem(MODE_KEY);
-    return m === "listening" ? "listening" : "speech";
+    return m === "listening" || m === "talk" ? m : "speech";
   } catch {
     return "speech";
   }

@@ -344,13 +344,17 @@ pub(super) fn tools() -> Vec<Tool> {
             name: "say_text",
             description: "More text for a say_start session, as soon as you have it - a few words are enough; a phrase is said once it is finished (a full stop, a question or exclamation mark, a line break, or a long phrase at its comma). end true says what is left and closes the session. Answers at once.",
             schema: || object(json!({ "session": { "type": "string" }, "text": { "type": "string" }, "end": { "type": "boolean" } }), &["session", "text"]),
-            call: |args| post(format!("/speech/say/{}", segment(&text(args, "session")?)), json!({ "text": text(args, "text")?, "end": args.get("end").and_then(Value::as_bool).unwrap_or(false) })),
+            // the text is passed as written: a piece's spaces join it to the next one
+            call: |args| post(format!("/speech/say/{}", segment(&text(args, "session")?)), json!({ "text": args.get("text").and_then(Value::as_str).ok_or("'text' is required")?, "end": args.get("end").and_then(Value::as_bool).unwrap_or(false) })),
         },
         Tool {
             name: "say_stop",
-            description: "Stop speaking now: what waits is dropped, the phrase being voiced is cut off and the window falls silent - for when the person starts talking over the studio.",
-            schema: || object(json!({ "session": { "type": "string" } }), &["session"]),
-            call: |args| send(Method::DELETE, format!("/speech/say/{}", segment(&text(args, "session")?)), json!({})),
+            description: "Stop speaking now: what waits is dropped, the phrase being voiced is cut off and the window falls silent - for when the person starts talking over the studio. Without session every session stops.",
+            schema: || object(json!({ "session": { "type": "string" } }), &[]),
+            call: |args| match given(args, "session") {
+                Some(sid) => send(Method::DELETE, format!("/speech/say/{}", segment(&sid)), json!({})),
+                None => send(Method::DELETE, "/speech/say".into(), json!({})),
+            },
         },
         Tool {
             name: "voice_listen_start",

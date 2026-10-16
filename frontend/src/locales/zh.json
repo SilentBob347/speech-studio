@@ -732,7 +732,9 @@
     "speech": "Speech",
     "listening": "Listening",
     "speechHint": "用你的声音为文本配音（{{keys}}）",
-    "listeningHint": "识别语音并检查配音（{{keys}}）"
+    "listeningHint": "识别语音并检查配音（{{keys}}）",
+    "talk": "对讲",
+    "talkHint": "用语音与智能体对话"
   },
   "voices": {
     "open": "声音",
@@ -2365,5 +2367,34 @@
   "undo": {
     "deleted": "「{{name}}」已移到回收站",
     "restore": "撤销"
+  },
+  "talk": {
+    "title": "对讲",
+    "hint": "通过 MCP 连接的智能体经麦克风听你说话，一边写一边朗读回答。直接开口打断它，它会停下。",
+    "agentOn": "智能体已连接",
+    "agentOff": "没有智能体",
+    "state_off": "麦克风已关闭",
+    "state_listening": "正在听",
+    "state_hearing": "听到你了",
+    "state_thinking": "思考中",
+    "state_speaking": "正在说",
+    "saySomething": "说点什么…",
+    "connect": "把智能体连接到工作室：",
+    "copy": "复制命令",
+    "ask": "然后对它说：“通过 Speech Studio 用语音和我对话”。",
+    "lang": "语言",
+    "langAuto": "自动",
+    "micOn": "打开麦克风",
+    "micOff": "关闭麦克风",
+    "micOnHint": "工作室听到你以停顿结束的每句话，并交给智能体。",
+    "micOffHint": "停止收听；对话会保存为 Listening 录音。",
+    "silence": "停止说话",
+    "silenceHint": "立即打断智能体，效果和直接开口一样。",
+    "history": "对话",
+    "historyHint": "显示或隐藏对话文字。",
+    "empty": "还没有人说话。",
+    "you": "你",
+    "agent": "智能体",
+    "heardCount": "已听到 {{n}} 句"
   }
 }

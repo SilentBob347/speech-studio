@@ -14,6 +14,7 @@ import Hotkeys from "./components/shell/Hotkeys";
 import FirstRun from "./components/setup/FirstRun";
 import ListeningPage from "./components/listening/ListeningPage";
 import SpeechPage from "./components/speech/SpeechPage";
+import TalkPage from "./components/talk/TalkPage";
 import { useAloudPlayback } from "./lib/livePlayback";
 
 const modelName = (p?: string) => (p ? (p.split(/[\\/]/).pop() || p).replace(/\.(gguf|onnx|bin|pt|safetensors)$/i, "") : "");
@@ -62,7 +63,7 @@ export default function App() {
       {stage === "boot" && <div className="flex-1 grid place-items-center"><Loader2 size={22} className="animate-spin text-[var(--color-muted)]" /></div>}
       {stage === "offline" && <ServerOffline />}
       {stage === "setup" && <FirstRun />}
-      {stage === "ready" && <div className="flex-1 min-h-0 flex flex-col lg:[[data-assistant]_&]:pr-[420px]">{mode === "speech" ? <SpeechPage /> : <ListeningPage />}</div>}
+      {stage === "ready" && <div className="flex-1 min-h-0 flex flex-col lg:[[data-assistant]_&]:pr-[420px]">{mode === "speech" ? <SpeechPage /> : mode === "talk" ? <TalkPage /> : <ListeningPage />}</div>}
       <footer className="mono h-6 px-4 flex items-center gap-2 text-[10px] text-[var(--color-muted)] border-t border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden">
         <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)] shrink-0" /><span className="truncate" title={capOffline ? t("status.backendOffline") : capText}>{capOffline ? t("status.backendOffline") : capText}</span>
       </footer>

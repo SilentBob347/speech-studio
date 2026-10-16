@@ -517,8 +517,8 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "ui_navigate",
-            description: "Open a mode of the studio: speech (voicing text) or listening (recognising speech and checking a voicing).",
-            schema: || object(json!({ "view": { "type": "string", "enum": ["speech", "listening"] } }), &["view"]),
+            description: "Open a mode of the studio: speech (voicing text), listening (recognising speech and checking a voicing) or talk (a spoken conversation with an agent: say_* and voice_listen*).",
+            schema: || object(json!({ "view": { "type": "string", "enum": ["speech", "listening", "talk"] } }), &["view"]),
             call: |args| window("navigate", args, 15),
         },
         Tool {

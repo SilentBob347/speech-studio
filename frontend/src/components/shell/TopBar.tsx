@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AudioLines, Bot, ChevronDown, Ear, HelpCircle, Loader2, MoreHorizontal, Plus, ScrollText, Settings, Users, type LucideIcon } from "lucide-react";
+import { AudioLines, Bot, ChevronDown, Ear, HelpCircle, Loader2, MoreHorizontal, Plus, Radio, ScrollText, Settings, Users, type LucideIcon } from "lucide-react";
 import { LANGS, setLang, type Lang } from "../../lib/i18n";
 import { OPEN_HELP_EVENT, OPEN_SETTINGS_EVENT, SETTINGS_SECTIONS } from "../../lib/settingsNav";
 import { JOURNAL_CHANGED, bridgeError, takeArgs, textArg, useBridgeCommand, useChanged } from "../../lib/mcpBridge";
@@ -32,9 +32,10 @@ function LanguageSwitcher() {
   );
 }
 
-const MODE_ITEMS: readonly { id: Mode; icon: LucideIcon; label: "modes.speech" | "modes.listening"; hint: "modes.speechHint" | "modes.listeningHint" }[] = [
+const MODE_ITEMS: readonly { id: Mode; icon: LucideIcon; label: "modes.speech" | "modes.listening" | "modes.talk"; hint: "modes.speechHint" | "modes.listeningHint" | "modes.talkHint" }[] = [
   { id: "speech", icon: AudioLines, label: "modes.speech", hint: "modes.speechHint" },
   { id: "listening", icon: Ear, label: "modes.listening", hint: "modes.listeningHint" },
+  { id: "talk", icon: Radio, label: "modes.talk", hint: "modes.talkHint" },
 ];
 
 function ModeSwitcher() {
@@ -47,7 +48,7 @@ function ModeSwitcher() {
       {MODE_ITEMS.map(({ id, icon: Icon, label, hint }) => {
         const active = mode === id;
         return (
-          <button key={id} type="button" role="tab" aria-selected={active} onClick={() => setMode(id)} title={t(hint, { keys: id === "speech" ? keys.modeSpeech : keys.modeListening })} aria-label={t(label)}
+          <button key={id} type="button" role="tab" aria-selected={active} onClick={() => setMode(id)} title={t(hint, { keys: id === "speech" ? keys.modeSpeech : id === "listening" ? keys.modeListening : "" })} aria-label={t(label)}
             className={`flex h-7 items-center gap-1.5 rounded-md px-3 text-[12px] font-medium transition-colors ${active ? "bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm" : "text-[var(--color-muted)] hover:text-[var(--color-text)]"}`}>
             <Icon size={14} className={active ? "text-[var(--color-accent)]" : ""} />
             <span className="hidden md:inline">{t(label)}</span>

@@ -89,7 +89,7 @@ export default function AssistantPanel({ onClose }: { onClose: () => void }) {
     if (!text.trim() || busy) return;
     if (!byAgent && !(await askCloud("assistant", "OpenRouter"))) return;
     setDraft("");
-    void sendChat(text, openProjectId(mode), i18n.language);
+    void sendChat(text, mode === "talk" ? null : openProjectId(mode), i18n.language);
   };
   const box = "bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px] focus:border-[var(--color-accent)] focus:outline-none";
   const body = () => {

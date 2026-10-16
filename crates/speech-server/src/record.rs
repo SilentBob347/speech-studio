@@ -87,6 +87,33 @@ pub fn start(path: &std::path::Path, device: Option<String>) -> Result<(), Strin
     let thread_path = path_buf.clone();
     let (stop_tx, stop_rx) = std::sync::mpsc::channel::<()>();
     let (ready_tx, ready_rx) = std::sync::mpsc::channel::<Result<(), String>>();
+    if let Ok(file) = std::env::var("SPEECH_STUDIO_MIC_FILE") {
+        let (samples, sr) = crate::wavio::read_mono_f32(std::path::Path::new(&file))?;
+        tracing::warn!("the microphone is the file {file} (SPEECH_STUDIO_MIC_FILE)");
+        let spec = hound::WavSpec { channels: 1, sample_rate: sr, bits_per_sample: 16, sample_format: hound::SampleFormat::Int };
+        let mut writer = hound::WavWriter::create(&thread_path, spec).map_err(|e| t!("record-create-wav", error = e.to_string()))?;
+        rate_cell().store(sr, Ordering::Relaxed);
+        std::thread::spawn(move || {
+            let step = (sr / 10).max(1) as usize;
+            let silence = vec![0.0f32; step];
+            let mut at = 0;
+            while stop_rx.try_recv().is_err() {
+                let chunk = if at < samples.len() { &samples[at..(at + step).min(samples.len())] } else { &silence[..] };
+                at += step;
+                for &v in chunk {
+                    let _ = writer.write_sample((v.clamp(-1.0, 1.0) * i16::MAX as f32) as i16);
+                }
+                peak_cell().store(chunk.iter().fold(0f32, |m, v| m.max(v.abs())).min(1.0).to_bits(), Ordering::Relaxed);
+                if let Some(to) = tap_cell().lock().ok().as_deref().and_then(Option::as_ref) {
+                    let _ = to.send(chunk.to_vec());
+                }
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
+            let _ = writer.finalize();
+        });
+        *guard = Some(RecState { stop_tx, path: path_buf });
+        return Ok(());
+    }
 
     std::thread::spawn(move || {
         use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};

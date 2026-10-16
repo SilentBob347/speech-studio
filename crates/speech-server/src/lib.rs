@@ -556,7 +556,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/projects/{pid}/queue/{n}", axum::routing::delete(speech_api::queue_remove))
         .route("/history", get(speech_api::history))
         .route("/speech/live", get(live::events))
-        .route("/speech/say", post(say_api::start))
+        .route("/speech/say", post(say_api::start).delete(say_api::stop_all))
         .route("/speech/say/{session}", get(say_api::state).post(say_api::text).delete(say_api::stop))
         .route("/speech/listen", post(say_api::listen_start).delete(say_api::listen_stop))
         .route("/speech/listen/next", get(say_api::listen_next))

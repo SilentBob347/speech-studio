@@ -732,7 +732,9 @@
     "speech": "Speech",
     "listening": "Listening",
     "speechHint": "Donner une voix à un texte avec vos voix ({{keys}})",
-    "listeningHint": "Reconnaître la parole et vérifier une voix ({{keys}})"
+    "listeningHint": "Reconnaître la parole et vérifier une voix ({{keys}})",
+    "talk": "Parler",
+    "talkHint": "Parler à un agent à voix haute"
   },
   "voices": {
     "open": "Voix",
@@ -2365,5 +2367,34 @@
   "undo": {
     "deleted": "« {{name}} » mis à la corbeille",
     "restore": "Annuler"
+  },
+  "talk": {
+    "title": "Parler",
+    "hint": "Un agent connecté par MCP vous entend au micro et répond à voix haute pendant qu’il écrit. Parlez par-dessus pour l’interrompre.",
+    "agentOn": "Agent connecté",
+    "agentOff": "Aucun agent",
+    "state_off": "Micro coupé",
+    "state_listening": "J’écoute",
+    "state_hearing": "Je vous entends",
+    "state_thinking": "Réfléchit",
+    "state_speaking": "Parle",
+    "saySomething": "Dites quelque chose…",
+    "connect": "Connectez un agent au studio :",
+    "copy": "Copier la commande",
+    "ask": "Puis demandez-lui : « parle-moi à voix haute via Speech Studio ».",
+    "lang": "Langue",
+    "langAuto": "Automatique",
+    "micOn": "Allumer le micro",
+    "micOff": "Couper le micro",
+    "micOnHint": "Le studio entend chaque phrase terminée par une pause et la transmet à l’agent.",
+    "micOffHint": "Arrête d’écouter ; la conversation reste un enregistrement dans Listening.",
+    "silence": "Arrêter la voix",
+    "silenceHint": "Coupe l’agent tout de suite, comme en parlant par-dessus.",
+    "history": "Conversation",
+    "historyHint": "Affiche ou masque la conversation en texte.",
+    "empty": "Rien n’a encore été dit.",
+    "you": "Vous",
+    "agent": "Agent",
+    "heardCount": "Phrases entendues : {{n}}"
   }
 }
