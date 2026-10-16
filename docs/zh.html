@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Speech Studio — 免费离线 AI 语音工作室：文本转语音、声音克隆、语音识别</title>
+<meta name="description" content="免费开源的 Windows 桌面工作室：用克隆声音和内置声音为任意文本配音，制作有声书和播客，并把录音转成带说话人的文字。在 NVIDIA 显卡上离线运行。" />
+<link rel="canonical" href="https://timoncool.github.io/speech-studio/zh.html" />
+<link rel="alternate" hreflang="en" href="https://timoncool.github.io/speech-studio/" />
+<link rel="alternate" hreflang="ru" href="https://timoncool.github.io/speech-studio/ru.html" />
+<link rel="alternate" hreflang="es" href="https://timoncool.github.io/speech-studio/es.html" />
+<link rel="alternate" hreflang="fr" href="https://timoncool.github.io/speech-studio/fr.html" />
+<link rel="alternate" hreflang="pt" href="https://timoncool.github.io/speech-studio/pt.html" />
+<link rel="alternate" hreflang="zh" href="https://timoncool.github.io/speech-studio/zh.html" />
+<link rel="alternate" hreflang="x-default" href="https://timoncool.github.io/speech-studio/" />
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Speech Studio" />
+<meta property="og:title" content="Speech Studio — 免费离线 AI 语音工作室：文本转语音、声音克隆、语音识别" />
+<meta property="og:description" content="免费开源的 Windows 桌面工作室：用克隆声音和内置声音为任意文本配音，制作有声书和播客，并把录音转成带说话人的文字。在 NVIDIA 显卡上离线运行。" />
+<meta property="og:url" content="https://timoncool.github.io/speech-studio/zh.html" />
+<meta property="og:locale" content="zh" />
+<meta property="og:image" content="https://timoncool.github.io/speech-studio/og-zh.jpg" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:image:alt" content="为任意文本配音。听清说了什么。" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://timoncool.github.io/speech-studio/og-zh.jpg" />
+<link rel="preload" as="image" href="screenshots/zh-01-speech.webp" fetchpriority="high" />
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"SoftwareApplication","@id":"https://timoncool.github.io/speech-studio/#app","name":"Speech Studio","url":"https://timoncool.github.io/speech-studio/zh.html","inLanguage":"zh","description":"免费开源的 Windows 桌面工作室：用克隆声音和内置声音为任意文本配音，制作有声书和播客，并把录音转成带说话人的文字。在 NVIDIA 显卡上离线运行。","applicationCategory":"MultimediaApplication","applicationSubCategory":"Text to speech and speech recognition","operatingSystem":"Windows 10, Windows 11","softwareVersion":"0.1.0","fileSize":"14.26 MB","downloadUrl":"https://github.com/timoncool/speech-studio/releases/latest","isAccessibleForFree":true,"license":"https://opensource.org/licenses/MIT","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"image":"https://timoncool.github.io/speech-studio/og-zh.jpg","screenshot":"https://timoncool.github.io/speech-studio/screenshots/zh-01-speech.webp","codeRepository":"https://github.com/timoncool/speech-studio","sameAs":["https://github.com/timoncool/speech-studio"],"author":{"@id":"https://github.com/timoncool#person"},"dateModified":"2026-10-16"},{"@type":"Person","@id":"https://github.com/timoncool#person","name":"Nerual Dreming","url":"https://github.com/timoncool","sameAs":["https://github.com/timoncool","https://t.me/nerual_dreming","https://artgeneration.me"]},{"@type":"FAQPage","inLanguage":"zh","mainEntity":[{"@type":"Question","name":"需要什么显卡？","acceptedAnswer":{"@type":"Answer","text":"一块 8 GB 或更多显存、驱动较新的 NVIDIA 显卡。Drama 3 整体放入 24 GB；从 6 GB 起其专家放在内存中，此时需要 32 GB 内存。默认模型和引擎约占 9 GB 磁盘。"}},{"@type":"Question","name":"免费吗？","acceptedAnswer":{"@type":"Answer","text":"是的。工作室免费且开源，模型也可以在其中免费下载。"}},{"@type":"Question","name":"没有网络能用吗？我的文本会被上传吗？","acceptedAnswer":{"@type":"Answer","text":"你的文本和录音属于你，并且留在你的磁盘上。 无需账号: 没有地方注册，也没有必要注册。 默认本地: 配音、识别、重音和导演都在你的电脑上运行。 云端仅在你需要时: OpenRouter、Google Gemini、fal.ai 和 Runware 的声音在你添加密钥前保持关闭，并且每个在首次调用前都会询问。"}},{"@type":"Question","name":"它如何处理俄语重音？","acceptedAnswer":{"@type":"Answer","text":"数字按正确的格和性、日期、时间、金额和单位在引擎朗读前写成单词。重音、«ё» 和同形异义词由 RUAccent 根据句子标注。 Supertonic 3 和 Qwen3-TTS 的俄语重音靠猜。工作室在引擎朗读之前标好重音：RUAccent 根据句子选择 замо́к 还是 за́мок、му́ки 还是 муки́，数字、日期和单位按正确的格写成单词。"}},{"@type":"Question","name":"配音作品可以使用吗？","acceptedAnswer":{"@type":"Answer","text":"工作室采用 MIT 许可。模型不是：每个模型保留自己的许可，列在 README 中。发布或出售配音作品前请先阅读。"}},{"@type":"Question","name":"AI 智能体能操作它吗？","acceptedAnswer":{"@type":"Answer","text":"工作室打开时，Claude Code 或 Cursor 等智能体可以通过 MCP 完成窗口能做的一切：把文本配音成文件、编辑项目、分配声音、识别和检查录音。为 OpenAI 音频编写的工具可通过其兼容 API 使用。"}},{"@type":"Question","name":"它是如何构建的？","acceptedAnswer":{"@type":"Answer","text":"服务编译进桌面 exe，并通过 C ABI 在同一进程中运行引擎。运行时没有任何 Python 进程。"}}]}]}</script>
+<style>
+:root {
+  --bg: #0b0b0e;
+  --panel: #141419;
+  --panel-2: #1b1b22;
+  --line: rgba(255,255,255,.08);
+  --text: #ececef;
+  --muted: #a3a3ad;
+  --accent: #4cc2ff;
+  --accent-2: #a5b8ff;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.65 -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; }
+img { max-width: 100%; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+
+header {
+  position: sticky; top: 0; z-index: 10;
+  background: rgba(11,11,14,.85); backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+.utility { border-bottom: 1px solid var(--line); }
+.utility-bar { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.family { display: flex; gap: 4px; padding-top: 8px; overflow-x: auto; }
+.family a {
+  padding: 6px 14px; border: 1px solid transparent; border-bottom: none; border-radius: 9px 9px 0 0;
+  color: var(--muted); font-size: 13px; font-weight: 600; text-decoration: none; white-space: nowrap;
+}
+.family a:hover { color: var(--text); background: rgba(255,255,255,.04); }
+.family a[aria-current="page"] { color: var(--text); border-color: var(--line); background: rgba(76,194,255,.14); box-shadow: inset 0 2px 0 var(--accent); }
+.langs { display: flex; gap: 14px; padding: 0 0 8px; white-space: nowrap; }
+.langs a { font-size: 12px; color: var(--muted); text-decoration: none; }
+.langs a:hover { color: var(--text); }
+.langs a[aria-current="page"] { color: var(--text); font-weight: 700; }
+.bar { display: flex; align-items: center; gap: 12px; padding-block: 10px; }
+.mark { width: 30px; height: 30px; border-radius: 9px; flex: none; }
+.name { font-weight: 800; letter-spacing: -.01em; white-space: nowrap; }
+.head-github, .head-download {
+  box-sizing: border-box; height: 40px; display: inline-flex; align-items: center; gap: 8px;
+  padding: 0 16px; border-radius: 10px; border: 1px solid transparent;
+  font-size: 14px; font-weight: 700; line-height: 1; white-space: nowrap; text-decoration: none;
+  transition: border-color .15s, background .15s, filter .15s;
+}
+.head-github { margin-left: auto; padding-right: 10px; color: var(--text); background: #2a2a34; }
+.head-github:hover { background: #34343f; }
+/* its word is mostly lowercase without ascenders: lifted 2px so the letters, not the line box, sit in the middle */
+.head-download { margin-left: 10px; padding-bottom: 4px; color: #041019; background: linear-gradient(90deg, var(--accent-2), var(--accent)); }
+.head-download:hover { filter: brightness(1.08); }
+
+.hero { padding-top: 56px; text-align: center; }
+h1 { font-size: clamp(34px, 6.4vw, 64px); line-height: 1.05; letter-spacing: -.025em; margin: 0 auto; max-width: 15em; }
+.lead { color: var(--muted); font-size: clamp(17px, 2.2vw, 20px); margin: 18px auto 0; max-width: 38em; }
+.cta { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 30px 0 10px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 10px; text-decoration: none;
+  border-radius: 12px; padding: 13px 20px; font-weight: 700; font-size: 16px;
+  border: 1px solid var(--line); color: var(--text); background: var(--panel);
+}
+.btn:hover { border-color: rgba(255,255,255,.2); }
+.btn small { font-weight: 600; font-size: 12px; opacity: .8; }
+.btn img { display: block; }
+.btn.primary { background: linear-gradient(90deg, var(--accent-2), var(--accent)); border-color: transparent; color: #041019; }
+.note { color: var(--muted); font-size: 13px; margin: 6px auto 0; max-width: 60em; }
+.hero-shot { margin: 36px 0 0; }
+.hero-shot img {
+  width: 100%; height: auto; display: block; border-radius: 16px; border: 1px solid var(--line); cursor: zoom-in;
+  box-shadow: 0 30px 80px rgba(76,194,255,.12), 0 10px 40px rgba(0,0,0,.5);
+}
+
+section { padding: 72px 0 0; }
+h2 { font-size: clamp(26px, 3.6vw, 36px); letter-spacing: -.02em; margin: 0 0 8px; }
+.sub { color: var(--muted); margin: 0 0 24px; max-width: 46em; }
+
+.samples { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+.sample { margin: 0; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); }
+.sample figcaption { display: grid; gap: 2px; margin-bottom: 10px; }
+.sample b { font-size: 15px; }
+.sample span { color: var(--muted); font-size: 13px; }
+.sample audio { width: 100%; height: 36px; }
+details.more summary { cursor: pointer; color: var(--muted); font-weight: 600; margin: 16px 0 12px; }
+
+/* each tile is title, picture, text; the three rows line up across tiles side by side */
+.bento { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 14px; row-gap: 0; margin-top: 24px; }
+.tile {
+  display: grid; grid-row: span 3; grid-template-rows: subgrid; row-gap: 14px; margin-bottom: 14px; padding: 22px;
+  border: 1px solid var(--line); border-radius: 20px; background: linear-gradient(180deg, var(--panel-2), var(--panel));
+}
+.tile h3 { margin: 0; font-size: 19px; letter-spacing: -.01em; align-self: start; }
+.tile p { margin: 0; color: var(--muted); font-size: 14.5px; line-height: 1.5; }
+.shot { margin: 0; align-self: start; }
+.shot img {
+  display: block; width: 100%; height: auto;
+  border-radius: 10px; border: 1px solid rgba(255,255,255,.1); cursor: zoom-in;
+  box-shadow: 0 12px 30px rgba(0,0,0,.45);
+}
+
+.gallery { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.gallery figure { margin: 0; }
+.gallery img {
+  display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; object-position: top left;
+  border-radius: 10px; border: 1px solid var(--line); cursor: zoom-in;
+}
+.gallery figcaption {
+  margin-top: 8px; color: var(--muted); font-size: 13px; line-height: 1.45;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.stars { display: block; }
+
+.steps { list-style: none; margin: 20px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+.steps li { padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); display: grid; gap: 6px; align-content: start; }
+.steps b { font-size: 16px; display: flex; align-items: baseline; gap: 10px; }
+.steps .num { color: var(--accent); font-weight: 800; }
+.steps span { color: var(--muted); font-size: 14px; line-height: 1.5; }
+#start .cta { justify-content: flex-start; margin-top: 24px; }
+
+#faq details { border-bottom: 1px solid var(--line); }
+#faq details:first-of-type { border-top: 1px solid var(--line); }
+#faq summary {
+  list-style: none; cursor: pointer; padding: 18px 36px 18px 0; font-weight: 700; font-size: 17px; position: relative;
+}
+#faq summary::-webkit-details-marker { display: none; }
+#faq summary::after { content: '+'; position: absolute; right: 4px; top: 14px; font-size: 24px; color: var(--muted); font-weight: 400; }
+#faq details[open] summary::after { content: '−'; }
+.answer { padding: 0 0 20px; color: var(--muted); max-width: 48em; }
+.answer p { margin: 0 0 10px; }
+.answer b { color: var(--text); }
+.answer ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+
+.scroll { overflow-x: auto; margin: 10px 0; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+td { color: var(--text); }
+pre { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; overflow-x: auto; font-size: 13px; color: var(--text); }
+
+.pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.pill { text-decoration: none; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); font-size: 14px; }
+.pill:hover { border-color: var(--accent); }
+footer { margin: 72px 0 40px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+footer p { margin: 0 0 8px; }
+
+.viewer { position: fixed; inset: 0; background: rgba(0,0,0,.9); display: none; align-items: center; justify-content: center; z-index: 50; padding: 24px; }
+.viewer.open { display: flex; }
+.viewer img { max-width: 100%; max-height: 100%; border-radius: 10px; }
+.viewer button { position: absolute; top: 14px; right: 18px; background: none; border: 0; color: #fff; font-size: 34px; cursor: pointer; }
+
+@media (max-width: 860px) {
+  .bento { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .hero { padding-top: 36px; }
+  .name { display: none; }
+  .utility-bar { flex-direction: column; align-items: stretch; gap: 0; }
+  .langs { order: -1; justify-content: flex-end; padding: 8px 0 0; }
+  .btn { width: 100%; justify-content: center; }
+}
+
+.lang-group { margin-top: 28px; }
+.lang-group h3 { margin: 0 0 4px; font-size: 18px; }
+.lang-group blockquote { margin: 0 0 14px; padding: 10px 14px; border-left: 3px solid var(--accent); background: var(--panel); border-radius: 0 10px 10px 0; color: var(--text); font-size: 15px; max-width: 52em; }
+.kind { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; color: var(--muted); border: 1px solid var(--line); vertical-align: 1px; }
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+.sample.before { border-style: dashed; }
+.sample.after { border-color: rgba(76,194,255,.45); }
+.disclaimer { color: var(--muted); font-size: 13px; margin: 18px 0 0; max-width: 60em; }
+@media (max-width: 560px) { .pair { grid-template-columns: minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<header>
+  <div class="utility"><div class="wrap utility-bar">
+    <nav class="family" aria-label="Studios">
+    <a href="https://timoncool.github.io/speech-studio/zh.html" aria-current="page">Speech Studio</a>
+    <a href="https://timoncool.github.io/dub-studio/zh.html">Dub Studio</a>
+    </nav>
+    <nav class="langs" aria-label="Language">
+      <a href="index.html" hreflang="en">English</a>
+      <a href="ru.html" hreflang="ru">Русский</a>
+      <a href="es.html" hreflang="es">Español</a>
+      <a href="fr.html" hreflang="fr">Français</a>
+      <a href="pt.html" hreflang="pt">Português</a>
+      <a href="zh.html" hreflang="zh" aria-current="page">中文</a>
+    </nav>
+  </div></div>
+  <div class="wrap bar">
+    <img class="mark" src="favicon.svg" alt="" width="30" height="30" />
+    <div class="name">Speech Studio</div>
+    <a class="head-github" href="https://github.com/timoncool/speech-studio">GitHub<img class="stars" src="https://img.shields.io/github/stars/timoncool/speech-studio?style=flat&amp;label=%E2%98%85&amp;color=3f3f46" alt="GitHub 星标" height="20" /></a>
+    <a class="head-download" href="https://github.com/timoncool/speech-studio/releases/latest">下载</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="hero">
+    <h1>为任意文本配音。听清说了什么。</h1>
+    <p class="lead">一个桌面工作室：用五个本地引擎为文本配音，并把录音还原成带说话人的文字。</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/timoncool/speech-studio/releases/latest">下载 Windows 版<small data-release>v0.1.0 · 14.26 MB</small></a>
+      <a class="btn" href="https://github.com/timoncool/speech-studio">在 GitHub 上加星<img class="stars" src="https://img.shields.io/github/stars/timoncool/speech-studio?style=flat&amp;label=%E2%98%85&amp;color=3f3f46" alt="GitHub 星标" height="20" /></a>
+    </div>
+    <p class="note">Windows 10/11 x64 和一块 8 GB 显存的 NVIDIA 显卡。模型和引擎在工作室内下载，由你决定何时下载。</p>
+    <figure class="hero-shot"><img src="screenshots/zh-01-speech.webp" alt="已配音的对话：带说话人的段落、录音版本和播放器。" width="2160" height="1350" fetchpriority="high" /></figure>
+  </section>
+
+  <section id="listen">
+    <h2>示例</h2>
+    <p class="sub">在这台电脑上用发行版工作室制作，每条录音都经过听写检查，并按工作室保存的样子导出。所有引擎朗读同一段文本。</p>
+    <div class="lang-group" lang="zh">
+      <h3>中文</h3>
+
+      <blockquote>床前明月光，疑是地上霜。举头望明月，低头思故乡。</blockquote>
+      <div class="samples">
+      <figure class="sample"><figcaption><b>Higgs Audio v3</b><span>模型自带声音<span class="kind">内置声音</span></span></figcaption><audio controls preload="none" src="samples/zh-libai-higgs-base.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Fish Audio Drama 3</b><span>English Female<span class="kind">声音克隆</span></span></figcaption><audio controls preload="none" src="samples/zh-libai-drama3-english-female.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Qwen3-TTS</b><span>Vivian<span class="kind">内置声音</span></span></figcaption><audio controls preload="none" src="samples/zh-libai-qwen3-tts-vivian.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Qwen3-TTS</b><span>Dylan<span class="kind">内置声音</span></span></figcaption><audio controls preload="none" src="samples/zh-libai-qwen3-tts-dylan.mp3"></audio></figure>
+      </div>
+    </div>
+    <details class="more"><summary>其他语言 (6)</summary>
+    <div class="lang-group" lang="ru">
+      <h3>俄语</h3>
+
+      <blockquote>Я помню чудное мгновенье — передо мной явилась ты, как мимолётное виденье, как гений чистой красоты.</blockquote>
+      <div class="samples">
+      <figure class="sample"><figcaption><b>Higgs Audio v3</b><span>Dmitry Puchkov (Goblin)<span class="kind">声音克隆</span></span></figcaption><audio controls preload="none" src="samples/ru-pushkin-higgs-ru-male-goblin-puchkov.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Fish Audio Drama 3</b><span>Vasily Livanov (Sherlock Holmes)<span class="kind">声音克隆</span></span></figcaption><audio controls preload="none" src="samples/ru-pushkin-drama3-ru-male-livanov-sherlockholmes.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Qwen3-TTS + ru stress LoRA</b><span>Dmitry Nagiev<span class="kind">声音克隆</span></span></figcaption><audio controls preload="none" src="samples/ru-pushkin-qwen3-tts-ru-ru-male-nagiev.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Supertonic 3</b><span>F3<span class="kind">内置声音</span></span></figcaption><audio controls preload="none" src="samples/ru-pushkin-supertonic-f3.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Qwen3-TTS</b><span>Ryan<span class="kind">内置声音</span></span></figcaption><audio controls preload="none" src="samples/ru-pushkin-qwen3-tts-ryan.mp3"></audio></figure>
+      </div>
+    </div>
+    <div class="lang-group" lang="ru">
+
+      <blockquote>Встреча 12.03 в 18:30, билет стоит 150 руб., а на улице −5 °C.</blockquote>
+      <div class="samples">
+      <figure class="sample"><figcaption><b>Higgs Audio v3</b><span>Dmitry Puchkov (Goblin)<span class="kind">声音克隆</span></span></figcaption><audio controls preload="none" src="samples/ru-numbers-higgs-ru-male-goblin-puchkov.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Fish Audio Drama 3</b><span>Vasily Livanov (Sherlock Holmes)<span class="kind">声音克隆</span></span></figcaption><audio controls preload="none" src="samples/ru-numbers-drama3-ru-male-livanov-sherlockholmes.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Qwen3-TTS + ru stress LoRA</b><span>Dmitry Nagiev<span class="kind">声音克隆</span></span></figcaption><audio controls preload="none" src="samples/ru-numbers-qwen3-tts-ru-ru-male-nagiev.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Supertonic 3</b><span>F3<span class="kind">内置声音</span></span></figcaption><audio controls preload="none" src="samples/ru-numbers-supertonic-f3.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Qwen3-TTS</b><span>Ryan<span class="kind">内置声音</span></span></figcaption><audio controls preload="none" src="samples/ru-numbers-qwen3-tts-ryan.mp3"></audio></figure>
+      </div>
+    </div>
+    <div class="lang-group" lang="en">
+      <h3>英语</h3>
+
+      <blockquote>Shall I compare thee to a summer's day? Thou art more lovely and more temperate: rough winds do shake the darling buds of May, and summer's lease hath all too short a date.</blockquote>
+      <div class="samples">
+      <figure class="sample"><figcaption><b>Higgs Audio v3</b><span>English Female 2<span class="kind">声音克隆</span></span></figcaption><audio controls preload="none" src="samples/en-sonnet18-higgs-english-female2.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Fish Audio Drama 3</b><span>English Female<span class="kind">声音克隆</span></span></figcaption><audio controls preload="none" src="samples/en-sonnet18-drama3-english-female.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Supertonic 3</b><span>M2<span class="kind">内置声音</span></span></figcaption><audio controls preload="none" src="samples/en-sonnet18-supertonic-m2.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Qwen3-TTS</b><span>Ryan<span class="kind">内置声音</span></span></figcaption><audio controls preload="none" src="samples/en-sonnet18-qwen3-tts-ryan.mp3"></audio></figure>
+      </div>
+    </div>
+    <div class="lang-group" lang="es">
+      <h3>西班牙语</h3>
+
+      <blockquote>¿Qué es poesía?, dices mientras clavas en mi pupila tu pupila azul. ¿Qué es poesía? ¿Y tú me lo preguntas? Poesía… eres tú.</blockquote>
+      <div class="samples">
+      <figure class="sample"><figcaption><b>Higgs Audio v3</b><span>Spanish Male<span class="kind">声音克隆</span></span></figcaption><audio controls preload="none" src="samples/es-becquer-higgs-spanish-male.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Fish Audio Drama 3</b><span>Spanish Male<span class="kind">声音克隆</span></span></figcaption><audio controls preload="none" src="samples/es-becquer-drama3-spanish-male.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Supertonic 3</b><span>F2<span class="kind">内置声音</span></span></figcaption><audio controls preload="none" src="samples/es-becquer-supertonic-f2.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Qwen3-TTS</b><span>Serena<span class="kind">内置声音</span></span></figcaption><audio controls preload="none" src="samples/es-becquer-qwen3-tts-serena.mp3"></audio></figure>
+      </div>
+    </div>
+    <div class="lang-group" lang="fr">
+      <h3>法语</h3>
+
+      <blockquote>Il pleure dans mon cœur comme il pleut sur la ville ; quelle est cette langueur qui pénètre mon cœur ?</blockquote>
+      <div class="samples">
+      <figure class="sample"><figcaption><b>Higgs Audio v3</b><span>French Female<span class="kind">声音克隆</span></span></figcaption><audio controls preload="none" src="samples/fr-verlaine-higgs-french-female.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Fish Audio Drama 3</b><span>French Female<span class="kind">声音克隆</span></span></figcaption><audio controls preload="none" src="samples/fr-verlaine-drama3-french-female.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Supertonic 3</b><span>F4<span class="kind">内置声音</span></span></figcaption><audio controls preload="none" src="samples/fr-verlaine-supertonic-f4.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Qwen3-TTS</b><span>Vivian<span class="kind">内置声音</span></span></figcaption><audio controls preload="none" src="samples/fr-verlaine-qwen3-tts-vivian.mp3"></audio></figure>
+      </div>
+    </div>
+    <div class="lang-group" lang="pt">
+      <h3>葡萄牙语</h3>
+
+      <blockquote>Amor é fogo que arde sem se ver, é ferida que dói, e não se sente; é um contentamento descontente, é dor que desatina sem doer.</blockquote>
+      <div class="samples">
+      <figure class="sample"><figcaption><b>Higgs Audio v3</b><span>模型自带声音<span class="kind">内置声音</span></span></figcaption><audio controls preload="none" src="samples/pt-camoes-higgs-base.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Supertonic 3</b><span>M3<span class="kind">内置声音</span></span></figcaption><audio controls preload="none" src="samples/pt-camoes-supertonic-m3.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Qwen3-TTS</b><span>Dylan<span class="kind">内置声音</span></span></figcaption><audio controls preload="none" src="samples/pt-camoes-qwen3-tts-dylan.mp3"></audio></figure>
+      </div>
+    </div>
+    </details>
+    <p class="disclaimer">名人的声音是合成的：用工作室声音包里的一段短样本克隆而成，并非这些人的录音。诗歌属于公有领域。</p>
+  </section>
+  <section id="stress">
+    <h2>俄语重音、数字和同形异义词</h2>
+    <p class="sub">Supertonic 3 和 Qwen3-TTS 的俄语重音靠猜。工作室在引擎朗读之前标好重音：RUAccent 根据句子选择 замо́к 还是 за́мок、му́ки 还是 муки́，数字、日期和单位按正确的格写成单词。</p>
+    <div class="lang-group" lang="ru">
+      <blockquote>Старинный замок стоял на холме, а дверь в него запирали на тяжёлый замок. Из этой муки пекут хлеб, но для пекаря это настоящие муки.</blockquote>
+      <div class="pair">
+      <figure class="sample before"><figcaption><b>Supertonic 3 · 没有工作室的重音标记</b><span>F3<span class="kind">内置声音</span></span></figcaption><audio controls preload="none" src="samples/ru-homographs-supertonic-before.mp3"></audio></figure>
+      <figure class="sample after"><figcaption><b>Supertonic 3 · 使用工作室的重音标记</b><span>F3<span class="kind">内置声音</span></span></figcaption><audio controls preload="none" src="samples/ru-homographs-supertonic-after.mp3"></audio></figure>
+      </div>
+      <div class="pair">
+      <figure class="sample before"><figcaption><b>Qwen3-TTS + ru stress LoRA · 没有工作室的重音标记</b><span>Dmitry Nagiev<span class="kind">声音克隆</span></span></figcaption><audio controls preload="none" src="samples/ru-homographs-qwen3-tts-ru-before.mp3"></audio></figure>
+      <figure class="sample after"><figcaption><b>Qwen3-TTS + ru stress LoRA · 使用工作室的重音标记</b><span>Dmitry Nagiev<span class="kind">声音克隆</span></span></figcaption><audio controls preload="none" src="samples/ru-homographs-qwen3-tts-ru-after.mp3"></audio></figure>
+      </div>
+    </div>
+    <div class="lang-group" lang="ru">
+      <blockquote>Мы долго стояли у берега и смотрели, как белки прыгают по веткам. В яйце много белка, а в этой задаче много лишних белков.</blockquote>
+      <div class="pair">
+      <figure class="sample before"><figcaption><b>Supertonic 3 · 没有工作室的重音标记</b><span>F3<span class="kind">内置声音</span></span></figcaption><audio controls preload="none" src="samples/ru-homographs2-supertonic-before.mp3"></audio></figure>
+      <figure class="sample after"><figcaption><b>Supertonic 3 · 使用工作室的重音标记</b><span>F3<span class="kind">内置声音</span></span></figcaption><audio controls preload="none" src="samples/ru-homographs2-supertonic-after.mp3"></audio></figure>
+      </div>
+      <div class="pair">
+      <figure class="sample before"><figcaption><b>Qwen3-TTS + ru stress LoRA · 没有工作室的重音标记</b><span>Dmitry Nagiev<span class="kind">声音克隆</span></span></figcaption><audio controls preload="none" src="samples/ru-homographs2-qwen3-tts-ru-before.mp3"></audio></figure>
+      <figure class="sample after"><figcaption><b>Qwen3-TTS + ru stress LoRA · 使用工作室的重音标记</b><span>Dmitry Nagiev<span class="kind">声音克隆</span></span></figcaption><audio controls preload="none" src="samples/ru-homographs2-qwen3-tts-ru-after.mp3"></audio></figure>
+      </div>
+    </div>
+  </section>
+  <section id="features">
+    <h2>功能</h2>
+    <div class="bento">
+      <article class="tile">
+        <h3>五个本地引擎，短样本即可克隆</h3>
+        <figure class="shot"><img src="screenshots/zh-02-voices.webp" alt="声音库：一键声音包、录音、导入、清理样本。" loading="lazy" width="2160" height="1350" /></figure>
+        <p>Higgs Audio v3、Fish Audio Drama 3、Supertonic 3、Qwen3-TTS 以及带俄语重音的 Qwen3-TTS 在你的显卡上运行。</p>
+      </article>
+      <article class="tile">
+        <h3>听起来正确的俄语</h3>
+        <figure class="shot"><img src="screenshots/zh-03-stress.webp" alt="文本将如何朗读：数字写成单词，重音和同形异义词已标注。" loading="lazy" width="2160" height="1350" /></figure>
+        <p>数字按正确的格和性、日期、时间、金额和单位在引擎朗读前写成单词。</p>
+      </article>
+      <article class="tile">
+        <h3>每条录音都经过听写检查</h3>
+        <figure class="shot"><img src="screenshots/zh-04-quality.webp" alt="质量报告：听到了什么、哪里不对、要重做哪条录音。" loading="lazy" width="2160" height="1350" /></figure>
+        <p>每条录音都会被识别回文字并与文本逐词比对，并检查削波、静音、截断、咔哒声、重复短语以及噪声代替语音。</p>
+      </article>
+      <article class="tile">
+        <h3>对话和播客</h3>
+        <figure class="shot"><img src="screenshots/zh-05-dialog.webp" alt="对话的时间线，显示每一处重叠。" loading="lazy" width="2160" height="1350" /></figure>
+        <p>«Anna:» 和 «[Anna]» 行会变成拥有各自声音的角色，导演按主题为多个声音写播客，时间线显示每一处重叠。</p>
+      </article>
+      <article class="tile">
+        <h3>带说话人的语音识别</h3>
+        <figure class="shot"><img src="screenshots/zh-06-listening.webp" alt="Listening：带说话人和词时间的文字稿。" loading="lazy" width="2160" height="1350" /></figure>
+        <p>录音、视频或链接变成谁在何时说了什么的文字稿：Parakeet-TDT 或 Whisper，最多八位说话人，卡拉 OK 播放器，按文字剪辑，导出 SRT、VTT、ASS、TXT 或 JSON。</p>
+      </article>
+      <article class="tile">
+        <h3>面向 AI 智能体</h3>
+        <figure class="shot"><img src="screenshots/zh-07-agent.webp" alt="设置中的智能体 (MCP)：要粘贴到客户端的内容。" loading="lazy" width="2160" height="1350" /></figure>
+        <p>工作室打开时，Claude Code 或 Cursor 等智能体可以通过 MCP 完成窗口能做的一切：把文本配音成文件、编辑项目、分配声音、识别和检查录音。</p>
+      </article>
+    </div>
+  </section>
+
+  <section id="screenshots">
+    <h2>截图</h2>
+    <p class="sub">工作室本身，使用你的语言。</p>
+    <div class="gallery">
+      <figure><img src="screenshots/zh-08-home.webp" alt="开始界面：文本、书籍、字幕或播客都能变成项目。" loading="lazy" width="2160" height="1350" /><figcaption>开始界面：文本、书籍、字幕或播客都能变成项目。</figcaption></figure>
+      <figure><img src="screenshots/zh-09-export.webp" alt="导出：格式、响度、章节和字幕。" loading="lazy" width="2160" height="1350" /><figcaption>导出：格式、响度、章节和字幕。</figcaption></figure>
+      <figure><img src="screenshots/zh-10-models.webp" alt="模型：磁盘上有什么、要下载什么、你的显卡能运行什么。" loading="lazy" width="2160" height="1350" /><figcaption>模型：磁盘上有什么、要下载什么、你的显卡能运行什么。</figcaption></figure>
+    </div>
+  </section>
+
+  <section id="start">
+    <h2>如何开始</h2>
+    <ol class="steps">
+      <li><b><span class="num">1</span>安装</b><span>运行安装程序，或把便携版解压到任意位置。</span></li>
+      <li><b><span class="num">2</span>下载模型</b><span>首次运行面板会一次性下载模型、引擎和运行库。</span></li>
+      <li><b><span class="num">3</span>粘贴文本</b><span>或打开一本书、字幕或播客脚本。</span></li>
+      <li><b><span class="num">4</span>配音</b><span>每个段落都会配音并检查；听起来没问题就导出。</span></li>
+    </ol>
+    <div class="cta"><a class="btn primary" href="https://github.com/timoncool/speech-studio/releases/latest">下载 Windows 版<small data-release>v0.1.0 · 14.26 MB</small></a></div>
+  </section>
+
+  <section id="faq">
+    <h2>FAQ</h2>
+    <details><summary>需要什么显卡？</summary><div class="answer"><p>一块 8 GB 或更多显存、驱动较新的 NVIDIA 显卡。Drama 3 整体放入 24 GB；从 6 GB 起其专家放在内存中，此时需要 32 GB 内存。默认模型和引擎约占 9 GB 磁盘。</p></div></details>
+    <details><summary>免费吗？</summary><div class="answer"><p>是的。工作室免费且开源，模型也可以在其中免费下载。</p></div></details>
+    <details><summary>没有网络能用吗？我的文本会被上传吗？</summary><div class="answer"><p>你的文本和录音属于你，并且留在你的磁盘上。</p><ul><li><b>无需账号</b> — 没有地方注册，也没有必要注册。</li><li><b>默认本地</b> — 配音、识别、重音和导演都在你的电脑上运行。</li><li><b>云端仅在你需要时</b> — OpenRouter、Google Gemini、fal.ai 和 Runware 的声音在你添加密钥前保持关闭，并且每个在首次调用前都会询问。</li></ul></div></details>
+    <details><summary>它如何处理俄语重音？</summary><div class="answer"><p>数字按正确的格和性、日期、时间、金额和单位在引擎朗读前写成单词。重音、«ё» 和同形异义词由 RUAccent 根据句子标注。</p><p>Supertonic 3 和 Qwen3-TTS 的俄语重音靠猜。工作室在引擎朗读之前标好重音：RUAccent 根据句子选择 замо́к 还是 за́мок、му́ки 还是 муки́，数字、日期和单位按正确的格写成单词。</p></div></details>
+    <details><summary>配音作品可以使用吗？</summary><div class="answer"><p>工作室采用 MIT 许可。模型不是：每个模型保留自己的许可，列在 README 中。发布或出售配音作品前请先阅读。 <a href="https://github.com/timoncool/speech-studio#license">README</a></p></div></details>
+    <details><summary>AI 智能体能操作它吗？</summary><div class="answer"><p>工作室打开时，Claude Code 或 Cursor 等智能体可以通过 MCP 完成窗口能做的一切：把文本配音成文件、编辑项目、分配声音、识别和检查录音。为 OpenAI 音频编写的工具可通过其兼容 API 使用。</p><pre>claude mcp add --transport http speech-studio http://127.0.0.1:8797/mcp</pre></div></details>
+    <details><summary>它是如何构建的？</summary><div class="answer"><p>服务编译进桌面 exe，并通过 C ABI 在同一进程中运行引擎。运行时没有任何 Python 进程。</p><pre>React UI ─┐
+          ├─ Speech Studio.exe   (Tauri window + Rust/axum speech-server)
+Rust axum ┘        │
+                   ├─ Higgs Audio v3, Drama 3, Qwen3-TTS   (C++/CUDA, GGUF)
+                   └─ Supertonic, Parakeet, Nemotron, RUAccent   (ONNX Runtime)</pre></div></details>
+  </section>
+
+  <section id="author">
+    <h2>作者</h2>
+    <p class="sub">Nerual Dreming — 艺术家，ArtGeneration.me 和 Neuro-Cartel 社区创始人，Dub Studio 以及 YuE2、MiniMax Music3、ACE-Step 工作室的作者。</p>
+    <div class="pills">
+      <a class="pill" href="https://github.com/timoncool">GitHub · @timoncool</a>
+      <a class="pill" href="https://t.me/nerual_dreming">Telegram · @nerual_dreming</a>
+      <a class="pill" href="https://t.me/neuroport">Telegram · @neuroport</a>
+      <a class="pill" href="https://artgeneration.me">ArtGeneration.me</a>
+      <a class="pill" href="https://github.com/timoncool/speech-studio/blob/main/DONATE.md">支持项目</a>
+    </div>
+  </section>
+
+  <footer>
+    <p>工作室采用 MIT 许可。模型不是：每个模型保留自己的许可，列在 README 中。发布或出售配音作品前请先阅读。</p>
+    <p><a href="https://github.com/timoncool/speech-studio/blob/main/CHANGELOG.md">更新内容</a> · <a href="https://github.com/timoncool/speech-studio/issues">报告问题</a> · 更新于 <time datetime="2026-10-16">2026-10-16</time></p>
+  </footer>
+</main>
+
+<div class="viewer" id="viewer" aria-hidden="true">
+  <button type="button" aria-label="Close">×</button>
+  <img id="viewer-image" alt="" />
+</div>
+<script>
+const viewer = document.getElementById('viewer');
+const viewerImage = document.getElementById('viewer-image');
+const closeViewer = () => { viewer.classList.remove('open'); viewer.setAttribute('aria-hidden', 'true'); };
+document.addEventListener('click', (event) => {
+  const image = event.target.closest('.hero-shot img, .tile img, .gallery img');
+  if (image) {
+    viewerImage.src = image.src;
+    viewerImage.alt = image.alt;
+    viewer.classList.add('open');
+    viewer.setAttribute('aria-hidden', 'false');
+    return;
+  }
+  if (event.target.closest('#viewer')) closeViewer();
+});
+document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeViewer(); });
+// one example plays at a time
+document.addEventListener('play', (event) => {
+  document.querySelectorAll('audio').forEach((audio) => { if (audio !== event.target) audio.pause(); });
+}, true);
+// the download buttons name the latest release as GitHub has it, so a new release needs no new page
+fetch('https://api.github.com/repos/timoncool/speech-studio/releases/latest')
+  .then((response) => (response.ok ? response.json() : Promise.reject(new Error('GitHub answered ' + response.status))))
+  .then((release) => {
+    const installer = release.assets.find((asset) => asset.name.endsWith('-setup.exe'));
+    if (!installer) throw new Error('the latest release has no installer');
+    const label = release.tag_name + ' · ' + Math.round(installer.size / 1048576) + ' MB';
+    document.querySelectorAll('[data-release]').forEach((element) => { element.textContent = label; });
+  })
+  .catch((error) => console.warn('Latest release not read; the page shows the one it was built with:', error));
+</script>
+</body>
+</html>
