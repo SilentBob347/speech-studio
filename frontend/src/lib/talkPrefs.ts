@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import i18n from "i18next";
 
 /** The talk screen's choices, shared by the window and the widget: a change in one shows in the other. */
 export type TalkPrefs = {
@@ -12,21 +13,32 @@ export type TalkPrefs = {
   output: string;
 };
 
-const KEY = "speech.talk.prefs";
+/** Only what the person chose is kept, so a default they never touched can still follow the studio. */
+const KEY = "speech.talk.chosen";
 const CHANGED = "speech-talk-prefs";
 const DEFAULTS: TalkPrefs = { style: "aura", lang: "auto", device: "", volume: 1, muted: false, output: "" };
 
-export function talkPrefs(): TalkPrefs {
+/** Until the person picks one, the language spoken is the studio's own: told nothing, a recogniser guesses the language
+ * of every phrase afresh and gets short ones wrong. */
+function defaults(): TalkPrefs {
+  return { ...DEFAULTS, lang: (i18n.resolvedLanguage ?? i18n.language ?? "auto").slice(0, 2) };
+}
+
+function chosen(): Partial<TalkPrefs> {
   try {
-    return { ...DEFAULTS, ...(JSON.parse(localStorage.getItem(KEY) ?? "{}") as Partial<TalkPrefs>) };
+    return JSON.parse(localStorage.getItem(KEY) ?? "{}") as Partial<TalkPrefs>;
   } catch {
-    return DEFAULTS;
+    return {};
   }
+}
+
+export function talkPrefs(): TalkPrefs {
+  return { ...defaults(), ...chosen() };
 }
 
 export function setTalkPrefs(patch: Partial<TalkPrefs>): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ ...talkPrefs(), ...patch }));
+    localStorage.setItem(KEY, JSON.stringify({ ...chosen(), ...patch }));
   } catch {
     return;
   }
