@@ -37,6 +37,7 @@
 }
 
 html, body, #root { height: 100%; }
+option, optgroup { background-color: var(--color-surface-2); color: var(--color-text); }
 body {
   margin: 0;
   background:
