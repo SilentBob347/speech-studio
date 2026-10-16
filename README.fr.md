@@ -271,7 +271,11 @@ Je fais du logiciel libre et de la recherche en IA — presque tout ce que je cr
 ## Historique des étoiles
 
 <a href="https://github.com/timoncool/speech-studio/stargazers">
- <img alt="Graphique des étoiles" src="https://api.star-history.com/svg?repos=timoncool/speech-studio&type=Date" />
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="docs/stars-dark.svg" />
+   <source media="(prefers-color-scheme: light)" srcset="docs/stars-light.svg" />
+   <img alt="Star History Chart" src="docs/stars-light.svg" />
+ </picture>
 </a>
 
 ## Licence

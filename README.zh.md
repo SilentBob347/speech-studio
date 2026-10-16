@@ -271,7 +271,11 @@ Linux x86-64 的 .deb 和 AppImage 为**实验性**：同一份代码，配上�
 ## Star 历史
 
 <a href="https://github.com/timoncool/speech-studio/stargazers">
- <img alt="Star 历史图" src="https://api.star-history.com/svg?repos=timoncool/speech-studio&type=Date" />
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="docs/stars-dark.svg" />
+   <source media="(prefers-color-scheme: light)" srcset="docs/stars-light.svg" />
+   <img alt="Star History Chart" src="docs/stars-light.svg" />
+ </picture>
 </a>
 
 ## 许可证

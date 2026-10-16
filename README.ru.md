@@ -271,7 +271,11 @@ cd desktop && npm install && npx tauri build            # 3) оболочка (T
 ## История звёзд
 
 <a href="https://github.com/timoncool/speech-studio/stargazers">
- <img alt="График звёзд" src="https://api.star-history.com/svg?repos=timoncool/speech-studio&type=Date" />
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="docs/stars-dark.svg" />
+   <source media="(prefers-color-scheme: light)" srcset="docs/stars-light.svg" />
+   <img alt="Star History Chart" src="docs/stars-light.svg" />
+ </picture>
 </a>
 
 ## Лицензия

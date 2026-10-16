@@ -271,7 +271,11 @@ I build open-source software and do AI research — most of what I make is freel
 ## Star history
 
 <a href="https://github.com/timoncool/speech-studio/stargazers">
- <img alt="Star history chart" src="https://api.star-history.com/svg?repos=timoncool/speech-studio&type=Date" />
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="docs/stars-dark.svg" />
+   <source media="(prefers-color-scheme: light)" srcset="docs/stars-light.svg" />
+   <img alt="Star History Chart" src="docs/stars-light.svg" />
+ </picture>
 </a>
 
 ## License
