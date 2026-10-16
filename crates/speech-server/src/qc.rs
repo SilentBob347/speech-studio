@@ -77,7 +77,18 @@ pub fn normalize(text: &str) -> Vec<String> {
     if !word.is_empty() {
         words.push(word);
     }
-    words
+    // A number is one word however it was written or heard: "18th" and "1er" are 18 and 1, "10:30", "10 30" and
+    // "1030" are one 1030.
+    let mut out: Vec<String> = Vec::with_capacity(words.len());
+    for w in words {
+        let lead: String = w.chars().take_while(char::is_ascii_digit).collect();
+        let w = if !lead.is_empty() && w[lead.len()..].chars().all(char::is_alphabetic) { lead } else { w };
+        match out.last_mut() {
+            Some(last) if last.chars().all(|c| c.is_ascii_digit()) && w.chars().all(|c| c.is_ascii_digit()) => last.push_str(&w),
+            _ => out.push(w),
+        }
+    }
+    out
 }
 
 pub fn word_ops(expected: &[String], heard: &[String]) -> (usize, usize, usize) {
@@ -211,6 +222,16 @@ pub fn check(expected: &str, heard: &str, strictness: &str) -> Check {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn numbers_match_however_recognition_writes_them() {
+        let said = crate::itn::digits("Deal. Let's meet at the entrance on October 18 at 10:30.", "en").unwrap();
+        for heard in ["Deal. Let's meet at the entrance on october eighteenth, at ten thirty.", "Deal. Let's meet at the entrance on October 18th at 1030."] {
+            let c = check(&said, &crate::itn::digits(heard, "en").unwrap(), "normal");
+            assert_eq!(c.wer, 0.0, "{heard} -> {:?}", c.off);
+        }
+        assert_eq!(normalize("le 1er mai à 10 h 30"), ["le", "1", "mai", "à", "10", "h", "30"]);
+    }
 
     #[test]
     fn chinese_is_compared_character_by_character() {
