@@ -862,6 +862,27 @@ pub fn manifest() -> Vec<Component> {
             ],
             external_url: None,
         },
+        // Nemotron 3.5 ASR (NVIDIA): 35 languages with punctuation, the int8 export in the layout parakeet-rs loads.
+        Component {
+            id: "nemotron-asr",
+            name: "Nemotron 3.5 ASR 0.6B (int8)".into(),
+            purpose: t!("setup-comp-nemotron-asr-purpose"),
+            requirement: Requirement::Optional,
+            delivery: Delivery::Download,
+            size: 682_503_189,
+            files: &[
+                FileSpec { url: "https://huggingface.co/smcleod/nemotron-3.5-asr-streaming-0.6b-int8/resolve/f1f26d22dab5c4eabe6d01b63c906889e7e817d3/encoder.onnx", dest_rel: "models/nemotron-asr-int8/encoder.onnx", size: 42_963_073, sha256: "a6fd0bbedae97047cb444dba928273b66b9cae36249cf697f4bf7b6f0e167c5d", extract: Extract::None },
+                FileSpec { url: "https://huggingface.co/smcleod/nemotron-3.5-asr-streaming-0.6b-int8/resolve/f1f26d22dab5c4eabe6d01b63c906889e7e817d3/encoder.onnx.data", dest_rel: "models/nemotron-asr-int8/encoder.onnx.data", size: 614_649_600, sha256: "c2f230b026aa4f29b1b5ce099b2fba853db361773157d478d67127b877f64c42", extract: Extract::None },
+                FileSpec { url: "https://huggingface.co/smcleod/nemotron-3.5-asr-streaming-0.6b-int8/resolve/f1f26d22dab5c4eabe6d01b63c906889e7e817d3/decoder_joint.onnx", dest_rel: "models/nemotron-asr-int8/decoder_joint.onnx", size: 24_483_962, sha256: "7fe1a8c2e247b55bbb8ca917ef64cf60227909c6fe63be2da7ea6fc3858d6a69", extract: Extract::None },
+                FileSpec { url: "https://huggingface.co/smcleod/nemotron-3.5-asr-streaming-0.6b-int8/resolve/f1f26d22dab5c4eabe6d01b63c906889e7e817d3/tokenizer.model", dest_rel: "models/nemotron-asr-int8/tokenizer.model", size: 406_554, sha256: "ce3895e40806f02a26c3a225161b96ef682d6c0054bae32a245dec4258d7d291", extract: Extract::None },
+            ],
+            markers: &[
+                Marker { rel: "models/nemotron-asr-int8/encoder.onnx.data", expect: 614_649_600 },
+                Marker { rel: "models/nemotron-asr-int8/decoder_joint.onnx", expect: 24_483_962 },
+                Marker { rel: "models/nemotron-asr-int8/tokenizer.model", expect: 406_554 },
+            ],
+            external_url: None,
+        },
         // ── АЛЬТЕРНАТИВНЫЙ ASR-ДВИЖОК: Whisper (Purfview standalone faster-whisper) ──────────
         // Бинарь-onefile (CTranslate2 CPU из коробки; GPU опц. с CUDA11-либами). Выбор в настройках:
         // движок Parakeet/Whisper + РАЗНЫЕ модели (tiny…large-v3-turbo) + РАЗНЫЕ кванты (compute_type).
@@ -1348,6 +1369,7 @@ fn vram_estimate(id: &str) -> u64 {
         "gemma-q8_0" => gb(14.0),
         "parakeet" => gb(1.1),
         "parakeet-ultra-int8" => gb(1.1),
+        "nemotron-asr" => gb(1.2),
         "supertonic3" => gb(0.6),
         "qwen3-tts" => gb(2.8),
         "qwen3-tts-q8_0" => gb(3.7),

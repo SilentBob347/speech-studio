@@ -1,6 +1,6 @@
 ---
 name: speech-studio
-description: Drive Speech Studio on this computer through its MCP server - voice texts, scripts, podcasts and books (Higgs Audio, Drama 3, Supertonic, Qwen3-TTS, OpenRouter, Gemini, fal, Runware) with stress marks, normalisation and a pronunciation dictionary, recognise recordings with speakers and word times (Parakeet, Whisper, OpenRouter), edit them by text, check voicing against a text, manage the voice library and models, and work the studio's window while the user watches. Use whenever the user asks for anything the studio does.
+description: Drive Speech Studio on this computer through its MCP server - voice texts, scripts, podcasts and books (Higgs Audio, Drama 3, Supertonic, Qwen3-TTS, OpenRouter, Gemini, fal, Runware) with stress marks, normalisation and a pronunciation dictionary, recognise recordings with speakers and word times (Parakeet, Nemotron 3.5, Whisper, OpenRouter), edit them by text, check voicing against a text, manage the voice library and models, and work the studio's window while the user watches. Use whenever the user asks for anything the studio does.
 ---
 
 # Speech Studio through MCP
@@ -159,9 +159,11 @@ connected and the address to paste.
 
 - **One call**: `transcribe_file` (path, format text/srt/vtt/ass/json, lang, speakers), `verify_speech` (path and the
   text it should say -> word error rate and each missed, extra or replaced word), `separate_file` (voice and music apart).
-- **Recognition settings** (in `listen_update`): `prompt` (a hint Whisper takes, with the corrections' spellings),
-  `denoise` and `denoise_db` (DPDFNet before recognition), `vad` (Silero VAD cuts a long recording for Parakeet at
-  pauses: `threshold`, `hysteresis`, `min_speech_ms`, `min_silence_ms`, `pad_ms`).
+- **Recognition settings** (in `listen_update`): `engine` ("" as in Settings, `parakeet` - 25 European languages,
+  `nemotron` - Nemotron 3.5 ASR, 35 languages with punctuation, Chinese and Japanese among them, after
+  `models_download` of `nemotron-asr`, `whisper`, `openrouter`, `fal`), `prompt` (a hint Whisper takes, with the
+  corrections' spellings), `denoise` and `denoise_db` (DPDFNet before recognition), `vad` (Silero VAD cuts a long
+  recording for Parakeet and Nemotron at pauses: `threshold`, `hysteresis`, `min_speech_ms`, `min_silence_ms`, `pad_ms`).
 - **Projects**: `listen_create_from_file` (`listen_upload` uploads a copy), `listen_record_start` /
   `listen_watch_start` / `listen_watch_status` / `listen_watch_stop` (a folder of recordings recognised in the background into files, once or watching it for new ones, going on after a restart), `listen_record_stop` (a recording from the microphone; with `live` it is recognised phrase by phrase as it records - `listen_record_live` - and the phrases become its first transcript), `listen_audio` (its sound as a file), `listen_get`, `listen_update` (rename speakers, edit or hide lines, mark
   words `cut`, recognition settings, corrections), `listen_transcribe`, `listen_cut` (a new recording without the

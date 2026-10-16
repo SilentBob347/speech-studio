@@ -844,14 +844,7 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, re
             let mut check = if asr_on {
                 let heard = crate::asr_util::transcribe(&p.repo_root, &p.models_root, &file, &lang, &b.id)?;
                 let expected = crate::prep::prepare(&b.text, &prep_opts(p, &project, project.lang_of(&b), project.engine_of(&b), voice.as_deref(), &entries, false)).map_err(|e| t!("stress-failed", detail = e))?.text;
-                let said_lang = crate::prep::block_lang(&b.text, &lang);
-                let (expected, heard_said) = if said_lang == "ru" {
-                    (expected, crate::normalize_ru::normalize(&heard.text).text)
-                } else if crate::itn::knows(&said_lang) {
-                    (crate::itn::digits(&expected, &said_lang)?, crate::itn::digits(&heard.text, &said_lang)?)
-                } else {
-                    (expected, heard.text.clone())
-                };
+                let (expected, heard_said) = crate::qc::said_alike(&expected, &heard.text, &crate::prep::block_lang(&b.text, &lang))?;
                 let mut c = crate::qc::check(&expected, &heard_said, &strictness);
                 c.heard = heard.text.clone();
                 let pause = stx::pieces(&b.text).iter().filter_map(|x| if let Piece::Pause(ms) = x { Some(*ms as f64 / 1000.0) } else { None }).fold(0.0, f64::max);

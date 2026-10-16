@@ -232,7 +232,7 @@ dependencies = [
 [[package]]
 name = "audiocpp"
 version = "2.0.0"
-source = "git+https://github.com/timoncool/dub-studio?rev=618483306a489852cca71d975342422aca690f4a#618483306a489852cca71d975342422aca690f4a"
+source = "git+https://github.com/timoncool/dub-studio?rev=8da8e2a9e2fe0b9d4f0f45536d30ed7583f673a3#8da8e2a9e2fe0b9d4f0f45536d30ed7583f673a3"
 dependencies = [
  "libloading 0.9.0",
  "serde",
@@ -1171,7 +1171,7 @@ checksum = "75b325c5dbd37f80359721ad39aca5a29fb04c89279657cffdda8736d0c0b9d2"
 [[package]]
 name = "drama"
 version = "2.0.0"
-source = "git+https://github.com/timoncool/dub-studio?rev=618483306a489852cca71d975342422aca690f4a#618483306a489852cca71d975342422aca690f4a"
+source = "git+https://github.com/timoncool/dub-studio?rev=8da8e2a9e2fe0b9d4f0f45536d30ed7583f673a3#8da8e2a9e2fe0b9d4f0f45536d30ed7583f673a3"
 dependencies = [
  "libloading 0.9.0",
  "thiserror 2.0.21",
@@ -1195,7 +1195,7 @@ dependencies = [
 [[package]]
 name = "dub-asr"
 version = "2.0.0"
-source = "git+https://github.com/timoncool/dub-studio?rev=618483306a489852cca71d975342422aca690f4a#618483306a489852cca71d975342422aca690f4a"
+source = "git+https://github.com/timoncool/dub-studio?rev=8da8e2a9e2fe0b9d4f0f45536d30ed7583f673a3#8da8e2a9e2fe0b9d4f0f45536d30ed7583f673a3"
 dependencies = [
  "audioadapter",
  "audioadapter-buffers",
@@ -1212,7 +1212,7 @@ dependencies = [
 [[package]]
 name = "dub-captions"
 version = "2.0.0"
-source = "git+https://github.com/timoncool/dub-studio?rev=618483306a489852cca71d975342422aca690f4a#618483306a489852cca71d975342422aca690f4a"
+source = "git+https://github.com/timoncool/dub-studio?rev=8da8e2a9e2fe0b9d4f0f45536d30ed7583f673a3#8da8e2a9e2fe0b9d4f0f45536d30ed7583f673a3"
 dependencies = [
  "ab_glyph",
  "dub-core",
@@ -1224,7 +1224,7 @@ dependencies = [
 [[package]]
 name = "dub-core"
 version = "2.0.0"
-source = "git+https://github.com/timoncool/dub-studio?rev=618483306a489852cca71d975342422aca690f4a#618483306a489852cca71d975342422aca690f4a"
+source = "git+https://github.com/timoncool/dub-studio?rev=8da8e2a9e2fe0b9d4f0f45536d30ed7583f673a3#8da8e2a9e2fe0b9d4f0f45536d30ed7583f673a3"
 dependencies = [
  "libc",
  "serde",
@@ -1234,7 +1234,7 @@ dependencies = [
 [[package]]
 name = "dub-faces"
 version = "2.0.0"
-source = "git+https://github.com/timoncool/dub-studio?rev=618483306a489852cca71d975342422aca690f4a#618483306a489852cca71d975342422aca690f4a"
+source = "git+https://github.com/timoncool/dub-studio?rev=8da8e2a9e2fe0b9d4f0f45536d30ed7583f673a3#8da8e2a9e2fe0b9d4f0f45536d30ed7583f673a3"
 dependencies = [
  "dub-asr",
  "dub-core",
@@ -1250,7 +1250,7 @@ dependencies = [
 [[package]]
 name = "dub-llm"
 version = "2.0.0"
-source = "git+https://github.com/timoncool/dub-studio?rev=618483306a489852cca71d975342422aca690f4a#618483306a489852cca71d975342422aca690f4a"
+source = "git+https://github.com/timoncool/dub-studio?rev=8da8e2a9e2fe0b9d4f0f45536d30ed7583f673a3#8da8e2a9e2fe0b9d4f0f45536d30ed7583f673a3"
 dependencies = [
  "anyhow",
  "base64 0.23.1",
@@ -1269,7 +1269,7 @@ dependencies = [
 [[package]]
 name = "dub-sep"
 version = "2.0.0"
-source = "git+https://github.com/timoncool/dub-studio?rev=618483306a489852cca71d975342422aca690f4a#618483306a489852cca71d975342422aca690f4a"
+source = "git+https://github.com/timoncool/dub-studio?rev=8da8e2a9e2fe0b9d4f0f45536d30ed7583f673a3#8da8e2a9e2fe0b9d4f0f45536d30ed7583f673a3"
 dependencies = [
  "dub-core",
  "hound",
@@ -1279,7 +1279,7 @@ dependencies = [
 [[package]]
 name = "dub-translate"
 version = "2.0.0"
-source = "git+https://github.com/timoncool/dub-studio?rev=618483306a489852cca71d975342422aca690f4a#618483306a489852cca71d975342422aca690f4a"
+source = "git+https://github.com/timoncool/dub-studio?rev=8da8e2a9e2fe0b9d4f0f45536d30ed7583f673a3#8da8e2a9e2fe0b9d4f0f45536d30ed7583f673a3"
 dependencies = [
  "base64 0.23.1",
  "dub-core",

@@ -175,6 +175,7 @@ fn models_in_use(mroot: &Path, stages: &[&str]) -> Vec<String> {
             },
             "asr" if models::openrouter_asr_on(mroot) => format!("asr:openrouter:{}", slot("or_asr")),
             "asr" if slot("asr_engine") == "whisper" => format!("asr:whisper-{}", slot("whisper_model")),
+            "asr" if slot("asr_engine") == "nemotron" => "asr:nemotron-3.5-int8".to_string(),
             "asr" => format!("asr:parakeet-{}", slot("asr")),
             "sep" => format!("sep:roformer-{}", slot("sep")),
             stage => match models::llm_backend(mroot, stage) {

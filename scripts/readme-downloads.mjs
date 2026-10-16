@@ -129,6 +129,7 @@ const NAMES = {
   ruaccent: "RUAccent (stress, «ё», homographs)",
   "ruaccent-omograph-big": "RUAccent big_poetry homographs int8",
   "parakeet-ultra-int8": "Parakeet Ultra 0.6B int8 (Moondream)",
+  "nemotron-asr": "Nemotron 3.5 ASR 0.6B int8 (NVIDIA)",
   wespeaker: "WeSpeaker ResNet34-LM (voice similarity)",
   "silero-vad": "Silero VAD v6",
   dpdfnet: "DPDFNet 48 kHz (noise suppression)",

@@ -210,6 +210,18 @@ pub fn threshold(words: usize, strictness: &str) -> f64 {
     base.max(slack / words.max(1) as f64).min(MAX_THRESHOLD)
 }
 
+/// The text that should be said and the text heard, numbers written alike on both sides: Russian in words as the
+/// voicing says them, a language `itn` reads in digits, any other as it is.
+pub fn said_alike(expected: &str, heard: &str, lang: &str) -> Result<(String, String), String> {
+    if lang == "ru" {
+        Ok((crate::normalize_ru::normalize(expected).text, crate::normalize_ru::normalize(heard).text))
+    } else if crate::itn::knows(lang) {
+        Ok((crate::itn::digits(expected, lang)?, crate::itn::digits(heard, lang)?))
+    } else {
+        Ok((expected.to_string(), heard.to_string()))
+    }
+}
+
 pub fn check(expected: &str, heard: &str, strictness: &str) -> Check {
     let e = normalize(expected);
     let h = normalize(heard);

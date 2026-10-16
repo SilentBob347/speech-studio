@@ -329,7 +329,10 @@ pub async fn aligned(State(st): State<AppState>, AxPath(pid): AxPath<String>, Js
 pub async fn check(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<Value>) -> Response {
     let reference = body.get("reference").and_then(Value::as_str).unwrap_or_default();
     match lp::load(&st.workspace, &pid) {
-        Ok(p) => Json(listen_jobs::check_reference(&p, reference)).into_response(),
+        Ok(p) => match listen_jobs::check_reference(&p, reference) {
+            Ok(report) => Json(report).into_response(),
+            Err(e) => refuse(StatusCode::BAD_REQUEST, "check_failed", e),
+        },
         Err(e) => refuse(StatusCode::NOT_FOUND, "no_project", e),
     }
 }

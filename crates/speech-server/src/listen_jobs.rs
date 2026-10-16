@@ -34,9 +34,13 @@ fn engine_for(p: &ListenPaths, project: &ListenProject) -> Result<Engine, String
     let lang = project.settings.lang.as_str();
     let mut for_lang = false;
     let picked = match project.settings.engine.as_str() {
-        // the studio's recogniser, but a language Parakeet does not know goes to Whisper
+        // the studio's recogniser, but a language Parakeet or Nemotron does not know goes to Whisper
         "" => match sel.get("asr_engine").and_then(Value::as_str).unwrap_or("parakeet") {
             "parakeet" if !matches!(lang, "" | "auto") && !crate::models::parakeet_knows(lang) => {
+                for_lang = true;
+                "whisper".to_string()
+            }
+            "nemotron" if !matches!(lang, "" | "auto") && dub_asr::nemotron_lang(lang).is_none() => {
                 for_lang = true;
                 "whisper".to_string()
             }
@@ -59,17 +63,21 @@ fn engine_for(p: &ListenPaths, project: &ListenProject) -> Result<Engine, String
         return Ok(Engine::Cloud(model));
     }
     if let Some(obj) = sel.as_object_mut() {
-        obj.insert("asr_engine".into(), json!(if picked == "whisper" { "whisper" } else { "parakeet" }));
+        obj.insert("asr_engine".into(), json!(match picked.as_str() { "whisper" => "whisper", "nemotron" => "nemotron", _ => "parakeet" }));
     }
     let choice = crate::models::resolve_asr_choice(&p.repo_root, &p.models_root, &sel);
     let whisper = matches!(choice, crate::models::AsrChoice::Whisper { .. });
+    let nemotron = matches!(choice, crate::models::AsrChoice::Nemotron(_));
     if picked == "whisper" && !whisper {
         return Err(if for_lang { t!("listen-whisper-for-lang", lang = lang.to_string()) } else { t!("listen-whisper-missing") });
     }
-    if !whisper && !matches!(lang, "" | "auto") && !crate::models::parakeet_knows(lang) {
-        return Err(t!("listen-parakeet-lang", lang = lang.to_string()));
+    if picked == "nemotron" && !nemotron {
+        return Err(t!("listen-nemotron-missing"));
     }
-    Ok(Engine::Local(choice, if whisper { "whisper" } else { "parakeet" }))
+    if !choice.knows(lang) {
+        return Err(if nemotron { t!("listen-nemotron-lang", lang = lang.to_string()) } else { t!("listen-parakeet-lang", lang = lang.to_string()) });
+    }
+    Ok(Engine::Local(choice, if whisper { "whisper" } else if nemotron { "nemotron" } else { "parakeet" }))
 }
 
 fn step(progress: &dyn Fn(Value), msg: String, pct: i64) {
@@ -277,10 +285,10 @@ fn recognise(p: &ListenPaths, engine: &Engine, wav: &Path, work: &Path, s: &lp::
     let lines = match engine {
         Engine::Local(choice, _) => {
             std::env::set_var("DUB_ASR_BACKEND", crate::models::stage_backend(&p.models_root, "asr_backend"));
-            // Whisper windows a long recording itself; Parakeet gets it in pieces cut at pauses
+            // Whisper windows a long recording itself; Parakeet and Nemotron get it in pieces cut at pauses
             let segments = match choice {
                 crate::models::AsrChoice::Whisper { .. } => crate::models::build_engine(choice, prompt).transcribe(wav, lang).map_err(|e| e.localize())?,
-                crate::models::AsrChoice::Parakeet(_) => recognise_by_pauses(p, choice, wav, work, lang, &s.vad, prompt, progress)?,
+                crate::models::AsrChoice::Parakeet(_) | crate::models::AsrChoice::Nemotron(_) => recognise_by_pauses(p, choice, wav, work, lang, &s.vad, prompt, progress)?,
             };
             dub_asr::split_at_speaker_turns(segments, turns)
                 .into_iter()
@@ -569,14 +577,15 @@ pub fn align_to_text(project: &ListenProject, reference: &str) -> Vec<Line> {
     lines
 }
 
-pub fn check_reference(project: &ListenProject, reference: &str) -> Value {
+pub fn check_reference(project: &ListenProject, reference: &str) -> Result<Value, String> {
     let heard: String = project.shown().map(|l| l.text.as_str()).collect::<Vec<_>>().join(" ");
-    let e = crate::qc::normalize(reference);
+    let (reference, heard) = crate::qc::said_alike(reference, &heard, &crate::prep::block_lang(reference, &project.settings.lang))?;
+    let e = crate::qc::normalize(&reference);
     let h = crate::qc::normalize(&heard);
     let ops = crate::qc::word_diff(&e, &h);
     let errors = ops.iter().filter(|o| o.op != "same").count();
     let wer = if e.is_empty() { if h.is_empty() { 0.0 } else { 1.0 } } else { errors as f64 / e.len() as f64 };
-    json!({ "words": e.len(), "wer": wer, "ops": ops })
+    Ok(json!({ "words": e.len(), "wer": wer, "ops": ops }))
 }
 
 #[cfg(test)]

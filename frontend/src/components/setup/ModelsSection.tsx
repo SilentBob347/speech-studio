@@ -338,9 +338,9 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
       </>)}
       {group(t("settings.roleText"), <>{rowOf("ruaccent")}{rowOf("ruaccent-omograph-big")}</>)}
       {group(t("settings.roleAsr"), <>
-        {/* Движок ASR: Parakeet-TDT (GPU, дефолт) / Whisper (локально, CPU) / OpenRouter (облако). */}
+        {/* Движок ASR: Parakeet-TDT (GPU, дефолт) / Nemotron 3.5 (GPU, 35 языков) / Whisper (локально, CPU) / OpenRouter (облако). */}
         <div className="flex gap-1 mb-1.5">
-          {[{ id: "parakeet", label: "Parakeet-TDT", cloud: false }, { id: "whisper", label: "Whisper", cloud: false }, { id: "openrouter", label: "OpenRouter", cloud: true }].map((e) => {
+          {[{ id: "parakeet", label: "Parakeet-TDT", cloud: false }, { id: "nemotron", label: "Nemotron 3.5", cloud: false }, { id: "whisper", label: "Whisper", cloud: false }, { id: "openrouter", label: "OpenRouter", cloud: true }].map((e) => {
             const asrCloud = selv("or_asr_on") === "1";
             const active = e.cloud ? asrCloud : (!asrCloud && asrEngine === e.id);
             const dis = e.cloud && !hasOrKey;
@@ -362,6 +362,8 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
           </div>
         ) : asrEngine === "parakeet" ? (
           variantPicker("Parakeet-TDT 0.6B v3", ["parakeet", "parakeet-ultra-int8"], ASR_VARIANT_I18N)
+        ) : asrEngine === "nemotron" ? (
+          rowOf("nemotron-asr")
         ) : (
           <>
             {rowOf("whisper-engine")}

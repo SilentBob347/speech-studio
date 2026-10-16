@@ -18,37 +18,36 @@ pub fn transcribe(repo_root: &Path, models_root: &Path, audio: &Path, lang: &str
     run(&choice, models_root, audio, if lang == "auto" { "" } else { lang })
 }
 
-/// The recogniser for `lang`: the one chosen in the settings, Whisper for a language Parakeet does not know.
+/// The recogniser for `lang`: the one chosen in the settings, Whisper for a language it does not know.
 pub fn choice(repo_root: &Path, models_root: &Path, lang: &str, what: &str) -> Result<crate::models::AsrChoice, String> {
     let mut sel = crate::models::load_selection(models_root);
     let mut choice = crate::models::resolve_asr_choice(repo_root, models_root, &sel);
     let lang = if lang.is_empty() || lang == "auto" { "" } else { lang };
-    if matches!(choice, crate::models::AsrChoice::Parakeet(_)) && !lang.is_empty() && !crate::models::parakeet_knows(lang) {
+    if !choice.knows(lang) {
         if let Some(obj) = sel.as_object_mut() {
             obj.insert("asr_engine".into(), json!("whisper"));
         }
         choice = crate::models::resolve_asr_choice(repo_root, models_root, &sel);
-        if matches!(choice, crate::models::AsrChoice::Parakeet(_)) {
+        if !matches!(choice, crate::models::AsrChoice::Whisper { .. }) {
             return Err(t!("voice-lang-needs-whisper", name = what.to_string(), lang = lang.to_string()));
         }
     }
     Ok(choice)
 }
 
-/// The other model of the Parakeet and Whisper pair than the one `transcribe` runs, when it is on this computer and
-/// knows the language: a second opinion on a take its sound made suspect (Game Dub's checks heard a repeat one of
+/// Whisper when `transcribe` runs Parakeet or Nemotron, Parakeet when it runs Whisper, if that one is on this computer
+/// and knows the language: a second opinion on a take its sound made suspect (Game Dub's checks heard a repeat one of
 /// them missed). `None` when there is no such model.
 pub fn second_opinion(repo_root: &Path, models_root: &Path, audio: &Path, lang: &str) -> Result<Option<Heard>, String> {
     let mut sel = crate::models::load_selection(models_root);
     let first = crate::models::resolve_asr_choice(repo_root, models_root, &sel);
     let lang = if lang.is_empty() || lang == "auto" { "" } else { lang };
-    let other = if matches!(first, crate::models::AsrChoice::Parakeet(_)) { "whisper" } else { "parakeet" };
+    let first_whisper = matches!(first, crate::models::AsrChoice::Whisper { .. });
     if let Some(obj) = sel.as_object_mut() {
-        obj.insert("asr_engine".into(), json!(other));
+        obj.insert("asr_engine".into(), json!(if first_whisper { "parakeet" } else { "whisper" }));
     }
     let second = crate::models::resolve_asr_choice(repo_root, models_root, &sel);
-    let parakeet = matches!(second, crate::models::AsrChoice::Parakeet(_));
-    if parakeet == matches!(first, crate::models::AsrChoice::Parakeet(_)) || (parakeet && !lang.is_empty() && !crate::models::parakeet_knows(lang)) {
+    if matches!(second, crate::models::AsrChoice::Whisper { .. }) == first_whisper || !second.knows(lang) {
         return Ok(None);
     }
     run(&second, models_root, audio, lang).map(Some)
