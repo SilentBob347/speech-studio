@@ -5,6 +5,7 @@ import { api } from "../../lib/api";
 import SettingSwitch from "./SettingSwitch";
 import DiagnosticsPanel from "./DiagnosticsPanel";
 import { SETTINGS_CHANGED, useChanged } from "../../lib/mcpBridge";
+import Hint from "../Hint";
 
 // Тумблеры — слоты active.json. defaultOn: слот, которого ещё нет в файле, считается включённым.
 const DIAGNOSTICS = [
@@ -67,8 +68,7 @@ export default function QualitySection() {
         <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-2)]/40">
           <MemoryStick size={15} className="shrink-0 text-[var(--color-accent-2)]" />
           <label htmlFor="tts-idle" className="min-w-0 flex-1">
-            <span className="block text-[13px] font-medium">{t("prefs.idleUnload")}</span>
-            <span className="block text-[11px] leading-snug text-[var(--color-muted)]">{t("prefs.idleUnloadHint")}</span>
+            <span className="block text-[13px] font-medium">{t("prefs.idleUnload")} <Hint text={t("prefs.idleUnloadHint")} /></span>
           </label>
           <select id="tts-idle" value={String(sel?.tts_idle_unload_min ?? "15")} disabled={!sel || saving !== null}
             onChange={(e) => { const v = e.target.value; setSaving("tts_idle_unload_min"); api.setSelection("tts_idle_unload_min", v).then(setSel, (er: unknown) => setError(t("prefs.saveFailed", { error: er instanceof Error ? er.message : String(er) }))).finally(() => setSaving(null)); }}

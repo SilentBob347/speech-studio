@@ -2356,6 +2356,15 @@
     "voiceZipOut": "Guardar las voces marcadas en un ZIP con sus fichas y textos, para llevarlas a otro ordenador.",
     "cleanToggle": "Las voces nuevas se separan de la música y el ruido al añadirlas. El original se conserva.",
     "dictLang": "La regla solo funciona en texto de este idioma. «Cualquiera»: en todos.",
-    "dictVoice": "La regla solo funciona con esta voz: útil si una voz se equivoca en una palabra y las demás no."
+    "dictVoice": "La regla solo funciona con esta voz: útil si una voz se equivoca en una palabra y las demás no.",
+    "musicWhere": "En qué pista del libro va la canción. «Pista nueva» crea una aparte con su propio volumen.",
+    "musicAt": "El segundo del libro en que empieza la canción. Vacío: justo después del último clip de la pista.",
+    "designDescription": "Cómo debe ser la voz: género, edad, timbre, manera. El modelo entiende mejor una descripción en inglés o chino.",
+    "designSample": "La frase que dirán los candidatos. Será el texto de referencia de la voz guardada, así que escríbala en el idioma que necesite.",
+    "designCount": "Cuántas voces distintas crear con una descripción, para elegir la mejor. Cada una es una generación aparte.",
+    "podcastSpeakers": "Los nombres de los presentadores y la manera de cada uno: el modelo escribe sus réplicas así y los nombres pasan a ser personajes del proyecto.",
+    "podcastMinutes": "La duración aproximada del pódcast. De ella depende cuántas réplicas escribe el modelo.",
+    "listenSpeakersBar": "Quién habla en la grabación. Corrija un nombre y pasará a la exportación; el ojo oculta las réplicas del hablante, los botones de al lado hacen de él una voz y lo recuerdan para otras grabaciones.",
+    "assistantLlm": "El modelo de lenguaje que ayuda con el texto: etiquetas de expresión y puntuación, repartir un libro por papeles, escribir un pódcast."
   }
 }

@@ -6,6 +6,7 @@ import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
 import { useEscapeLayer } from "../../lib/escape";
 import VoicePicker from "./VoicePicker";
+import { Tip } from "../Hint";
 
 
 /** The structure of a book before synthesis: which chapters to voice, their titles and text, the voice; then a project.
@@ -77,7 +78,7 @@ export default function BookImport({ preview, into, onClose, onCreated }: { prev
               <div className="flex items-center gap-2 px-2 py-1.5">
                 <input type="checkbox" checked={!!picked[c.index]} onChange={(e) => setPicked((p) => ({ ...p, [c.index]: e.target.checked }))} {...named(t("book.voiceIt"))} className="w-4 h-4 accent-[var(--color-accent)]" />
                 <input value={titles[c.index] ?? ""} onChange={(e) => setTitles((x) => ({ ...x, [c.index]: e.target.value }))} placeholder={t("book.untitled")} aria-label={t("book.chapterTitle")} className={`${field} flex-1 min-w-0`} />
-                {c.skip && <span className="text-[10px] text-[var(--color-warn)]" title={t("book.skipHint")}>{t(`book.skip_${c.skip}`)}</span>}
+                {c.skip && <Tip text={t("book.skipHint")}><span className="text-[10px] text-[var(--color-warn)]">{t(`book.skip_${c.skip}`)}</span></Tip>}
                 <span className="w-24 text-right text-[11px] tabnum text-[var(--color-muted)]">{duration(c.est_secs)}</span>
                 <button onClick={() => void edit(c.index)} aria-expanded={open === c.index} className="p-1 rounded text-[var(--color-muted)] hover:text-[var(--color-text)]" {...named(t("book.editText"))}><ChevronDown size={13} className={open === c.index ? "rotate-180" : ""} /></button>
               </div>

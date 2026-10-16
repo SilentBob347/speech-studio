@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Eye, EyeOff, RefreshCw, Trash2 } from "lucide-react";
 import { api, llmProviderOf, slot, type LlmProviderKind, type McpStatus, type Selection } from "../lib/api";
 import OpenRouterModelSelect from "./OpenRouterModelSelect";
+import Hint from "./Hint";
 
 const DEFAULT_SERVER_URL = "http://127.0.0.1:11434";
 
@@ -117,8 +118,7 @@ export default function LlmProviders({ selection, hasOrKey, onChanged }: {
     <div className="space-y-1.5">
       <div className={`${rowCls} space-y-1.5`}>
         <div className="flex items-baseline gap-2">
-          <span className="text-[12px] font-medium">{t("providers.translate")}</span>
-          <span className="mono text-[10px] text-[var(--color-muted)] truncate">{t("providers.translateHint")}</span>
+          <span className="text-[12px] font-medium">{t("providers.translate")} <Hint text={t("hint.assistantLlm")} /></span>
         </div>
         <div className="flex gap-1">
           {tabs.map((tab) => (

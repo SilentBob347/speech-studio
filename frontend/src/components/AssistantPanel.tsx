@@ -9,6 +9,7 @@ import { askCloud } from "../lib/cloudConsent";
 import { named } from "../lib/a11y";
 import { errorText } from "../lib/voices";
 import { useStore } from "../store";
+import { Tip } from "./Hint";
 
 const SUGGESTIONS = ["what", "voice", "check", "listen"] as const;
 const LIST_ITEM = /^\s*(?:[-*•]|\d+[.)])\s+/;
@@ -114,7 +115,7 @@ export default function AssistantPanel({ onClose }: { onClose: () => void }) {
                 {!models.some((m) => m.id === model) && <option value={model}>{model || t("chat.model")}</option>}
                 {models.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
               </select>
-              <span className="shrink-0 mono text-[11px] tabnum text-[var(--color-muted)]" title={t("chat.costHint")}>{usd(cost)}</span>
+              <Tip text={t("chat.costHint")} className="shrink-0 inline-flex"><span className="mono text-[11px] tabnum text-[var(--color-muted)]">{usd(cost)}</span></Tip>
             </>
           )}
           <button disabled={busy || entries.length === 0} onClick={() => useChatStore.getState().clear()} {...named(t("chat.clear"))} className="p-1.5 rounded-md text-[var(--color-muted)] hover:text-[var(--color-warn)] disabled:opacity-40"><Trash2 size={14} /></button>

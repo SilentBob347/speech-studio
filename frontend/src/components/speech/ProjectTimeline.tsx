@@ -4,6 +4,7 @@ import { FileAudio, FolderOpen, Minus, Music, Play, Plus, SlidersHorizontal, Tra
 import { FLAT_MIX, MIX_GAIN_DB, speechApi, type Mix, type TimelineBlock, type Track } from "../../lib/speech";
 import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
+import { Tip } from "../Hint";
 
 export type OverlapChoice = "cut" | "join" | "keep";
 /** What the track editor changed on a clip: the part of the take kept, its gain and fades, or where it sounds — the
@@ -249,17 +250,17 @@ export default function ProjectTimeline({ pid, speakers, tintOf, textOf, refresh
         <div className="ml-auto flex items-center gap-1">
           {editing && (
             <>
-              <button onClick={() => pick(false, null)} title={t("tracks.addFilesHint")} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--color-border)] text-[11px] text-[var(--color-muted)] hover:text-[var(--color-text)]"><FileAudio size={12} />{t("tracks.addFiles")}</button>
-              <button onClick={() => pick(true, null)} title={t("tracks.addFolderHint")} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--color-border)] text-[11px] text-[var(--color-muted)] hover:text-[var(--color-text)]"><FolderOpen size={12} />{t("tracks.addFolder")}</button>
-              <button onClick={onMusic} title={t("tracks.musicHint")} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--color-border)] text-[11px] text-[var(--color-muted)] hover:text-[var(--color-text)]"><Music size={12} />{t("tracks.music")}</button>
+              <Tip text={t("tracks.addFilesHint")}><button onClick={() => pick(false, null)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--color-border)] text-[11px] text-[var(--color-muted)] hover:text-[var(--color-text)]"><FileAudio size={12} />{t("tracks.addFiles")}</button></Tip>
+              <Tip text={t("tracks.addFolderHint")}><button onClick={() => pick(true, null)} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--color-border)] text-[11px] text-[var(--color-muted)] hover:text-[var(--color-text)]"><FolderOpen size={12} />{t("tracks.addFolder")}</button></Tip>
+              <Tip text={t("tracks.musicHint")}><button onClick={onMusic} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--color-border)] text-[11px] text-[var(--color-muted)] hover:text-[var(--color-text)]"><Music size={12} />{t("tracks.music")}</button></Tip>
               <input ref={filesInput} type="file" multiple accept="audio/*" hidden onChange={(e) => { picked(e.target.files); e.target.value = ""; }} />
               <input ref={folderInput} type="file" multiple hidden {...{ webkitdirectory: "" }} onChange={(e) => { picked(e.target.files); e.target.value = ""; }} />
             </>
           )}
-          <button onClick={() => setEditing((on) => !on)} aria-pressed={editing} title={t("timeline.montageHint")}
+          <Tip text={t("timeline.montageHint")}><button onClick={() => setEditing((on) => !on)} aria-pressed={editing}
             className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border text-[11px] ${editing ? "border-[var(--color-accent)] text-[var(--color-accent)]" : "border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-text)]"}`}>
             <SlidersHorizontal size={12} />{t("timeline.montage")}
-          </button>
+          </button></Tip>
           <button onClick={() => setZoom((z) => Math.max(0, z - 1))} disabled={zoom === 0} className="p-1 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30" {...named(t("timeline.zoomOut"))}><Minus size={13} /></button>
           <button onClick={() => setZoom((z) => Math.min(ZOOMS.length - 1, z + 1))} disabled={zoom === ZOOMS.length - 1} className="p-1 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30" {...named(t("timeline.zoomIn"))}><Plus size={13} /></button>
           <button onClick={onClose} className="p-1 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)]" {...named(t("a11y.close"))}><X size={13} /></button>
@@ -279,8 +280,8 @@ export default function ProjectTimeline({ pid, speakers, tintOf, textOf, refresh
                   {editing && (
                     <span className="flex items-center gap-1">
                       <button onClick={() => onTrack(track.id, { muted: !track.muted })} aria-pressed={track.muted} className="p-0.5 rounded text-[var(--color-muted)] hover:text-[var(--color-text)]" {...named(t(track.muted ? "tracks.unmute" : "tracks.mute"))}>{track.muted ? <VolumeX size={12} /> : <Volume2 size={12} />}</button>
-                      <input type="number" value={track.gain_db} step={0.5} min={GAIN_MIN} max={GAIN_MAX} onChange={(e) => { const v = Number(e.target.value); if (Number.isFinite(v)) onTrack(track.id, { gain_db: Math.max(GAIN_MIN, Math.min(GAIN_MAX, v)) }); }}
-                        className="w-12 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded px-1 text-[10px] tabnum" aria-label={t("tracks.gain")} title={t("tracks.gainHint")} />
+                      <Tip text={t("tracks.gainHint")}><input type="number" value={track.gain_db} step={0.5} min={GAIN_MIN} max={GAIN_MAX} onChange={(e) => { const v = Number(e.target.value); if (Number.isFinite(v)) onTrack(track.id, { gain_db: Math.max(GAIN_MIN, Math.min(GAIN_MAX, v)) }); }}
+                        className="w-12 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded px-1 text-[10px] tabnum" aria-label={t("tracks.gain")} /></Tip>
                       <button onClick={() => pick(false, track.id)} className="p-0.5 rounded text-[var(--color-muted)] hover:text-[var(--color-text)]" {...named(t("tracks.addHere"))}><Plus size={12} /></button>
                       <button onClick={() => onTrack(track.id, { remove: true })} className="p-0.5 rounded text-[var(--color-muted)] hover:text-[var(--color-warn)]" {...named(t("tracks.remove"))}><Trash2 size={12} /></button>
                     </span>

@@ -2356,6 +2356,15 @@
     "voiceZipOut": "Salvar as vozes marcadas num ZIP com fichas e textos, para levá-las a outro computador.",
     "cleanToggle": "Vozes novas são separadas da música e do ruído ao serem adicionadas. O original é mantido.",
     "dictLang": "A regra só vale no texto neste idioma. «Qualquer»: em todos.",
-    "dictVoice": "A regra só vale para esta voz: útil quando uma voz erra uma palavra e as outras não."
+    "dictVoice": "A regra só vale para esta voz: útil quando uma voz erra uma palavra e as outras não.",
+    "musicWhere": "Em qual faixa do livro a música entra. «Faixa nova» cria uma à parte com volume próprio.",
+    "musicAt": "O segundo do livro em que a música começa. Vazio: logo após o último clipe da faixa.",
+    "designDescription": "Como deve ser a voz: gênero, idade, timbre, maneira. O modelo entende melhor uma descrição em inglês ou chinês.",
+    "designSample": "A frase que os candidatos vão dizer. Ela vira o texto de referência da voz salva, então escreva no idioma de que precisa.",
+    "designCount": "Quantas vozes diferentes criar a partir de uma descrição, para escolher a melhor. Cada uma é uma geração à parte.",
+    "podcastSpeakers": "Os nomes dos apresentadores e a maneira de cada um: o modelo escreve as falas assim, e os nomes viram personagens do projeto.",
+    "podcastMinutes": "A duração aproximada do podcast. Dela depende quantas falas o modelo escreve.",
+    "listenSpeakersBar": "Quem fala na gravação. Corrija um nome e ele vai para a exportação; o olho oculta as falas do falante, os botões ao lado fazem dele uma voz e o lembram para outras gravações.",
+    "assistantLlm": "O modelo de linguagem que ajuda com o texto: tags de expressão e pontuação, dividir um livro por papéis, escrever um podcast."
   }
 }

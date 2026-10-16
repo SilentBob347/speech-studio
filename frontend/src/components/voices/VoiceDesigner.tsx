@@ -8,6 +8,7 @@ import { named } from "../../lib/a11y";
 import { useEscapeLayer } from "../../lib/escape";
 import { LANG_CHOICES } from "../speech/langs";
 import { NO_ATTRS, VOICE_ATTRS, describe, type VoiceAttrs } from "../../lib/voiceAttributes";
+import Hint from "../Hint";
 
 type Candidate = { k: number; seconds: number; seed: number };
 
@@ -97,10 +98,10 @@ export default function VoiceDesigner({ onClose, onKept }: { onClose: () => void
             <Wand2 size={12} />{t("voices.attrsBuild")}
           </button>
         </details>
-        <label className="block space-y-1 text-[12px] text-[var(--color-muted)]">{t("voices.designDescription")}
+        <label className="block space-y-1 text-[12px] text-[var(--color-muted)]">{t("voices.designDescription")} <Hint text={t("hint.designDescription")} />
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} placeholder={t("voices.designDescriptionPlaceholder")} className={`${field} resize-y`} />
         </label>
-        <label className="block space-y-1 text-[12px] text-[var(--color-muted)]">{t("voices.designSample")}
+        <label className="block space-y-1 text-[12px] text-[var(--color-muted)]">{t("voices.designSample")} <Hint text={t("hint.designSample")} />
           <textarea value={sample} onChange={(e) => setSample(e.target.value)} rows={2} placeholder={t("voices.designSamplePlaceholder")} className={`${field} resize-y`} />
         </label>
         <div className="flex flex-wrap items-end gap-3">
@@ -109,7 +110,7 @@ export default function VoiceDesigner({ onClose, onKept }: { onClose: () => void
               {LANG_CHOICES.map((l) => <option key={l} value={l}>{l === "auto" ? t("speech.langAuto") : l.toUpperCase()}</option>)}
             </select>
           </label>
-          <label className="space-y-1 text-[12px] text-[var(--color-muted)]">{t("voices.designCount")}
+          <label className="space-y-1 text-[12px] text-[var(--color-muted)]">{t("voices.designCount")} <Hint text={t("hint.designCount")} />
             <select value={count} onChange={(e) => setCount(Number(e.target.value))} className={`${field} w-20`}>
               {[1, 2, 3, 4, 5, 6].map((n) => <option key={n} value={n}>{n}</option>)}
             </select>

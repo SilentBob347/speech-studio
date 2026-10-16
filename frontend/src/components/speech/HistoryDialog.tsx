@@ -6,6 +6,7 @@ import { errorText } from "../../lib/voices";
 import { useEngines, voiceName } from "../../lib/engines";
 import { named } from "../../lib/a11y";
 import { useEscapeLayer } from "../../lib/escape";
+import { Tip } from "../Hint";
 
 type Sort = "created" | "duration" | "rtf";
 
@@ -59,7 +60,7 @@ export default function HistoryDialog({ pid, onRepeat, onClose }: { pid: string;
                   <th className="px-2 py-1 font-medium text-left">{t("history.params")}</th>
                   {head("duration", t("history.duration"))}
                   {head("rtf", t("history.rtf"))}
-                  <th className="px-2 py-1 font-medium text-right" title={t("history.firstSoundHint")}>{t("history.firstSound")}</th>
+                  <th className="px-2 py-1 font-medium text-right"><Tip text={t("history.firstSoundHint")} className="inline">{t("history.firstSound")}</Tip></th>
                   {head("created", t("history.when"))}
                   <th className="px-2 py-1" />
                 </tr>
@@ -74,7 +75,7 @@ export default function HistoryDialog({ pid, onRepeat, onClose }: { pid: string;
                       <td className="px-2 py-1 truncate max-w-[16ch]" title={r.voice}>{r.voice ? voiceName(r.voice, engines, r.engine) : t("speech.baseVoice")}</td>
                       <td className="px-2 py-1 mono text-[11px] text-[var(--color-muted)]">{t("history.paramLine", { seed: r.seed, t: r.temperature.toFixed(2), k: r.top_k, p: r.top_p.toFixed(2) })}{r.wer != null ? ` · ${t("speech.takeWer", { wer: Math.round(r.wer * 100) })}` : ""}</td>
                       <td className="px-2 py-1 text-right tabnum">{r.duration.toFixed(1)}{t("settings.sec")}</td>
-                      <td className="px-2 py-1 text-right tabnum" title={t("history.rtfHint")}>×{r.rtf > 0 ? (1 / r.rtf).toFixed(1) : "—"}</td>
+                      <td className="px-2 py-1 text-right tabnum"><Tip text={t("history.rtfHint")} className="inline">×{r.rtf > 0 ? (1 / r.rtf).toFixed(1) : "—"}</Tip></td>
                       <td className="px-2 py-1 text-right tabnum">{r.first_ms != null ? t("history.ms", { ms: r.first_ms }) : "—"}</td>
                       <td className="px-2 py-1 text-right tabnum text-[var(--color-muted)]">{new Date(r.created * 1000).toLocaleString(i18n.language, { dateStyle: "short", timeStyle: "short" })}</td>
                       <td className="px-2 py-1"><button onClick={() => onRepeat(r.block, r.seed)} className="p-1 rounded text-[var(--color-muted)] hover:text-[var(--color-accent)]" {...named(t("history.repeat"))}><RotateCcw size={13} /></button></td>

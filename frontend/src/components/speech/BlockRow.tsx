@@ -382,9 +382,9 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
         <button onClick={() => a.split(text.current?.selectionStart ?? block.text.length)} className={icon + " inline-flex items-center gap-1 text-[11px]"}><Scissors size={12} />{t("speech.split")}</button>
         <button onClick={a.mergeNext} className={icon + " inline-flex items-center gap-1 text-[11px]"}><Combine size={12} />{t("speech.mergeNext")}</button>
         <button onClick={a.insertAfter} className={icon + " inline-flex items-center gap-1 text-[11px]"}><Plus size={12} />{t("speech.insertAfter")}</button>
-        <button onClick={a.stress} disabled={stressing} className={icon + " inline-flex items-center gap-1 text-[11px]"} title={t("speech.stressAllHint")}>
+        <Tip text={t("speech.stressAllHint")}><button onClick={a.stress} disabled={stressing} className={icon + " inline-flex items-center gap-1 text-[11px]"}>
           {stressing ? <Loader2 size={12} className="animate-spin" /> : <SpellCheck size={12} />}{t("speech.stressBlock")}
-        </button>
+        </button></Tip>
         <button onClick={() => a.move(-1)} className={icon} {...named(t("speech.moveUp"))}><ArrowUp size={12} /></button>
         <button onClick={() => a.move(1)} className={icon} {...named(t("speech.moveDown"))}><ArrowDown size={12} /></button>
         <button onClick={() => a.patch({ hidden: !block.hidden })} className={icon + " inline-flex items-center gap-1 text-[11px]"}>{block.hidden ? <Eye size={12} /> : <EyeOff size={12} />}{block.hidden ? t("speech.show") : t("speech.hide")}</button>
@@ -413,10 +413,10 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
             {take && <span className="mono tabnum ml-auto">{take.duration.toFixed(1)}{t("settings.sec")}</span>}
           </div>
           {block.start != null && block.end != null && (
-            <div className="flex items-center gap-1 text-[10px] mono tabnum text-[var(--color-muted)]" title={t("speech.cueHint")}>
+            <Tip text={t("speech.cueHint")} className="flex"><div className="flex items-center gap-1 text-[10px] mono tabnum text-[var(--color-muted)]">
               <span>{cueTime(block.start)}–{cueTime(block.end)}</span>
               {fit && fit !== "fits" && <span className={`px-1 rounded ${fit === "tight" ? "text-[var(--color-warn)]" : "text-[#ff8f8f]"}`} title={t(`speech.fit_${fit}`)}>{fit === "tight" ? "≈" : "!"}</span>}
-            </div>
+            </div></Tip>
           )}
           {(block.marker || block.note) && (
             <div className="flex items-center gap-1 text-[10px] text-[var(--color-muted)]" title={block.note || undefined}>

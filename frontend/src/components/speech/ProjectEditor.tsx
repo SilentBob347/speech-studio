@@ -647,7 +647,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
                   {synthQueue.map((q) => (
                     <div key={q.n} className="flex items-center gap-2">
                       <span className="flex-1 truncate">{q.scope.ids ? t("speech.queueBlocks", { n: q.scope.ids.length }) : q.scope.from ? t("speech.queueFrom") : t("speech.queueAll")}</span>
-                      <button onClick={() => void editQueued(q)} className="px-1.5 rounded text-[11px] text-[var(--color-muted)] hover:text-[var(--color-accent)]" title={t("speech.queueEditHint")}>{t("speech.queueEdit")}</button>
+                      <Tip text={t("speech.queueEditHint")}><button onClick={() => void editQueued(q)} className="px-1.5 rounded text-[11px] text-[var(--color-muted)] hover:text-[var(--color-accent)]">{t("speech.queueEdit")}</button></Tip>
                       <button onClick={() => speechApi.unqueue(pid, q.n).then(() => speechApi.queue(pid)).then((r) => setQueueList(r.queue), () => undefined)} className="p-0.5 rounded text-[var(--color-muted)] hover:text-[var(--color-warn)]" {...named(t("speech.unqueue"))}><X size={12} /></button>
                     </div>
                   ))}

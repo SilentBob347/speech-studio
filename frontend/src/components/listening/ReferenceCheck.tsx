@@ -5,6 +5,7 @@ import { listenApi, type ListenLine, type ReferenceCheck as Check } from "../../
 import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
 import { useEscapeLayer } from "../../lib/escape";
+import { Tip } from "../Hint";
 
 /** The recording against the text it should say: missed, extra and replaced words, and the word error rate; or the text
  * itself laid over the recording, each word at the time it was heard (forced alignment). */
@@ -47,9 +48,9 @@ export default function ReferenceCheck({ pid, reference, onReference, onAlign, o
           <button onClick={() => void compare()} disabled={busy || !text.trim()} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[13px] font-semibold disabled:opacity-40">
             {busy && <Loader2 size={14} className="animate-spin" />}{t("listen.compare")}
           </button>
-          <button onClick={() => void align()} disabled={busy || !text.trim()} title={t("listen.alignHint")} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--color-border)] text-[13px] hover:border-[var(--color-accent)] disabled:opacity-40">
+          <Tip text={t("listen.alignHint")}><button onClick={() => void align()} disabled={busy || !text.trim()} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--color-border)] text-[13px] hover:border-[var(--color-accent)] disabled:opacity-40">
             <TextCursorInput size={14} />{t("listen.align")}
-          </button>
+          </button></Tip>
           {result && counts && (
             <span className="text-[12px] tabnum">
               {t("listen.checkSummary", { wer: Math.round(result.wer * 100), words: result.words, missed: counts.deleted, extra: counts.inserted, replaced: counts.substituted })}

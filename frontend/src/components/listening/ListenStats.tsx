@@ -5,6 +5,7 @@ import { clock, listenApi, type SpeakerStats } from "../../lib/listen";
 import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
 import { useEscapeLayer } from "../../lib/escape";
+import { Tip } from "../Hint";
 
 /** Who speaks how much in the recording, over the lines shown: talk time and share, lines, words, pace, longest stretch. */
 /** `refresh` changes when the saved project changes; `undefined` while a save is on its way. */
@@ -36,12 +37,12 @@ export default function ListenStats({ pid, refresh, onClose }: { pid: string; re
                 <thead className="text-[var(--color-muted)] text-left">
                   <tr>
                     <th className="font-normal pb-1 pr-3">{t("listen.statsSpeaker")}</th>
-                    <th className="font-normal pb-1 pr-3" title={t("listen.statsShareHint")}>{t("listen.statsShare")}</th>
+                    <th className="font-normal pb-1 pr-3"><Tip text={t("listen.statsShareHint")} className="inline">{t("listen.statsShare")}</Tip></th>
                     <th className="font-normal pb-1 pr-3">{t("listen.statsTime")}</th>
                     <th className="font-normal pb-1 pr-3">{t("listen.statsLines")}</th>
                     <th className="font-normal pb-1 pr-3">{t("listen.statsWords")}</th>
-                    <th className="font-normal pb-1 pr-3" title={t("listen.statsWpmHint")}>{t("listen.statsWpm")}</th>
-                    <th className="font-normal pb-1" title={t("listen.statsLongestHint")}>{t("listen.statsLongest")}</th>
+                    <th className="font-normal pb-1 pr-3"><Tip text={t("listen.statsWpmHint")} className="inline">{t("listen.statsWpm")}</Tip></th>
+                    <th className="font-normal pb-1"><Tip text={t("listen.statsLongestHint")} className="inline">{t("listen.statsLongest")}</Tip></th>
                   </tr>
                 </thead>
                 <tbody>

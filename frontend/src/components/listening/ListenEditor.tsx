@@ -23,6 +23,7 @@ import ListenSettings from "./ListenSettings";
 import ListenExport from "./ListenExport";
 import ListenStats from "./ListenStats";
 import ReferenceCheck from "./ReferenceCheck";
+import Hint, { Tip } from "../Hint";
 
 
 /** A recording and its transcript: playback, recognition, speakers, editing, cutting by text, exports. */
@@ -293,7 +294,7 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
           <button onClick={() => { setSearching((v) => !v); setTimeout(() => searchBox.current?.focus(), 0); }} disabled={!shown} className={bar}><Search size={13} />{t("listen.find")}</button>
           <button onClick={() => setDialog("export")} disabled={!shown} className={`${bar} max-md:hidden`}><Download size={13} />{t("listen.export")}</button>
           <button onClick={() => setDialog("check")} disabled={!shown} className={`${bar} max-md:hidden`}><FileCheck2 size={13} />{t("listen.check")}</button>
-          <button onClick={() => setDialog("stats")} disabled={!shown} title={t("listen.statsHint")} className={`${bar} max-md:hidden`}><ChartPie size={13} />{t("listen.stats")}</button>
+          <Tip text={t("listen.statsHint")}><button onClick={() => setDialog("stats")} disabled={!shown} className={`${bar} max-md:hidden`}><ChartPie size={13} />{t("listen.stats")}</button></Tip>
           <button onClick={() => void toSpeech()} disabled={!shown || !!busy} className={`${bar} max-md:hidden`}><AudioLines size={13} />{t("listen.toSpeech")}</button>
           <button onClick={() => void makeVoices()} disabled={!shown || !!busy} className={`${bar} max-md:hidden`}>{busy === "voices" ? <Loader2 size={13} className="animate-spin" /> : <UserPlus size={13} />}{t("listen.voicesAll")}</button>
           <EditorMore className="ml-auto md:hidden" items={[
@@ -319,7 +320,7 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
 
       {Object.keys(project.speakers).length > 0 && (
         <div className="px-5 py-2 border-b border-[var(--color-border)] flex flex-wrap items-center gap-2">
-          <Users size={13} className="text-[var(--color-muted)]" />
+          <Users size={13} className="text-[var(--color-muted)]" /><Hint text={t("hint.listenSpeakersBar")} />
           {Object.entries(project.speakers).map(([k, name]) => (
             <span key={k} className={`inline-flex items-center gap-1.5 pl-2 pr-1 py-0.5 rounded-full border text-[12px] ${hiddenSpeakers.has(k) ? "opacity-50 border-dashed border-[var(--color-border)]" : "border-[var(--color-border)]"}`}>
               <span className="w-2 h-2 rounded-full" style={{ background: speakerColor(k) }} />
@@ -341,7 +342,7 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
           <button onClick={() => void matchSpeakers()} disabled={!!busy} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-[var(--color-border)] text-[11px] text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30">
             {busy === "match" ? <Loader2 size={11} className="animate-spin" /> : <UserSearch size={11} />}{t("listen.matchSpeakers")}
           </button>
-          {flagged > 0 && <span className="ml-auto text-[11px] text-[var(--color-muted)]" title={t("listen.flagHint")}>{t("listen.flaggedHidden", { n: flagged })}</span>}
+          {flagged > 0 && <Tip text={t("listen.flagHint")} className="ml-auto inline-flex"><span className="text-[11px] text-[var(--color-muted)]">{t("listen.flaggedHidden", { n: flagged })}</span></Tip>}
         </div>
       )}
 
@@ -393,8 +394,8 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
       {dialog === "check" && <ReferenceCheck pid={pid} reference={project.reference} onReference={(reference) => edit((p) => ({ ...p, reference }))} onAlign={(lines) => edit((p) => ({ ...p, lines }))} onClose={() => setDialog(null)} />}
       <div role="region" aria-label={t("transport.label")} className="shrink-0 px-3 md:px-5 py-2 border-t border-[var(--color-border)] bg-[var(--color-surface)]/80 flex items-center gap-2 md:gap-3">
         <button onClick={toggle} className="grid place-items-center w-8 h-8 rounded-full bg-[var(--color-accent)] text-[var(--color-on-accent)]" {...named(playing ? t("listen.pause") : t("listen.play"))}>{playing ? <Pause size={14} /> : <Play size={14} />}</button>
-        <button onClick={() => setLooping(!loop)} aria-pressed={loop} title={t("listen.loopHint")}
-          className={`grid place-items-center w-8 h-8 rounded-md hover:bg-[var(--color-surface-2)] ${loop ? "text-[var(--color-accent)]" : "text-[var(--color-muted)] hover:text-[var(--color-text)]"}`} aria-label={t("listen.loop")}><Repeat1 size={14} /></button>
+        <Tip text={t("listen.loopHint")}><button onClick={() => setLooping(!loop)} aria-pressed={loop}
+          className={`grid place-items-center w-8 h-8 rounded-md hover:bg-[var(--color-surface-2)] ${loop ? "text-[var(--color-accent)]" : "text-[var(--color-muted)] hover:text-[var(--color-text)]"}`} aria-label={t("listen.loop")}><Repeat1 size={14} /></button></Tip>
         <button onClick={() => seek(Math.max(0, time - 5))} className="grid place-items-center w-8 h-8 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)] max-md:hidden" {...named(t("transport.back5"))}><RotateCcw size={14} /></button>
         <button onClick={() => seek(Math.min(duration || project.duration, time + 5))} className="grid place-items-center w-8 h-8 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)] max-md:hidden" {...named(t("transport.forward5"))}><RotateCw size={14} /></button>
         <span className="mono text-[12px] tabnum text-[var(--color-muted)] w-24 shrink-0">{clock(time)} / {clock(duration || project.duration)}</span>

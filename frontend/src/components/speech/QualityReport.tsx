@@ -7,6 +7,7 @@ import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
 import { useEscapeLayer } from "../../lib/escape";
 import HeardDiff from "./HeardDiff";
+import { Tip } from "../Hint";
 
 export const LIGHT_COLOR: Record<QualityLight, string> = { green: "var(--color-good)", amber: "var(--color-warn)", red: "var(--color-bad)", none: "var(--color-muted)" };
 
@@ -91,7 +92,7 @@ export default function QualityReport({ pid, blocks, onJump, onChanged, onClose 
               )}
               {r.checked > 0 && r.worst.length === 0 && <p className="flex items-center gap-2 text-[13px]"><CheckCircle2 size={15} style={{ color: "var(--color-good)" }} />{t("quality.allPassed")}</p>}
               {r.worst.length > 1 && (
-                <button onClick={() => void fix(r.worst.map((w) => w.block))} disabled={checking} title={t("quality.fixHint")} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)] disabled:opacity-40"><Wrench size={13} />{t("quality.fixAll", { n: r.worst.length })}</button>
+                <Tip text={t("quality.fixHint")}><button onClick={() => void fix(r.worst.map((w) => w.block))} disabled={checking} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)] disabled:opacity-40"><Wrench size={13} />{t("quality.fixAll", { n: r.worst.length })}</button></Tip>
               )}
               {Object.entries(fixed).filter(([id]) => !r.worst.some((w) => w.block === id)).map(([id, note]) => <p key={id} className="text-[12px]">{t("lint.block", { n: number(id), speaker: blocks.find((b) => b.id === id)?.speaker ?? "" })}: {note}</p>)}
               {r.worst.length > 0 && <h3 className="text-[12px] font-semibold">{t("quality.worst", { n: r.worst.length })}{r.worst.length > 1 && <span className="font-normal text-[var(--color-muted)]"> · {t("quality.worstFirst")}</span>}</h3>}
@@ -111,9 +112,9 @@ export default function QualityReport({ pid, blocks, onJump, onChanged, onClose 
                       </span>
                       {fixed[w.block] && <span className="block text-[11px] text-[var(--color-muted)]">{fixed[w.block]}</span>}
                     </button>
-                    <button onClick={() => void fix([w.block])} disabled={checking} title={t("quality.fixHint")} className="shrink-0 m-2 inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)] disabled:opacity-40">
+                    <Tip text={t("quality.fixHint")} className="shrink-0 m-2 inline-flex"><button onClick={() => void fix([w.block])} disabled={checking} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)] disabled:opacity-40">
                       {fixing === w.block ? <Loader2 size={12} className="animate-spin" /> : <Wrench size={12} />}{t("quality.fix")}
-                    </button>
+                    </button></Tip>
                   </li>
                 ))}
               </ul>

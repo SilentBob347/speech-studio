@@ -8,6 +8,7 @@ import { named } from "../../lib/a11y";
 import { askDirector } from "../../lib/cloudConsent";
 import { useEscapeLayer } from "../../lib/escape";
 import { LANG_CHOICES } from "./langs";
+import Hint from "../Hint";
 
 const MAX_SPEAKERS = 6;
 
@@ -44,7 +45,7 @@ export default function PodcastWriter({ onClose, onCreated }: { onClose: () => v
         <p className="text-[12px] text-[var(--color-muted)] leading-relaxed">{t("podcast.hint")}</p>
         <textarea value={topic} onChange={(e) => setTopic(e.target.value)} rows={4} placeholder={t("podcast.topicPlaceholder")} aria-label={t("podcast.topic")} className={`${field} resize-y leading-relaxed`} />
         <fieldset className="space-y-2">
-          <legend className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)] mb-1">{t("podcast.speakers")}</legend>
+          <legend className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)] mb-1">{t("podcast.speakers")} <Hint text={t("hint.podcastSpeakers")} /></legend>
           {speakers.map((s, i) => (
             <div key={i} className="flex items-center gap-2">
               <input value={s.name} onChange={(e) => setSpeakers((x) => x.map((y, j) => (j === i ? { ...y, name: e.target.value } : y)))} aria-label={t("podcast.speakerName")} maxLength={30} className={`${box} w-36 shrink-0`} />
@@ -55,7 +56,7 @@ export default function PodcastWriter({ onClose, onCreated }: { onClose: () => v
           <button onClick={() => setSpeakers((x) => [...x, { name: t("podcast.speakerN", { n: x.length + 1 }), manner: "" }])} disabled={speakers.length >= MAX_SPEAKERS} className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)] disabled:opacity-30"><Plus size={12} />{t("podcast.addSpeaker")}</button>
         </fieldset>
         <div className="flex flex-wrap items-end gap-3">
-          <label className="text-[12px] text-[var(--color-muted)] space-y-1">{t("podcast.minutes")}
+          <label className="text-[12px] text-[var(--color-muted)] space-y-1">{t("podcast.minutes")} <Hint text={t("hint.podcastMinutes")} />
             <input type="number" min={1} max={20} value={minutes} onChange={(e) => setMinutes(Math.min(20, Math.max(1, Math.round(Number(e.target.value) || 1))))} className={`${field} w-20 block`} />
           </label>
           <label className="text-[12px] text-[var(--color-muted)] space-y-1">{t("speech.lang")}

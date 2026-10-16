@@ -2356,6 +2356,15 @@
     "voiceZipOut": "Save the ticked voices to a ZIP with their cards and texts, to move them to another computer.",
     "cleanToggle": "New voices are separated from music and noise as they are added. The original is kept.",
     "dictLang": "The rule works only in text in this language. Any means in all.",
-    "dictVoice": "The rule works only for this voice: handy when one voice gets a word wrong and the others do not."
+    "dictVoice": "The rule works only for this voice: handy when one voice gets a word wrong and the others do not.",
+    "musicWhere": "Which book track the song goes on. New track makes a separate one with its own volume.",
+    "musicAt": "The second of the book where the song starts. Empty puts it right after the track's last clip.",
+    "designDescription": "What the voice should be: gender, age, timbre, manner. The model understands a description in English or Chinese best.",
+    "designSample": "The line the candidates will say. It becomes the reference text of the saved voice, so write it in the language you need.",
+    "designCount": "How many different voices to make from one description, to pick the best. Each is a separate generation.",
+    "podcastSpeakers": "The hosts' names and each one's manner: the model writes their lines in that manner, and the names become the project's characters.",
+    "podcastMinutes": "The podcast's rough length. It decides how many lines the model writes.",
+    "listenSpeakersBar": "Who speaks in the recording. Fix a name and it goes into the export; the eye hides a speaker's lines, the buttons beside make a voice of them and remember them for other recordings.",
+    "assistantLlm": "The language model that helps with the text: expression tags and punctuation, casting a book by roles, writing a podcast."
   }
 }

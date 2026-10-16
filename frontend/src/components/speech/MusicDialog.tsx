@@ -7,6 +7,7 @@ import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
 import { useEscapeLayer } from "../../lib/escape";
 import FormFields from "../cloud/FormFields";
+import Hint, { Tip } from "../Hint";
 
 /** Music for the book or play from a music studio of this computer (YuE2, MiniMax Music3, ACE-Step): the studio's own
  * song form, the track it goes on and where; the song stays in the studio's library, its audio comes onto the track. */
@@ -68,10 +69,10 @@ export default function MusicDialog({ pid, tracks, flush, onClose, onDone }: {
                 {s.name}
               </button>
             ) : (
-              <a key={s.id} href={s.page} target="_blank" rel="noreferrer" title={t("tracks.downloadHint", { name: s.name })}
+              <Tip key={s.id} text={t("tracks.downloadHint", { name: s.name })}><a href={s.page} target="_blank" rel="noreferrer"
                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-[var(--color-border)] text-[12px] text-[var(--color-text)] hover:border-[var(--color-accent)]">
                 {s.name}<span className="text-[var(--color-muted)]">· {t("tracks.download")}</span><ExternalLink size={12} className="text-[var(--color-accent)]" aria-hidden />
-              </a>
+              </a></Tip>
             ))}
           </div>
         )}
@@ -80,14 +81,14 @@ export default function MusicDialog({ pid, tracks, flush, onClose, onDone }: {
           <div className="space-y-2">
             <FormFields fields={chosen.fields} values={values} onChange={setValues} />
             <label className="block space-y-0.5 text-[11px] text-[var(--color-muted)]">
-              <span>{t("tracks.where")}</span>
+              <span>{t("tracks.where")} <Hint text={t("hint.musicWhere")} /></span>
               <select value={track} onChange={(e) => setTrack(e.target.value)} className={box}>
                 <option value="">{t("tracks.newTrack")}</option>
                 {tracks.map((tr) => <option key={tr.id} value={tr.id}>{tr.name}</option>)}
               </select>
             </label>
             <label className="block space-y-0.5 text-[11px] text-[var(--color-muted)]">
-              <span>{t("tracks.at")}</span>
+              <span>{t("tracks.at")} <Hint text={t("hint.musicAt")} /></span>
               <input type="number" min={0} step={0.1} value={at} placeholder={t("tracks.atEnd")} onChange={(e) => setAt(e.target.value)} className={box} />
             </label>
           </div>

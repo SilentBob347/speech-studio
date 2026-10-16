@@ -6,6 +6,7 @@ import { fmtBytes } from "../lib/format";
 import { openSettings } from "../lib/settingsNav";
 import { useStore } from "../store";
 import { useUrlText } from "../lib/urlText";
+import { Tip } from "./Hint";
 
 // Коды, при которых помогает cookies.txt вошедшего браузера, настройки сети или новый yt-dlp.
 const COOKIE_CODES = new Set(["login_required", "age_restricted", "private", "members_only", "cookies_invalid"]);
@@ -282,14 +283,14 @@ export default function UrlImport({ onReady }: { onReady: (fetch: UrlFetch & { p
                 {probe.qualities.map((q) => <option key={q} value={q}>{qualityLabel(q)}</option>)}
               </select>
             </label>
-            <label className="flex flex-col gap-1 text-[11px] text-[var(--color-muted)]" title={t("url.subsHint")}>
+            <Tip text={t("url.subsHint")} className="flex"><label className="flex-1 flex flex-col gap-1 text-[11px] text-[var(--color-muted)]">
               {t("url.subs")}
               <select value={subsLang} onChange={(e) => setSubsLang(e.target.value)} disabled={probe.subtitles.length === 0}
                 className="bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px] text-[var(--color-text)] focus:border-[var(--color-accent)] focus:outline-none disabled:opacity-50">
                 <option value="">{probe.subtitles.length ? t("url.subsNone") : t("url.noSubs")}</option>
                 {probe.subtitles.map((tr) => <option key={tr.lang} value={tr.lang}>{tr.name ? `${tr.name} (${tr.lang})` : tr.lang}</option>)}
               </select>
-            </label>
+            </label></Tip>
           </div>
           {subsLang && <p className="mt-1.5 text-[10.5px] leading-snug text-[var(--color-accent-2)]">{t("url.subsHint")}</p>}
           {probe.auto_subtitles.length > 0 && <p className="mt-1 text-[10.5px] leading-snug text-[var(--color-muted)]">{t("url.subsAuto")}</p>}

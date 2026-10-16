@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Eye, EyeOff, Merge, Pencil, Play } from "lucide-react";
 import { clock, speakerColor, type ListenLine, type Token } from "../../lib/listen";
 import { named } from "../../lib/a11y";
+import { Tip } from "../Hint";
 
 export type Selection = { anchor: number; focus: number } | null;
 
@@ -39,8 +40,8 @@ const Row = memo(function Row({ line, index, first, speakers, active, selected, 
           <option value="+">{newSpeakerLabel}</option>
         </select>
         <button onClick={() => onSeek(line.start)} className="block text-[11px] tabnum text-[var(--color-muted)] hover:text-[var(--color-accent)]">{clock(line.start)}</button>
-        {line.approx && <span className="block text-[10px] text-[var(--color-muted)]" title={t("listen.approxHint")}>{t("listen.approx")}</span>}
-        {line.flag && <span className="block text-[10px] text-[var(--color-warn)]" title={t("listen.flagHint")}>{t(`listen.flag_${line.flag}`)}</span>}
+        {line.approx && <Tip text={t("listen.approxHint")} className="block"><span className="block text-[10px] text-[var(--color-muted)]">{t("listen.approx")}</span></Tip>}
+        {line.flag && <Tip text={t("listen.flagHint")} className="block"><span className="block text-[10px] text-[var(--color-warn)]">{t(`listen.flag_${line.flag}`)}</span></Tip>}
       </div>
       {editing ? (
         <textarea autoFocus value={draft} rows={Math.max(2, Math.ceil(draft.length / 90))} onChange={(e) => setDraft(e.target.value)} aria-label={t("listen.lineText")}
