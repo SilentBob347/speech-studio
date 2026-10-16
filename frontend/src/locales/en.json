@@ -2395,6 +2395,14 @@
     "empty": "Nothing said yet.",
     "you": "You",
     "agent": "Agent",
-    "heardCount": "Phrases heard: {{n}}"
+    "heardCount": "Phrases heard: {{n}}",
+    "style": "Look",
+    "style_orb": "Orb",
+    "style_aura": "Aura",
+    "style_wave": "Wave",
+    "widget": "Widget",
+    "widgetHint": "Open the radio as a small window with no frame and no background, over every other window. The sound plays here.",
+    "close": "Close the widget",
+    "widgetMove": "Drag to move"
   }
 }

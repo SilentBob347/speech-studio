@@ -2395,6 +2395,14 @@
     "empty": "Nada foi dito ainda.",
     "you": "Você",
     "agent": "Agente",
-    "heardCount": "Frases ouvidas: {{n}}"
+    "heardCount": "Frases ouvidas: {{n}}",
+    "style": "Aparência",
+    "style_orb": "Esfera",
+    "style_aura": "Aura",
+    "style_wave": "Onda",
+    "widget": "Widget",
+    "widgetHint": "Abrir o rádio numa janela pequena sem moldura nem fundo, por cima de todas as janelas. O som toca aqui.",
+    "close": "Fechar o widget",
+    "widgetMove": "Arraste para mover"
   }
 }

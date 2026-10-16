@@ -2395,6 +2395,14 @@
     "empty": "还没有人说话。",
     "you": "你",
     "agent": "智能体",
-    "heardCount": "已听到 {{n}} 句"
+    "heardCount": "已听到 {{n}} 句",
+    "style": "外观",
+    "style_orb": "光球",
+    "style_aura": "光环",
+    "style_wave": "声波",
+    "widget": "小窗",
+    "widgetHint": "以无边框、无背景的小窗口打开对讲，置于所有窗口之上。声音在这里播放。",
+    "close": "关闭小窗",
+    "widgetMove": "拖动以移动"
   }
 }

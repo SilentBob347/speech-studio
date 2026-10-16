@@ -1181,4 +1181,5 @@ speech-restore-gone = O projeto não está na lixeira: ela foi esvaziada ou o pr
 speech-restore-exists = O projeto já está no lugar.
 speak-aloud-no-window = Não há onde dizer em voz alta: a janela do Speech Studio não está aberta. Abra-a, e o som sai do estúdio enquanto a frase é falada.
 say-session-name = Conversa { $time }
+talk-widget-title = Rádio do Speech Studio
 say-no-session = Não há sessão de fala “{ $session }”: comece uma nova.

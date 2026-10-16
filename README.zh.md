@@ -298,6 +298,8 @@ Linux x86-64 的 .deb 和 AppImage 为**实验性**：同一份代码，配上�
 | WeSpeaker ResNet34-LM | CC-BY-4.0 | 需注明 WeSpeaker |
 | Gemma-4 12B（Google） | Gemma 条款 | 请阅读 |
 | llama.cpp、ONNX Runtime、BSRoformer.cpp、qwentts.cpp | MIT |  |
+| ElevenLabs UI Orb、SiriWave | MIT |  |
+| LiveKit Agents UI Aura | Apache-2.0 |  |
 | FFmpeg（BtbN 构建） | GPL 构建 | 作为独立程序，不链接进本程序 |
 | NVIDIA CUDA runtime、cuBLAS、cuFFT、cuDNN | NVIDIA 自有条款 | 从 NVIDIA 和 PyPI 下载 |
 

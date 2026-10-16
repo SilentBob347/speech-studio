@@ -16,6 +16,7 @@ import ListeningPage from "./components/listening/ListeningPage";
 import SpeechPage from "./components/speech/SpeechPage";
 import TalkPage from "./components/talk/TalkPage";
 import { useAloudPlayback } from "./lib/livePlayback";
+import { serveTalkFeed } from "./lib/talkFeed";
 
 const modelName = (p?: string) => (p ? (p.split(/[\\/]/).pop() || p).replace(/\.(gguf|onnx|bin|pt|safetensors)$/i, "") : "");
 
@@ -28,6 +29,7 @@ export default function App() {
   // обновившаяся мимо него, остаётся при умолчании, пока галочку не снимут в Настройках.
   const hub = useHubState(i18n.language);
   useAloudPlayback();
+  useEffect(serveTalkFeed, []);
   useEffect(() => {
     const tel = hub?.telemetry;
     if (stage === "setup" || !tel || tel.acknowledged || tel.disabledByEnv) return;

@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "widget",
+  "description": "The radio widget: a frameless window that moves when dragged and closes itself",
+  "windows": ["widget"],
+  "remote": { "urls": ["http://127.0.0.1:*"] },
+  "permissions": ["core:window:allow-start-dragging", "core:window:allow-close"]
+}

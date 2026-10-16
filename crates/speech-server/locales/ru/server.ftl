@@ -1207,4 +1207,5 @@ speech-restore-gone = Проекта нет в корзине: её очисти
 speech-restore-exists = Проект уже на месте.
 speak-aloud-no-window = Сказать вслух негде: окно Speech Studio не открыто. Откройте его — звук пойдёт из студии, пока фраза озвучивается.
 say-session-name = Разговор { $time }
+talk-widget-title = Рация Speech Studio
 say-no-session = Сессии речи «{ $session }» нет: начните новую.

@@ -59,6 +59,35 @@ fn open_in_browser(app: &tauri::AppHandle, url: &tauri::Url) {
     }
 }
 
+/// The radio as a widget: a small window with no frame, no shadow and no background, kept over every other window;
+/// the one already open is brought forward. Built off the WebView2 callback that asked for it: a window made inside
+/// that callback deadlocks WebView2.
+fn open_talk_widget(app: tauri::AppHandle, url: tauri::Url) {
+    tauri::async_runtime::spawn(async move {
+        if let Some(win) = app.get_webview_window("widget") {
+            if let Err(e) = win.show().and_then(|_| win.set_focus()) {
+                eprintln!("[ERROR] виджет рации не вышел на передний план: {e}");
+            }
+            return;
+        }
+        let built = WebviewWindowBuilder::new(&app, "widget", WebviewUrl::External(url))
+            .title(speech_server::i18n::text("talk-widget-title", &[]))
+            .inner_size(340.0, 460.0)
+            .min_inner_size(240.0, 320.0)
+            .transparent(true)
+            .decorations(false)
+            .shadow(false)
+            .always_on_top(true)
+            .skip_taskbar(true)
+            .resizable(true)
+            .disable_drag_drop_handler()
+            .build();
+        if let Err(e) = built {
+            eprintln!("[ERROR] виджет рации не открылся: {e}");
+        }
+    });
+}
+
 /// tauri-plugin-single-instance называет мьютекс и окно только по identifier, общему у установленной,
 /// портативной и дев-сборок: с ним дев-копия рядом с открытой установленной молча выходила бы, подняв
 /// старое окно. Замок нужен только релизной сборке на порту по умолчанию; дев-сборка и копия с явным
@@ -332,7 +361,7 @@ pub fn run() {
             // Иконка бандла для GUI-окна: без явной установки окно оставалось пустым в ALT+TAB/панели задач
             // (иконка висела на консольном окне). Ставим её на само GUI-окно.
             let icon = app.default_window_icon().cloned();
-            let (for_tabs, for_links) = (app.handle().clone(), app.handle().clone());
+            let (for_tabs, for_links, for_widget) = (app.handle().clone(), app.handle().clone(), app.handle().clone());
             let win = WebviewWindowBuilder::new(
                 app,
                 "main",
@@ -347,7 +376,12 @@ pub fn run() {
             .disable_drag_drop_handler()
             // WebView2 молча глотает target="_blank" и window.open, если у окна нет обработчика новых окон.
             .on_new_window(move |target, _features| {
-                open_in_browser(&for_tabs, &target);
+                let own = target.host_str() == Some("127.0.0.1") && target.port() == Some(port);
+                if own && target.query_pairs().any(|(key, _)| key == "widget") {
+                    open_talk_widget(for_widget.clone(), target);
+                } else {
+                    open_in_browser(&for_tabs, &target);
+                }
                 tauri::webview::NewWindowResponse::Deny
             })
             .on_navigation(move |target| {

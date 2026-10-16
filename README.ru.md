@@ -298,6 +298,8 @@ cd desktop && npm install && npx tauri build            # 3) оболочка (T
 | WeSpeaker ResNet34-LM | CC-BY-4.0 | Упоминайте WeSpeaker |
 | Gemma-4 12B (Google) | Условия Gemma | Прочтите их |
 | llama.cpp, ONNX Runtime, BSRoformer.cpp, qwentts.cpp | MIT |  |
+| ElevenLabs UI Orb, SiriWave | MIT |  |
+| LiveKit Agents UI Aura | Apache-2.0 |  |
 | FFmpeg (сборка BtbN) | Сборка под GPL | Отдельная программа, не слинкована с приложением |
 | NVIDIA CUDA runtime, cuBLAS, cuFFT, cuDNN | Собственные условия NVIDIA | Скачиваются с NVIDIA и PyPI |
 

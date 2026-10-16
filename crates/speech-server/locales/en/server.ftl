@@ -1187,4 +1187,5 @@ speech-restore-gone = The project is not in the recycle bin: it was emptied or t
 speech-restore-exists = The project is already in place.
 speak-aloud-no-window = There is nowhere to say it aloud: the Speech Studio window is not open. Open it, and the sound plays from the studio as the phrase is voiced.
 say-session-name = Conversation { $time }
+talk-widget-title = Speech Studio radio
 say-no-session = There is no speech session “{ $session }”: start a new one.

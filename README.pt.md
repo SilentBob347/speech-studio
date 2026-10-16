@@ -298,6 +298,8 @@ O código do aplicativo é [MIT](LICENSE). **Os modelos não**: cada um mantém 
 | WeSpeaker ResNet34-LM | CC-BY-4.0 | Cite o WeSpeaker |
 | Gemma-4 12B (Google) | Termos do Gemma | Leia-os |
 | llama.cpp, ONNX Runtime, BSRoformer.cpp, qwentts.cpp | MIT |  |
+| ElevenLabs UI Orb, SiriWave | MIT |  |
+| LiveKit Agents UI Aura | Apache-2.0 |  |
 | FFmpeg (build BtbN) | Build GPL | Programa à parte, não ligado ao aplicativo |
 | NVIDIA CUDA runtime, cuBLAS, cuFFT, cuDNN | Termos próprios da NVIDIA | Baixados da NVIDIA e do PyPI |
 

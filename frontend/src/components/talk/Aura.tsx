@@ -1,10 +1,9 @@
 import { useEffect, useRef } from "react";
-
-export type AuraState = "off" | "listening" | "hearing" | "thinking" | "speaking";
+import { fitCanvas, fullscreenProgram, readTheme, type TalkState, type VisualProps } from "./visual";
 
 type Look = { speed: number; scale: number; amplitude: number; frequency: number; brightness: number; pulse: number };
 
-const LOOKS: Record<AuraState, Look> = {
+const LOOKS: Record<TalkState, Look> = {
   off: { speed: 10, scale: 0.2, amplitude: 1.2, frequency: 0.4, brightness: 0.7, pulse: 0 },
   listening: { speed: 20, scale: 0.3, amplitude: 1.0, frequency: 0.7, brightness: 1.75, pulse: 0.25 },
   hearing: { speed: 35, scale: 0.3, amplitude: 0.9, frequency: 0.9, brightness: 1.8, pulse: 0 },
@@ -100,27 +99,11 @@ void main() {
   }
 }`;
 
-/** A theme token's colour as the shader takes it, and whether the page is light. */
-function look(token: string, probe: CanvasRenderingContext2D): { color: [number, number, number]; light: boolean } {
-  const style = getComputedStyle(document.documentElement);
-  probe.fillStyle = style.getPropertyValue(token).trim();
-  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(probe.fillStyle);
-  if (!m) throw new Error(`Aura: ${token} is not a colour`);
-  return { color: [parseInt(m[1], 16) / 255, parseInt(m[2], 16) / 255, parseInt(m[3], 16) / 255], light: style.colorScheme === "light" };
-}
 
-function compile(gl: WebGLRenderingContext, type: number, source: string) {
-  const shader = gl.createShader(type);
-  if (!shader) throw new Error("WebGL: no shader");
-  gl.shaderSource(shader, source);
-  gl.compileShader(shader);
-  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) throw new Error(`WebGL: ${gl.getShaderInfoLog(shader) ?? "shader did not compile"}`);
-  return shader;
-}
 
 /** The talk screen's aura: a turbulent ring of light whose speed, size and pulse follow the conversation's state and,
  * while someone speaks, its loudness. The shader is LiveKit Agents UI's Aura (Apache-2.0). */
-export default function Aura({ state, level, token, className }: { state: AuraState; level: () => number; token: string; className?: string }) {
+export default function Aura({ state, level, token, className }: VisualProps) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const target = useRef(LOOKS[state]);
   const levelRef = useRef(level);
@@ -133,18 +116,7 @@ export default function Aura({ state, level, token, className }: { state: AuraSt
     const el = canvas.current;
     const gl = el?.getContext("webgl", { premultipliedAlpha: true, alpha: true, antialias: false });
     if (!el || !gl) return;
-    const program = gl.createProgram();
-    if (!program) return;
-    gl.attachShader(program, compile(gl, gl.VERTEX_SHADER, VERTEX));
-    gl.attachShader(program, compile(gl, gl.FRAGMENT_SHADER, FRAGMENT));
-    gl.linkProgram(program);
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(`WebGL: ${gl.getProgramInfoLog(program) ?? "program did not link"}`);
-    gl.useProgram(program);
-    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
-    const at = gl.getAttribLocation(program, "p");
-    gl.enableVertexAttribArray(at);
-    gl.vertexAttribPointer(at, 2, gl.FLOAT, false, 0, 0);
+    const program = fullscreenProgram(gl, VERTEX, FRAGMENT);
     const u = (name: string) => gl.getUniformLocation(program, name);
     const loc = { res: u("iResolution"), time: u("iTime"), speed: u("uSpeed"), scale: u("uScale"), amp: u("uAmplitude"), freq: u("uFrequency"), mix: u("uMix"), mode: u("uMode"), shift: u("uColorShift"), color: u("uColor") };
     gl.clearColor(0, 0, 0, 0);
@@ -153,7 +125,7 @@ export default function Aura({ state, level, token, className }: { state: AuraSt
     const probe = document.createElement("canvas").getContext("2d");
     if (!probe) return;
     const now: Look = { ...target.current };
-    let theme = look(tokenRef.current, probe);
+    let theme = readTheme(tokenRef.current, probe);
     let looked = performance.now();
     let phase = 0;
     let last = performance.now();
@@ -161,10 +133,7 @@ export default function Aura({ state, level, token, className }: { state: AuraSt
     const draw = (time: number) => {
       const dt = Math.min(0.1, (time - last) / 1000);
       last = time;
-      const ratio = Math.min(window.devicePixelRatio || 1, 2);
-      const w = Math.round(el.clientWidth * ratio);
-      const h = Math.round(el.clientHeight * ratio);
-      if (el.width !== w || el.height !== h) { el.width = w; el.height = h; gl.viewport(0, 0, w, h); }
+      fitCanvas(el, gl);
       const goal = target.current;
       const ease = 1 - Math.exp(-dt / 0.18);
       for (const key of ["scale", "amplitude", "frequency", "brightness"] as const) now[key] += (goal[key] - now[key]) * ease;
@@ -174,9 +143,9 @@ export default function Aura({ state, level, token, className }: { state: AuraSt
       const scale = reactive ? now.scale - 0.1 + 0.2 * loud : now.scale;
       phase += dt * (calm.matches ? 0.3 : 1) * now.speed;
       const pulse = goal.pulse * Math.sin(time / 1000 * Math.PI / 0.35) * 0.5;
-      if (time - looked > 500) { theme = look(tokenRef.current, probe); looked = time; }
+      if (time - looked > 500) { theme = readTheme(tokenRef.current, probe); looked = time; }
       gl.uniform3fv(loc.color, theme.color);
-      gl.uniform2f(loc.res, w, h);
+      gl.uniform2f(loc.res, el.width, el.height);
       gl.uniform1f(loc.time, phase / 10);
       gl.uniform1f(loc.speed, 10);
       gl.uniform1f(loc.scale, scale);
