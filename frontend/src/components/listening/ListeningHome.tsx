@@ -14,6 +14,7 @@ import { PROJECTS_CHANGED, useChanged } from "../../lib/mcpBridge";
 import { named } from "../../lib/a11y";
 import ConfirmDialog from "../ConfirmDialog";
 import UrlImport from "../UrlImport";
+import Hint from "../Hint";
 
 const START = "listen.start";
 
@@ -105,19 +106,19 @@ export default function ListeningHome({ onOpen }: { onOpen: (pid: string) => voi
         <section aria-labelledby="listen-new" className="space-y-4">
           <div className="flex items-center gap-2">
             <h1 id="listen-new" className="text-xl font-bold tracking-tight flex items-center gap-2"><Ear size={20} className="text-[var(--color-accent)]" />{t("listen.newTitle")}</h1>
-            <button onClick={() => setQuick(true)} title={t("listen.quickHint")} className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)]"><Sparkles size={13} className="text-[var(--color-accent)]" />{t("listen.quickTitle")}</button>
+            <button onClick={() => setQuick(true)} className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)]"><Sparkles size={13} className="text-[var(--color-accent)]" />{t("listen.quickTitle")}</button><Hint text={t("listen.quickHint")} />
           </div>
           <p className="text-[13px] text-[var(--color-muted)] leading-relaxed">{t("listen.newHint")}</p>
           <div className="grid gap-2 grid-cols-2">
             <label className="text-[11px] text-[var(--color-muted)] space-y-1">
-              <span className="block">{t("listen.engine")}</span>
+              <span className="block">{t("listen.engine")} <Hint text={t("hint.listenEngine")} /></span>
               <select value={start.engine} onChange={(e) => pickStart({ ...start, engine: e.target.value as ListenEngine })}
                 className="w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-2 py-1.5 text-[12px] text-[var(--color-text)]">
                 {ENGINES.map((e) => <option key={e} value={e}>{t(`listen.engine_${e || "default"}`)}</option>)}
               </select>
             </label>
             <label className="text-[11px] text-[var(--color-muted)] space-y-1">
-              <span className="block">{t("speech.lang")}</span>
+              <span className="block">{t("speech.lang")} <Hint text={t("hint.listenLang")} /></span>
               <select value={start.lang} onChange={(e) => pickStart({ ...start, lang: e.target.value })}
                 className="w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-2 py-1.5 text-[12px] text-[var(--color-text)]">
                 {LANG_CHOICES.map((l) => <option key={l} value={l}>{l === "auto" ? t("speech.langAuto") : l.toUpperCase()}</option>)}
@@ -234,7 +235,7 @@ function MicRecorder({ lang, onDone, onError }: { lang: string; onDone: (pid: st
     <div className="rounded-xl border border-[var(--color-border)] px-4 py-3 space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         <Mic size={15} className="text-[var(--color-accent)]" />
-        <span className="text-[13px] font-medium">{t("listen.mic")}</span>
+        <span className="text-[13px] font-medium">{t("listen.mic")}</span> <Hint text={t("hint.mic")} />
         <select value={device} onChange={(e) => setDevice(e.target.value)} disabled={recording || !devices?.length} aria-label={t("voices.device")}
           className="ml-auto max-w-[55%] bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]">
           {devices === null && <option>…</option>}
@@ -246,8 +247,8 @@ function MicRecorder({ lang, onDone, onError }: { lang: string; onDone: (pid: st
         <div className="flex-1 h-1.5 rounded-full bg-[var(--color-surface-2)] overflow-hidden" role="meter" aria-label={t("voices.level")} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(Math.min(1, level * 1.4) * 100)}>
           <div className="h-full bg-[var(--color-accent)] transition-[width] duration-100" style={{ width: `${Math.min(100, level * 140)}%` }} />
         </div>
-        <label className="inline-flex items-center gap-1.5 text-[12px] cursor-pointer" title={t("listen.liveHint")}>
-          <input type="checkbox" checked={live} onChange={(e) => setLive(e.target.checked)} disabled={recording} className="w-3.5 h-3.5 accent-[var(--color-accent)]" />{t("listen.live")}
+        <label className="inline-flex items-center gap-1.5 text-[12px] cursor-pointer">
+          <input type="checkbox" checked={live} onChange={(e) => setLive(e.target.checked)} disabled={recording} className="w-3.5 h-3.5 accent-[var(--color-accent)]" />{t("listen.live")} <Hint text={t("listen.liveHint")} />
         </label>
         <span className="mono text-[12px] tabnum w-12 text-right text-[var(--color-muted)]">{clock(seconds)}</span>
         {recording ? (

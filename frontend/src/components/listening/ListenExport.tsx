@@ -6,6 +6,7 @@ import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
 import { useEscapeLayer } from "../../lib/escape";
 import FileActions from "../speech/FileActions";
+import Hint from "../Hint";
 
 /** The transcript as a file: SRT, VTT, ASS, TXT or JSON, with or without speakers and times; a preview and a copy. */
 export default function ListenExport({ pid, onClose }: { pid: string; onClose: () => void }) {
@@ -46,18 +47,17 @@ export default function ListenExport({ pid, onClose }: { pid: string; onClose: (
         </div>
         <p className="text-[11px] text-[var(--color-muted)]">{t(`listen.format_${format}`)}</p>
         <div className="flex flex-wrap gap-3 text-[13px]">
-          {format !== "json" && <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={speakers} onChange={(e) => changed(setSpeakers)(e.target.checked)} className="w-4 h-4 accent-[var(--color-accent)]" />{t("listen.withSpeakers")}</label>}
-          {format !== "json" && <label className="flex items-center gap-2 cursor-pointer" title={t("listen.digitsHint")}><input type="checkbox" checked={digits} onChange={(e) => changed(setDigits)(e.target.checked)} className="w-4 h-4 accent-[var(--color-accent)]" />{t("listen.digits")}</label>}
-          {format === "txt" && <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={times} onChange={(e) => changed(setTimes)(e.target.checked)} className="w-4 h-4 accent-[var(--color-accent)]" />{t("listen.withTimes")}</label>}
+          {format !== "json" && <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={speakers} onChange={(e) => changed(setSpeakers)(e.target.checked)} className="w-4 h-4 accent-[var(--color-accent)]" />{t("listen.withSpeakers")} <Hint text={t("hint.withSpeakers")} /></label>}
+          {format !== "json" && <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={digits} onChange={(e) => changed(setDigits)(e.target.checked)} className="w-4 h-4 accent-[var(--color-accent)]" />{t("listen.digits")} <Hint text={t("listen.digitsHint")} /></label>}
+          {format === "txt" && <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={times} onChange={(e) => changed(setTimes)(e.target.checked)} className="w-4 h-4 accent-[var(--color-accent)]" />{t("listen.withTimes")} <Hint text={t("hint.withTimes")} /></label>}
         </div>
         {subtitles && (
           <label className="block space-y-0.5 text-[12px]">
-            <span>{t("listen.rules")}</span>
+            <span>{t("listen.rules")} <Hint text={t(rules ? "listen.rulesHint" : "listen.rulesNoneHint")} /></span>
             <select value={rules} onChange={(e) => changed(setRules)(e.target.value)} className="w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]">
               <option value="">{t("listen.rulesNone")}</option>
               {profiles.map((p) => <option key={p.name} value={p.name}>{t("listen.rulesOne", { name: p.name, chars: p.max_line_len, lines: p.max_lines, cps: p.max_cps })}</option>)}
             </select>
-            <span className="block text-[11px] text-[var(--color-muted)]">{t(rules ? "listen.rulesHint" : "listen.rulesNoneHint")}</span>
           </label>
         )}
         {made?.digits_unknown ? <p className="text-[11px] text-[var(--color-warn)]">{t("listen.digitsUnknown", { count: made.digits_unknown })}</p> : null}

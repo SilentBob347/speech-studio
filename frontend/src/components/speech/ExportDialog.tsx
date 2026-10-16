@@ -7,6 +7,8 @@ import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
 import FileActions from "./FileActions";
 import { useEscapeLayer } from "../../lib/escape";
+import Hint from "../Hint";
+import { clock } from "../../lib/listen";
 
 /** Export: what keeps it back (blocks not voiced, out of date, with a lost or changed take file, or a take too long for
  * its cue, the one problem that can be let through), the format and the finished file to save. */
@@ -45,7 +47,10 @@ export default function ExportDialog({ pid, project, onChange, flush, onClose, o
   const [recipe, setRecipe] = useState<string | null>(null);
   const [clips, setClips] = useState<string[] | null>(null);
   const [clipsSaved, setClipsSaved] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  /** An error shows beside what failed: the export (and the check before it), the package or the list of files. */
+  const [error, setFailure] = useState<{ at: "export" | "pack" | "files"; text: string } | null>(null);
+  const setError = (text: string | null, at: "export" | "pack" | "files" = "export") => setFailure(text ? { at, text } : null);
+  const shown = (at: "export" | "pack" | "files") => error?.at === at && <p role="alert" className="text-[12px] text-[var(--color-warn)] break-words">{error.text}</p>;
   const [withAudio, setWithAudio] = useState(true);
   const [rate, setRate] = useState(0);
   const [bits, setBits] = useState(0);
@@ -56,7 +61,7 @@ export default function ExportDialog({ pid, project, onChange, flush, onClose, o
   const runPack = async () => {
     setPacking(true);
     setError(null);
-    try { setPack(await speechApi.pack(pid, withAudio)); } catch (e) { setError(errorText(e)); } finally { setPacking(false); }
+    try { setPack(await speechApi.pack(pid, withAudio)); } catch (e) { setError(errorText(e), "pack"); } finally { setPacking(false); }
   };
   useEscapeLayer(() => { if (!busy) onClose(); });
   useEffect(() => { speechApi.exportCheck(pid).then((r) => setProblems(r.problems), (e: unknown) => setError(errorText(e))); }, [pid]);
@@ -94,7 +99,7 @@ export default function ExportDialog({ pid, project, onChange, flush, onClose, o
           <h2 id="ex-title" className="font-semibold">{t("speech.exportTitle")}</h2>
           <button onClick={onClose} disabled={busy} {...named(t("a11y.close"))} className="text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30"><X size={16} /></button>
         </div>
-        {problems === null && !error && <Loader2 size={16} className="animate-spin text-[var(--color-muted)]" />}
+        {problems === null && (error ? shown("export") : <Loader2 size={16} className="animate-spin text-[var(--color-muted)]" />)}
         {problems && problems.length > 0 && (
           <div role="alert" className="rounded-lg border border-[var(--color-warn)]/40 bg-[color-mix(in_oklab,var(--color-warn)_8%,transparent)] p-3 space-y-2">
             <p className="text-[13px]">{blocking.length ? t("speech.exportBlocked", { n: blocking.length }) : t("speech.exportDurationAllowed")}</p>
@@ -104,18 +109,19 @@ export default function ExportDialog({ pid, project, onChange, flush, onClose, o
             {toVoice.length > 0 && <button onClick={() => onVoiceMissing(toVoice)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[12px] font-semibold"><Sparkles size={13} />{t("speech.voiceTheMissing")}</button>}
             {tooLong && (
               <label className="flex items-center gap-2 text-[12px] cursor-pointer">
-                <input type="checkbox" checked={allowDuration} onChange={(e) => setAllowDuration(e.target.checked)} className="w-4 h-4 accent-[var(--color-accent)]" />{t("speech.allowDuration")}
+                <input type="checkbox" checked={allowDuration} onChange={(e) => setAllowDuration(e.target.checked)} className="w-4 h-4 accent-[var(--color-accent)]" />{t("speech.allowDuration")} <Hint text={t("hint.allowDuration")} />
               </label>
             )}
           </div>
         )}
         {problems && blocking.length === 0 && (
           <>
-            <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={t("speech.format")}>
+            <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label={t("speech.format")}>
               {EXPORT_FORMATS.map((f) => (
                 <button key={f} role="radio" aria-checked={format === f} onClick={() => { setFormat(f); setRate(0); setBits(0); setKbps(0); setFile(null); setSubs([]); setChapterList(null); setAcx(null); setClips(null); }}
                   className={`px-3 py-1.5 rounded-lg border text-[12px] font-semibold uppercase ${format === f ? "border-[var(--color-accent)] text-[var(--color-accent)]" : "border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-text)]"}`}>{f}</button>
               ))}
+              <Hint text={t("hint.exportFormat")} />
             </div>
             <fieldset className="flex flex-wrap items-center gap-2 text-[12px]">
               <legend className="sr-only">{t("speech.quality")}</legend>
@@ -141,30 +147,30 @@ export default function ExportDialog({ pid, project, onChange, flush, onClose, o
                   </select>
                 </label>
               )}
+              <Hint text={t("hint.exportQuality")} />
             </fieldset>
             <label className="flex items-center gap-2 text-[12px] cursor-pointer">
-              <input type="checkbox" checked={perBlock} onChange={(e) => { setPerBlock(e.target.checked); setFile(null); setClips(null); }} className="w-4 h-4 accent-[var(--color-accent)]" />{t("speech.perBlock")}
+              <input type="checkbox" checked={perBlock} onChange={(e) => { setPerBlock(e.target.checked); setFile(null); setClips(null); }} className="w-4 h-4 accent-[var(--color-accent)]" />{t("speech.perBlock")} <Hint text={t("hint.perBlock")} />
             </label>
             {!perBlock && (
               <label className="flex flex-wrap items-center gap-2 text-[12px]">{t("speech.parts")}
                 <select value={partMinutes} onChange={(e) => { setPartMinutes(Number(e.target.value)); setFile(null); setParts(null); }} className="bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]">
                   {PART_MINUTES.map((m) => <option key={m} value={m}>{m === -1 ? t("speech.partsChapters") : m ? t("speech.partsEvery", { h: m / 60 }) : t("speech.partsNone")}</option>)}
                 </select>
-                <span className="text-[11px] text-[var(--color-muted)]">{t("speech.partsHint")}</span>
+                <Hint text={t("speech.partsHint")} />
               </label>
             )}
             <label className="block text-[12px] space-y-1">
-              <span>{t(perBlock ? "speech.clipName" : "speech.exportName")}</span>
+              <span>{t(perBlock ? "speech.clipName" : "speech.exportName")} <Hint text={t(perBlock ? "speech.clipNameHint" : "speech.exportNameHint")} /></span>
               <input value={perBlock ? project.settings.clip_name ?? "" : project.settings.export_name ?? ""} spellCheck={false}
                 onChange={(e) => { const v = e.target.value; setFile(null); setClips(null); onChange((p) => ({ ...p, settings: { ...p.settings, [perBlock ? "clip_name" : "export_name"]: v } })); }}
                 placeholder={t(perBlock ? "speech.clipNamePlaceholder" : "speech.exportNamePlaceholder")}
                 className="w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px] mono focus:border-[var(--color-accent)] outline-none" />
-              <span className="block text-[11px] text-[var(--color-muted)]">{t(perBlock ? "speech.clipNameHint" : "speech.exportNameHint")}</span>
             </label>
             {!perBlock && (
               <label className="flex items-start gap-2 text-[12px] cursor-pointer">
                 <input type="checkbox" checked={withStems} onChange={(e) => { setWithStems(e.target.checked); setFile(null); setStems(null); }} className="mt-0.5 w-4 h-4 accent-[var(--color-accent)]" />
-                <span>{t("speech.stems")}<span className="block text-[11px] text-[var(--color-muted)]">{t("speech.stemsHint")}</span></span>
+                <span>{t("speech.stems")} <Hint text={t("speech.stemsHint")} /></span>
               </label>
             )}
             {clips && (
@@ -179,7 +185,7 @@ export default function ExportDialog({ pid, project, onChange, flush, onClose, o
               <div className="space-y-1.5">
                 {parts ? parts.map((part, k) => (
                   <div key={part.file} className="space-y-1">
-                    <p className="text-[11px] text-[var(--color-muted)]">{t("speech.partN", { n: k + 1, h: (part.duration / 3600).toFixed(1) })}</p>
+                    <p className="text-[11px] text-[var(--color-muted)]">{t("speech.partN", { n: k + 1, time: clock(part.duration) })}</p>
                     <FileActions pid={pid} file={part.file} primary={k === 0} />
                   </div>
                 )) : <FileActions pid={pid} file={file} primary />}
@@ -197,6 +203,7 @@ export default function ExportDialog({ pid, project, onChange, flush, onClose, o
                 {busy ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}{t("speech.exportRun")}
               </button>
             )}
+            {shown("export")}
           </>
         )}
         {acx && (
@@ -212,10 +219,9 @@ export default function ExportDialog({ pid, project, onChange, flush, onClose, o
           </div>
         )}
         <div className="pt-3 border-t border-[var(--color-border)] space-y-2">
-          <h3 className="text-[12px] font-semibold">{t("speech.packTitle")}</h3>
-          <p className="text-[11px] text-[var(--color-muted)]">{t("speech.packHint")}</p>
+          <h3 className="text-[12px] font-semibold">{t("speech.packTitle")} <Hint text={t("speech.packHint")} /></h3>
           <label className="flex items-center gap-2 text-[12px] cursor-pointer">
-            <input type="checkbox" checked={withAudio} onChange={(e) => { setWithAudio(e.target.checked); setPack(null); }} className="w-4 h-4 accent-[var(--color-accent)]" />{t("speech.packAudio")}
+            <input type="checkbox" checked={withAudio} onChange={(e) => { setWithAudio(e.target.checked); setPack(null); }} className="w-4 h-4 accent-[var(--color-accent)]" />{t("speech.packAudio")} <Hint text={t("hint.packAudio")} />
           </label>
           {pack ? (
             <FileActions pid={pid} file={pack.file} />
@@ -224,15 +230,16 @@ export default function ExportDialog({ pid, project, onChange, flush, onClose, o
               {packing ? <Loader2 size={13} className="animate-spin" /> : <Package size={13} />}{t("speech.packRun")}
             </button>
           )}
+          {shown("pack")}
         </div>
-        <details onToggle={(e) => { if (e.currentTarget.open) speechApi.exports(pid).then((r) => setFiles(r.files), (er: unknown) => setError(errorText(er))); }} className="pt-3 border-t border-[var(--color-border)]">
+        <details onToggle={(e) => { if (e.currentTarget.open) speechApi.exports(pid).then((r) => setFiles(r.files), (er: unknown) => setError(errorText(er), "files")); }} className="pt-3 border-t border-[var(--color-border)]">
           <summary className="cursor-pointer text-[12px] font-semibold">{t("files.title")}</summary>
           <ul className="mt-2 space-y-1.5 max-h-48 overflow-y-auto">
             {files?.length === 0 && <li className="text-[11px] text-[var(--color-muted)]">{t("files.none")}</li>}
             {files?.map((f) => <li key={f.file}><FileActions pid={pid} file={f.file} label={f.file} /></li>)}
           </ul>
+          {shown("files")}
         </details>
-        {error && <p role="alert" className="text-[12px] text-[var(--color-warn)] break-words">{error}</p>}
       </div>
     </div>
   );

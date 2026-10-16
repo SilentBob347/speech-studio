@@ -18,6 +18,7 @@ import RefTrim from "../voices/RefTrim";
 import HeardDiff from "./HeardDiff";
 import { cues, spans, withoutCue, type Cue } from "../../lib/prosody";
 import { wordAt, wordTimes } from "../../lib/readAlong";
+import Hint from "../Hint";
 
 const STATE_DOT: Record<BlockState | "rendering", string> = {
   pending: "bg-[var(--color-muted)]",
@@ -61,7 +62,7 @@ function TakeCompare({ block, active, playingTake, onAB }: { block: Block; activ
   const [chosen, setChosen] = useState<number | null>(null);
   const other = others.find((tk) => tk.n === chosen)?.n ?? others[0].n;
   return (
-    <label className="text-[11px] text-[var(--color-muted)]">{t("speech.abWith")}
+    <label className="text-[11px] text-[var(--color-muted)]">{t("speech.abWith")} <Hint text={t("hint.abWith")} />
       <div className="mt-1 flex items-center gap-1">
         <select value={other} onChange={(e) => setChosen(Number(e.target.value))} aria-label={t("speech.abWith")}
           className="flex-1 min-w-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]">
@@ -264,23 +265,23 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
         </div>
       )}
       <div className="grid gap-2 @md:grid-cols-2 @2xl:grid-cols-4">
-        <label className="text-[11px] text-[var(--color-muted)]">{t("speech.blockVoice")}
+        <label className="text-[11px] text-[var(--color-muted)]">{t("speech.blockVoice")} <Hint text={t("hint.blockVoice")} />
           <VoicePicker engine={engine} value={block.voice} onChange={(v) => a.patch({ voice: v })} inherit={t("speech.voiceAsCast")} label={t("speech.blockVoice")}
             className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]" />
         </label>
-        <label className="text-[11px] text-[var(--color-muted)]">{t("speech.blockEngine")}
+        <label className="text-[11px] text-[var(--color-muted)]">{t("speech.blockEngine")} <Hint text={t("hint.blockEngine")} />
           <EngineSelect value={block.engine ?? null} projectEngine={projectEngine} inheritEngine={speakerEngine ?? projectEngine} voice={voice} onChange={(e, v) => a.patch(v === undefined ? { engine: e } : { engine: e, voice: v })}
             inherit={speakerEngine ? t("speech.engineAsSpeaker") : t("speech.engineAsProject")} label={t("speech.blockEngine")}
             className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]" />
         </label>
-        <label className="text-[11px] text-[var(--color-muted)]">{t("speech.blockLang")}
+        <label className="text-[11px] text-[var(--color-muted)]">{t("speech.blockLang")} <Hint text={t("hint.blockLang")} />
           <select value={block.lang ?? ""} onChange={(e) => a.patch({ lang: e.target.value })} aria-label={t("speech.blockLang")}
             className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]">
             <option value="">{t("speech.blockLangProject")}</option>
             {LANG_CHOICES.filter((l) => l !== "auto").map((l) => <option key={l} value={l}>{l.toUpperCase()}</option>)}
           </select>
         </label>
-        <label className="text-[11px] text-[var(--color-muted)]">{t("speech.voiceFx")}
+        <label className="text-[11px] text-[var(--color-muted)]">{t("speech.voiceFx")} <Hint text={t("hint.voiceFx")} />
           <select value={block.fx ?? ""} onChange={(e) => a.patch({ fx: e.target.value })} aria-label={t("speech.voiceFx")}
             className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]">
             <option value="">{t("speech.voiceFxAsSpeaker")}</option>
@@ -288,12 +289,12 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
             {VOICE_FX.map((f) => <option key={f} value={f}>{t(`speech.voiceFx_${f}`)}</option>)}
           </select>
         </label>
-        <label className="text-[11px] text-[var(--color-muted)]">{t("speech.pauseAfter")}
+        <label className="text-[11px] text-[var(--color-muted)]">{t("speech.pauseAfter")} <Hint text={t("hint.pauseAfter")} />
           <input type="number" step={50} min={-2000} max={10000} value={block.pause_ms ?? ""} placeholder={t("speech.pauseAuto")}
             onChange={(e) => a.patch({ pause_ms: e.target.value === "" ? null : Math.max(-2000, Math.min(10000, Number(e.target.value))) })}
             className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px] mono" />
         </label>
-        <label className="text-[11px] text-[var(--color-muted)]">{t("speech.takes")}
+        <label className="text-[11px] text-[var(--color-muted)]">{t("speech.takes")} <Hint text={t("hint.takes")} />
           <div className="mt-1 flex items-center gap-1">
             <select value={block.active ?? ""} onChange={(e) => a.patch({ active: e.target.value ? Number(e.target.value) : null })} disabled={!block.takes.length} aria-label={t("speech.takes")}
               className="flex-1 min-w-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]">
@@ -306,7 +307,7 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
         </label>
         {variants && (
           <div role="radiogroup" aria-label={t("speech.voiceVariant")} className="col-span-full flex flex-wrap items-center gap-1 text-[11px]">
-            <span className="text-[var(--color-muted)] mr-1">{t("speech.voiceVariant")}</span>
+            <span className="text-[var(--color-muted)] mr-1">{t("speech.voiceVariant")} <Hint text={t("hint.voiceVariant")} /></span>
             {[{ name: variants.base, variant: t("speech.variantBase") }, ...variants.list].map((v) => {
               const on = voice === v.name;
               return (
@@ -324,12 +325,12 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
         {block.takes.length > 1 && take && <TakeCompare block={block} active={take.n} playingTake={playingTake} onAB={a.ab} />}
         {!simple && (
           <div className="col-span-full">
-            <button onClick={a.compare} disabled={!block.text.trim()} title={t("ab.hint")} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)] disabled:opacity-40"><Scale size={13} />{t("ab.open")}</button>
+            <button onClick={a.compare} disabled={!block.text.trim()} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)] disabled:opacity-40"><Scale size={13} />{t("ab.open")}</button> <Hint text={t("ab.hint")} />
           </div>
         )}
       </div>
       {!simple && <div className="flex flex-wrap items-end gap-2">
-        <label className="flex-1 min-w-48 text-[11px] text-[var(--color-muted)]">{t("speech.note")}
+        <label className="flex-1 min-w-48 text-[11px] text-[var(--color-muted)]">{t("speech.note")} <Hint text={t("hint.note")} />
           <input value={block.note} onChange={(e) => a.patch({ note: e.target.value })} placeholder={t("speech.noteHint")}
             className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]" />
         </label>
@@ -341,7 +342,7 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
           ))}
         </div>
       </div>}
-      <label className="block text-[11px] text-[var(--color-muted)]">{t("speech.direction")}
+      <label className="block text-[11px] text-[var(--color-muted)]">{t("speech.direction")} <Hint text={t("hint.direction")} />
         <input value={block.direction} onChange={(e) => a.patch({ direction: e.target.value })} placeholder={t("speech.directionHint")}
           className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]" />
         {caps && block.direction.trim() && !caps.direction && <span className="mt-0.5 block text-[var(--color-warn)]">{t("speech.directionIgnored", { engine: caps.name })}</span>}
@@ -350,7 +351,7 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
       {caps?.direction && take && <RetakeNote take={take} busy={rendering} onRun={(note) => { a.patch({ direction: [take.direction.trim(), note].filter(Boolean).join("; ") }); a.synth(true); }} />}
       {!simple && <>
       <div role="radiogroup" aria-label={t("review.title")} className="flex flex-wrap items-center gap-1 text-[11px]">
-        <span className="text-[var(--color-muted)] mr-1">{t("review.title")}</span>
+        <span className="text-[var(--color-muted)] mr-1">{t("review.title")} <Hint text={t("hint.review")} /></span>
         {(["", "approved", "fix"] as const).map((r) => (
           <button key={r || "none"} role="radio" aria-checked={(block.review ?? "") === r} onClick={() => a.patch({ review: r })}
             className={`px-2 py-0.5 rounded-md border ${(block.review ?? "") === r ? "border-[var(--color-accent)] text-[var(--color-text)]" : "border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-text)]"}`}>{t(r ? `review.${r}` : "review.none")}</button>
@@ -360,7 +361,7 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
       <OwnRefField block={block} a={a} />
       {take && (
         <details className="rounded-md border border-[var(--color-border)] px-2 py-1.5">
-          <summary className="cursor-pointer text-[11px] text-[var(--color-muted)]">{take.cut ? t("speech.takeEdgesSet", { n: take.n, a: take.cut[0].toFixed(1), z: take.cut[1].toFixed(1) }) : t("speech.takeEdges", { n: take.n })}</summary>
+          <summary className="cursor-pointer text-[11px] text-[var(--color-muted)]">{take.cut ? t("speech.takeEdgesSet", { n: take.n, a: take.cut[0].toFixed(1), z: take.cut[1].toFixed(1) }) : t("speech.takeEdges", { n: take.n })} <Hint text={t("hint.takeEdges")} /></summary>
           <div className="mt-2">
             <RefTrim url={speechApi.takeUrl(pid, take.file)} initial={take.cut ?? null} busy={false}
               onApply={(a0, z) => a.patch({ takes: block.takes.map((tk) => (tk.n === take.n ? { ...tk, cut: [Math.round(a0 * 100) / 100, Math.round(z * 100) / 100] as [number, number] } : tk)) })}
@@ -369,11 +370,11 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
         </details>
       )}
       <details open={howRead} onToggle={(e) => setHowRead(e.currentTarget.open)} className="rounded-md border border-[var(--color-border)] px-2 py-1.5">
-        <summary className="cursor-pointer text-[11px] text-[var(--color-muted)]">{t("speech.howRead")}</summary>
+        <summary className="cursor-pointer text-[11px] text-[var(--color-muted)]">{t("speech.howRead")} <Hint text={t("hint.howRead")} /></summary>
         {howRead && <div className="mt-2"><PrepareView pid={pid} block={block.id} text={block.text} /></div>}
       </details>
       <details className="rounded-md border border-[var(--color-border)] px-2 py-1.5">
-        <summary className="cursor-pointer text-[11px] text-[var(--color-muted)]">{t("speech.tagsTitle")}</summary>
+        <summary className="cursor-pointer text-[11px] text-[var(--color-muted)]">{t("speech.tagsTitle")} <Hint text={t("hint.tags")} /></summary>
         <div className="mt-2"><TagPalette engine={engine} onInsert={insertTag} onWrap={wrapTag} onRate={rateTag} /></div>
       </details>
       </>}
@@ -518,7 +519,7 @@ function OwnRefField({ block, a }: { block: Block; a: BlockActions }) {
   const field = "mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]";
   return (
     <fieldset className="rounded-md border border-[var(--color-border)] px-2 py-1.5 space-y-1.5">
-      <legend className="px-1 text-[11px] text-[var(--color-muted)]">{t("speech.ownRef")}</legend>
+      <legend className="px-1 text-[11px] text-[var(--color-muted)]">{t("speech.ownRef")} <Hint text={t("speech.ownRefHint")} /></legend>
       {r ? (
         <>
           <div className="flex items-center gap-2 text-[12px]">
@@ -529,7 +530,7 @@ function OwnRefField({ block, a }: { block: Block; a: BlockActions }) {
             <textarea value={r.text} rows={2} onChange={(e) => a.patch({ own_ref: { ...r, text: e.target.value } })} className={`${field} resize-y`} />
           </label>
           <label className="flex items-center gap-1.5 text-[11px]">
-            <input type="checkbox" checked={r.whole} onChange={(e) => a.patch({ own_ref: { ...r, whole: e.target.checked } })} className="accent-[var(--color-accent)]" />{t("speech.ownRefWhole")}
+            <input type="checkbox" checked={r.whole} onChange={(e) => a.patch({ own_ref: { ...r, whole: e.target.checked } })} className="accent-[var(--color-accent)]" />{t("speech.ownRefWhole")} <Hint text={t("hint.ownRefWhole")} />
           </label>
         </>
       ) : (
@@ -538,12 +539,11 @@ function OwnRefField({ block, a }: { block: Block; a: BlockActions }) {
             {busy ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} />}{t("speech.ownRefUpload")}
           </button>
           <label className="flex items-center gap-1.5 text-[11px]">
-            <input type="checkbox" checked={whole} onChange={(e) => setWhole(e.target.checked)} className="accent-[var(--color-accent)]" />{t("speech.ownRefWhole")}
+            <input type="checkbox" checked={whole} onChange={(e) => setWhole(e.target.checked)} className="accent-[var(--color-accent)]" />{t("speech.ownRefWhole")} <Hint text={t("hint.ownRefWhole")} />
           </label>
           <input ref={input} type="file" accept="audio/*,video/*" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void upload(f); }} />
         </div>
       )}
-      <p className="text-[10px] text-[var(--color-muted)]">{t("speech.ownRefHint")}</p>
       {error && <p role="alert" className="text-[11px] text-[var(--color-warn)] break-words">{error}</p>}
     </fieldset>
   );
@@ -566,7 +566,7 @@ function WordNoteField({ block, a, text }: { block: Block; a: BlockActions; text
   const field = "bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]";
   return (
     <fieldset className="rounded-md border border-[var(--color-border)] px-2 py-1.5 space-y-1.5">
-      <legend className="px-1 text-[11px] text-[var(--color-muted)]">{t("speech.wordNotes")}</legend>
+      <legend className="px-1 text-[11px] text-[var(--color-muted)]">{t("speech.wordNotes")} <Hint text={t("hint.wordNotes")} /></legend>
       <div className="flex flex-wrap items-center gap-1.5">
         <button onMouseDown={(e) => e.preventDefault()} onClick={take} className="px-2 py-1 rounded-md border border-[var(--color-border)] text-[11px] hover:border-[var(--color-accent)]">{t("speech.wordNoteTake")}</button>
         <input value={quote} onChange={(e) => setQuote(e.target.value)} placeholder={t("speech.wordNoteNone")} aria-label={t("speech.wordNoteQuote")} className={`${field} flex-1 min-w-40`} />

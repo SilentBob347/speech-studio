@@ -4,6 +4,7 @@ import { FolderOpen, FolderSearch, Loader2, Play, Square } from "lucide-react";
 import { api } from "../../lib/api";
 import { listenApi, TRANSCRIPT_FORMATS, type Start, type SubtitleRules, type TranscriptFormat, type WatchStatus } from "../../lib/listen";
 import { errorText } from "../../lib/voices";
+import Hint from "../Hint";
 
 /** A folder of recordings recognised in the background into subtitle or text files next to them, once or watching it
  * for new files; the studio goes on with it after a restart. */
@@ -72,22 +73,22 @@ export default function WatchFolder({ start, onOpen }: { start: Start; onOpen: (
       </div>
       <fieldset disabled={on} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12px] disabled:opacity-60">
         <legend className="sr-only">{t("batch.formats")}</legend>
-        <span className="text-[var(--color-muted)]">{t("batch.formats")}</span>
+        <span className="text-[var(--color-muted)]">{t("batch.formats")} <Hint text={t("hint.watchFormats")} /></span>
         {TRANSCRIPT_FORMATS.map((f) => (
           <label key={f} className="inline-flex items-center gap-1 cursor-pointer">
             <input type="checkbox" checked={formats.includes(f)} onChange={(e) => setFormats((all) => (e.target.checked ? [...all, f] : all.filter((x) => x !== f)))} className="accent-[var(--color-accent)]" />{f.toUpperCase()}
           </label>
         ))}
-        <label className="inline-flex items-center gap-1 cursor-pointer" title={t("listen.digitsHint")}>
-          <input type="checkbox" checked={digits} onChange={(e) => setDigits(e.target.checked)} className="accent-[var(--color-accent)]" />{t("listen.digits")}
+        <label className="inline-flex items-center gap-1 cursor-pointer">
+          <input type="checkbox" checked={digits} onChange={(e) => setDigits(e.target.checked)} className="accent-[var(--color-accent)]" />{t("listen.digits")} <Hint text={t("listen.digitsHint")} />
         </label>
-        <label className="inline-flex items-center gap-1 cursor-pointer" title={t("listen.watchKeepHint")}>
-          <input type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} className="accent-[var(--color-accent)]" />{t("listen.watchKeep")}
+        <label className="inline-flex items-center gap-1 cursor-pointer">
+          <input type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} className="accent-[var(--color-accent)]" />{t("listen.watchKeep")} <Hint text={t("listen.watchKeepHint")} />
         </label>
       </fieldset>
       {subtitles && (
         <label className="flex items-center gap-2 text-[12px]">
-          <span className="text-[var(--color-muted)] shrink-0">{t("listen.rules")}</span>
+          <span className="text-[var(--color-muted)] shrink-0">{t("listen.rules")} <Hint text={t("listen.rulesHint")} /></span>
           <select value={rules} onChange={(e) => setRules(e.target.value)} disabled={on} className="flex-1 min-w-0 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px] disabled:opacity-60">
             <option value="">{t("listen.rulesNone")}</option>
             {profiles.map((p) => <option key={p.name} value={p.name}>{t("listen.rulesOne", { name: p.name, chars: p.max_line_len, lines: p.max_lines, cps: p.max_cps })}</option>)}

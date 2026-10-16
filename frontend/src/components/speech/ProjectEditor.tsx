@@ -43,6 +43,7 @@ import ProjectTimeline, { type Montage, type OverlapChoice } from "./ProjectTime
 import MusicDialog from "./MusicDialog";
 import EngineSelect from "./EngineSelect";
 import HistoryDialog from "./HistoryDialog";
+import Hint from "../Hint";
 
 function blockList(p: SpeechProject): Block[] {
   return p.chapters.flatMap((c) => c.blocks);
@@ -790,21 +791,24 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
       <div className="relative flex-1 min-h-0 flex">
         <aside id="speech-cast" aria-label={t("speech.cast")} className={`${castOpen ? "absolute inset-y-0 left-0 z-20 block bg-[var(--color-surface)] shadow-xl" : "hidden"} lg:static lg:block lg:shadow-none w-64 shrink-0 border-r border-[var(--color-border)] overflow-y-auto p-4 space-y-3`}>
           <h2 className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)] flex items-center gap-1.5"><Users size={12} />{t("speech.cast")}</h2>
-          <label className="block text-[11px] text-[var(--color-muted)]">{t("speech.projectVoice")}
+          <label className="block text-[11px] text-[var(--color-muted)]">{t("speech.projectVoice")} <Hint text={t("hint.projectVoice")} />
             <VoicePicker engine={project.settings.engine} value={project.settings.voice} onChange={(v) => edit((p) => { p.settings.voice = v; return p; })} label={t("speech.projectVoice")}
               className="mt-1 w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-2 py-1.5 text-[12px]" />
           </label>
           <label className="flex items-start gap-2 text-[12px] cursor-pointer">
             <input type="checkbox" checked={!!project.settings.one_voice} onChange={(e) => edit((p) => { p.settings.one_voice = e.target.checked; return p; })} className="mt-0.5 w-3.5 h-3.5 accent-[var(--color-accent)]" />
-            <span>{t("speech.oneVoice")}<span className="block text-[11px] text-[var(--color-muted)]">{t("speech.oneVoiceHint")}</span></span>
+            <span>{t("speech.oneVoice")} <Hint text={t("speech.oneVoiceHint")} /></span>
           </label>
-          <button onClick={() => void autoCast()} disabled={picking || !speakers.length || !!project.settings.one_voice} title={t("speech.autoCastHint")}
-            className="w-full inline-flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)] disabled:opacity-40">
-            {picking ? <Loader2 size={13} className="animate-spin" /> : <Wand2 size={13} />}{t("speech.autoCast")}
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => void autoCast()} disabled={picking || !speakers.length || !!project.settings.one_voice}
+              className="flex-1 inline-flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)] disabled:opacity-40">
+              {picking ? <Loader2 size={13} className="animate-spin" /> : <Wand2 size={13} />}{t("speech.autoCast")}
+            </button>
+            <Hint text={t("speech.autoCastHint")} />
+          </div>
           {speakers.map((s) => (
             <label key={s} className={`block text-[11px] ${project.settings.one_voice ? "opacity-50" : ""}`}>
-              <span className="flex items-baseline gap-1.5"><span className="font-semibold" style={{ color: tintOf(s) }}>{s}</span><span className="text-[10px] tabnum text-[var(--color-muted)]">{t("speech.castBlocks", { n: blocks.filter((b) => b.speaker === s && !b.hidden).length })}</span></span>
+              <span className="flex items-baseline gap-1.5"><span className="font-semibold" style={{ color: tintOf(s) }}>{s}</span><span className="text-[10px] tabnum text-[var(--color-muted)]">{t("speech.castBlocks", { n: blocks.filter((b) => b.speaker === s && !b.hidden).length })}</span><Hint text={t("hint.castCard")} /></span>
               <VoicePicker engine={project.cast_engines?.[s] || project.settings.engine} value={project.cast[s] ?? null} onChange={(v) => castVoice(s, v)} inherit={t("speech.voiceAsProject")} label={t("speech.voiceFor", { speaker: s })}
                 className="mt-1 w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-2 py-1.5 text-[12px]" />
               <EngineSelect value={project.cast_engines?.[s] ?? null} projectEngine={project.settings.engine} inheritEngine={project.settings.engine} voice={project.cast[s] || project.settings.voice || null}

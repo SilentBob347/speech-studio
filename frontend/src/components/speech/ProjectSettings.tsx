@@ -14,6 +14,7 @@ import CloudForm from "../cloud/CloudForm";
 import GoogleTts from "../GoogleTts";
 import { api } from "../../lib/api";
 import { openSettings } from "../../lib/settingsNav";
+import Hint from "../Hint";
 
 const RU_MARK = "RU";
 
@@ -60,7 +61,7 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
     else void api.setSelection(key, value).then(() => setStudioGoogle((g) => ({ ...g, mode: value })));
   };
   const voiceField = (
-    <label className={label}>{t("speech.cloudVoice")}
+    <label className={label}>{t("speech.cloudVoice")} <Hint text={t("hint.cloudVoice")} />
       <input list="cloud-voices" value={s.cloud_voice} onChange={(e) => set((p) => { p.settings.cloud_voice = e.target.value; })} placeholder={t(s.engine === "google" ? "speech.googleVoicePick" : "speech.cloudVoiceDefault")} className={field} />
       <datalist id="cloud-voices">
         {cloudVoices.map((v) => <option key={v.name} value={v.name}>{[v.gender, v.ru ? RU_MARK : ""].filter(Boolean).join(" · ")}</option>)}
@@ -76,7 +77,7 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
           <button onClick={onClose} {...named(t("a11y.close"))} className="text-[var(--color-muted)] hover:text-[var(--color-text)]"><X size={16} /></button>
         </div>
         <div className="space-y-2">
-          <label className={label}>{t("speech.engine")}
+          <label className={label}>{t("speech.engine")} <Hint text={t("hint.engine")} />
             <select value={s.engine} onChange={(e) => set((p) => {
               p.settings.engine = e.target.value;
               p.settings.cloud_model = "";
@@ -130,7 +131,7 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
             </div>
           )}
         </div>
-        <label className={label}>{t("speech.lang")}
+        <label className={label}>{t("speech.lang")} <Hint text={t("hint.lang")} />
           <select value={s.lang} onChange={(e) => set((p) => { p.settings.lang = e.target.value; })} className={field}>
             {LANG_CHOICES.map((l) => {
               const off = !!engine && engine.languages.length > 0 && l !== "auto" && !engine.languages.includes(l);
@@ -139,8 +140,7 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
           </select>
         </label>
         <fieldset className="space-y-1.5">
-          <legend className={label}>{t("speech.langVoices")}</legend>
-          <p className="text-[11px] text-[var(--color-muted)]">{t("speech.langVoicesHint")}</p>
+          <legend className={label}>{t("speech.langVoices")} <Hint text={t("speech.langVoicesHint")} /></legend>
           {Object.entries(s.lang_voices ?? {}).map(([lang, voice]) => (
             <div key={lang} className="flex items-center gap-2">
               <span className="w-10 text-[12px] font-medium uppercase">{lang}</span>
@@ -155,11 +155,11 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
         </fieldset>
         <label className="flex items-start gap-2 text-[13px] cursor-pointer">
           <input type="checkbox" checked={s.normalize} onChange={(e) => set((p) => { p.settings.normalize = e.target.checked; })} className="mt-0.5 w-4 h-4 accent-[var(--color-accent)]" />
-          <span>{t("speech.normalize")}<span className="block text-[11px] text-[var(--color-muted)]">{t("speech.normalizeHint")}</span></span>
+          <span>{t("speech.normalize")} <Hint text={t("speech.normalizeHint")} /></span>
         </label>
         {s.normalize && (
           <fieldset className="ml-6 -mt-1">
-            <legend className="text-[11px] text-[var(--color-muted)] mb-1">{t("speech.normalizeGroups")}</legend>
+            <legend className="text-[11px] text-[var(--color-muted)] mb-1">{t("speech.normalizeGroups")} <Hint text={t("hint.normalizeGroups")} /></legend>
             <div className="flex flex-wrap gap-1">
               {NORMALIZE_GROUPS.map((g) => {
                 const on = !(s.normalize_off ?? []).includes(g);
@@ -173,22 +173,22 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
         )}
         <label className="flex items-start gap-2 text-[13px] cursor-pointer">
           <input type="checkbox" checked={s.auto_stress} onChange={(e) => set((p) => { p.settings.auto_stress = e.target.checked; })} className="mt-0.5 w-4 h-4 accent-[var(--color-accent)]" />
-          <span>{t("speech.autoStress")}<span className="block text-[11px] text-[var(--color-muted)]">{t("speech.autoStressHint")}</span></span>
+          <span>{t("speech.autoStress")} <Hint text={t("speech.autoStressHint")} /></span>
         </label>
         {local && <>
 {continuable && (
         <label className="flex items-start gap-2 text-[13px] cursor-pointer">
           <input type="checkbox" checked={s.continuation} onChange={(e) => set((p) => { p.settings.continuation = e.target.checked; })} className="mt-0.5 w-4 h-4 accent-[var(--color-accent)]" />
-          <span>{t("speech.continuation")}<span className="block text-[11px] text-[var(--color-muted)]">{t("speech.continuationHint")}</span></span>
+          <span>{t("speech.continuation")} <Hint text={t("speech.continuationHint")} /></span>
         </label>
         )}
         <fieldset className="space-y-2">
-          <legend className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)] mb-1">{t("speech.sampling")}</legend>
+          <legend className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)] mb-1">{t("speech.sampling")} <Hint text={t("hint.sampling")} /></legend>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {(engine?.params ?? []).map((spec) => {
               const meta = PARAM_LABEL[spec.key];
               return (
-                <label key={spec.key} className={label} title={t(meta.hint as "speech.topKHint")}>{meta.label.startsWith("speech.") ? t(meta.label as "speech.temperature") : meta.label}
+                <label key={spec.key} className={label}>{meta.label.startsWith("speech.") ? t(meta.label as "speech.temperature") : meta.label} <Hint text={t(meta.hint as "speech.topKHint")} />
                   <input type="number" step={spec.step} min={spec.min} max={spec.max} value={s.params[spec.key]}
                     onChange={(e) => set((p) => { const v = num(e.target.value, spec.min, spec.max, spec.default); p.settings.params[spec.key] = spec.kind === "int" ? Math.round(v) : v; })} className={field} />
                 </label>
@@ -201,7 +201,7 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
             return `${name} ${spec.kind === "int" ? spec.default : spec.default.toLocaleString(i18n.language, { minimumFractionDigits: 2 })}`;
           }).join(", ") })}</p>
           <div className="flex items-end gap-2">
-            <label className={label + " flex-1"}>{t("speech.seed")}
+            <label className={label + " flex-1"}>{t("speech.seed")} <Hint text={t("hint.seed")} />
               <select value={s.params.seed_mode} onChange={(e) => set((p) => { p.settings.params.seed_mode = e.target.value as SeedMode; })} className={field}>
                 {(engine?.seed_modes ?? ["random", "fixed"]).map((m) => <option key={m} value={m}>{t(`speech.seed_${m}`)}</option>)}
               </select>
@@ -218,17 +218,16 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
         </fieldset>
         </>}
         <fieldset className="grid grid-cols-2 gap-2">
-          <legend className="col-span-2 text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)] mb-1">{t("speech.pauses")}</legend>
-          <label className={label}>{t("speech.pauseSame")}
+          <legend className="col-span-2 text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)] mb-1">{t("speech.pauses")} <Hint text={t("speech.pausesHint")} /></legend>
+          <label className={label}>{t("speech.pauseSame")} <Hint text={t("hint.pauseSame")} />
             <input type="number" step={50} min={-2000} max={10000} value={s.pause_same_ms} onChange={(e) => set((p) => { p.settings.pause_same_ms = Math.round(num(e.target.value, -2000, 10000, 300)); })} className={field} />
           </label>
-          <label className={label}>{t("speech.pauseSwitch")}
+          <label className={label}>{t("speech.pauseSwitch")} <Hint text={t("hint.pauseSwitch")} />
             <input type="number" step={50} min={-2000} max={10000} value={s.pause_switch_ms} onChange={(e) => set((p) => { p.settings.pause_switch_ms = Math.round(num(e.target.value, -2000, 10000, 600)); })} className={field} />
           </label>
-          <p className="col-span-2 text-[11px] text-[var(--color-muted)]">{t("speech.pausesHint")}</p>
         </fieldset>
         <fieldset className="space-y-2">
-          <legend className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)] mb-1">{t("speech.quality")}</legend>
+          <legend className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)] mb-1">{t("speech.quality")} <Hint text={t("hint.qualityMode")} /></legend>
           <div role="radiogroup" aria-label={t("speech.qualityMode")} className="flex flex-wrap items-center gap-1">
             {(Object.keys(QUALITY_MODES) as (keyof typeof QUALITY_MODES)[]).map((m) => {
               const q = QUALITY_MODES[m];
@@ -241,30 +240,26 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
           </div>
           <label className="flex items-center gap-2 text-[13px] cursor-pointer">
             <input type="checkbox" checked={s.qc.asr_check} onChange={(e) => set((p) => { p.settings.qc.asr_check = e.target.checked; })} className="w-4 h-4 accent-[var(--color-accent)]" />
-            {t("speech.asrCheck")}
+            {t("speech.asrCheck")} <Hint text={t("speech.asrCheckHint")} />
           </label>
-          <p className="text-[11px] text-[var(--color-muted)]">{t("speech.asrCheckHint")}</p>
           {engine?.clone !== "none" && <>
             <label className="flex items-center gap-2 text-[13px] cursor-pointer">
               <input type="checkbox" checked={s.qc.similarity} onChange={(e) => set((p) => { p.settings.qc.similarity = e.target.checked; })} className="w-4 h-4 accent-[var(--color-accent)]" />
-              {t("speech.similarityCheck")}
+              {t("speech.similarityCheck")} <Hint text={t("speech.similarityHint")} />
             </label>
-            <p className="text-[11px] text-[var(--color-muted)]">{t("speech.similarityHint")}</p>
           </>}
           <div className="grid grid-cols-2 gap-2">
-            <label className={label}>{t("speech.strictness")}
+            <label className={label}>{t("speech.strictness")} <Hint text={t("hint.strictness")} />
               <select value={s.qc.strictness} onChange={(e) => set((p) => { p.settings.qc.strictness = e.target.value as "strict" | "normal" | "lenient"; })} className={field}>
                 {(["strict", "normal", "lenient"] as const).map((k) => <option key={k} value={k}>{t(`speech.strictness_${k}`)}</option>)}
               </select>
             </label>
-            <label className={label}>{t("speech.takesPerBlock")}
+            <label className={label}>{t("speech.takesPerBlock")} <Hint text={t("speech.takesHint")} />
               <input type="number" min={1} max={20} value={s.qc.takes} onChange={(e) => set((p) => { p.settings.qc.takes = Math.round(num(e.target.value, 1, 20, 1)); })} className={field} />
             </label>
           </div>
-          <p className="text-[11px] text-[var(--color-muted)]">{t("speech.takesHint")}</p>
           <div className="pt-1 space-y-1">
-            <p className="text-[12px]">{t("speech.soundChecks")}</p>
-            <p className="text-[11px] text-[var(--color-muted)]">{t("speech.soundChecksHint")}</p>
+            <p className="text-[12px]">{t("speech.soundChecks")} <Hint text={t("speech.soundChecksHint")} /></p>
             {SOUND_CHECKS.map((k) => {
               const on = (s.qc.heuristics ?? []).includes(k);
               return (
@@ -281,35 +276,35 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
             <legend className="text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)] mb-1">{t("speech.timelineTitle")}</legend>
             <label className="flex items-start gap-2 text-[13px] cursor-pointer">
               <input type="checkbox" checked={s.timeline} onChange={(e) => set((p) => { p.settings.timeline = e.target.checked; })} className="mt-0.5 w-4 h-4 accent-[var(--color-accent)]" />
-              <span>{t("speech.timeline")}<span className="block text-[11px] text-[var(--color-muted)]">{t("speech.timelineHint")}</span></span>
+              <span>{t("speech.timeline")} <Hint text={t("speech.timelineHint")} /></span>
             </label>
             <div className="grid grid-cols-2 gap-2 items-end">
-              <label className={label} title={t("speech.maxStretchHint")}>{t("speech.maxStretch")}
+              <label className={label}>{t("speech.maxStretch")} <Hint text={t("speech.maxStretchHint")} />
                 <input type="number" step={0.05} min={1} max={2} value={s.max_stretch} disabled={!s.timeline} onChange={(e) => set((p) => { p.settings.max_stretch = num(e.target.value, 1, 2, 1.25); })} className={field} />
               </label>
               <label className="flex items-center gap-2 text-[12px] cursor-pointer pb-1.5">
-                <input type="checkbox" checked={s.lead_into_silence} disabled={!s.timeline} onChange={(e) => set((p) => { p.settings.lead_into_silence = e.target.checked; })} className="w-4 h-4 accent-[var(--color-accent)]" />{t("speech.leadIntoSilence")}
+                <input type="checkbox" checked={s.lead_into_silence} disabled={!s.timeline} onChange={(e) => set((p) => { p.settings.lead_into_silence = e.target.checked; })} className="w-4 h-4 accent-[var(--color-accent)]" />{t("speech.leadIntoSilence")} <Hint text={t("hint.leadIntoSilence")} />
               </label>
             </div>
           </fieldset>
         )}
         <label className="flex items-start gap-2 text-[13px] cursor-pointer">
           <input type="checkbox" checked={s.tidy_pauses} onChange={(e) => set((p) => { p.settings.tidy_pauses = e.target.checked; })} className="mt-0.5 w-4 h-4 accent-[var(--color-accent)]" />
-          <span>{t("speech.tidyPauses")}<span className="block text-[11px] text-[var(--color-muted)]">{t("speech.tidyPausesHint")}</span></span>
+          <span>{t("speech.tidyPauses")} <Hint text={t("speech.tidyPausesHint")} /></span>
         </label>
         <label className="flex items-start gap-2 text-[13px] cursor-pointer">
           <input type="checkbox" checked={s.level_pieces} onChange={(e) => set((p) => { p.settings.level_pieces = e.target.checked; })} className="mt-0.5 w-4 h-4 accent-[var(--color-accent)]" />
-          <span>{t("speech.levelPieces")}<span className="block text-[11px] text-[var(--color-muted)]">{t("speech.levelPiecesHint")}</span></span>
+          <span>{t("speech.levelPieces")} <Hint text={t("speech.levelPiecesHint")} /></span>
         </label>
         <label className="flex items-start gap-2 text-[13px] cursor-pointer">
           <input type="checkbox" checked={s.room_tone || s.loudness === "acx"} disabled={s.loudness === "acx"} onChange={(e) => set((p) => { p.settings.room_tone = e.target.checked; })} className="mt-0.5 w-4 h-4 accent-[var(--color-accent)]" />
-          <span>{t("speech.roomTone")}<span className="block text-[11px] text-[var(--color-muted)]">{t("speech.roomToneHint")}</span></span>
+          <span>{t("speech.roomTone")} <Hint text={t("speech.roomToneHint")} /></span>
         </label>
         <label className="flex items-start gap-2 text-[13px] cursor-pointer">
           <input type="checkbox" checked={s.breaths} onChange={(e) => set((p) => { p.settings.breaths = e.target.checked; })} className="mt-0.5 w-4 h-4 accent-[var(--color-accent)]" />
-          <span>{t("speech.breaths")}<span className="block text-[11px] text-[var(--color-muted)]">{t("speech.breathsHint")}</span></span>
+          <span>{t("speech.breaths")} <Hint text={t("speech.breathsHint")} /></span>
         </label>
-        <label className={label}>{t("speech.loudness")}
+        <label className={label}>{t("speech.loudness")} <Hint text={t("hint.loudness")} />
           <select value={s.loudness} onChange={(e) => set((p) => { p.settings.loudness = e.target.value as Loudness; })} className={field}>
             {LOUDNESS.map((l) => <option key={l} value={l}>{t(`speech.loudness_${l}`)}</option>)}
           </select>

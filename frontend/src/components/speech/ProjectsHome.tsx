@@ -17,6 +17,7 @@ import BatchList, { type BatchItem } from "../BatchList";
 import RenderLibrary from "./RenderLibrary";
 import QuickSpeak from "./QuickSpeak";
 import type { ExportFormat } from "../../lib/speech";
+import Hint from "../Hint";
 
 const FORMATS: ExportFormat[] = ["mp3", "wav", "flac", "ogg", "m4a"];
 
@@ -156,24 +157,24 @@ export default function ProjectsHome({ onOpen }: { onOpen: (pid: string) => void
           )}
           <div className="grid gap-2 grid-cols-2 sm:grid-cols-4">
             <label className="text-[11px] text-[var(--color-muted)] space-y-1">
-              <span className="block">{t("speech.voice")}</span>
+              <span className="block">{t("speech.voice")} <Hint text={t("hint.newVoice")} /></span>
               <VoicePicker value={voice} onChange={setVoice} label={t("speech.voice")} engine={engine} className={pick} />
             </label>
             <label className="text-[11px] text-[var(--color-muted)] space-y-1">
-              <span className="block">{t("speech.engine")}</span>
+              <span className="block">{t("speech.engine")} <Hint text={t("hint.engine")} /></span>
               <select value={engine} onChange={(e) => { setEngine(e.target.value); setVoice(null); }} className={pick}>
                 {engines?.map((e) => <option key={e.id} value={e.id} disabled={!!e.unavailable} title={e.unavailable ?? undefined}>{e.name}</option>)}
               </select>
             </label>
             <label className="text-[11px] text-[var(--color-muted)] space-y-1">
-              <span className="block">{t("speech.splitBy")}</span>
-              <select value={split} onChange={(e) => setSplit(e.target.value === "lines" ? "lines" : "paragraphs")} title={t("speech.splitHint")} className={pick}>
+              <span className="block">{t("speech.splitBy")} <Hint text={t("speech.splitHint")} /></span>
+              <select value={split} onChange={(e) => setSplit(e.target.value === "lines" ? "lines" : "paragraphs")} className={pick}>
                 <option value="paragraphs">{t("speech.splitParagraphs")}</option>
                 <option value="lines">{t("speech.splitLines")}</option>
               </select>
             </label>
             <label className="text-[11px] text-[var(--color-muted)] space-y-1">
-              <span className="block">{t("speech.lang")}</span>
+              <span className="block">{t("speech.lang")} <Hint text={t("hint.lang")} /></span>
               <select value={lang} onChange={(e) => setLang(e.target.value)} className={pick}>
                 {LANG_CHOICES.map((l) => <option key={l} value={l}>{l === "auto" ? t("speech.langAuto") : l.toUpperCase()}</option>)}
               </select>
@@ -189,7 +190,7 @@ export default function ProjectsHome({ onOpen }: { onOpen: (pid: string) => void
           {batch && (
             <BatchList title={t("batch.speechTitle")} items={batch} running={batchRunning} onOpen={onOpen} onSaveAll={saveBatch} onClose={() => setBatch(null)}
               options={
-                <label className="inline-flex items-center gap-1.5 text-[12px] text-[var(--color-muted)]">{t("speech.format")}
+                <label className="inline-flex items-center gap-1.5 text-[12px] text-[var(--color-muted)]">{t("speech.format")} <Hint text={t("hint.batchFormat")} />
                   <select value={format} onChange={(e) => setFormat(e.target.value as ExportFormat)} className="bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md px-1.5 py-1 text-[12px] text-[var(--color-text)]">
                     {FORMATS.map((f) => <option key={f} value={f}>{f.toUpperCase()}</option>)}
                   </select>

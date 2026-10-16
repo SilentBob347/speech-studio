@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { useEngines } from "../../lib/engines";
 import type { ParamSpec, SpeechParams } from "../../lib/speech";
+import Hint from "../Hint";
 
 /** How each sampling parameter is named and explained. */
 export const PARAM_LABEL: Record<ParamSpec["key"], { label: string; hint: string }> = {
@@ -23,14 +24,14 @@ export default function OwnParams({ engine, value, inherited, onChange, label }:
     <div className="text-[11px] text-[var(--color-muted)]">
       <label className="flex items-center gap-1.5 cursor-pointer">
         <input type="checkbox" checked={!!value} onChange={(e) => onChange(e.target.checked ? { ...inherited } : null)} className="w-3.5 h-3.5 accent-[var(--color-accent)]" />
-        {label}
+        {label} <Hint text={t("hint.ownParams")} />
       </label>
       {value && (
         <div className="mt-1 grid grid-cols-2 gap-1.5">
           {specs.map((spec) => {
             const meta = PARAM_LABEL[spec.key];
             return (
-              <label key={spec.key} title={t(meta.hint as "speech.topKHint")}>{meta.label.startsWith("speech.") ? t(meta.label as "speech.temperature") : meta.label}
+              <label key={spec.key}>{meta.label.startsWith("speech.") ? t(meta.label as "speech.temperature") : meta.label} <Hint text={t(meta.hint as "speech.topKHint")} />
                 <input type="number" step={spec.step} min={spec.min} max={spec.max} value={value[spec.key]} onChange={(e) => onChange({ ...value, [spec.key]: clamp(e.target.value, spec) })} className={field} />
               </label>
             );
