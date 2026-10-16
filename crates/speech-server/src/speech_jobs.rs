@@ -751,7 +751,7 @@ fn voice_norm(project: &SpeechProject, voice: Option<&str>) -> crate::audio_flag
     let (mut rate_v, mut rate_all, mut lufs_v) = (Vec::new(), Vec::new(), Vec::new());
     for b in project.blocks() {
         let same = project.voice_of(b).as_deref() == voice;
-        for q in b.takes.iter().filter_map(|t| t.qc.as_ref().map(|q| (q, crate::audio_flags::syllables(&t.text)))) {
+        for q in b.takes.iter().filter_map(|t| t.qc.as_ref().map(|q| (q, q.syllables.unwrap_or_else(|| crate::audio_flags::syllables(&t.text))))) {
             let (q, syl) = q;
             if let Some(s) = q.speech_secs.filter(|_| syl >= 6) {
                 rate_all.push(s / syl as f64);
@@ -772,7 +772,7 @@ fn voice_norm(project: &SpeechProject, voice: Option<&str>) -> crate::audio_flag
 
 /// The take's sound measured and the flags of `want` it raises (Dub Studio's synthesis defect first), over the part of
 /// the take the project uses; its expected length is counted on `spoken`, the take's text as the engine was given it.
-fn sound_flags(take: &Take, spoken: &str, file: &Path, want: &[String], norm: crate::audio_flags::Norm) -> Result<(crate::audio_flags::Features, Vec<String>), String> {
+fn sound_flags(take: &Take, spoken: &str, lang: &str, file: &Path, want: &[String], norm: crate::audio_flags::Norm) -> Result<(crate::audio_flags::Features, Vec<String>), String> {
     const SR: u32 = 24_000;
     let tmp = tempfile::Builder::new().prefix("flags-").tempdir().map_err(|e| e.to_string())?;
     let wav = tmp.path().join("take.wav");
@@ -790,7 +790,7 @@ fn sound_flags(take: &Take, spoken: &str, file: &Path, want: &[String], norm: cr
     let mut raised = crate::audio_flags::flags(&features, want, spoken, norm);
     if on("defect") {
         let chars = stx::visible(spoken).chars().filter(|c| c.is_alphanumeric()).count();
-        if let Some(d) = tts_host::defect(&samples, SR as i32, chars) {
+        if let Some(d) = tts_host::defect(&samples, SR as i32, chars, lang) {
             raised.insert(0, d.to_string());
         }
     }
@@ -862,8 +862,9 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, re
             };
             if !want.is_empty() {
                 let spoken = crate::prep::prepare(&take.text, &prep_opts(p, &project, project.lang_of(&b), project.engine_of(&b), voice.as_deref(), &entries, false)).map_err(|e| t!("stress-failed", detail = e))?.text;
-                let (features, raised) = sound_flags(take, &spoken, &file, &want, norm)?;
+                let (features, raised) = sound_flags(take, &spoken, &lang, &file, &want, norm)?;
                 check.speech_secs = Some(features.trimmed_s);
+                check.syllables = Some(crate::audio_flags::syllables(&spoken));
                 check.lufs = features.lufs;
                 let mut suspects = Vec::new();
                 for flag in raised {

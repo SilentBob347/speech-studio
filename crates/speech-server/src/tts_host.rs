@@ -387,6 +387,9 @@ fn token_cap(expected: f64) -> u32 {
 /// Секунд звука на знак, выше которых фраза считается разнесённой (HiggsAudio-Studio: 0,13 с на знак + 3 с).
 const RUNAWAY_PER_CHAR: f64 = 0.13;
 const RUNAWAY_SLACK: f64 = 3.0;
+/// Знаков в секунду у языка, на котором подобран предел разноса (русский): у языков, где знак звучит дольше
+/// (иероглиф — слог), предел на знак растёт во столько же раз.
+const RUNAWAY_CPS: f64 = 13.0;
 /// Доля отсчётов у полной шкалы, с которой звук считается клиппированным (open-tts-eval).
 const CLIP_LEVEL: f32 = 0.999;
 const CLIP_SHARE: f64 = 0.001;
@@ -409,13 +412,15 @@ fn tail_click(samples: &[f32], sr: usize) -> f64 {
 
 /// Дефект синтеза по сэмплам: разнос, обрыв, тишина, гул (пороги Dub, подобраны на 149 клипах QC-прогона),
 /// клиппинг и щелчок в конце (open-tts-eval).
-pub fn defect(samples: &[f32], sr: i32, chars: usize) -> Option<&'static str> {
+pub fn defect(samples: &[f32], sr: i32, chars: usize, lang: &str) -> Option<&'static str> {
     if sr <= 0 || samples.is_empty() {
         return Some("silence");
     }
     let srn = sr as usize;
     let dur = samples.len() as f64 / srn as f64;
-    if chars >= 1 && dur > chars as f64 * RUNAWAY_PER_CHAR + RUNAWAY_SLACK {
+    let lang = if lang.is_empty() || lang == "auto" { "ru" } else { lang };
+    let per_char = RUNAWAY_PER_CHAR * (RUNAWAY_CPS / dub_core::fit::table_cps(lang)).max(1.0);
+    if chars >= 1 && dur > chars as f64 * per_char + RUNAWAY_SLACK {
         return Some("runaway");
     }
     if chars >= 4 && dur < chars as f64 * 0.045 {
@@ -683,7 +688,7 @@ pub fn synth(engine: &Tts, req: &Request) -> Result<Synth, String> {
         let started = Instant::now();
         let (samples, sr) = run_guarded(engine, call, timeout, req.live.clone())?;
         let seconds = started.elapsed().as_secs_f64();
-        match defect(&samples, sr, chars) {
+        match defect(&samples, sr, chars, req.lang) {
             None => return Ok(Synth { samples, sr, seed, temperature, attempts: attempt + 1, defects, seconds }),
             Some(kind) => defects.push(kind),
         }
@@ -742,12 +747,22 @@ mod tests {
     #[test]
     fn a_runaway_a_cut_off_and_silence_are_defects_and_speech_is_not() {
         let sr = 24_000;
-        assert_eq!(defect(&speech(30.0, sr), sr, 10), Some("runaway"));
-        assert_eq!(defect(&speech(4.0, sr), sr, 10), None, "0.13 s a char + 3 s is still speech");
-        assert_eq!(defect(&speech(4.5, sr), sr, 10), Some("runaway"));
-        assert_eq!(defect(&speech(0.2, sr), sr, 40), Some("cutoff"));
-        assert_eq!(defect(&vec![0.001; sr as usize * 2], sr, 20), Some("silence"));
-        assert_eq!(defect(&speech(2.0, sr), sr, 25), None);
+        assert_eq!(defect(&speech(30.0, sr), sr, 10, "ru"), Some("runaway"));
+        assert_eq!(defect(&speech(4.0, sr), sr, 10, "ru"), None, "0.13 s a char + 3 s is still speech");
+        assert_eq!(defect(&speech(4.5, sr), sr, 10, "ru"), Some("runaway"));
+        assert_eq!(defect(&speech(0.2, sr), sr, 40, "ru"), Some("cutoff"));
+        assert_eq!(defect(&vec![0.001; sr as usize * 2], sr, 20, "ru"), Some("silence"));
+        assert_eq!(defect(&speech(2.0, sr), sr, 25, "ru"), None);
+    }
+
+    #[test]
+    fn a_chinese_line_is_given_the_time_its_syllables_take() {
+        let sr = 24_000;
+        let line = "床前明月光，疑是地上霜。举头望明月，低头思故乡。";
+        let chars = line.chars().filter(|c| c.is_alphanumeric()).count();
+        assert_eq!(defect(&speech(8.0, sr), sr, chars, "zh"), None, "20 syllables in 8 s is a calm reading");
+        assert_eq!(defect(&speech(8.0, sr), sr, chars, "ru"), Some("runaway"), "20 Russian letters in 8 s are not");
+        assert_eq!(defect(&speech(30.0, sr), sr, chars, "zh"), Some("runaway"));
     }
 
     #[test]
@@ -758,8 +773,8 @@ mod tests {
         let spoken = crate::prep::prepare(raw, &opts).unwrap().text;
         let count = |t: &str| t.chars().filter(|c| c.is_alphanumeric()).count();
         let take = speech(count(raw) as f64 * RUNAWAY_PER_CHAR + RUNAWAY_SLACK + 1.0, sr);
-        assert_eq!(defect(&take, sr, count(raw)), Some("runaway"), "the written digits are too short a yardstick");
-        assert_eq!(defect(&take, sr, count(&spoken)), None, "{spoken}");
+        assert_eq!(defect(&take, sr, count(raw), "ru"), Some("runaway"), "the written digits are too short a yardstick");
+        assert_eq!(defect(&take, sr, count(&spoken), "ru"), None, "{spoken}");
     }
 
     #[test]
@@ -769,21 +784,21 @@ mod tests {
         for v in loud.iter_mut().step_by(200) {
             *v = 1.0;
         }
-        assert_eq!(defect(&loud, sr, 25), Some("clipping"));
+        assert_eq!(defect(&loud, sr, 25, "ru"), Some("clipping"));
         let mut clicked = speech(2.0, sr);
         let n = clicked.len();
         for v in &mut clicked[n - 6_000..] {
             *v = 0.01 * *v;
         }
         clicked[n - 100] = 0.9;
-        assert_eq!(defect(&clicked, sr, 25), Some("click"));
+        assert_eq!(defect(&clicked, sr, 25, "ru"), Some("click"));
     }
 
     #[test]
     fn a_steady_hum_is_a_defect() {
         let sr = 24_000;
         let hum: Vec<f32> = (0..sr as usize * 3).map(|i| 0.2 * ((i as f32) * 0.03).sin()).collect();
-        assert_eq!(defect(&hum, sr, 30), Some("hum"));
+        assert_eq!(defect(&hum, sr, 30, "ru"), Some("hum"));
     }
 
     #[test]

@@ -32,6 +32,9 @@ pub struct Check {
     pub speech_secs: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lufs: Option<f64>,
+    /// Syllables of the take's text as it was said, which `speech_secs` is divided by for the voice's pace.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub syllables: Option<usize>,
     /// The words recognition heard with their start and end in the take, seconds: the export's word timings.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub timed: Vec<(String, f64, f64)>,
@@ -56,14 +59,25 @@ impl Check {
 }
 
 pub fn normalize(text: &str) -> Vec<String> {
-    let visible = crate::speech_text::visible(text);
-    visible
-        .to_lowercase()
-        .replace('ё', "е")
-        .split(|c: char| !(c.is_alphanumeric() || c == '\''))
-        .filter(|w| !w.is_empty())
-        .map(str::to_string)
-        .collect()
+    let visible = crate::speech_text::visible(text).to_lowercase().replace('ё', "е");
+    let mut words = Vec::new();
+    let mut word = String::new();
+    for c in visible.chars() {
+        if crate::audio_flags::is_cjk(c) {
+            if !word.is_empty() {
+                words.push(std::mem::take(&mut word));
+            }
+            words.push(c.to_string());
+        } else if c.is_alphanumeric() || c == '\'' {
+            word.push(c);
+        } else if !word.is_empty() {
+            words.push(std::mem::take(&mut word));
+        }
+    }
+    if !word.is_empty() {
+        words.push(word);
+    }
+    words
 }
 
 pub fn word_ops(expected: &[String], heard: &[String]) -> (usize, usize, usize) {
@@ -197,6 +211,14 @@ pub fn check(expected: &str, heard: &str, strictness: &str) -> Check {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn chinese_is_compared_character_by_character() {
+        let c = check("床前明月光，疑是地上霜。", "床 前 明 月 光, 仪 式 地 上 霜", "normal");
+        assert_eq!((c.words, c.substituted, c.inserted, c.deleted), (10, 2, 0, 0));
+        assert!((c.wer - 0.2).abs() < 1e-9);
+        assert_eq!(normalize("Qwen3 说：你好"), ["qwen3", "说", "你", "好"]);
+    }
 
     #[test]
     fn a_number_in_digits_is_not_a_stretched_word() {

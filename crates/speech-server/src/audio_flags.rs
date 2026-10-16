@@ -201,9 +201,15 @@ fn mel_bank(sr: f64, nfft: usize, bands: usize) -> Vec<Vec<(usize, f64)>> {
         .collect()
 }
 
-/// Vowels: the syllables the length of a text is judged by.
 pub fn syllables(text: &str) -> usize {
-    crate::speech_text::visible(text).to_lowercase().chars().filter(|c| "аеёиоуыэюяaeiouy".contains(*c)).count()
+    const VOWELS: &str = "aeiouyàáâãäåèéêëìíîïòóôõöùúûüýæœаеёиоуыэюяіїє";
+    crate::speech_text::visible(text).to_lowercase().chars().filter(|&c| VOWELS.contains(c) || is_cjk(c)).count()
+}
+
+/// A Chinese or Japanese character or a Korean syllable block: each is a syllable said, and a word of its own when
+/// texts are compared, since these scripts put no spaces between words.
+pub fn is_cjk(c: char) -> bool {
+    matches!(c as u32, 0x3040..=0x30ff | 0x3400..=0x4dbf | 0x4e00..=0x9fff | 0xac00..=0xd7af | 0xf900..=0xfaff)
 }
 
 fn text_repeats(text: &str) -> bool {
@@ -367,6 +373,14 @@ mod tests {
     use super::*;
 
     const SR: u32 = 24_000;
+
+    #[test]
+    fn syllables_count_accented_vowels_and_one_per_ideograph() {
+        assert_eq!(syllables("está café"), 4);
+        assert_eq!(syllables("coração"), 4);
+        assert_eq!(syllables("床前明月光"), 5);
+        assert_eq!(syllables("Мама мыла раму"), 6);
+    }
 
     fn tone(secs: f64, amp: f32) -> Vec<f32> {
         (0..(secs * SR as f64) as usize).map(|i| amp * (i as f32 * 2.0 * std::f32::consts::PI * 220.0 / SR as f32).sin()).collect()
