@@ -22,7 +22,7 @@ export function QualityButton({ pid, version, onOpen }: { pid: string; version: 
   if (!r || r.ready === 0) return null;
   const label = r.checked ? t("quality.passedOf", { passed: r.passed, checked: r.checked }) : t("quality.notChecked");
   return (
-    <button onClick={onOpen} aria-label={label} className="hidden sm:inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] text-[var(--color-muted)] hover:text-[var(--color-text)]" title={t("quality.lightHint", { green: Math.round(r.green * 100), amber: Math.round(r.amber * 100) })}>
+    <button onClick={onOpen} aria-label={label} className="hidden sm:inline-flex shrink-0 whitespace-nowrap items-center gap-1.5 px-2 py-1 rounded-md text-[11px] text-[var(--color-muted)] hover:text-[var(--color-text)]" title={t("quality.lightHint", { green: Math.round(r.green * 100), amber: Math.round(r.amber * 100) })}>
       <span className="w-2 h-2 rounded-full shrink-0" style={{ background: LIGHT_COLOR[r.light] }} aria-hidden />{label}
     </button>
   );

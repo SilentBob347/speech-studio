@@ -630,15 +630,15 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   const bar = "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] font-medium hover:border-[var(--color-accent)] disabled:opacity-40 transition-colors";
   return (
     <main className="flex-1 min-h-0 flex flex-col" data-mcp-page={`Speech: ${project.name}`}>
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-2 px-3 md:px-5 py-2.5 border-b border-[var(--color-border)] bg-[var(--color-surface)]/60">
+      <div className="flex flex-wrap lg:flex-nowrap items-center gap-x-2 gap-y-2 px-3 md:px-5 py-2.5 border-b border-[var(--color-border)] bg-[var(--color-surface)]/60">
         <button onClick={onBack} className="grid place-items-center w-9 h-9 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)]" {...named(t("speech.allProjects"))}><ArrowLeft size={16} /></button>
         <input value={project.name} onChange={(e) => edit((p) => ({ ...p, name: e.target.value }))} aria-label={t("speech.name")}
-          className="min-w-0 flex-1 md:flex-none md:w-56 xl:w-72 bg-transparent text-[15px] font-semibold focus:outline-none rounded px-1 focus:bg-[var(--color-surface-2)]" />
-        <span className="hidden sm:inline text-[11px] text-[var(--color-muted)] tabnum">{t("speech.readyOf", { ready: counts.ready ?? 0, total: blocks.length - (counts.skipped ?? 0) })}{saving ? ` · ${t("speech.saving")}` : ""}</span>
+          className="min-w-0 flex-1 md:flex-initial md:w-56 xl:w-72 lg:min-w-24 bg-transparent text-[15px] font-semibold focus:outline-none rounded px-1 focus:bg-[var(--color-surface-2)]" />
+        <span className="hidden sm:inline lg:hidden xl:inline shrink-0 whitespace-nowrap text-[11px] text-[var(--color-muted)] tabnum">{t("speech.readyOf", { ready: counts.ready ?? 0, total: blocks.length - (counts.skipped ?? 0) })}{saving ? ` · ${t("speech.saving")}` : ""}</span>
         <QualityButton pid={pid} version={project} onOpen={() => void flush().then(() => setQuality(true))} />
         <button onClick={undo} disabled={!canUndo} className="hidden sm:grid place-items-center w-8 h-8 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30" {...named(t("speech.undo"))}><Undo2 size={15} /></button>
         <button onClick={redo} disabled={!canRedo} className="hidden sm:grid place-items-center w-8 h-8 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] disabled:opacity-30" {...named(t("speech.redo"))}><Redo2 size={15} /></button>
-        <div className="flex items-center gap-1.5 w-full md:w-auto max-md:order-last">
+        <div className="flex items-center gap-1.5 w-full md:w-auto md:shrink-0 max-md:order-last">
           {job && synthQueue.length > 0 && (
             <div className="relative">
               <button onClick={() => setQueueOpen((v) => !v)} aria-expanded={queueOpen} className={bar}><ListOrdered size={13} />{t("speech.queue", { n: synthQueue.length })}</button>
@@ -663,7 +663,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           )}
           <button onClick={() => setExporting(true)} className={`${bar} max-md:hidden`}><Download size={13} />{t("speech.export")}</button>
         </div>
-        <div className="hidden md:flex items-center gap-1.5 ml-auto">
+        <div className="hidden md:flex shrink-0 items-center gap-1.5 ml-auto">
           <button onClick={() => setSettings(true)} className={bar} {...named(t("speech.projectSettings"))}><Settings2 size={13} /><span className="hidden min-[1700px]:inline">{t("speech.projectSettings")}</span></button>
           <button onClick={() => setSearching((v) => !v)} aria-pressed={searching} className={bar} {...named(t("search.title", { keys: keys.search }))}><Search size={13} /><span className="hidden min-[1700px]:inline">{t("search.open")}</span></button>
           {!simple && <>
