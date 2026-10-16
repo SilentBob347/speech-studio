@@ -759,7 +759,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
                 <option value="">{t("speech.voiceFx_none")}</option>
                 {VOICE_FX.map((f) => <option key={f} value={f}>{t(`speech.voiceFx_${f}`)}</option>)}
               </select>
-              <div className="mt-1 grid grid-cols-2 gap-1">
+              <div className="mt-1 grid grid-cols-1 gap-1">
                 <select value={project.characters?.[s]?.gender ?? ""} onChange={(e) => setCharacter(s, { gender: e.target.value as VoiceGender })} aria-label={t("speech.characterGender", { speaker: s })}
                   className="min-w-0 bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-1.5 py-1 text-[11px] text-[var(--color-muted)]">
                   {(["", "female", "male"] as const).map((g) => <option key={g} value={g}>{g ? t(`voices.gender_${g}`) : t("speech.genderAny")}</option>)}

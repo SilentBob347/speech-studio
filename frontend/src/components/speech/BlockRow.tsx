@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { ArrowDown, ArrowUp, ChevronDown, Combine, Eye, EyeOff, GripVertical, Loader2, Pause, Pin, Play, Plus, RefreshCw, Scale, Scissors, SlidersHorizontal, SpellCheck, Trash2, X } from "lucide-react";
-import { activeTake, cueTime, MARKERS, speechApi, VOICE_FX, withCase, type Block, type BlockState, type Marker, type SpeechParams, type StressWord, type Take } from "../../lib/speech";
+import { activeTake, cueTime, MARKERS, speechApi, VOICE_FX, withCase, type Block, type BlockState, type Marker, type QcCheck, type SpeechParams, type StressWord, type Take } from "../../lib/speech";
 import { askCloneTerms } from "../../lib/cloudConsent";
 import { named } from "../../lib/a11y";
 import { useSortable } from "@dnd-kit/sortable";
@@ -56,6 +56,9 @@ export type BlockActions = {
 };
 
 /** A/B of two takes: the button switches between the active take and the chosen one from the same moment. */
+/** Recognition heard the take otherwise than its text: a clean match says nothing the block's status does not. */
+const heardOff = (qc: QcCheck) => qc.text_checked !== false && qc.inserted + qc.deleted + qc.substituted > 0;
+
 function TakeCompare({ block, active, playingTake, onAB }: { block: Block; active: number; playingTake: number | null; onAB: (n: number) => void }) {
   const { t } = useTranslation();
   const others = block.takes.filter((tk) => tk.n !== active).reverse();
@@ -465,9 +468,9 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
               {[take.fit_lead > 0.001 && t("speech.fitLead", { s: take.fit_lead.toFixed(1) }), take.fit_stretch > 1.001 && t("speech.fitStretch", { k: take.fit_stretch.toFixed(2) }), take.fit_over && t("speech.fitOver")].filter(Boolean).join(" · ")}
             </p>
           )}
-          {take?.qc && (take.qc.text_checked !== false || take.qc.similarity != null || (take.qc.issues ?? []).length > 0) && (
+          {take?.qc && (heardOff(take.qc) || take.qc.similarity != null || (take.qc.issues ?? []).length > 0) && (
             <p className={`mt-0.5 text-[11px] ${take.qc.passed && take.qc.similar !== false && !(take.qc.issues ?? []).length ? "text-[var(--color-muted)]" : "text-[var(--color-warn)]"}`} title={take.qc.heard || undefined}>
-              {[take.qc.text_checked !== false && t("speech.qcLine", { wer: Math.round(take.qc.wer * 100), ins: take.qc.inserted, del: take.qc.deleted, sub: take.qc.substituted }),
+              {[heardOff(take.qc) && t("speech.qcLine", { wer: Math.round(take.qc.wer * 100), ins: take.qc.inserted, del: take.qc.deleted, sub: take.qc.substituted }),
                 take.qc.similarity != null && t("speech.qcSimilarity", { s: take.qc.similarity.toFixed(2) }), ...(take.qc.issues ?? []).map((i) => t(`speech.qcIssue_${i}`))].filter(Boolean).join(" · ")}
             </p>
           )}
