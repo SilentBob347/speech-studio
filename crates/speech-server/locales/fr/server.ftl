@@ -667,14 +667,14 @@ render-speaker-ref-unchecked = référence du locuteur { $speaker } : « { $text
 
 ## Setup: components
 
-setup-comp-higgs-purpose = Double la traduction avec les voix des acteurs d'origine
+setup-comp-higgs-purpose = Donne une voix au texte, clone une voix à partir d’un court échantillon et transmet l’émotion
 setup-comp-higgs-engine-name = Moteur de voix Higgs
 setup-comp-higgs-engine-purpose = Le programme qui exécute le modèle de voix
-setup-comp-gemma-purpose = Aide pour le script : prépare le texte pour la voix et propose des styles
+setup-comp-gemma-purpose = Le réalisateur : écrit un podcast sur un sujet et distribue les voix aux personnages d’un livre
 setup-comp-gemma-q5-0-purpose = L'assistant de script, plus précis que q4_0
 setup-comp-gemma-q6-k-purpose = L'assistant de script, encore plus précis
 setup-comp-gemma-q8-0-purpose = L'assistant de script, le plus précis et le plus lourd
-setup-comp-parakeet-purpose = Reconnaît la parole de la vidéo avec le minutage de chaque mot
+setup-comp-parakeet-purpose = Reconnaît la parole avec le temps de chaque mot : vérification des prises à l’oreille et transcription des enregistrements
 setup-comp-higgs-q6-k-purpose = Voix : variante plus légère que Q8_0
 setup-comp-higgs-q4-k-m-purpose = Voix : la variante la plus légère
 setup-comp-whisper-engine-name = Whisper : reconnaissance pour d'autres langues
@@ -695,7 +695,7 @@ setup-comp-whisper-large-v3-turbo-name = Whisper large-v3-turbo (modèle Whisper
 setup-comp-whisper-large-v3-turbo-purpose = Presque comme large-v3, mais bien plus rapide. Un seul suffit, seulement avec Whisper ci-dessus
 setup-comp-sortformer-name = Qui parle (jusqu'à 8 voix)
 setup-comp-sortformer-purpose = Distingue qui parle dans un enregistrement
-setup-comp-roformer-purpose = Sépare la voix de la musique et des bruits, pour garder le fond
+setup-comp-roformer-purpose = Sépare la voix de la musique : nettoie l’échantillon de voix et l’enregistrement avant la reconnaissance
 setup-comp-roformer-q5-purpose = Séparation de la voix : variante plus légère que Q8_0
 setup-comp-roformer-q4-purpose = Séparation de la voix : la variante la plus légère
 setup-comp-wespeaker-name = Similarité de voix (WeSpeaker)

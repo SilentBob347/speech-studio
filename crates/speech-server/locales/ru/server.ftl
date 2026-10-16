@@ -676,14 +676,14 @@ render-speaker-ref-unchecked = реф спикера { $speaker }: «{ $text }»
 
 ## Setup: components
 
-setup-comp-higgs-purpose = Озвучка перевода голосами исходных актёров
+setup-comp-higgs-purpose = Озвучивает текст, клонирует голос по короткому образцу и передаёт эмоции
 setup-comp-higgs-engine-name = Движок озвучки Higgs
 setup-comp-higgs-engine-purpose = Программа, которая запускает модель озвучки
-setup-comp-gemma-purpose = Помогает со сценарием: готовит текст к озвучке и подсказывает стили
+setup-comp-gemma-purpose = Режиссёр: пишет подкаст на тему и раздаёт голоса персонажам книги
 setup-comp-gemma-q5-0-purpose = Помощник по сценарию, точнее варианта q4_0
 setup-comp-gemma-q6-k-purpose = Помощник по сценарию, ещё точнее
 setup-comp-gemma-q8-0-purpose = Помощник по сценарию, самый точный и самый тяжёлый
-setup-comp-parakeet-purpose = Распознаёт речь в ролике с точным временем каждого слова
+setup-comp-parakeet-purpose = Распознаёт речь с точным временем каждого слова: проверка дублей на слух и расшифровка записей
 setup-comp-higgs-q6-k-purpose = Озвучка — вариант полегче Q8_0
 setup-comp-higgs-q4-k-m-purpose = Озвучка — самый лёгкий вариант
 setup-comp-whisper-engine-name = Whisper — распознавание для других языков
@@ -704,7 +704,7 @@ setup-comp-whisper-large-v3-turbo-name = Whisper large-v3-turbo (модель Wh
 setup-comp-whisper-large-v3-turbo-purpose = Почти как large-v3, но заметно быстрее. Нужна одна, только вместе с Whisper выше
 setup-comp-sortformer-name = Кто говорит (до 8 голосов)
 setup-comp-sortformer-purpose = Различает, кто говорит в записи
-setup-comp-roformer-purpose = Отделяет голос от музыки и шумов, чтобы фон остался
+setup-comp-roformer-purpose = Отделяет голос от музыки: чистит образец голоса и запись перед распознаванием
 setup-comp-roformer-q5-purpose = Отделение голоса — вариант полегче Q8_0
 setup-comp-roformer-q4-purpose = Отделение голоса — самый лёгкий вариант
 setup-comp-wespeaker-name = Похожесть голоса (WeSpeaker)

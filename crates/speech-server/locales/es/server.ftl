@@ -667,14 +667,14 @@ render-speaker-ref-unchecked = referencia del hablante { $speaker }: «{ $text }
 
 ## Setup: components
 
-setup-comp-higgs-purpose = Dobla la traducción con las voces de los actores originales
+setup-comp-higgs-purpose = Da voz al texto, clona una voz a partir de una muestra corta y transmite emociones
 setup-comp-higgs-engine-name = Motor de voz Higgs
 setup-comp-higgs-engine-purpose = El programa que ejecuta el modelo de voz
-setup-comp-gemma-purpose = Ayuda con el guion: prepara el texto para la locución y sugiere estilos
+setup-comp-gemma-purpose = El director: escribe un pódcast sobre un tema y asigna voces a los personajes de un libro
 setup-comp-gemma-q5-0-purpose = El asistente de guion, más preciso que q4_0
 setup-comp-gemma-q6-k-purpose = El asistente de guion, aún más preciso
 setup-comp-gemma-q8-0-purpose = El asistente de guion, el más preciso y el más pesado
-setup-comp-parakeet-purpose = Reconoce el habla del vídeo con el tiempo exacto de cada palabra
+setup-comp-parakeet-purpose = Reconoce el habla con el tiempo de cada palabra: comprueba las tomas de oído y transcribe grabaciones
 setup-comp-higgs-q6-k-purpose = Voz: variante más ligera que Q8_0
 setup-comp-higgs-q4-k-m-purpose = Voz: la variante más ligera
 setup-comp-whisper-engine-name = Whisper: reconocimiento para otros idiomas
@@ -695,7 +695,7 @@ setup-comp-whisper-large-v3-turbo-name = Whisper large-v3-turbo (modelo Whisper)
 setup-comp-whisper-large-v3-turbo-purpose = Casi como large-v3, pero mucho más rápido. Basta con uno, solo junto con Whisper arriba
 setup-comp-sortformer-name = Quién habla (hasta 8 voces)
 setup-comp-sortformer-purpose = Distingue quién habla en una grabación
-setup-comp-roformer-purpose = Separa la voz de la música y el ruido, para conservar el fondo
+setup-comp-roformer-purpose = Separa la voz de la música: limpia la muestra de voz y la grabación antes del reconocimiento
 setup-comp-roformer-q5-purpose = Separación de voz: variante más ligera que Q8_0
 setup-comp-roformer-q4-purpose = Separación de voz: la variante más ligera
 setup-comp-wespeaker-name = Similitud de voz (WeSpeaker)

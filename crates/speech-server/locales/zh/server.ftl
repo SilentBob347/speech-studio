@@ -508,14 +508,14 @@ render-speaker-ref-unchecked = 说话人 { $speaker } 的参考：“{ $text }�
 
 ## Setup: components
 
-setup-comp-higgs-purpose = 用原演员的声音为译文配音
+setup-comp-higgs-purpose = 为文本配音，用短样本克隆声音并传达情绪
 setup-comp-higgs-engine-name = Higgs 配音引擎
 setup-comp-higgs-engine-purpose = 运行配音模型的程序
-setup-comp-gemma-purpose = 协助处理脚本：为配音准备文本并建议风格
+setup-comp-gemma-purpose = 导演：按主题撰写播客，并为书中角色分配声音
 setup-comp-gemma-q5-0-purpose = 脚本助手，比 q4_0 更准确
 setup-comp-gemma-q6-k-purpose = 脚本助手，更加准确
 setup-comp-gemma-q8-0-purpose = 脚本助手，最准确也最重
-setup-comp-parakeet-purpose = 识别视频中的语音，并给出每个词的时间
+setup-comp-parakeet-purpose = 识别语音并给出每个词的时间：用于听写检查录音和转写录音
 setup-comp-higgs-q6-k-purpose = 配音——比 Q8_0 更轻的版本
 setup-comp-higgs-q4-k-m-purpose = 配音——最轻的版本
 setup-comp-whisper-engine-name = Whisper——其他语言的语音识别
@@ -536,7 +536,7 @@ setup-comp-whisper-large-v3-turbo-name = Whisper large-v3-turbo (Whisper 模型)
 setup-comp-whisper-large-v3-turbo-purpose = 接近 large-v3，但快得多. 只需一个，且需配合上面的 Whisper
 setup-comp-sortformer-name = 说话人识别（最多 8 个声音）
 setup-comp-sortformer-purpose = 区分录音中是谁在说话
-setup-comp-roformer-purpose = 把人声与音乐和噪音分开，保留背景声
+setup-comp-roformer-purpose = 把人声与音乐分开：在识别前清理声音样本和录音
 setup-comp-roformer-q5-purpose = 人声分离——比 Q8_0 更轻的版本
 setup-comp-roformer-q4-purpose = 人声分离——最轻的版本
 setup-comp-wespeaker-name = 声音相似度（WeSpeaker）

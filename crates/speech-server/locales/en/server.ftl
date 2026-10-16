@@ -670,14 +670,14 @@ render-speaker-ref-unchecked = speaker { $speaker } reference: “{ $text }” (
 
 ## Setup: components
 
-setup-comp-higgs-purpose = Voices the translation in the original actors' voices
+setup-comp-higgs-purpose = Voices a text, clones a voice from a short sample and carries emotion
 setup-comp-higgs-engine-name = Higgs voice engine
 setup-comp-higgs-engine-purpose = The program that runs the voice model
-setup-comp-gemma-purpose = Helps with the script: prepares a text for voicing and suggests styles
+setup-comp-gemma-purpose = The director: writes a podcast on a topic and casts voices to a book’s characters
 setup-comp-gemma-q5-0-purpose = The script assistant, more accurate than q4_0
 setup-comp-gemma-q6-k-purpose = The script assistant, more accurate still
 setup-comp-gemma-q8-0-purpose = The script assistant, the most accurate and the heaviest
-setup-comp-parakeet-purpose = Recognises the speech in the video, with the timing of every word
+setup-comp-parakeet-purpose = Recognises speech with the time of every word: checking takes by ear and transcribing recordings
 setup-comp-higgs-q6-k-purpose = Voices — a lighter variant than Q8_0
 setup-comp-higgs-q4-k-m-purpose = Voices — the lightest variant
 setup-comp-whisper-engine-name = Whisper — recognition for other languages
@@ -698,7 +698,7 @@ setup-comp-whisper-large-v3-turbo-name = Whisper large-v3-turbo (Whisper model)
 setup-comp-whisper-large-v3-turbo-purpose = Close to large-v3, but much faster. One is enough, only together with Whisper above
 setup-comp-sortformer-name = Who is speaking (up to 8 voices)
 setup-comp-sortformer-purpose = Tells apart who speaks in a recording
-setup-comp-roformer-purpose = Separates the voice from music and noise, so the background stays
+setup-comp-roformer-purpose = Separates the voice from music: cleans a voice sample and a recording before recognition
 setup-comp-roformer-q5-purpose = Voice separation — a lighter variant than Q8_0
 setup-comp-roformer-q4-purpose = Voice separation — the lightest variant
 setup-comp-wespeaker-name = Voice similarity (WeSpeaker)

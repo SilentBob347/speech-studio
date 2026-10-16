@@ -667,14 +667,14 @@ render-speaker-ref-unchecked = referência do falante { $speaker }: “{ $text }
 
 ## Setup: components
 
-setup-comp-higgs-purpose = Dubla a tradução com as vozes dos atores originais
+setup-comp-higgs-purpose = Dá voz ao texto, clona uma voz a partir de uma amostra curta e transmite emoção
 setup-comp-higgs-engine-name = Motor de voz Higgs
 setup-comp-higgs-engine-purpose = O programa que executa o modelo de voz
-setup-comp-gemma-purpose = Ajuda com o roteiro: prepara o texto para a locução e sugere estilos
+setup-comp-gemma-purpose = O diretor: escreve um podcast sobre um tema e distribui vozes aos personagens de um livro
 setup-comp-gemma-q5-0-purpose = O assistente de roteiro, mais preciso que o q4_0
 setup-comp-gemma-q6-k-purpose = O assistente de roteiro, ainda mais preciso
 setup-comp-gemma-q8-0-purpose = O assistente de roteiro, o mais preciso e o mais pesado
-setup-comp-parakeet-purpose = Reconhece a fala do vídeo com o tempo exato de cada palavra
+setup-comp-parakeet-purpose = Reconhece a fala com o tempo de cada palavra: verifica os takes de ouvido e transcreve gravações
 setup-comp-higgs-q6-k-purpose = Voz: variante mais leve que Q8_0
 setup-comp-higgs-q4-k-m-purpose = Voz: a variante mais leve
 setup-comp-whisper-engine-name = Whisper: reconhecimento para outros idiomas
@@ -695,7 +695,7 @@ setup-comp-whisper-large-v3-turbo-name = Whisper large-v3-turbo (modelo Whisper)
 setup-comp-whisper-large-v3-turbo-purpose = Quase como large-v3, mas bem mais rápido. Basta um, só junto com o Whisper acima
 setup-comp-sortformer-name = Quem está falando (até 8 vozes)
 setup-comp-sortformer-purpose = Distingue quem fala numa gravação
-setup-comp-roformer-purpose = Separa a voz da música e dos ruídos, para manter o fundo
+setup-comp-roformer-purpose = Separa a voz da música: limpa a amostra de voz e a gravação antes do reconhecimento
 setup-comp-roformer-q5-purpose = Separação de voz: variante mais leve que Q8_0
 setup-comp-roformer-q4-purpose = Separação de voz: a variante mais leve
 setup-comp-wespeaker-name = Semelhança de voz (WeSpeaker)
