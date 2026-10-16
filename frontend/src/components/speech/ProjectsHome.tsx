@@ -155,7 +155,7 @@ export default function ProjectsHome({ onOpen }: { onOpen: (pid: string) => void
           {!text.trim() && (
             <button onClick={() => { setText(t("speech.sample")); setSplit("paragraphs"); }} className="-mt-1 text-[12px] text-[var(--color-accent)] hover:underline">{t("speech.sampleInsert")}</button>
           )}
-          <div className="grid gap-2 grid-cols-2 sm:grid-cols-4">
+          <div className="grid gap-2 grid-cols-2">
             <label className="text-[11px] text-[var(--color-muted)] space-y-1">
               <span className="block">{t("speech.voice")} <Hint text={t("hint.newVoice")} /></span>
               <VoicePicker value={voice} onChange={setVoice} label={t("speech.voice")} engine={engine} className={pick} />
