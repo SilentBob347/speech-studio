@@ -174,15 +174,66 @@ fn ru(text: &str) -> String {
     out.join(" ")
 }
 
+/// Chinese numerals: a run with 十, 百, 千, 万 or 亿 is read by its units ("二十五" 25, "十点" 10), a run of digits
+/// alone digit by digit ("一八八七" 1887); one digit below ten said alone stays a word ("一封信").
+fn zh(text: &str) -> String {
+    let digit = |c: char| "零〇一二两三四五六七八九".find(c).map(|at| match "零〇一二两三四五六七八九"[..at].chars().count() { 0 | 1 => 0, 2 => 1, 3 | 4 => 2, n => n as u64 - 2 });
+    let unit = |c: char| match c { '十' => Some(10u64), '百' => Some(100), '千' => Some(1000), '万' => Some(10_000), '亿' => Some(100_000_000), _ => None };
+    let value = |run: &[char]| -> u64 {
+        if run.iter().all(|&c| digit(c).is_some()) {
+            return run.iter().fold(0, |n, &c| n * 10 + digit(c).unwrap_or(0));
+        }
+        let (mut total, mut section, mut num) = (0u64, 0u64, 0u64);
+        for &c in run {
+            match (digit(c), unit(c)) {
+                (Some(d), _) => num = d,
+                (_, Some(u)) if u >= 10_000 => {
+                    total = (total + section + num) * u;
+                    (section, num) = (0, 0);
+                }
+                (_, Some(u)) => {
+                    section += if num == 0 && u == 10 { 1 } else { num } * u;
+                    num = 0;
+                }
+                _ => {}
+            }
+        }
+        total + section + num
+    };
+    let chars: Vec<char> = text.chars().collect();
+    let numeral = |c: char| digit(c).is_some() || unit(c).is_some();
+    let mut out = String::new();
+    let mut i = 0;
+    while i < chars.len() {
+        if !numeral(chars[i]) {
+            out.push(chars[i]);
+            i += 1;
+            continue;
+        }
+        let j = (i..chars.len()).find(|&k| !numeral(chars[k])).unwrap_or(chars.len());
+        let run = &chars[i..j];
+        if run.len() == 1 && digit(run[0]).is_some() {
+            out.push(run[0]);
+        } else {
+            out.push_str(&value(run).to_string());
+        }
+        i = j;
+    }
+    out
+}
+
 /// Whether numbers in words can be written as digits in `lang`.
 pub fn knows(lang: &str) -> bool {
-    lang == "ru" || text2num::get_interpreter_for(lang).is_some()
+    lang == "ru" || lang == "zh" || text2num::get_interpreter_for(lang).is_some()
 }
 
 /// `text` with the numbers said in words written as digits; a language neither reads is refused.
 pub fn digits(text: &str, lang: &str) -> Result<String, String> {
     if lang == "ru" {
         return Ok(ru(text));
+    }
+    if lang == "zh" {
+        return Ok(zh(text));
     }
     let interpreter = text2num::get_interpreter_for(lang).ok_or_else(|| t!("itn-no-lang", lang = lang.to_string()))?;
     Ok(text2num::replace_numbers_in_text(text, &interpreter, ALONE_BELOW))
@@ -191,6 +242,14 @@ pub fn digits(text: &str, lang: &str) -> Result<String, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn chinese_numerals_become_digits_and_a_lone_small_one_stays() {
+        assert_eq!(digits("十月十八日十点半", "zh").unwrap(), "10月18日10点半");
+        assert_eq!(digits("一八八七年的信", "zh").unwrap(), "1887年的信");
+        assert_eq!(digits("二十五分钟，一千九百四十五年，三万两千", "zh").unwrap(), "25分钟，1945年，32000");
+        assert_eq!(digits("一言为定，一封信", "zh").unwrap(), "一言为定，一封信");
+    }
 
     #[test]
     fn russian_numbers_in_words_become_digits_and_a_small_one_alone_stays_a_word() {
@@ -202,7 +261,7 @@ mod tests {
         assert_eq!(digits("один из нас и пять шесть", "ru").unwrap(), "один из нас и пять шесть");
         assert_eq!(digits("сорок, пятьдесят", "ru").unwrap(), "40, 50");
         assert_eq!(digits("I have twenty five apples", "en").unwrap(), "I have 25 apples");
-        assert!(digits("二十五", "zh").is_err());
-        assert!(knows("fr") && knows("ru") && !knows("zh"));
+        assert!(digits("二十五", "ja").is_err());
+        assert!(knows("fr") && knows("ru") && knows("zh") && !knows("ja"));
     }
 }
