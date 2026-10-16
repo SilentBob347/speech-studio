@@ -751,6 +751,18 @@ mod tests {
     }
 
     #[test]
+    fn numbers_are_measured_by_how_they_are_said() {
+        let sr = 24_000;
+        let raw = "Встреча 12.03 в 18:30, билет стоит 150 руб., а на улице −5 °C.";
+        let opts = crate::prep::Opts { lang: "ru", voice: None, engine: "higgs", entries: &[], normalize: true, normalize_off: &[], stress: false, models_root: std::path::Path::new(".") };
+        let spoken = crate::prep::prepare(raw, &opts).unwrap().text;
+        let count = |t: &str| t.chars().filter(|c| c.is_alphanumeric()).count();
+        let take = speech(count(raw) as f64 * RUNAWAY_PER_CHAR + RUNAWAY_SLACK + 1.0, sr);
+        assert_eq!(defect(&take, sr, count(raw)), Some("runaway"), "the written digits are too short a yardstick");
+        assert_eq!(defect(&take, sr, count(&spoken)), None, "{spoken}");
+    }
+
+    #[test]
     fn clipping_and_a_click_at_the_end_are_defects() {
         let sr = 24_000;
         let mut loud = speech(2.0, sr);
