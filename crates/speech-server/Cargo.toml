@@ -68,7 +68,7 @@ blake3 = "1"
 # SHA-256 скачанных моделей и движков против закреплённых хэшей (HF lfs.oid, digest GitHub, PyPI/NVIDIA).
 sha2 = "0.11"
 # Studio Hub: anonymous statistics and the news feed (telemetry only after the first-run screen showed its choice).
-vs-providers = { git = "https://github.com/timoncool/videosos", rev = "29b47ce7f0dfcf7601415a099687556e79fe9b43" }
+vs-providers = { git = "https://github.com/timoncool/videosos", rev = "03eabb3d4dbcaa345d81ce196e9c8b7ec7264c8a" }
 # FLAC (libFLAC) and MP3 (LAME) encoders and their tags, as the music studios write them
 audio-post = { git = "https://github.com/timoncool/YuE2-Studio", rev = "ce206f1ac5089daecead8d5cfccc60f533db78b3" }
 lofty = "0.25.4"
