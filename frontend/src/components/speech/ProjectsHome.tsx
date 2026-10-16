@@ -190,7 +190,7 @@ export default function ProjectsHome({ onOpen }: { onOpen: (pid: string) => void
           {batch && (
             <BatchList title={t("batch.speechTitle")} items={batch} running={batchRunning} onOpen={onOpen} onSaveAll={saveBatch} onClose={() => setBatch(null)}
               options={
-                <label className="inline-flex items-center gap-1.5 text-[12px] text-[var(--color-muted)]">{t("speech.format")} <Hint text={t("hint.batchFormat")} />
+                <label className="inline-flex items-center gap-1.5 text-[12px] text-[var(--color-muted)]">{t("speech.format")}
                   <select value={format} onChange={(e) => setFormat(e.target.value as ExportFormat)} className="bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md px-1.5 py-1 text-[12px] text-[var(--color-text)]">
                     {FORMATS.map((f) => <option key={f} value={f}>{f.toUpperCase()}</option>)}
                   </select>

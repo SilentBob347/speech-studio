@@ -61,7 +61,7 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
     else void api.setSelection(key, value).then(() => setStudioGoogle((g) => ({ ...g, mode: value })));
   };
   const voiceField = (
-    <label className={label}>{t("speech.cloudVoice")} <Hint text={t("hint.cloudVoice")} />
+    <label className={label}>{t("speech.cloudVoice")}
       <input list="cloud-voices" value={s.cloud_voice} onChange={(e) => set((p) => { p.settings.cloud_voice = e.target.value; })} placeholder={t(s.engine === "google" ? "speech.googleVoicePick" : "speech.cloudVoiceDefault")} className={field} />
       <datalist id="cloud-voices">
         {cloudVoices.map((v) => <option key={v.name} value={v.name}>{[v.gender, v.ru ? RU_MARK : ""].filter(Boolean).join(" · ")}</option>)}
@@ -219,10 +219,10 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
         </>}
         <fieldset className="grid grid-cols-2 gap-2">
           <legend className="col-span-2 text-[11px] uppercase tracking-[0.14em] text-[var(--color-muted)] mb-1">{t("speech.pauses")} <Hint text={t("speech.pausesHint")} /></legend>
-          <label className={label}>{t("speech.pauseSame")} <Hint text={t("hint.pauseSame")} />
+          <label className={label}>{t("speech.pauseSame")}
             <input type="number" step={50} min={-2000} max={10000} value={s.pause_same_ms} onChange={(e) => set((p) => { p.settings.pause_same_ms = Math.round(num(e.target.value, -2000, 10000, 300)); })} className={field} />
           </label>
-          <label className={label}>{t("speech.pauseSwitch")} <Hint text={t("hint.pauseSwitch")} />
+          <label className={label}>{t("speech.pauseSwitch")}
             <input type="number" step={50} min={-2000} max={10000} value={s.pause_switch_ms} onChange={(e) => set((p) => { p.settings.pause_switch_ms = Math.round(num(e.target.value, -2000, 10000, 600)); })} className={field} />
           </label>
         </fieldset>

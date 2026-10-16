@@ -265,11 +265,11 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
         </div>
       )}
       <div className="grid gap-2 @md:grid-cols-2 @2xl:grid-cols-4">
-        <label className="text-[11px] text-[var(--color-muted)]">{t("speech.blockVoice")} <Hint text={t("hint.blockVoice")} />
+        <label className="text-[11px] text-[var(--color-muted)]">{t("speech.blockVoice")}
           <VoicePicker engine={engine} value={block.voice} onChange={(v) => a.patch({ voice: v })} inherit={t("speech.voiceAsCast")} label={t("speech.blockVoice")}
             className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]" />
         </label>
-        <label className="text-[11px] text-[var(--color-muted)]">{t("speech.blockEngine")} <Hint text={t("hint.blockEngine")} />
+        <label className="text-[11px] text-[var(--color-muted)]">{t("speech.blockEngine")}
           <EngineSelect value={block.engine ?? null} projectEngine={projectEngine} inheritEngine={speakerEngine ?? projectEngine} voice={voice} onChange={(e, v) => a.patch(v === undefined ? { engine: e } : { engine: e, voice: v })}
             inherit={speakerEngine ? t("speech.engineAsSpeaker") : t("speech.engineAsProject")} label={t("speech.blockEngine")}
             className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]" />
@@ -330,7 +330,7 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
         )}
       </div>
       {!simple && <div className="flex flex-wrap items-end gap-2">
-        <label className="flex-1 min-w-48 text-[11px] text-[var(--color-muted)]">{t("speech.note")} <Hint text={t("hint.note")} />
+        <label className="flex-1 min-w-48 text-[11px] text-[var(--color-muted)]">{t("speech.note")}
           <input value={block.note} onChange={(e) => a.patch({ note: e.target.value })} placeholder={t("speech.noteHint")}
             className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]" />
         </label>
