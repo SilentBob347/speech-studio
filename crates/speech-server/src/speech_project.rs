@@ -628,7 +628,7 @@ pub fn save(workspace: &Path, pid: &str, project: &SpeechProject) -> Result<(), 
     })
 }
 
-static DIALOG: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\s*(?:\[([^\[\]\n]{1,40})\]|([\p{L}][\p{L}\p{N} ._'-]{0,30}?)\s*:)\s+(\S.*)$").expect("dialog"));
+static DIALOG: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\s*(?:\[([^\[\]\n]{1,40})\]\s+|([\p{L}][\p{L}\p{N} ._'-]{0,30}?)\s*(?::\s+|：\s*))(\S.*)$").expect("dialog"));
 static SENTENCE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[^.!?…]+[.!?…]+[»”\x22)]*\s*|[^.!?…]+$").expect("sentence"));
 
 /// Длинный абзац — по предложениям в куски не длиннее `BLOCK_CHARS`.
@@ -965,6 +965,14 @@ mod tests {
         let prose = from_lines("x", "Встреча в 12:00.\nВзять с собой: паспорт.\nНе опаздывать.", "Р");
         assert!(prose.chapters[0].blocks.iter().all(|b| b.speaker == "Р" && !b.text.is_empty()));
         assert_eq!(prose.chapters[0].blocks[1].text, "Взять с собой: паспорт.");
+    }
+
+    #[test]
+    fn a_chinese_dialog_with_full_width_colons_keeps_its_speakers() {
+        let parts = split_text_lines("安娜：你听说了吗？\n博文：听说了。", "Narrator", None);
+        assert_eq!(parts, vec![("安娜".to_string(), "你听说了吗？".to_string()), ("博文".to_string(), "听说了。".to_string())]);
+        let latin = split_text_lines("See http://example.com for it.\nAnd more prose.", "Narrator", None);
+        assert!(latin.iter().all(|(who, _)| who == "Narrator"), "{latin:?}");
     }
 
     #[test]
