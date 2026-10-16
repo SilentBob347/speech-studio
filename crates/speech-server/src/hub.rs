@@ -9,11 +9,14 @@ use crate::jobs::{JobKind, JobStatus};
 static HUB: OnceLock<Option<studio_hub_client::Hub>> = OnceLock::new();
 /// The models folder, whose active.json says what a job ran on.
 static MODELS: OnceLock<PathBuf> = OnceLock::new();
+/// The projects folder, whose project says which engines voiced it.
+static WORKSPACE: OnceLock<PathBuf> = OnceLock::new();
 
 /// Starts the hub once, inside the tokio runtime of the server; a state file that cannot be read leaves the studio
 /// without it, said once.
-pub fn start(repo_root: &Path) {
+pub fn start(repo_root: &Path, workspace: &Path) {
     let _ = MODELS.set(crate::models_root(repo_root));
+    let _ = WORKSPACE.set(workspace.to_path_buf());
     HUB.get_or_init(|| {
         let gpu = crate::hw::gpu_report();
         let name = gpu.name.clone().unwrap_or_default().to_ascii_lowercase();
@@ -113,7 +116,7 @@ pub fn setup_failed(reason: &str) {
 
 /// A finished job, counted as `<kind>_done`, `<kind>_failed` or `<kind>_cancelled` (frame previews are not counted);
 /// a failure keeps its reason, which the hub client scrubs, and finished work names the models it ran on.
-pub fn job_ended(kind: JobKind, status: JobStatus, error: Option<&str>) {
+pub fn job_ended(kind: JobKind, status: JobStatus, error: Option<&str>, pid: Option<&str>) {
     let Some(hub) = HUB.get().and_then(Option::as_ref) else { return };
     if kind == JobKind::Frame {
         return;
@@ -137,14 +140,25 @@ pub fn job_ended(kind: JobKind, status: JobStatus, error: Option<&str>) {
                 JobKind::Synth => &["tts"],
                 _ => &[],
             };
-            match MODELS.get() {
-                Some(root) if !stages.is_empty() => hub.used_models(None, &models_in_use(root, stages), 1),
-                _ => {}
+            match (kind, pid.and_then(voiced_by)) {
+                (JobKind::Synth, Some(engines)) => hub.used_models(None, &engines, 1),
+                _ => match MODELS.get() {
+                    Some(root) if !stages.is_empty() => hub.used_models(None, &models_in_use(root, stages), 1),
+                    _ => {}
+                },
             }
         }
         JobStatus::Cancelled => {}
         _ => hub.failed(kind.as_str(), error.unwrap_or("")),
     }
+}
+
+/// The engines a project's blocks are voiced by, each as `tts:<engine>`: a project, a character and a block each pick
+/// their own, so the studio's own choice of Higgs says nothing of them.
+fn voiced_by(pid: &str) -> Option<Vec<String>> {
+    let project = crate::speech_project::load(WORKSPACE.get()?, pid).ok()?;
+    let engines: std::collections::BTreeSet<String> = project.blocks().map(|b| format!("tts:{}", project.engine_of(b))).collect();
+    (!engines.is_empty()).then(|| engines.into_iter().collect())
 }
 
 /// What these stages run on now, each as `stage:model`: Dub has no named sets, its choice per stage is the set.
