@@ -101,6 +101,7 @@ export function useTalk({ fed }: { fed: boolean }) {
         const { lang, device, asr } = talkPrefs();
         await talkApi.listenStart(lang, device || undefined, asr || undefined);
         setRunning(true);
+        setMuted(false);
       }
     } catch (e) {
       setError(errorText(e));
@@ -110,11 +111,11 @@ export function useTalk({ fed }: { fed: boolean }) {
   const toggleMute = useCallback(async () => {
     setError(null);
     try {
-      setMuted((await talkApi.mute(!muted)).muted);
+      setMuted((await talkApi.toggleMute()).muted);
     } catch (e) {
       setError(errorText(e));
     }
-  }, [muted]);
+  }, []);
 
   const type = useCallback(async (text: string) => {
     setError(null);
