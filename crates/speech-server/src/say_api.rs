@@ -117,6 +117,51 @@ fn ends_a_phrase(buf: &str) -> bool {
     t.ends_with(['.', '!', '?', '…', '。', '！', '？'])
 }
 
+/// The voice the person chose for what agents say aloud (Live's sound window): engine, voice and sampling. An agent's
+/// say_start takes each one it does not give itself.
+#[derive(serde::Serialize, serde::Deserialize, Default, Clone)]
+pub struct TalkVoice {
+    #[serde(default)]
+    pub engine: String,
+    #[serde(default)]
+    pub voice: Option<String>,
+    #[serde(default)]
+    pub params: Option<crate::tts_host::Params>,
+}
+
+fn talk_voice_path(st: &AppState) -> std::path::PathBuf {
+    st.workspace.join(".talk-voice.json")
+}
+
+fn talk_voice(st: &AppState) -> TalkVoice {
+    std::fs::read(talk_voice_path(st)).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default()
+}
+
+/// GET /speech/say/voice — the voice chosen for speaking aloud; empty fields: the studio's default.
+pub async fn voice_get(State(st): State<AppState>) -> Json<TalkVoice> {
+    Json(talk_voice(&st))
+}
+
+/// POST /speech/say/voice {engine, voice?, params?} — choose the voice agents speak aloud with when they give none.
+pub async fn voice_set(State(st): State<AppState>, Json(chosen): Json<TalkVoice>) -> Response {
+    if !chosen.engine.is_empty() && crate::engines::get(&chosen.engine).is_none() {
+        return refuse(StatusCode::BAD_REQUEST, "bad_engine", t!("speech-engine-unknown", engine = chosen.engine.clone()));
+    }
+    if let Some(p) = &chosen.params {
+        if let Err(e) = p.checked() {
+            return refuse(StatusCode::BAD_REQUEST, "bad_params", e);
+        }
+    }
+    let body = match serde_json::to_vec_pretty(&chosen) {
+        Ok(b) => b,
+        Err(e) => return refuse(StatusCode::INTERNAL_SERVER_ERROR, "save_failed", e.to_string()),
+    };
+    if let Err(e) = std::fs::write(talk_voice_path(&st), body) {
+        return refuse(StatusCode::INTERNAL_SERVER_ERROR, "save_failed", e.to_string());
+    }
+    Json(chosen).into_response()
+}
+
 /// POST /speech/say {voice?, engine?, lang?, direction?, name?} — a session said aloud as its text comes; refused when no
 /// window listens, there being nothing to play it on.
 pub async fn start(State(st): State<AppState>, Json(body): Json<Value>) -> Response {
@@ -124,16 +169,23 @@ pub async fn start(State(st): State<AppState>, Json(body): Json<Value>) -> Respo
         return refuse(StatusCode::CONFLICT, "no_window", t!("speak-aloud-no-window"));
     }
     let field = |n: &str| body.get(n).and_then(Value::as_str).map(str::trim).filter(|v| !v.is_empty()).map(str::to_string);
-    let engine = field("engine").unwrap_or_else(|| crate::qwen_tts::ENGINE.to_string());
+    let chosen = talk_voice(&st);
+    let own_engine = field("engine");
+    let engine = own_engine.clone().or_else(|| Some(chosen.engine.clone()).filter(|e| !e.is_empty())).unwrap_or_else(|| crate::qwen_tts::ENGINE.to_string());
     let Some(manifest) = crate::engines::get(&engine) else {
         return refuse(StatusCode::BAD_REQUEST, "bad_engine", t!("speech-engine-unknown", engine = engine));
     };
     let name = field("name").unwrap_or_else(|| t!("say-session-name", time = chrono::Local::now().format("%H:%M").to_string()));
     let mut project = sp::from_text(&name, "", &t!("speech-narrator"));
     project.chapters[0].blocks.clear();
-    project.settings.voice = field("voice");
+    // the person's voice and sampling go with the person's engine: an agent naming another engine brings its own
+    let theirs = own_engine.is_none() || own_engine.as_deref() == Some(chosen.engine.as_str());
+    project.settings.voice = field("voice").or_else(|| if theirs { chosen.voice.clone() } else { None });
     project.settings.lang = field("lang").unwrap_or_else(|| "auto".into());
     project.settings.params.engine_defaults(&manifest);
+    if let Some(p) = chosen.params.clone().filter(|_| theirs) {
+        project.settings.params = p;
+    }
     project.settings.engine = engine;
     project.settings.qc.asr_check = false;
     project.settings.qc.heuristics = vec!["defect".into()];
@@ -255,12 +307,12 @@ pub async fn state(State(st): State<AppState>, AxPath(sid): AxPath<String>) -> R
 
 static LISTENING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
-/// POST /speech/listen {lang?, device?} — the microphone heard live for a conversation: each phrase the person ends with
+/// POST /speech/listen {lang?, device?, engine?} — the microphone heard live for a conversation: each phrase the person ends with
 /// a pause is recognised (`next`), and their speaking over the studio stops its speech.
 pub async fn listen_start(State(st): State<AppState>, body: Option<Json<Value>>) -> Response {
     let body = body.map(|Json(v)| v).unwrap_or(Value::Null);
     let lang = body.get("lang").and_then(Value::as_str).unwrap_or("auto");
-    let started = crate::listen_api::record_start(State(st.clone()), Some(Json(json!({ "live": true, "lang": lang, "device": body.get("device") })))).await;
+    let started = crate::listen_api::record_start(State(st.clone()), Some(Json(json!({ "live": true, "lang": lang, "device": body.get("device"), "engine": body.get("engine") })))).await;
     if !started.status().is_success() {
         return started;
     }
@@ -280,9 +332,14 @@ pub async fn listen_start(State(st): State<AppState>, body: Option<Json<Value>>)
     started
 }
 
-/// POST /speech/listen/mute {muted} — the microphone muted or back on; the conversation and what was heard go on.
+/// POST /speech/listen/mute {muted | toggle} — the microphone muted or back on (toggle: the other way round); the
+/// conversation and what was heard go on.
 pub async fn listen_mute(Json(body): Json<Value>) -> Response {
-    let muted = body.get("muted").and_then(Value::as_bool).unwrap_or(true);
+    let muted = match body.get("muted").and_then(Value::as_bool) {
+        Some(m) => m,
+        None if body.get("toggle").and_then(Value::as_bool) == Some(true) => !crate::listen_live::muted().unwrap_or(false),
+        None => true,
+    };
     match crate::listen_live::mute(muted) {
         Ok(()) => Json(json!({ "muted": muted })).into_response(),
         Err(e) => refuse(StatusCode::CONFLICT, "not_listening", e),

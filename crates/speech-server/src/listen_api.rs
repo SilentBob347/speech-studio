@@ -106,13 +106,17 @@ pub async fn upload(State(st): State<AppState>, mut multipart: axum::extract::Mu
 
 static RECORDING: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 
-/// POST /listen/record/start {device?, live?, lang?} — запись с микрофона в новый проект; с `live` она распознаётся по
+/// POST /listen/record/start {device?, live?, lang?, engine?} — запись с микрофона в новый проект; с `live` она распознаётся по
 /// фразам, пока идёт (`/listen/record/live`).
 pub async fn record_start(State(st): State<AppState>, body: Option<Json<Value>>) -> Response {
     let body = body.map(|Json(v)| v).unwrap_or(Value::Null);
     let device = body.get("device").and_then(Value::as_str).map(str::to_string).filter(|d| !d.is_empty());
     let live = body.get("live").and_then(Value::as_bool).unwrap_or(false);
     let lang = body.get("lang").and_then(Value::as_str).unwrap_or("auto").to_string();
+    let engine = body.get("engine").and_then(Value::as_str).unwrap_or_default().to_string();
+    if !matches!(engine.as_str(), "" | "parakeet" | "nemotron" | "whisper") {
+        return refuse(StatusCode::BAD_REQUEST, "bad_engine", t!("listen-live-engine", engine = engine));
+    }
     let pid = sp::new_id();
     let dir = lp::dir(&st.workspace, &pid);
     if let Err(e) = std::fs::create_dir_all(&dir) {
@@ -123,7 +127,7 @@ pub async fn record_start(State(st): State<AppState>, body: Option<Json<Value>>)
         Ok(Ok(())) => {
             if live {
                 let (root, models) = (st.repo_root.clone(), st.models_root.clone());
-                if let Err(e) = joined(tokio::task::spawn_blocking(move || crate::listen_live::start(&root, &models, &lang)).await).and_then(|r| r.map_err(|e| refuse(StatusCode::CONFLICT, "live_failed", e))) {
+                if let Err(e) = joined(tokio::task::spawn_blocking(move || crate::listen_live::start(&root, &models, &lang, &engine)).await).and_then(|r| r.map_err(|e| refuse(StatusCode::CONFLICT, "live_failed", e))) {
                     let _ = tokio::task::spawn_blocking(crate::record::stop).await;
                     let _ = std::fs::remove_dir_all(&dir);
                     return e;

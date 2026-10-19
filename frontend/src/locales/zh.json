@@ -1340,7 +1340,14 @@
     "voiceFx_phone": "电话",
     "voiceFx_loudspeaker": "扩音器",
     "corpus": "用难句测试引擎",
-    "corpusHint": "俄语句子：同形异义词、«ё»、重音、数字和日期。用所选引擎为其配音，质量报告会显示读错的地方。"
+    "corpusHint": "俄语句子：同形异义词、«ё»、重音、数字和日期。用所选引擎为其配音，质量报告会显示读错的地方。",
+    "ways": "从哪里开始",
+    "way_text": "文本",
+    "way_files": "文件",
+    "way_book": "书籍",
+    "way_subs": "字幕",
+    "way_podcast": "播客",
+    "way_more": "更多"
   },
   "tags": {
     "emotion": "情绪",
@@ -1758,7 +1765,12 @@
     "watchStop": "停止",
     "watchWorking": "识别中",
     "watchWatching": "等待新文件",
-    "watchErrors": "错误：{{n}}"
+    "watchErrors": "错误：{{n}}",
+    "sources": "录音来源",
+    "source_file": "文件",
+    "source_link": "链接",
+    "source_mic": "麦克风",
+    "source_folder": "文件夹"
   },
   "podcast": {
     "open": "播客脚本",
@@ -2431,6 +2443,11 @@
     "speakToTest": "说点什么：电平条应该会动。",
     "hearBack": "回放自己",
     "hearingBack": "正在播放麦克风听到的声音…",
-    "testSpeaker": "测试"
+    "testSpeaker": "测试",
+    "asr": "识别",
+    "tab_mic": "麦克风",
+    "tab_voice": "智能体的声音",
+    "tab_speaker": "扬声器",
+    "ownParams": "自定义声音设置"
   }
 }

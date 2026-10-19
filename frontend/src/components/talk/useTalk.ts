@@ -98,8 +98,8 @@ export function useTalk({ fed }: { fed: boolean }) {
         setRunning(false);
         setPartial("");
       } else {
-        const { lang, device } = talkPrefs();
-        await talkApi.listenStart(lang, device || undefined);
+        const { lang, device, asr } = talkPrefs();
+        await talkApi.listenStart(lang, device || undefined, asr || undefined);
         setRunning(true);
       }
     } catch (e) {

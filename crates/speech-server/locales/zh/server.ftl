@@ -986,6 +986,7 @@ say-session-name = 对话 { $time }
 talk-widget-title = Speech Studio Live
 say-no-session = 没有语音会话“{ $session }”：请开始新的会话。
 listen-live-not-running = 实时识别未运行：请先在 Live 中打开麦克风。
+listen-live-engine = 识别器「{ $engine }」不能实时识别：请用 parakeet、nemotron 或 whisper。
 say-no-text = 文本为空：请写下要告诉智能体的话。
 record-test-other = 正在进行的是另一段录音，不是麦克风测试。
 record-test-none = 还没有进行过麦克风测试。

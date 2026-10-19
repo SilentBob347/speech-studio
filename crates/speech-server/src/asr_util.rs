@@ -20,7 +20,17 @@ pub fn transcribe(repo_root: &Path, models_root: &Path, audio: &Path, lang: &str
 
 /// The recogniser for `lang`: the one chosen in the settings, Whisper for a language it does not know.
 pub fn choice(repo_root: &Path, models_root: &Path, lang: &str, what: &str) -> Result<crate::models::AsrChoice, String> {
+    choice_of(repo_root, models_root, lang, what, "")
+}
+
+/// The recogniser for `lang` with `engine` (parakeet, nemotron, whisper) in place of the settings' one; empty keeps it.
+pub fn choice_of(repo_root: &Path, models_root: &Path, lang: &str, what: &str, engine: &str) -> Result<crate::models::AsrChoice, String> {
     let mut sel = crate::models::load_selection(models_root);
+    if !engine.is_empty() {
+        if let Some(obj) = sel.as_object_mut() {
+            obj.insert("asr_engine".into(), json!(engine));
+        }
+    }
     let mut choice = crate::models::resolve_asr_choice(repo_root, models_root, &sel);
     let lang = if lang.is_empty() || lang == "auto" { "" } else { lang };
     if !choice.knows(lang) {

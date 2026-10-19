@@ -292,6 +292,69 @@ struct Shell {
     asking: std::sync::atomic::AtomicBool,
 }
 
+/// A call to the studio's own service on 127.0.0.1: the shell needs no HTTP client for two small requests. Answers the
+/// body of a 2xx reply.
+fn local_call(port: u16, method: &str, path: &str, body: &str) -> Result<String, String> {
+    use std::io::{Read, Write};
+    let mut stream = std::net::TcpStream::connect(("127.0.0.1", port)).map_err(|e| e.to_string())?;
+    stream.set_read_timeout(Some(std::time::Duration::from_secs(5))).map_err(|e| e.to_string())?;
+    let request = format!("{method} {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nx-hub-skip: 1\r\nConnection: close\r\n\r\n{body}", body.len());
+    stream.write_all(request.as_bytes()).map_err(|e| e.to_string())?;
+    let mut reply = String::new();
+    stream.read_to_string(&mut reply).map_err(|e| e.to_string())?;
+    let (head, rest) = reply.split_once("\r\n\r\n").unwrap_or((&reply, ""));
+    let status = head.split_whitespace().nth(1).unwrap_or_default();
+    if !status.starts_with('2') {
+        return Err(format!("{method} {path}: {status} {rest}"));
+    }
+    Ok(rest.to_string())
+}
+
+/// Live's hotkey, Ctrl+Shift+Space from any window, as Voicebox and Discord have theirs: a tap turns the conversation's
+/// microphone on or off; held longer than a third of a second, the microphone is open while the keys are down.
+#[derive(Default)]
+struct TalkKey {
+    down: std::sync::Mutex<Option<(std::time::Instant, bool)>>,
+}
+
+const HOLD: std::time::Duration = std::time::Duration::from_millis(330);
+
+fn talk_key(app: &tauri::AppHandle, pressed: bool) {
+    let port = app.state::<Shell>().port.load(std::sync::atomic::Ordering::SeqCst);
+    let key = app.state::<TalkKey>();
+    let mut down = key.down.lock().unwrap_or_else(|p| p.into_inner());
+    let set = |muted: bool| local_call(port, "POST", "/speech/listen/mute", &format!("{{\"muted\":{muted}}}"));
+    if pressed {
+        if down.is_some() {
+            return;
+        }
+        let state = match local_call(port, "GET", "/listen/record/live", "") {
+            Ok(body) => body,
+            Err(e) => return eprintln!("[ERROR] клавиша Live: состояние разговора не прочитано: {e}"),
+        };
+        let parsed: serde_json::Value = serde_json::from_str(&state).unwrap_or_default();
+        if parsed["running"].as_bool() != Some(true) {
+            return;
+        }
+        let was_muted = parsed["muted"].as_bool().unwrap_or(false);
+        if was_muted {
+            if let Err(e) = set(false) {
+                return eprintln!("[ERROR] клавиша Live: микрофон не включился: {e}");
+            }
+        }
+        *down = Some((std::time::Instant::now(), was_muted));
+    } else if let Some((at, was_muted)) = down.take() {
+        let held = at.elapsed() >= HOLD;
+        // a tap leaves the microphone the other way from before; a hold gives it back as it was
+        let mute_now = if was_muted { held } else { !held };
+        if mute_now {
+            if let Err(e) = set(true) {
+                eprintln!("[ERROR] клавиша Live: микрофон не выключился: {e}");
+            }
+        }
+    }
+}
+
 /// Closing the window while tasks run asks first, in the studio's language; with nothing running, or a service that
 /// does not answer, the studio closes.
 fn confirm_close(app: &tauri::AppHandle) {
@@ -359,6 +422,16 @@ pub fn run() {
         // left to the webview, a click reaches on_new_window
         .plugin(tauri_plugin_opener::Builder::new().open_js_links_on_click(false).build())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(
+            tauri_plugin_global_shortcut::Builder::new()
+                .with_handler(|app, _shortcut, event| {
+                    let pressed = event.state() == tauri_plugin_global_shortcut::ShortcutState::Pressed;
+                    if let Some(queue) = app.try_state::<std::sync::Mutex<std::sync::mpsc::Sender<bool>>>() {
+                        let _ = queue.lock().unwrap_or_else(|p| p.into_inner()).send(pressed);
+                    }
+                })
+                .build(),
+        )
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(move |app| {
             // axum-бэкенд поднимается В ЭТОМ ЖЕ процессе на фоновом потоке — ОДИН exe, без speech-server.exe-сайдкара.
@@ -372,6 +445,22 @@ pub fn run() {
                 }
             };
             app.manage(Shell::default());
+            app.manage(TalkKey::default());
+            let (to_key, keys) = std::sync::mpsc::channel::<bool>();
+            app.manage(std::sync::Mutex::new(to_key));
+            let for_key = app.handle().clone();
+            std::thread::spawn(move || {
+                for pressed in keys {
+                    talk_key(&for_key, pressed);
+                }
+            });
+            {
+                use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut};
+                let key = Shortcut::new(Some(Modifiers::CONTROL | Modifiers::SHIFT), Code::Space);
+                if let Err(e) = app.global_shortcut().register(key) {
+                    eprintln!("[ERROR] клавиша Live Ctrl+Shift+Space занята другой программой: {e}");
+                }
+            }
             app.state::<Shell>().port.store(port, std::sync::atomic::Ordering::SeqCst);
             let url = format!("http://127.0.0.1:{port}/");
             // Иконка бандла для GUI-окна: без явной установки окно оставалось пустым в ALT+TAB/панели задач

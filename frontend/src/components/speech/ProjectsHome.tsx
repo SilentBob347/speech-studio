@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AudioLines, Captions, Files, FlaskConical, FolderDown, FolderOpen, Library, Loader2, Mic2, Plus, Sparkles, Trash2 } from "lucide-react";
+import { AudioLines, Captions, Files, FlaskConical, FolderDown, FolderOpen, Library, Loader2, Mic2, MoreHorizontal, Plus, Sparkles, Trash2, Type } from "lucide-react";
 import BookImport from "./BookImport";
 import PodcastWriter from "./PodcastWriter";
 import { speechApi, type BookPreview, type ProjectCard } from "../../lib/speech";
@@ -23,6 +23,26 @@ const FORMATS: ExportFormat[] = ["mp3", "wav", "flac", "ogg", "m4a"];
 
 const pick = "w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-2 py-1.5 text-[12px]";
 const start = "flex items-start gap-2.5 text-left rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 hover:border-[var(--color-accent)] disabled:opacity-40 transition-colors";
+type Way = "text" | "files" | "book" | "subs" | "podcast" | "more";
+const WAYS: { id: Way; icon: typeof Type }[] = [
+  { id: "text", icon: Type },
+  { id: "files", icon: Files },
+  { id: "book", icon: Library },
+  { id: "subs", icon: Captions },
+  { id: "podcast", icon: Mic2 },
+  { id: "more", icon: MoreHorizontal },
+];
+const WAY = "speech.start.way";
+
+function savedWay(): Way {
+  try {
+    const v = localStorage.getItem(WAY);
+    return WAYS.some((w) => w.id === v) ? (v as Way) : "text";
+  } catch {
+    return "text";
+  }
+}
+
 const field = "w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-3 py-2 text-[13px] focus:border-[var(--color-accent)] focus:outline-none";
 
 /** Speech's start: a new project from a text, and the projects made before. */
@@ -55,6 +75,11 @@ export default function ProjectsHome({ onOpen }: { onOpen: (pid: string) => void
   const [book, setBook] = useState<BookPreview | null>(null);
   const [podcast, setPodcast] = useState(false);
   const [quick, setQuick] = useState(false);
+  const [way, setWay] = useState<Way>(savedWay);
+  const pickWay = (next: Way) => {
+    setWay(next);
+    try { localStorage.setItem(WAY, next); } catch { /* the pick holds for this screen only */ }
+  };
   const openBook = async (f: File) => {
     setBusy(true);
     setError(null);
@@ -152,42 +177,72 @@ export default function ProjectsHome({ onOpen }: { onOpen: (pid: string) => void
         <section aria-labelledby="new-title" className="space-y-3">
           <h1 id="new-title" className="text-xl font-bold tracking-tight flex items-center gap-2"><AudioLines size={20} className="text-[var(--color-accent)]" />{t("speech.newTitle")}</h1>
           <p className="text-[13px] text-[var(--color-muted)] leading-relaxed">{t("speech.newHint")}</p>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("speech.namePlaceholder")} aria-label={t("speech.name")} className={field} maxLength={120} />
-          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={8} placeholder={t("speech.textPlaceholder")} aria-label={t("speech.text")}
-            className={`${field} resize-y leading-relaxed min-h-[160px]`} />
-          {!text.trim() && (
-            <button onClick={() => { setText(t("speech.sample")); setSplit("paragraphs"); }} className="-mt-1 text-[12px] text-[var(--color-accent)] hover:underline">{t("speech.sampleInsert")}</button>
-          )}
-          <div className="grid gap-2 grid-cols-2">
-            <label className="text-[11px] text-[var(--color-muted)] space-y-1">
-              <span className="block">{t("speech.voice")} <Hint text={t("hint.newVoice")} /></span>
-              <VoicePicker value={voice} onChange={setVoice} label={t("speech.voice")} engine={engine} className={pick} />
-            </label>
-            <label className="text-[11px] text-[var(--color-muted)] space-y-1">
-              <span className="block">{t("speech.engine")} <Hint text={t("hint.engine")} /></span>
-              <select value={engine} onChange={(e) => { setEngine(e.target.value); setVoice(null); }} className={pick}>
-                {engines?.map((e) => <option key={e.id} value={e.id} disabled={!!e.unavailable} title={e.unavailable ?? undefined}>{e.name}</option>)}
-              </select>
-            </label>
-            <label className="text-[11px] text-[var(--color-muted)] space-y-1">
-              <span className="block">{t("speech.splitBy")} <Hint text={t("speech.splitHint")} /></span>
-              <select value={split} onChange={(e) => setSplit(e.target.value === "lines" ? "lines" : "paragraphs")} className={pick}>
-                <option value="paragraphs">{t("speech.splitParagraphs")}</option>
-                <option value="lines">{t("speech.splitLines")}</option>
-              </select>
-            </label>
-            <label className="text-[11px] text-[var(--color-muted)] space-y-1">
-              <span className="block">{t("speech.lang")} <Hint text={t("hint.lang")} /></span>
-              <select value={lang} onChange={(e) => setLang(e.target.value)} className={pick}>
-                {LANG_CHOICES.map((l) => <option key={l} value={l}>{l === "auto" ? t("speech.langAuto") : l.toUpperCase()}</option>)}
-              </select>
-            </label>
+          <div role="tablist" aria-label={t("speech.ways")} className="flex flex-wrap gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1">
+            {WAYS.map(({ id, icon: Icon }) => (
+              <button key={id} role="tab" id={`speech-way-${id}`} aria-selected={way === id} aria-controls="speech-way-panel" onClick={() => pickWay(id)}
+                className={`flex-1 min-w-[5.5rem] inline-flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-[12px] font-medium transition-colors ${way === id ? "bg-[var(--color-accent)] text-[var(--color-on-accent)]" : "text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)]"}`}>
+                <Icon size={14} />{t(`speech.way_${id}`)}
+              </button>
+            ))}
           </div>
-          <div className="flex items-start gap-3">
-            <p className="flex-1 text-[11px] text-[var(--color-muted)] leading-relaxed">{t("speech.markupHint")}</p>
-            <button onClick={create} disabled={busy} className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[13px] font-semibold disabled:opacity-40">
-              {busy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}{t("speech.create")}
-            </button>
+          <div role="tabpanel" id="speech-way-panel" aria-labelledby={`speech-way-${way}`} className="space-y-3">
+            {way === "text" && (
+              <>
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("speech.namePlaceholder")} aria-label={t("speech.name")} className={field} maxLength={120} />
+              <textarea value={text} onChange={(e) => setText(e.target.value)} rows={8} placeholder={t("speech.textPlaceholder")} aria-label={t("speech.text")}
+                className={`${field} resize-y leading-relaxed min-h-[160px]`} />
+              {!text.trim() && (
+                <button onClick={() => { setText(t("speech.sample")); setSplit("paragraphs"); }} className="-mt-1 text-[12px] text-[var(--color-accent)] hover:underline">{t("speech.sampleInsert")}</button>
+              )}
+              <div className="grid gap-2 grid-cols-2">
+                <label className="text-[11px] text-[var(--color-muted)] space-y-1">
+                  <span className="block">{t("speech.voice")} <Hint text={t("hint.newVoice")} /></span>
+                  <VoicePicker value={voice} onChange={setVoice} label={t("speech.voice")} engine={engine} className={pick} />
+                </label>
+                <label className="text-[11px] text-[var(--color-muted)] space-y-1">
+                  <span className="block">{t("speech.engine")} <Hint text={t("hint.engine")} /></span>
+                  <select value={engine} onChange={(e) => { setEngine(e.target.value); setVoice(null); }} className={pick}>
+                    {engines?.map((e) => <option key={e.id} value={e.id} disabled={!!e.unavailable} title={e.unavailable ?? undefined}>{e.name}</option>)}
+                  </select>
+                </label>
+                <label className="text-[11px] text-[var(--color-muted)] space-y-1">
+                  <span className="block">{t("speech.splitBy")} <Hint text={t("speech.splitHint")} /></span>
+                  <select value={split} onChange={(e) => setSplit(e.target.value === "lines" ? "lines" : "paragraphs")} className={pick}>
+                    <option value="paragraphs">{t("speech.splitParagraphs")}</option>
+                    <option value="lines">{t("speech.splitLines")}</option>
+                  </select>
+                </label>
+                <label className="text-[11px] text-[var(--color-muted)] space-y-1">
+                  <span className="block">{t("speech.lang")} <Hint text={t("hint.lang")} /></span>
+                  <select value={lang} onChange={(e) => setLang(e.target.value)} className={pick}>
+                    {LANG_CHOICES.map((l) => <option key={l} value={l}>{l === "auto" ? t("speech.langAuto") : l.toUpperCase()}</option>)}
+                  </select>
+                </label>
+              </div>
+              <div className="flex items-start gap-3">
+                <p className="flex-1 text-[11px] text-[var(--color-muted)] leading-relaxed">{t("speech.markupHint")}</p>
+                <button onClick={create} disabled={busy} className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[13px] font-semibold disabled:opacity-40">
+                  {busy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}{t("speech.create")}
+                </button>
+              </div>
+              </>
+            )}
+            {way === "files" && (
+              <div className="grid gap-2 sm:grid-cols-2">
+                <button onClick={() => txtFiles.current?.click()} disabled={busy} className={start}><Files size={15} className="mt-0.5 shrink-0 text-[var(--color-accent)]" /><span><span className="block text-[13px] font-medium">{t("speech.fromFiles")}</span><span className="block text-[11px] text-[var(--color-muted)]">{t("speech.fromFilesHint")}</span></span></button>
+                <button onClick={() => batchFiles.current?.click()} disabled={busy || batchRunning} className={start}><FolderDown size={15} className="mt-0.5 shrink-0 text-[var(--color-accent)]" /><span><span className="block text-[13px] font-medium">{t("batch.speechOpen")}</span><span className="block text-[11px] text-[var(--color-muted)]">{t("batch.speechHint")}</span></span></button>
+              </div>
+            )}
+            {way === "book" && <div className="grid gap-2"><button onClick={() => bookFile.current?.click()} disabled={busy} className={start}><Library size={15} className="mt-0.5 shrink-0 text-[var(--color-accent)]" /><span><span className="block text-[13px] font-medium">{t("book.open")}</span><span className="block text-[11px] text-[var(--color-muted)]">{t("book.openHint")}</span></span></button></div>}
+            {way === "subs" && <div className="grid gap-2"><button onClick={() => subsFile.current?.click()} disabled={busy} className={start}><Captions size={15} className="mt-0.5 shrink-0 text-[var(--color-accent)]" /><span><span className="block text-[13px] font-medium">{t("speech.fromSubs")}</span><span className="block text-[11px] text-[var(--color-muted)]">{t("speech.fromSubsHint")}</span></span></button></div>}
+            {way === "podcast" && <div className="grid gap-2"><button onClick={() => setPodcast(true)} disabled={busy} className={start}><Mic2 size={15} className="mt-0.5 shrink-0 text-[var(--color-accent)]" /><span><span className="block text-[13px] font-medium">{t("podcast.open")}</span><span className="block text-[11px] text-[var(--color-muted)]">{t("podcast.openHint")}</span></span></button></div>}
+            {way === "more" && (
+              <div className="grid gap-2 sm:grid-cols-2">
+                <button onClick={() => setQuick(true)} disabled={busy} className={start}><Sparkles size={15} className="mt-0.5 shrink-0 text-[var(--color-accent)]" /><span><span className="block text-[13px] font-medium">{t("quick.title")}</span><span className="block text-[11px] text-[var(--color-muted)]">{t("quick.hint")}</span></span></button>
+                <button onClick={() => packFile.current?.click()} disabled={busy} className={start}><FolderOpen size={15} className="mt-0.5 shrink-0 text-[var(--color-accent)]" /><span><span className="block text-[13px] font-medium">{t("speech.openPack")}</span><span className="block text-[11px] text-[var(--color-muted)]">{t("speech.openPackHint")}</span></span></button>
+                <button onClick={() => void createCorpus()} disabled={busy} className={start}><FlaskConical size={15} className="mt-0.5 shrink-0 text-[var(--color-accent)]" /><span><span className="block text-[13px] font-medium">{t("speech.corpus")}</span><span className="block text-[11px] text-[var(--color-muted)]">{t("speech.corpusHint")}</span></span></button>
+              </div>
+            )}
           </div>
           {error && <p role="alert" className="text-[12px] text-[var(--color-warn)] break-words">{error}</p>}
           {batch && (
@@ -200,17 +255,6 @@ export default function ProjectsHome({ onOpen }: { onOpen: (pid: string) => void
                 </label>
               } />
           )}
-          <h2 className="pt-3 text-[13px] font-semibold">{t("speech.startWith")}</h2>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <button onClick={() => txtFiles.current?.click()} disabled={busy} className={start}><Files size={15} className="mt-0.5 shrink-0 text-[var(--color-accent)]" /><span><span className="block text-[13px] font-medium">{t("speech.fromFiles")}</span><span className="block text-[11px] text-[var(--color-muted)]">{t("speech.fromFilesHint")}</span></span></button>
-            <button onClick={() => batchFiles.current?.click()} disabled={busy || batchRunning} className={start}><FolderDown size={15} className="mt-0.5 shrink-0 text-[var(--color-accent)]" /><span><span className="block text-[13px] font-medium">{t("batch.speechOpen")}</span><span className="block text-[11px] text-[var(--color-muted)]">{t("batch.speechHint")}</span></span></button>
-            <button onClick={() => setQuick(true)} disabled={busy} className={start}><Sparkles size={15} className="mt-0.5 shrink-0 text-[var(--color-accent)]" /><span><span className="block text-[13px] font-medium">{t("quick.title")}</span><span className="block text-[11px] text-[var(--color-muted)]">{t("quick.hint")}</span></span></button>
-            <button onClick={() => setPodcast(true)} disabled={busy} className={start}><Mic2 size={15} className="mt-0.5 shrink-0 text-[var(--color-accent)]" /><span><span className="block text-[13px] font-medium">{t("podcast.open")}</span><span className="block text-[11px] text-[var(--color-muted)]">{t("podcast.openHint")}</span></span></button>
-            <button onClick={() => bookFile.current?.click()} disabled={busy} className={start}><Library size={15} className="mt-0.5 shrink-0 text-[var(--color-accent)]" /><span><span className="block text-[13px] font-medium">{t("book.open")}</span><span className="block text-[11px] text-[var(--color-muted)]">{t("book.openHint")}</span></span></button>
-            <button onClick={() => subsFile.current?.click()} disabled={busy} className={start}><Captions size={15} className="mt-0.5 shrink-0 text-[var(--color-accent)]" /><span><span className="block text-[13px] font-medium">{t("speech.fromSubs")}</span><span className="block text-[11px] text-[var(--color-muted)]">{t("speech.fromSubsHint")}</span></span></button>
-            <button onClick={() => packFile.current?.click()} disabled={busy} className={start}><FolderOpen size={15} className="mt-0.5 shrink-0 text-[var(--color-accent)]" /><span><span className="block text-[13px] font-medium">{t("speech.openPack")}</span><span className="block text-[11px] text-[var(--color-muted)]">{t("speech.openPackHint")}</span></span></button>
-            <button onClick={() => void createCorpus()} disabled={busy} className={start}><FlaskConical size={15} className="mt-0.5 shrink-0 text-[var(--color-accent)]" /><span><span className="block text-[13px] font-medium">{t("speech.corpus")}</span><span className="block text-[11px] text-[var(--color-muted)]">{t("speech.corpusHint")}</span></span></button>
-          </div>
           <input ref={batchFiles} type="file" accept=".txt,.md" multiple hidden onChange={(e) => { const l = e.target.files; if (l?.length) void runBatch(l); e.target.value = ""; }} />
           <input ref={txtFiles} type="file" accept=".txt" multiple hidden onChange={(e) => { const l = e.target.files; if (l?.length) void createFromFiles(l); e.target.value = ""; }} />
           <input ref={bookFile} type="file" accept=".epub,.fb2,.pdf,.docx,.html,.htm,.md,.txt" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void openBook(f); }} />

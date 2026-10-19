@@ -1184,6 +1184,7 @@ say-session-name = Conversa { $time }
 talk-widget-title = Speech Studio Live
 say-no-session = Não há sessão de fala “{ $session }”: comece uma nova.
 listen-live-not-running = O reconhecimento ao vivo não está ativo: ligue primeiro o microfone no Live.
+listen-live-engine = O reconhecedor «{ $engine }» não reconhece ao vivo: use parakeet, nemotron ou whisper.
 say-no-text = O texto está vazio: escreva o que dizer ao agente.
 record-test-other = Há outra gravação em curso, não um teste de microfone.
 record-test-none = Ainda não houve teste de microfone.

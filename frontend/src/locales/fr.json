@@ -1340,7 +1340,14 @@
     "voiceFx_phone": "téléphone",
     "voiceFx_loudspeaker": "haut-parleur",
     "corpus": "Tester le moteur sur des phrases difficiles",
-    "corpusHint": "Phrases russes : homographes, « ё », accents, nombres et dates. Doublez-les avec le moteur choisi ; le rapport de qualité montre ce qu’il a mal lu."
+    "corpusHint": "Phrases russes : homographes, « ё », accents, nombres et dates. Doublez-les avec le moteur choisi ; le rapport de qualité montre ce qu’il a mal lu.",
+    "ways": "Pour commencer",
+    "way_text": "Texte",
+    "way_files": "Fichiers",
+    "way_book": "Livre",
+    "way_subs": "Sous-titres",
+    "way_podcast": "Podcast",
+    "way_more": "Plus"
   },
   "tags": {
     "emotion": "Émotion",
@@ -1758,7 +1765,12 @@
     "watchStop": "Arrêter",
     "watchWorking": "Reconnaissance",
     "watchWatching": "En attente de nouveaux fichiers",
-    "watchErrors": "erreurs : {{n}}"
+    "watchErrors": "erreurs : {{n}}",
+    "sources": "D'où vient l'enregistrement",
+    "source_file": "Fichier",
+    "source_link": "Lien",
+    "source_mic": "Micro",
+    "source_folder": "Dossier"
   },
   "podcast": {
     "open": "Script de podcast",
@@ -2431,6 +2443,11 @@
     "speakToTest": "Dites quelque chose : la barre doit bouger.",
     "hearBack": "Vous réécouter",
     "hearingBack": "Lecture de ce que le micro a entendu…",
-    "testSpeaker": "Tester"
+    "testSpeaker": "Tester",
+    "asr": "Reconnaissance",
+    "tab_mic": "Micro",
+    "tab_voice": "Voix de l'agent",
+    "tab_speaker": "Haut-parleur",
+    "ownParams": "Réglages de voix propres"
   }
 }

@@ -1210,6 +1210,7 @@ say-session-name = Разговор { $time }
 talk-widget-title = Speech Studio Live
 say-no-session = Сессии речи «{ $session }» нет: начните новую.
 listen-live-not-running = Живое распознавание не идёт: сначала включите микрофон в Live.
+listen-live-engine = Распознаватель «{ $engine }» не годится для живого распознавания: возьмите parakeet, nemotron или whisper.
 say-no-text = Пустой текст: напишите, что сказать агенту.
 record-test-other = Сейчас идёт другая запись, а не проверка микрофона.
 record-test-none = Проверки микрофона ещё не было.

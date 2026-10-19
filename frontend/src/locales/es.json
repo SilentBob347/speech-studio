@@ -1340,7 +1340,14 @@
     "voiceFx_phone": "teléfono",
     "voiceFx_loudspeaker": "altavoz",
     "corpus": "Probar el motor con frases difíciles",
-    "corpusHint": "Frases en ruso: homógrafos, «ё», acentos, números y fechas. Locútelas con el motor elegido; el informe de calidad muestra lo que leyó mal."
+    "corpusHint": "Frases en ruso: homógrafos, «ё», acentos, números y fechas. Locútelas con el motor elegido; el informe de calidad muestra lo que leyó mal.",
+    "ways": "Cómo empezar",
+    "way_text": "Texto",
+    "way_files": "Archivos",
+    "way_book": "Libro",
+    "way_subs": "Subtítulos",
+    "way_podcast": "Pódcast",
+    "way_more": "Más"
   },
   "tags": {
     "emotion": "Emoción",
@@ -1758,7 +1765,12 @@
     "watchStop": "Detener",
     "watchWorking": "Reconociendo",
     "watchWatching": "Esperando archivos nuevos",
-    "watchErrors": "errores: {{n}}"
+    "watchErrors": "errores: {{n}}",
+    "sources": "De dónde viene la grabación",
+    "source_file": "Archivo",
+    "source_link": "Enlace",
+    "source_mic": "Micrófono",
+    "source_folder": "Carpeta"
   },
   "podcast": {
     "open": "Guion de pódcast",
@@ -2431,6 +2443,11 @@
     "speakToTest": "Di algo: la barra debería moverse.",
     "hearBack": "Escucharte",
     "hearingBack": "Suena lo que oyó el micrófono…",
-    "testSpeaker": "Probar"
+    "testSpeaker": "Probar",
+    "asr": "Reconocimiento",
+    "tab_mic": "Micrófono",
+    "tab_voice": "Voz del agente",
+    "tab_speaker": "Altavoz",
+    "ownParams": "Ajustes de voz propios"
   }
 }

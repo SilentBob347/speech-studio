@@ -362,7 +362,7 @@ pub(super) fn tools() -> Vec<Tool> {
         Tool {
             name: "voice_listen_start",
             description: "Turn the studio's microphone on for a spoken conversation: each phrase the person ends with a pause is recognised for voice_listen, and their speaking over the studio stops its speech at once (the studio's own voice heard back is told apart). lang a code or auto. Pair it with say_start for a talking agent: listen, answer with say_text as you write, listen again.",
-            schema: || object(json!({ "lang": { "type": "string" }, "device": { "type": "string", "description": "a microphone of voice_record_devices; none: the default one" } }), &[]),
+            schema: || object(json!({ "lang": { "type": "string" }, "device": { "type": "string", "description": "a microphone of voice_record_devices; none: the default one" }, "engine": { "type": "string", "enum": ["parakeet", "nemotron", "whisper"], "description": "the recogniser; none: the one in the settings" } }), &[]),
             call: |args| post("/speech/listen".into(), args.clone()),
         },
         Tool {
@@ -370,6 +370,18 @@ pub(super) fn tools() -> Vec<Tool> {
             description: "Wait for what the person says next: the phrases heard after the first `after` (the `heard` of the last answer, 0 at first), each ended by a pause, waiting up to seconds (at most 55; an answer with no lines and listening true means wait again). partial is what they are saying right now.",
             schema: || object(json!({ "after": { "type": "integer", "minimum": 0 }, "seconds": seconds() }), &[]),
             call: |args| get(format!("/speech/listen/next{}", query(&[("after", args.get("after").and_then(Value::as_u64).map(|v| v.to_string())), ("seconds", args.get("seconds").and_then(Value::as_u64).map(|v| v.to_string()))]))),
+        },
+        Tool {
+            name: "say_voice",
+            description: "The voice the person chose in Live for speaking aloud: engine, voice and sampling; say_start takes each one it is not given.",
+            schema: nothing,
+            call: |_| get("/speech/say/voice".into()),
+        },
+        Tool {
+            name: "say_voice_set",
+            description: "Choose the voice for speaking aloud, as Live's voice tab does: engine (engines_list), voice (voices_list; none: the engine's default) and sampling params (the engine's; none: its defaults).",
+            schema: || object(json!({ "engine": { "type": "string" }, "voice": { "type": "string" }, "params": { "type": "object" } }), &["engine"]),
+            call: |args| post("/speech/say/voice".into(), json!({ "engine": text(args, "engine")?, "voice": args.get("voice"), "params": args.get("params") })),
         },
         Tool {
             name: "mic_test_start",
@@ -391,9 +403,9 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "voice_listen_mute",
-            description: "Mute the conversation's microphone (muted true) or turn it back on, as the person's mute button in Live does: while muted it hears silence, and the conversation, what was heard and voice_listen go on.",
-            schema: || object(json!({ "muted": { "type": "boolean" } }), &["muted"]),
-            call: |args| post("/speech/listen/mute".into(), json!({ "muted": args.get("muted").and_then(Value::as_bool).unwrap_or(true) })),
+            description: "Mute the conversation's microphone (muted true) or turn it back on, as the person's mute button in Live does; toggle true turns it the other way round, as the hotkey does. While muted it hears silence, and the conversation, what was heard and voice_listen go on.",
+            schema: || object(json!({ "muted": { "type": "boolean" }, "toggle": { "type": "boolean" } }), &[]),
+            call: |args| post("/speech/listen/mute".into(), match args.get("muted").and_then(Value::as_bool) { Some(m) => json!({ "muted": m }), None => json!({ "toggle": args.get("toggle").and_then(Value::as_bool).unwrap_or(false) }) }),
         },
         Tool {
             name: "voice_listen_type",

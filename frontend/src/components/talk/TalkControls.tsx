@@ -7,12 +7,20 @@ import { aloudPlayback } from "../../lib/livePlayback";
 import { talkApi } from "../../lib/talk";
 import { errorText } from "../../lib/voices";
 import LevelMeter from "./LevelMeter";
+import VoicePicker from "../speech/VoicePicker";
+import OwnParams from "../speech/OwnParams";
+import { useEngines } from "../../lib/engines";
+import type { EngineCaps, ParamSpec, SpeechParams } from "../../lib/speech";
+import type { TalkVoice } from "../../lib/talk";
 import { setTalkPrefs, useTalkPrefs } from "../../lib/talkPrefs";
 import { LANG_CHOICES } from "../speech/langs";
 import { Tip } from "../Hint";
 import type { useTalk } from "./useTalk";
 
 type Talk = ReturnType<typeof useTalk>;
+
+/** The recognisers that hear a conversation as it goes: the local ones. */
+const LIVE_ASR = ["", "parakeet", "nemotron", "whisper"] as const;
 
 const round_ = "grid place-items-center rounded-full transition-colors disabled:opacity-40";
 const quiet = "border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-accent)]";
@@ -103,6 +111,46 @@ class SpeakerTest {
   }
 }
 
+/** An engine's own sampling, what a voice without settings of its own speaks with. */
+function engineDefaults(caps: EngineCaps): SpeechParams {
+  const of = (key: ParamSpec["key"], fallback: number) => caps.params.find((p) => p.key === key)?.default ?? fallback;
+  return { temperature: of("temperature", 0.7), top_k: of("top_k", 50), top_p: of("top_p", 0.95), seed_mode: caps.seed_modes[0] ?? "random", seed: 0, max_tokens: of("max_tokens", 0), steps: of("steps", 8), speed: of("speed", 1) };
+}
+
+/** The voice agents speak with when they give none, as a project's voice is set: engine, voice of the library and the
+ * engine's sampling. */
+function VoiceTab() {
+  const { t } = useTranslation();
+  const engines = useEngines();
+  const [chosen, setChosen] = useState<TalkVoice | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  useEffect(() => { talkApi.voice().then(setChosen, (e: unknown) => setProblem(errorText(e))); }, []);
+  const save = (next: TalkVoice) => {
+    setChosen(next);
+    talkApi.setVoice(next).then(() => setProblem(null), (e: unknown) => setProblem(errorText(e)));
+  };
+  if (!chosen || !engines) return <p className="text-[11px] text-[var(--color-muted)]">…</p>;
+  const engine = chosen.engine || "qwen3-tts";
+  const caps = engines.find((e) => e.id === engine);
+  const field = "w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md px-2 py-1.5 text-[12px]";
+  return (
+    <div className="space-y-3">
+      <label className="block space-y-1.5 text-[11px] text-[var(--color-muted)]">{t("speech.engine")}
+        <select value={engine} onChange={(e) => save({ engine: e.target.value, voice: null, params: null })} className={field}>
+          {engines.map((e) => <option key={e.id} value={e.id} disabled={!!e.unavailable} title={e.unavailable ?? undefined}>{e.name}</option>)}
+        </select>
+      </label>
+      <label className="block space-y-1.5 text-[11px] text-[var(--color-muted)]">{t("speech.voice")}
+        <VoicePicker value={chosen.voice} onChange={(v) => save({ ...chosen, engine, voice: v })} label={t("speech.voice")} engine={engine} className={field} />
+      </label>
+      {caps && <OwnParams engine={engine} value={chosen.params} inherited={engineDefaults(caps)} onChange={(p) => save({ ...chosen, engine, params: p })} label={t("talk.ownParams")} />}
+      {problem && <p role="alert" className="text-[11px] text-[var(--color-warn)]">{problem}</p>}
+    </div>
+  );
+}
+
+type SettingsTab = "mic" | "voice" | "speaker";
+
 /** The microphone and the speaker as call apps set them up: each with a live level meter, the microphone heard back
  * (Discord's mic test), the speaker tested with a chime (Zoom's speaker test), the agent's volume and the language. */
 function TalkSettings({ running }: { running: boolean }) {
@@ -113,6 +161,7 @@ function TalkSettings({ running }: { running: boolean }) {
   const [problem, setProblem] = useState<string | null>(null);
   const [hearing, setHearing] = useState(false);
   const [round, setRound] = useState(0);
+  const [tab, setTab] = useState<SettingsTab>("mic");
   const micPeak = useRef(0);
   const tester = useRef<SpeakerTest | null>(null);
   tester.current ??= new SpeakerTest();
@@ -160,6 +209,15 @@ function TalkSettings({ running }: { running: boolean }) {
 
   return (
     <div role="dialog" aria-label={t("talk.settings")} className="absolute left-0 bottom-full mb-2 z-50 w-80 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl p-3 space-y-4 text-[var(--color-text)]">
+      <div role="tablist" aria-label={t("talk.settings")} className="flex gap-1 rounded-lg bg-[var(--color-surface-2)] p-0.5">
+        {(["mic", "voice", "speaker"] as const).map((id) => (
+          <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={`flex-1 rounded-md px-2 py-1 text-[12px] font-medium transition-colors ${tab === id ? "bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm" : "text-[var(--color-muted)] hover:text-[var(--color-text)]"}`}>
+            {t(`talk.tab_${id}`)}
+          </button>
+        ))}
+      </div>
+      {tab === "mic" && (
+        <div role="tabpanel" className="space-y-4">
       <div className={label}>
         <span>{t("talk.device")}</span>
         <select value={prefs.device} disabled={running || hearing} onChange={(e) => setTalkPrefs({ device: e.target.value })} className={field} {...named(t("talk.device"))}>
@@ -172,11 +230,21 @@ function TalkSettings({ running }: { running: boolean }) {
           <button onClick={() => void hearBack()} disabled={running || hearing} className={small}>{t("talk.hearBack")}</button>
         </span>
       </div>
+      <label className={label}>{t("talk.asr")}
+        <select value={prefs.asr} disabled={running} onChange={(e) => setTalkPrefs({ asr: e.target.value })} className={field}>
+          {LIVE_ASR.map((e) => <option key={e} value={e}>{t(`listen.engine_${e || "default"}`)}</option>)}
+        </select>
+      </label>
       <label className={label}>{t("talk.lang")}
         <select value={prefs.lang} disabled={running} onChange={(e) => setTalkPrefs({ lang: e.target.value })} className={field}>
           {LANG_CHOICES.map((l) => <option key={l} value={l}>{l === "auto" ? t("talk.langAuto") : l.toUpperCase()}</option>)}
         </select>
       </label>
+        </div>
+      )}
+      {tab === "voice" && <div role="tabpanel"><VoiceTab /></div>}
+      {tab === "speaker" && (
+        <div role="tabpanel" className="space-y-4">
       <div className={label}>
         <span>{t("talk.output")}</span>
         <select value={prefs.output} disabled={!canChoose} onChange={(e) => setTalkPrefs({ output: e.target.value })} className={field} {...named(t("talk.output"))}>
@@ -202,6 +270,8 @@ function TalkSettings({ running }: { running: boolean }) {
           <button onClick={() => { (tester.current as SpeakerTest).chime(prefs.output, prefs.muted ? 0 : prefs.volume).catch((e: unknown) => setProblem(errorText(e))); }} className={small}>{t("talk.testSpeaker")}</button>
         </div>
       </div>
+        </div>
+      )}
       {problem && <p role="alert" className="text-[11px] text-[var(--color-warn)]">{problem}</p>}
     </div>
   );

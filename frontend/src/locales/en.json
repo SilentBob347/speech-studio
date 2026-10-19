@@ -1340,7 +1340,14 @@
     "voiceFx_phone": "phone",
     "voiceFx_loudspeaker": "loudspeaker",
     "corpus": "Test the engine on hard phrases",
-    "corpusHint": "Russian phrases: homographs, «ё», stress, numbers and dates. Voice them with the chosen engine; the quality report shows what it read wrong."
+    "corpusHint": "Russian phrases: homographs, «ё», stress, numbers and dates. Voice them with the chosen engine; the quality report shows what it read wrong.",
+    "ways": "How to start",
+    "way_text": "Text",
+    "way_files": "Files",
+    "way_book": "Book",
+    "way_subs": "Subtitles",
+    "way_podcast": "Podcast",
+    "way_more": "More"
   },
   "tags": {
     "emotion": "Emotion",
@@ -1758,7 +1765,12 @@
     "watchStop": "Stop",
     "watchWorking": "Recognising",
     "watchWatching": "Waiting for new files",
-    "watchErrors": "errors: {{n}}"
+    "watchErrors": "errors: {{n}}",
+    "sources": "Where the recording comes from",
+    "source_file": "File",
+    "source_link": "Link",
+    "source_mic": "Microphone",
+    "source_folder": "Folder"
   },
   "podcast": {
     "open": "Podcast script",
@@ -2431,6 +2443,11 @@
     "speakToTest": "Say something: the bar should move.",
     "hearBack": "Hear yourself",
     "hearingBack": "Playing what the microphone heard…",
-    "testSpeaker": "Test"
+    "testSpeaker": "Test",
+    "asr": "Recognition",
+    "tab_mic": "Microphone",
+    "tab_voice": "Agent's voice",
+    "tab_speaker": "Speaker",
+    "ownParams": "Own voice settings"
   }
 }

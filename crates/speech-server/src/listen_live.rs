@@ -46,8 +46,8 @@ fn with<R>(f: impl FnOnce(&mut Live) -> R) -> Option<R> {
 }
 
 /// Starts recognising the recording that has just started, in `lang`.
-pub fn start(repo_root: &Path, models_root: &Path, lang: &str) -> Result<(), String> {
-    let choice = crate::asr_util::choice(repo_root, models_root, lang, &t!("listen-live-name"))?;
+pub fn start(repo_root: &Path, models_root: &Path, lang: &str, engine: &str) -> Result<(), String> {
+    let choice = crate::asr_util::choice_of(repo_root, models_root, lang, &t!("listen-live-name"), engine)?;
     let vad = crate::vad::model_path(models_root);
     if !vad.is_file() {
         return Err(t!("listen-live-no-vad", path = vad.display().to_string()));
@@ -74,6 +74,11 @@ fn heard_as(mut chunk: Vec<f32>) -> Vec<f32> {
         chunk.fill(0.0);
     }
     chunk
+}
+
+/// Whether the running session's microphone is muted; None with no session.
+pub fn muted() -> Option<bool> {
+    with(|l| l.muted)
 }
 
 /// Mutes or unmutes the microphone of the running session.

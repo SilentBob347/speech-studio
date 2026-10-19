@@ -5,6 +5,8 @@ import i18n from "i18next";
 export type TalkPrefs = {
   style: string;
   lang: string;
+  /** the recogniser: parakeet, nemotron or whisper; empty is the one in the settings */
+  asr: string;
   /** the microphone by the studio's name for it; empty is the system's default */
   device: string;
   volume: number;
@@ -16,7 +18,7 @@ export type TalkPrefs = {
 /** Only what the person chose is kept, so a default they never touched can still follow the studio. */
 const KEY = "speech.talk.chosen";
 const CHANGED = "speech-talk-prefs";
-const DEFAULTS: TalkPrefs = { style: "aura", lang: "auto", device: "", volume: 1, muted: false, output: "" };
+const DEFAULTS: TalkPrefs = { style: "aura", lang: "auto", asr: "", device: "", volume: 1, muted: false, output: "" };
 
 /** Until the person picks one, the language spoken is the studio's own: told nothing, a recogniser guesses the language
  * of every phrase afresh and gets short ones wrong. */

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Ear, FileAudio, Loader2, Mic, Sparkles, Square, Trash2 } from "lucide-react";
+import { Ear, FileAudio, FolderOpen, Link2, Loader2, Mic, Sparkles, Square, Trash2 } from "lucide-react";
 import { api } from "../../lib/api";
 import { listenApi, clock, MEDIA, prepare, TRANSCRIPT_FORMATS, type ListenCard, type ListenEngine, type ListenProject, type Start, type TranscriptFormat } from "../../lib/listen";
 import QuickListen from "./QuickListen";
@@ -28,6 +28,24 @@ function savedStart(): Start {
 /** A new recording takes the engine and language picked on the start screen; one recognised before keeps its own. */
 /** Listening's start: a recording from a file (several at once go to recognition one after another), a link or the
  * microphone, and the recordings opened before. */
+type Source = "file" | "link" | "mic" | "folder";
+const SOURCES: { id: Source; icon: typeof FileAudio }[] = [
+  { id: "file", icon: FileAudio },
+  { id: "link", icon: Link2 },
+  { id: "mic", icon: Mic },
+  { id: "folder", icon: FolderOpen },
+];
+const SOURCE = "speech.listen.source";
+
+function savedSource(): Source {
+  try {
+    const v = localStorage.getItem(SOURCE);
+    return SOURCES.some((s) => s.id === v) ? (v as Source) : "file";
+  } catch {
+    return "file";
+  }
+}
+
 export default function ListeningHome({ onOpen }: { onOpen: (pid: string) => void }) {
   const { t, i18n } = useTranslation();
   const [projects, setProjects] = useState<ListenCard[] | null>(null);
@@ -45,6 +63,11 @@ export default function ListeningHome({ onOpen }: { onOpen: (pid: string) => voi
   const [formats, setFormats] = useState<TranscriptFormat[]>(["srt", "txt"]);
   const file = useRef<HTMLInputElement>(null);
   const [start, setStart] = useState<Start>(savedStart);
+  const [source, setSource] = useState<Source>(savedSource);
+  const pickSource = (next: Source) => {
+    setSource(next);
+    try { localStorage.setItem(SOURCE, next); } catch { /* the pick holds for this screen only */ }
+  };
   const pickStart = (next: Start) => {
     setStart(next);
     try { localStorage.setItem(START, JSON.stringify(next)); } catch { /* the pick holds for this screen only */ }
@@ -128,17 +151,32 @@ export default function ListeningHome({ onOpen }: { onOpen: (pid: string) => voi
               </select>
             </label>
           </div>
-          <div
-            onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
-            onDragLeave={() => setDrag(false)}
-            onDrop={(e) => { e.preventDefault(); setDrag(false); void upload([...e.dataTransfer.files]); }}
-            className={`rounded-xl border-2 border-dashed px-5 py-8 grid place-items-center text-center gap-2 transition-colors ${drag ? "border-[var(--color-accent)] bg-[color-mix(in_oklab,var(--color-accent)_8%,transparent)]" : "border-[var(--color-border)]"}`}
-          >
-            {busy ? <Loader2 size={22} className="animate-spin text-[var(--color-accent)]" /> : <FileAudio size={22} className="text-[var(--color-accent)]" />}
-            <p className="text-[13px]">{busy ? t("listen.uploading") : t("listen.drop")}</p>
-            <button onClick={() => file.current?.click()} disabled={busy} className="px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[13px] font-semibold disabled:opacity-40">{t("listen.pickFile")}</button>
-            <input ref={file} type="file" accept={MEDIA} multiple hidden onChange={(e) => { const all = [...(e.target.files ?? [])]; e.target.value = ""; void upload(all); }} />
-            <p className="text-[11px] text-[var(--color-muted)]">{t("listen.formats")}</p>
+          <div role="tablist" aria-label={t("listen.sources")} className="flex gap-1 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-1">
+            {SOURCES.map(({ id, icon: Icon }) => (
+              <button key={id} role="tab" id={`listen-source-${id}`} aria-selected={source === id} aria-controls="listen-source-panel" onClick={() => pickSource(id)}
+                className={`flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg px-2 py-1.5 text-[12px] font-medium transition-colors ${source === id ? "bg-[var(--color-accent)] text-[var(--color-on-accent)]" : "text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)]"}`}>
+                <Icon size={14} />{t(`listen.source_${id}`)}
+              </button>
+            ))}
+          </div>
+          <div role="tabpanel" id="listen-source-panel" aria-labelledby={`listen-source-${source}`}>
+            {source === "file" && (
+            <div
+              onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
+              onDragLeave={() => setDrag(false)}
+              onDrop={(e) => { e.preventDefault(); setDrag(false); void upload([...e.dataTransfer.files]); }}
+              className={`rounded-xl border-2 border-dashed px-5 py-8 grid place-items-center text-center gap-2 transition-colors ${drag ? "border-[var(--color-accent)] bg-[color-mix(in_oklab,var(--color-accent)_8%,transparent)]" : "border-[var(--color-border)]"}`}
+            >
+              {busy ? <Loader2 size={22} className="animate-spin text-[var(--color-accent)]" /> : <FileAudio size={22} className="text-[var(--color-accent)]" />}
+              <p className="text-[13px]">{busy ? t("listen.uploading") : t("listen.drop")}</p>
+              <button onClick={() => file.current?.click()} disabled={busy} className="px-3 py-1.5 rounded-lg bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[13px] font-semibold disabled:opacity-40">{t("listen.pickFile")}</button>
+              <input ref={file} type="file" accept={MEDIA} multiple hidden onChange={(e) => { const all = [...(e.target.files ?? [])]; e.target.value = ""; void upload(all); }} />
+              <p className="text-[11px] text-[var(--color-muted)]">{t("listen.formats")}</p>
+            </div>
+            )}
+            {source === "link" && <UrlImport onReady={(f) => onOpen(f.pid)} />}
+            {source === "mic" && <MicRecorder lang={start.lang} onDone={(pid, project) => { void prepare(pid, project, start).then(() => onOpen(pid), (e: unknown) => setError(errorText(e))); }} onError={setError} />}
+            {source === "folder" && <WatchFolder start={start} onOpen={onOpen} />}
           </div>
           {batch && (
             <BatchList title={t("batch.listenTitle")} items={batch} running={batchRunning} onOpen={onOpen} onSaveAll={saveBatch} onClose={() => setBatch(null)}
@@ -155,9 +193,6 @@ export default function ListeningHome({ onOpen }: { onOpen: (pid: string) => voi
                 </fieldset>
               } />
           )}
-          <UrlImport onReady={(f) => onOpen(f.pid)} />
-          <MicRecorder lang={start.lang} onDone={(pid, project) => { void prepare(pid, project, start).then(() => onOpen(pid), (e: unknown) => setError(errorText(e))); }} onError={setError} />
-          <WatchFolder start={start} onOpen={onOpen} />
           {error && <p role="alert" className="text-[12px] text-[var(--color-warn)] break-words">{error}</p>}
         </section>
         <section aria-labelledby="listen-list" className="space-y-3">
