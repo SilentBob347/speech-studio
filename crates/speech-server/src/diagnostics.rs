@@ -108,6 +108,7 @@ fn report(root: &Path) -> Value {
 /// The diagnostics as text to paste into an issue.
 fn text(report: &Value, log: &[String]) -> String {
     let gb = |b: &Value| b.as_u64().map(|b| format!("{:.1} GB", b as f64 / 1e9)).unwrap_or_else(|| "?".into());
+    let gib = |b: &Value| b.as_u64().map(|b| format!("{:.1} GB", b as f64 / crate::hw::GIB)).unwrap_or_else(|| "?".into());
     let gpu = &report["gpu"];
     let mut out = String::new();
     out.push_str(&format!("Speech Studio {}\n", report["version"].as_str().unwrap_or_default()));
@@ -120,7 +121,7 @@ fn text(report: &Value, log: &[String]) -> String {
         gpu["compute"].as_str().unwrap_or("?"),
         if gpu["cuda13Ok"] == true { "yes".to_string() } else { format!("no ({})", gpu["reason"].as_str().unwrap_or("?")) },
     ));
-    out.push_str(&format!("VRAM: {} free of {} · RAM: {} used of {}\n", gb(&report["memory"]["vram_free"]), gb(&report["memory"]["vram_total"]), gb(&report["memory"]["ram_used"]), gb(&report["memory"]["ram_total"])));
+    out.push_str(&format!("VRAM: {} free of {} · RAM: {} used of {}\n", gib(&report["memory"]["vram_free"]), gib(&report["memory"]["vram_total"]), gib(&report["memory"]["ram_used"]), gib(&report["memory"]["ram_total"])));
     out.push_str(&format!("ffmpeg on PATH: {}\n", report["ffmpeg_on_path"]));
     out.push_str(&format!("Models: {} · free {} · ready: {}\n", report["models_dir"].as_str().unwrap_or_default(), gb(&report["free_bytes"]), report["ready"]));
     out.push_str("Components:\n");

@@ -116,6 +116,9 @@ pub fn total_vram() -> u64 {
 // (nvcuda.dll: cuDriverGetVersion и атрибуты устройства 0 — той карты, что возьмут движки); NVML — только
 // имя карты и версия драйвера для показа.
 
+/// Bytes in the gigabyte memory is counted in: a "24 GB" card has 24 × 2³⁰ bytes, not 24 × 10⁹.
+pub const GIB: f64 = (1u64 << 30) as f64;
+
 /// Первый драйвер ветки CUDA 13 (Windows и Linux).
 pub const CUDA13_DRIVER: u32 = 580;
 /// Самая старая архитектура: CUDA 13 собирает от Turing, движок Higgs собран под неё на обеих платформах.
@@ -328,5 +331,13 @@ mod tests {
         if !r.nvidia {
             assert_eq!(r.reason, Some("no_nvidia"));
         }
+    }
+
+    #[test]
+    fn a_card_reads_as_its_box_says() {
+        let rtx4090 = 24_564u64 << 20;
+        assert_eq!(format!("{:.0}", rtx4090 as f64 / GIB), "24");
+        let rtx4060 = 8_188u64 << 20;
+        assert_eq!(format!("{:.0}", rtx4060 as f64 / GIB), "8");
     }
 }
