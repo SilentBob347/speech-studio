@@ -374,8 +374,15 @@ mod platform {
     // 100/120): RUNPATH $ORIGIN и ../higgs-engine, где libcudart и libcublas ставит cuda-runtime.
     pub const DRAMA_ENGINE: FileSpec = FileSpec { url: "https://github.com/timoncool/drama-rs/releases/download/engine-0.1.3/libdrama_engine.so", dest_rel: "models/drama-engine/libdrama_engine.so", size: 32_642_032, sha256: "b9beb23321fd63025facb2fa1d90087d3dd03069475aa60ad60c3fb3c97892b4", extract: Extract::None };
 
-    // transcribe.cpp has no Linux build yet: its components are left out of the list.
-    pub const TRANSCRIBE_ENGINE: Parts = Parts { size: 0, files: &[], markers: &[] };
+    // transcribe.cpp (fork timoncool/transcribe.cpp, scripts/build-engine-linux-docker.sh: CUDA 13.3, Ubuntu 22.04,
+    // sm 75/80/86/89/90/100/120): RUNPATH $ORIGIN and ../higgs-engine, where libcudart and libcublas come from cuda-runtime.
+    pub const TRANSCRIBE_ENGINE: Parts = Parts {
+        size: 160_907_152,
+        files: &[
+            FileSpec { url: "https://github.com/timoncool/transcribe.cpp/releases/download/engine-0.1.0/libtranscribe_engine.so", dest_rel: "models/transcribe-engine/libtranscribe_engine.so", size: 160_907_152, sha256: "95c5bd50b4ee034826c8cced8faca9680883eb3da13c46932cc61088407f168c", extract: Extract::None },
+        ],
+        markers: &[Marker { rel: "models/transcribe-engine/libtranscribe_engine.so", expect: 160_907_152 }],
+    };
 
     // Purfview faster-whisper r189.1 для Linux (последняя Linux-сборка не-XXL, CTranslate2 под CUDA 11).
     // Сборки Qwen3-TTS для Linux пока нет: компонент ставит только кодек, движок остаётся недоступным с причиной.
@@ -1350,7 +1357,7 @@ pub fn manifest() -> Vec<Component> {
     if !cfg!(windows) {
         all.retain(|c| c.id != "vcruntime");
     }
-    // transcribe.cpp is built for Windows only so far: its models have nothing to run on elsewhere
+    // a platform without a transcribe.cpp build has nothing to run its models on
     if platform::TRANSCRIBE_ENGINE.files.is_empty() {
         all.retain(|c| c.id != "transcribe-engine" && !c.id.starts_with("asr-gguf-"));
     }
