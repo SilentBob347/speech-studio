@@ -114,7 +114,7 @@ pub async fn record_start(State(st): State<AppState>, body: Option<Json<Value>>)
     let live = body.get("live").and_then(Value::as_bool).unwrap_or(false);
     let lang = body.get("lang").and_then(Value::as_str).unwrap_or("auto").to_string();
     let engine = body.get("engine").and_then(Value::as_str).unwrap_or_default().to_string();
-    if !matches!(engine.as_str(), "" | "parakeet" | "nemotron" | "whisper") {
+    if !matches!(engine.as_str(), "" | "parakeet" | "nemotron" | "whisper") && crate::tcpp_asr::family(&engine).is_none() {
         return refuse(StatusCode::BAD_REQUEST, "bad_engine", t!("listen-live-engine", engine = engine));
     }
     let pid = sp::new_id();

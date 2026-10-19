@@ -54,6 +54,7 @@ mod studio_settings;
 mod live;
 mod supertonic;
 mod qwen_tts;
+mod tcpp_asr;
 mod tagging;
 mod tts_text;
 mod tts_trim;
@@ -655,7 +656,7 @@ async fn capabilities(State(st): State<AppState>) -> Json<Value> {
         "modes": ["speech","listening"],
         // Выбор ASR: движок (parakeet|nemotron|whisper), модель Whisper, квант Whisper (compute_type).
         "selection": sel,
-        "asr_engines": ["parakeet","nemotron","whisper"],
+        "asr_engines": ["parakeet","nemotron","whisper","gguf-parakeet","gguf-nemotron","gguf-gigaam","gguf-cohere","gguf-whisper"],
         "whisper_models": ["tiny","base","small","medium","large-v3","large-v3-turbo"],
         // Кванты Whisper (compute_type): float16 / int8_float16 задействуют Tensor Cores на CUDA GPU.
         "whisper_computes": ["int8","int8_float16","float16","int8_float32","float32"],

@@ -128,7 +128,7 @@ pub fn finish() -> Result<Vec<Heard>, String> {
 }
 
 /// Linear resampling to 16 kHz: enough for the speech detector, the recogniser gets the same.
-fn to_16k(x: &[f32], sr: u32) -> Vec<f32> {
+pub(crate) fn to_16k(x: &[f32], sr: u32) -> Vec<f32> {
     if sr == 16_000 || x.is_empty() {
         return x.to_vec();
     }

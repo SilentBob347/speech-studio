@@ -1770,7 +1770,17 @@
     "source_file": "Archivo",
     "source_link": "Enlace",
     "source_mic": "Micrófono",
-    "source_folder": "Carpeta"
+    "source_folder": "Carpeta",
+    "engine_gguf-parakeet": "Parakeet v3 (transcribe.cpp, rápido)",
+    "engine_gguf-nemotron": "Nemotron 3.5 (transcribe.cpp, 35 idiomas)",
+    "engine_gguf-gigaam": "GigaAM-v3 (transcribe.cpp, ruso)",
+    "engine_gguf-cohere": "Cohere (transcribe.cpp, 14 idiomas)",
+    "engine_gguf-whisper": "Whisper turbo (transcribe.cpp, 100 idiomas)",
+    "engineHint_gguf-parakeet": "Parakeet en el motor transcribe.cpp: el mismo Parakeet, varias veces más rápido en la GPU.",
+    "engineHint_gguf-nemotron": "Nemotron 3.5 en transcribe.cpp: 35 idiomas con puntuación, decenas de veces más rápido en la GPU que el de ONNX.",
+    "engineHint_gguf-gigaam": "GigaAM-v3 en transcribe.cpp: el modelo ruso de Sber con puntuación y mayúsculas.",
+    "engineHint_gguf-cohere": "Cohere Transcribe en transcribe.cpp: 14 idiomas sin ruso, muy preciso en inglés.",
+    "engineHint_gguf-whisper": "Whisper large-v3-turbo en transcribe.cpp: unos 100 idiomas."
   },
   "podcast": {
     "open": "Guion de pódcast",

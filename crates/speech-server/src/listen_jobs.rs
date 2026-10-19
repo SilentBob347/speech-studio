@@ -44,6 +44,10 @@ fn engine_for(p: &ListenPaths, project: &ListenProject) -> Result<Engine, String
                 for_lang = true;
                 "whisper".to_string()
             }
+            g if crate::tcpp_asr::family(g).is_some_and(|f| !crate::tcpp_asr::knows(f, lang)) => {
+                for_lang = true;
+                "whisper".to_string()
+            }
             e => e.to_string(),
         },
         e => e.to_string(),
@@ -63,7 +67,7 @@ fn engine_for(p: &ListenPaths, project: &ListenProject) -> Result<Engine, String
         return Ok(Engine::Cloud(model));
     }
     if let Some(obj) = sel.as_object_mut() {
-        obj.insert("asr_engine".into(), json!(match picked.as_str() { "whisper" => "whisper", "nemotron" => "nemotron", _ => "parakeet" }));
+        obj.insert("asr_engine".into(), json!(match picked.as_str() { "whisper" => "whisper", "nemotron" => "nemotron", g if crate::tcpp_asr::family(g).is_some() => g, _ => "parakeet" }));
     }
     let choice = crate::models::resolve_asr_choice(&p.repo_root, &p.models_root, &sel);
     let whisper = matches!(choice, crate::models::AsrChoice::Whisper { .. });
@@ -74,10 +78,20 @@ fn engine_for(p: &ListenPaths, project: &ListenProject) -> Result<Engine, String
     if picked == "nemotron" && !nemotron {
         return Err(t!("listen-nemotron-missing"));
     }
-    if !choice.knows(lang) {
-        return Err(if nemotron { t!("listen-nemotron-lang", lang = lang.to_string()) } else { t!("listen-parakeet-lang", lang = lang.to_string()) });
+    let gguf = crate::tcpp_asr::family(&picked);
+    if let Some(f) = gguf {
+        if !matches!(choice, crate::models::AsrChoice::Ggml { .. }) {
+            return Err(t!("listen-gguf-missing", engine = f.id));
+        }
     }
-    Ok(Engine::Local(choice, if whisper { "whisper" } else if nemotron { "nemotron" } else { "parakeet" }))
+    if !choice.knows(lang) {
+        return Err(match gguf {
+            Some(f) => t!("listen-gguf-lang", engine = f.id, lang = lang.to_string()),
+            None if nemotron => t!("listen-nemotron-lang", lang = lang.to_string()),
+            None => t!("listen-parakeet-lang", lang = lang.to_string()),
+        });
+    }
+    Ok(Engine::Local(choice, if whisper { "whisper" } else if nemotron { "nemotron" } else if let Some(f) = gguf { f.id } else { "parakeet" }))
 }
 
 fn step(progress: &dyn Fn(Value), msg: String, pct: i64) {
@@ -285,10 +299,10 @@ fn recognise(p: &ListenPaths, engine: &Engine, wav: &Path, work: &Path, s: &lp::
     let lines = match engine {
         Engine::Local(choice, _) => {
             std::env::set_var("DUB_ASR_BACKEND", crate::models::stage_backend(&p.models_root, "asr_backend"));
-            // Whisper windows a long recording itself; Parakeet and Nemotron get it in pieces cut at pauses
+            // Whisper windows a long recording itself; the others get it in pieces cut at pauses
             let segments = match choice {
                 crate::models::AsrChoice::Whisper { .. } => crate::models::build_engine(choice, prompt).transcribe(wav, lang).map_err(|e| e.localize())?,
-                crate::models::AsrChoice::Parakeet(_) | crate::models::AsrChoice::Nemotron(_) => recognise_by_pauses(p, choice, wav, work, lang, &s.vad, prompt, progress)?,
+                crate::models::AsrChoice::Parakeet(_) | crate::models::AsrChoice::Nemotron(_) | crate::models::AsrChoice::Ggml { .. } => recognise_by_pauses(p, choice, wav, work, lang, &s.vad, prompt, progress)?,
             };
             dub_asr::split_at_speaker_turns(segments, turns)
                 .into_iter()

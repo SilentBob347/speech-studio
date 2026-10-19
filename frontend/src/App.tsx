@@ -42,7 +42,7 @@ export default function App() {
     if (stage !== "ready") return;
     api.capabilities().then((c) => {
       const sel = (c as { selection?: Record<string, string> }).selection ?? {};
-      const asr = sel.asr_engine === "whisper" ? `whisper ${sel.whisper_model || "auto"}` : sel.asr_engine === "nemotron" ? "nemotron-3.5 int8" : `${c.asr_model}${sel.asr ? ` ${sel.asr}` : ""}`;
+      const asr = sel.asr_engine === "whisper" ? `whisper ${sel.whisper_model || "auto"}` : sel.asr_engine === "nemotron" ? "nemotron-3.5 int8" : String(sel.asr_engine ?? "").startsWith("gguf-") ? String(sel.asr_engine) : `${c.asr_model}${sel.asr ? ` ${sel.asr}` : ""}`;
       const rest = [`ASR ${asr}`];
       if (c.models?.llm) rest.push(`LLM ${modelName(c.models.llm)}`);
       setCap({ device: c.device, tts: c.models?.tts ? `${c.models.tts}${c.tts_quant ? ` ${c.tts_quant}` : ""}` : "", rest });

@@ -20,7 +20,7 @@ import type { useTalk } from "./useTalk";
 type Talk = ReturnType<typeof useTalk>;
 
 /** The recognisers that hear a conversation as it goes: the local ones. */
-const LIVE_ASR = ["", "parakeet", "nemotron", "whisper"] as const;
+const LIVE_ASR = ["", "parakeet", "nemotron", "whisper", "gguf-parakeet", "gguf-nemotron", "gguf-gigaam", "gguf-cohere", "gguf-whisper"] as const;
 
 const round_ = "grid place-items-center rounded-full transition-colors disabled:opacity-40";
 const quiet = "border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-accent)]";

@@ -144,6 +144,7 @@ pub fn component_selection(id: &str) -> Vec<(&'static str, String)> {
         "parakeet" => vec![("asr_engine", "parakeet".into()), ("asr", "int8".into())],
         "parakeet-ultra-int8" => vec![("asr_engine", "parakeet".into()), ("asr", "ultra-int8".into())],
         "nemotron-asr" => vec![("asr_engine", "nemotron".into())],
+        id if id.starts_with("asr-gguf-") => vec![("asr_engine", id.trim_start_matches("asr-").to_string())],
         "whisper-tiny" => vec![("asr_engine", "whisper".into()), ("whisper_model", "tiny".into()),
         ],
         "whisper-base" => vec![("asr_engine", "whisper".into()), ("whisper_model", "base".into()),
@@ -579,6 +580,8 @@ pub enum AsrChoice {
     Parakeet(PathBuf),
     /// Nemotron 3.5 ASR: the folder of its int8 export.
     Nemotron(PathBuf),
+    /// A GGUF model run by transcribe.cpp on the GPU.
+    Ggml { models_root: PathBuf, family: &'static crate::tcpp_asr::Family },
     Whisper { bin: PathBuf, model_dir: PathBuf, model: String, compute: String, device: String,
     },
 }
@@ -595,6 +598,7 @@ impl AsrChoice {
                 format!("Parakeet ({variant})")
             }
             AsrChoice::Nemotron(_) => "Nemotron 3.5 ASR (int8)".into(),
+            AsrChoice::Ggml { family, .. } => format!("transcribe.cpp ({})", family.file),
             AsrChoice::Whisper { model, compute, device, .. } => {
                 format!("Whisper {model} (compute={compute}, device={device})")
             }
@@ -608,6 +612,7 @@ impl AsrChoice {
             || match self {
                 AsrChoice::Parakeet(_) => parakeet_knows(lang),
                 AsrChoice::Nemotron(_) => dub_asr::nemotron_lang(lang).is_some(),
+                AsrChoice::Ggml { family, .. } => crate::tcpp_asr::knows(family, lang),
                 AsrChoice::Whisper { .. } => true,
             }
     }
@@ -664,6 +669,11 @@ pub fn parakeet_knows(lang: &str) -> bool {
 pub fn resolve_asr_choice(repo_root: &Path, mroot: &Path, sel: &Value) -> AsrChoice {
     if pick(sel, "asr_engine") == Some("nemotron") && nemotron_installed(mroot) {
         return AsrChoice::Nemotron(nemotron_dir(mroot));
+    }
+    if let Some(family) = pick(sel, "asr_engine").and_then(crate::tcpp_asr::family) {
+        if crate::tcpp_asr::installed(mroot, family) {
+            return AsrChoice::Ggml { models_root: mroot.to_path_buf(), family };
+        }
     }
     if pick(sel, "asr_engine") == Some("whisper") {
         let bin = whisper_bin(repo_root);
@@ -746,6 +756,7 @@ pub fn build_engine(choice: &AsrChoice, prompt: Option<String>) -> Box<dyn dub_a
     match choice {
         AsrChoice::Parakeet(dir) => Box::new(dub_asr::Asr::new(dir)),
         AsrChoice::Nemotron(dir) => Box::new(dub_asr::NemotronAsr::new(dir)),
+        AsrChoice::Ggml { models_root, family } => Box::new(crate::tcpp_asr::LazyTcpp::new(models_root, family)),
         AsrChoice::Whisper { bin, model_dir, model, compute, device } => Box::new(dub_asr::WhisperAsr::new(bin, model_dir, model, compute, device).with_prompt(prompt)),
     }
 }

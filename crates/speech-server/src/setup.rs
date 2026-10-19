@@ -222,6 +222,10 @@ mod platform {
     // импортирует cublas64_13.dll (ставит cuda-runtime), cudart слинкован статически.
     pub const DRAMA_ENGINE: FileSpec = FileSpec { url: "https://github.com/timoncool/drama-rs/releases/download/engine-0.1.3/drama_engine.dll", dest_rel: "models/drama-engine/drama_engine.dll", size: 32_075_264, sha256: "677133f63605d72e3eceb148eb1fd3eee72f0aae02b65750da59bf60d041793f", extract: Extract::None };
 
+    // transcribe.cpp (fork timoncool/transcribe.cpp, branch studio): libtranscribe and ggml whole in one library,
+    // CUDA 13, sm 75/80/86/89/90/100/120 without PTX; cudart and cuBLAS come from cuda-runtime.
+    pub const TRANSCRIBE_ENGINE: Parts = Parts { size: 0, files: &[], markers: &[] };
+
     // Движок Qwen3-TTS (форк timoncool/qwentts.cpp, ветка studio, ABI 7), CUDA 13, sm 75/80/86/89/90/100/120 без PTX;
     // библиотеки ggml лежат рядом с qwen.dll, cudart и cuBLAS ставит cuda-runtime.
     pub const QWEN_ENGINE: Parts = Parts {
@@ -363,6 +367,9 @@ mod platform {
     // Движок Drama 3 (форк timoncool/drama-rs, capi/build-linux-docker.sh: CUDA 13.3, Ubuntu 22.04, sm 75/80/86/89/90/
     // 100/120): RUNPATH $ORIGIN и ../higgs-engine, где libcudart и libcublas ставит cuda-runtime.
     pub const DRAMA_ENGINE: FileSpec = FileSpec { url: "https://github.com/timoncool/drama-rs/releases/download/engine-0.1.3/libdrama_engine.so", dest_rel: "models/drama-engine/libdrama_engine.so", size: 32_642_032, sha256: "b9beb23321fd63025facb2fa1d90087d3dd03069475aa60ad60c3fb3c97892b4", extract: Extract::None };
+
+    // transcribe.cpp has no Linux build yet: its components are left out of the list.
+    pub const TRANSCRIBE_ENGINE: Parts = Parts { size: 0, files: &[], markers: &[] };
 
     // Purfview faster-whisper r189.1 для Linux (последняя Linux-сборка не-XXL, CTranslate2 под CUDA 11).
     // Сборки Qwen3-TTS для Linux пока нет: компонент ставит только кодек, движок остаётся недоступным с причиной.
@@ -883,6 +890,74 @@ pub fn manifest() -> Vec<Component> {
             ],
             external_url: None,
         },
+        // Recognition by transcribe.cpp (ggml, CUDA): the engine, then each model as its GGUF from its authors'
+        // repository at a pinned revision. A model is a choice of its own; the studio's default recogniser stays.
+        Component {
+            id: "transcribe-engine",
+            name: "transcribe.cpp (CUDA)".into(),
+            purpose: t!("setup-comp-transcribe-engine-purpose"),
+            requirement: Requirement::Optional,
+            delivery: Delivery::Download,
+            size: platform::TRANSCRIBE_ENGINE.size,
+            files: platform::TRANSCRIBE_ENGINE.files,
+            markers: platform::TRANSCRIBE_ENGINE.markers,
+            external_url: None,
+        },
+        Component {
+            id: "asr-gguf-parakeet",
+            name: "Parakeet TDT 0.6B v3 (GGUF Q8_0, transcribe.cpp)".into(),
+            purpose: t!("setup-comp-asr-gguf-parakeet-purpose"),
+            requirement: Requirement::Optional,
+            delivery: Delivery::Download,
+            size: 739_508_576,
+            files: &[FileSpec { url: "https://huggingface.co/handy-computer/parakeet-tdt-0.6b-v3-gguf/resolve/d8d8c32cb2017c57e5307767343e97870f8a7f53/parakeet-tdt-0.6b-v3-Q8_0.gguf", dest_rel: "models/asr-gguf-parakeet/parakeet-tdt-0.6b-v3-Q8_0.gguf", size: 739_508_576, sha256: "5859f77944efcd8eafa23a6350731960b2b55b2203df51f319665c807d802cc7", extract: Extract::None }],
+            markers: &[Marker { rel: "models/asr-gguf-parakeet/parakeet-tdt-0.6b-v3-Q8_0.gguf", expect: 739_508_576 }],
+            external_url: None,
+        },
+        Component {
+            id: "asr-gguf-nemotron",
+            name: "Nemotron 3.5 ASR 0.6B (GGUF Q8_0, transcribe.cpp)".into(),
+            purpose: t!("setup-comp-asr-gguf-nemotron-purpose"),
+            requirement: Requirement::Optional,
+            delivery: Delivery::Download,
+            size: 751_094_240,
+            files: &[FileSpec { url: "https://huggingface.co/handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf/resolve/53ce288f69326b415aeef030cfcb02a08a8096dd/nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf", dest_rel: "models/asr-gguf-nemotron/nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf", size: 751_094_240, sha256: "b94545b313b3223fda7b2857a52681da813935c2127643d1e9ff0c23d988089c", extract: Extract::None }],
+            markers: &[Marker { rel: "models/asr-gguf-nemotron/nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf", expect: 751_094_240 }],
+            external_url: None,
+        },
+        Component {
+            id: "asr-gguf-gigaam",
+            name: "GigaAM-v3 e2e RNN-T (GGUF Q8_0, transcribe.cpp)".into(),
+            purpose: t!("setup-comp-asr-gguf-gigaam-purpose"),
+            requirement: Requirement::Optional,
+            delivery: Delivery::Download,
+            size: 273_724_832,
+            files: &[FileSpec { url: "https://huggingface.co/handy-computer/gigaam-v3-e2e-rnnt-gguf/resolve/3efd5b39882ceadca5570a8fb9fa1a2c801d6d6d/gigaam-v3-e2e-rnnt-Q8_0.gguf", dest_rel: "models/asr-gguf-gigaam/gigaam-v3-e2e-rnnt-Q8_0.gguf", size: 273_724_832, sha256: "78d63b47723b7f8d78c6113a6ef983b5a86e2a86f6c273e1f5cb6967b1c4467a", extract: Extract::None }],
+            markers: &[Marker { rel: "models/asr-gguf-gigaam/gigaam-v3-e2e-rnnt-Q8_0.gguf", expect: 273_724_832 }],
+            external_url: None,
+        },
+        Component {
+            id: "asr-gguf-cohere",
+            name: "Cohere Transcribe 03-2026 (GGUF Q8_0, transcribe.cpp)".into(),
+            purpose: t!("setup-comp-asr-gguf-cohere-purpose"),
+            requirement: Requirement::Optional,
+            delivery: Delivery::Download,
+            size: 2_410_655_232,
+            files: &[FileSpec { url: "https://huggingface.co/handy-computer/cohere-transcribe-03-2026-gguf/resolve/7353b6040bdc1be9e5a3823d99d5fe12afe88264/cohere-transcribe-03-2026-Q8_0.gguf", dest_rel: "models/asr-gguf-cohere/cohere-transcribe-03-2026-Q8_0.gguf", size: 2_410_655_232, sha256: "931916663432fd895423a4291a8400221802b288967ca2d435fc5e3141c9e71e", extract: Extract::None }],
+            markers: &[Marker { rel: "models/asr-gguf-cohere/cohere-transcribe-03-2026-Q8_0.gguf", expect: 2_410_655_232 }],
+            external_url: None,
+        },
+        Component {
+            id: "asr-gguf-whisper",
+            name: "Whisper large-v3-turbo (GGUF Q8_0, transcribe.cpp)".into(),
+            purpose: t!("setup-comp-asr-gguf-whisper-purpose"),
+            requirement: Requirement::Optional,
+            delivery: Delivery::Download,
+            size: 886_381_728,
+            files: &[FileSpec { url: "https://huggingface.co/handy-computer/whisper-large-v3-turbo-gguf/resolve/18ada752005f5fddef499256f9a458d0b37a203a/whisper-large-v3-turbo-Q8_0.gguf", dest_rel: "models/asr-gguf-whisper/whisper-large-v3-turbo-Q8_0.gguf", size: 886_381_728, sha256: "257aa7ec9121c22c167d5e2c49e3e76b4ba0e6e27ebc13074eba0a80f8190220", extract: Extract::None }],
+            markers: &[Marker { rel: "models/asr-gguf-whisper/whisper-large-v3-turbo-Q8_0.gguf", expect: 886_381_728 }],
+            external_url: None,
+        },
         // ── АЛЬТЕРНАТИВНЫЙ ASR-ДВИЖОК: Whisper (Purfview standalone faster-whisper) ──────────
         // Бинарь-onefile (CTranslate2 CPU из коробки; GPU опц. с CUDA11-либами). Выбор в настройках:
         // движок Parakeet/Whisper + РАЗНЫЕ модели (tiny…large-v3-turbo) + РАЗНЫЕ кванты (compute_type).
@@ -1280,6 +1355,10 @@ pub fn manifest() -> Vec<Component> {
     if !cfg!(windows) {
         all.retain(|c| c.id != "vcruntime");
     }
+    // transcribe.cpp is built for Windows only so far: its models have nothing to run on elsewhere
+    if platform::TRANSCRIBE_ENGINE.files.is_empty() {
+        all.retain(|c| c.id != "transcribe-engine" && !c.id.starts_with("asr-gguf-"));
+    }
     all
 }
 
@@ -1370,6 +1449,11 @@ fn vram_estimate(id: &str) -> u64 {
         "parakeet" => gb(1.1),
         "parakeet-ultra-int8" => gb(1.1),
         "nemotron-asr" => gb(1.2),
+        "asr-gguf-parakeet" => gb(1.4),
+        "asr-gguf-nemotron" => gb(1.5),
+        "asr-gguf-gigaam" => gb(0.6),
+        "asr-gguf-cohere" => gb(3.2),
+        "asr-gguf-whisper" => gb(1.6),
         "supertonic3" => gb(0.6),
         "qwen3-tts" => gb(2.8),
         "qwen3-tts-q8_0" => gb(3.7),

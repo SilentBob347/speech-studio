@@ -10,7 +10,7 @@ import { LANG_CHOICES } from "../speech/langs";
 import { api, slot } from "../../lib/api";
 import Hint from "../Hint";
 
-export const ENGINES: ListenEngine[] = ["", "parakeet", "nemotron", "whisper", "openrouter", "fal"];
+export const ENGINES: ListenEngine[] = ["", "parakeet", "nemotron", "whisper", "gguf-parakeet", "gguf-nemotron", "gguf-gigaam", "gguf-cohere", "gguf-whisper", "openrouter", "fal"];
 const SPEAKERS = [0, 1, 2, 3, 4, 5, 6, 7, 8];
 
 /** How the recording is recognised: engine, language, speakers, noise removal, voice separation, hallucination filter, a
@@ -26,7 +26,7 @@ export default function ListenSettings({ project, onChange, onClose }: { project
   }, []);
   const effective = s.engine || studioAsr;
   const whisper = effective === "whisper";
-  const local = effective === "parakeet" || effective === "nemotron";
+  const local = effective === "parakeet" || effective === "nemotron" || (effective ?? "").startsWith("gguf-");
   const vad = { ...VAD_DEFAULTS, ...s.vad };
   const setVad = (patch: Partial<VadConfig>) => set({ vad: { ...vad, ...patch } });
   const vadFields: { key: keyof VadConfig; step: number; min: number; max: number }[] = [

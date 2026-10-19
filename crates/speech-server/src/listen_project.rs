@@ -159,8 +159,8 @@ impl ListenProject {
         if self.settings.speakers > MAX_SPEAKERS {
             return Err(format!("speakers {} is outside 0..{MAX_SPEAKERS}", self.settings.speakers));
         }
-        if !matches!(self.settings.engine.as_str(), "" | "parakeet" | "nemotron" | "whisper" | "openrouter" | "fal") {
-            return Err(format!("engine {} is not one of parakeet, nemotron, whisper, openrouter, fal", self.settings.engine));
+        if !matches!(self.settings.engine.as_str(), "" | "parakeet" | "nemotron" | "whisper" | "openrouter" | "fal") && crate::tcpp_asr::family(&self.settings.engine).is_none() {
+            return Err(format!("engine {} is not one of parakeet, nemotron, whisper, gguf-parakeet, gguf-nemotron, gguf-gigaam, gguf-cohere, gguf-whisper, openrouter, fal", self.settings.engine));
         }
         if self.source.contains(['/', '\\']) || self.source.contains("..") {
             return Err(format!("source {} must be a file name in the project folder", self.source));

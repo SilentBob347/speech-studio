@@ -23,7 +23,8 @@ pub fn choice(repo_root: &Path, models_root: &Path, lang: &str, what: &str) -> R
     choice_of(repo_root, models_root, lang, what, "")
 }
 
-/// The recogniser for `lang` with `engine` (parakeet, nemotron, whisper) in place of the settings' one; empty keeps it.
+/// The recogniser for `lang` with `engine` (parakeet, nemotron, whisper, gguf-*) in place of the settings' one; empty
+/// keeps it.
 pub fn choice_of(repo_root: &Path, models_root: &Path, lang: &str, what: &str, engine: &str) -> Result<crate::models::AsrChoice, String> {
     let mut sel = crate::models::load_selection(models_root);
     if !engine.is_empty() {
