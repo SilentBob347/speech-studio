@@ -6,6 +6,18 @@ release notes on GitHub are taken from the release's section.
 
 ## Unreleased
 
+### Live
+
+- **Live mode: talk with an agent by voice.** An agent connected over MCP speaks each finished phrase at once
+  (`say_start`, `say_text`), the person answers into the microphone and is recognised phrase by phrase; speaking over
+  the agent stops it. Mute with M or Ctrl+Shift+Space from any window (hold to talk), type to the agent, choose the
+  recogniser and the agent's voice, the agent's name beside its lines.
+- **The sound window**: microphone, agent's voice and speaker tabs, level meters with the peak held, hear yourself, a
+  test chime, the agent's volume.
+- **Five looks** (aura, wave, bars, radial, matrix) and a widget — a frameless bar over every other window.
+
+### Speech
+
 - **Drama 3 from 6 GB cards.** When the model does not fit the card, its experts (18 GB) live in RAM (32 GB needed)
   and the card keeps a cache of the ones in use; the sound is the same. Settings → Models → *VRAM for Drama 3*: Auto
   (the whole model when it fits the free VRAM) or 5 to 24 GB by hand. Measured on an RTX 4090: whole model about 8×
@@ -15,6 +27,45 @@ release notes on GitHub are taken from the release's section.
   voice. The typed transcript is kept.
 - **Cloud voices play while they voice.** OpenRouter, Gemini, fal and Runware blocks reach the window phrase by phrase
   as each one arrives, as the local engines do, and their takes keep the time to the first sound.
+- **Gemini TTS** in parallel standard requests or as a restart-safe Batch at half price, with an auto mode; Game Dub's
+  checks of Google takes (whistle, repeats, padding) redo a bad take, each kind switched in the project.
+- **Editing**: a director's note on a take voices the next one, *Edit the line* from the player, take edges on the
+  waveform, A/B of takes, blind comparison of two engines, mending a failed take where it went wrong, approved blocks
+  kept by voice-all, notes on words, words heard differently shown under the block.
+- **Text**: an SSML subset, prosody cues coloured over the words, phones, e-mail, sites and codes read right, groups of
+  normalisation rules left as written, a passage in another language with its own voice, the director's punctuation
+  and expression tags with words kept, a check of the script before voicing.
+- **Books and plays**: direct speech apart from the author's words, a character registry with voices picked by gender,
+  age and language, one voice for the whole project, footnotes and addresses dropped at import, the book's names into
+  the dictionary, a project rebuilt from its edited book keeping what was voiced, a book player page beside the export.
+- **Montage**: a track editor on the project's time scale (move with snapping, trim, fades, gain), tracks of music and
+  sounds under the voices from files, folders or a song made in YuE2, MiniMax Music3 or ACE-Step Studio; the timeline
+  at the bottom, above the player.
+- **Export**: subtitles in SRT, VTT, ASS and LRC, sample rate, bit depth and bitrate, voice effects (radio, phone,
+  loudspeaker), even piece levels, a file per chapter levelled as one book, tracks per speaker in a ZIP, a CSV of the
+  lines, file name templates, a SHA-256 manifest and a recipe of how each file was made.
+- **Voices**: record a voice from the picker, trim a reference by its waveform, a character's variants, a voice from
+  attributes, a voice's license, rotating pieces of a long reference, what each engine needs from a reference.
+- **Quality**: a quality light and report for the project, a corpus of hard Russian phrases as an engine check, a
+  runaway limit per language's speech rate, numbers compared as digits in six languages.
+
+### Listening
+
+- **Nemotron 3.5 ASR** (35 languages with punctuation) as a third local recogniser, and recognition by transcribe.cpp
+  (Parakeet v3, Nemotron 3.5, Cohere, Whisper turbo as GGUF Q8_0) beside the default.
+- **Live recognition** from the microphone phrase by phrase, a **watched folder** recognised in the background,
+  **quick recognition** of a file without the editor, a batch of files saved in several formats at once.
+- Subtitles by a broadcaster's rules (Netflix, BBC and others), who talks how much, a repeated phrase in the player,
+  numbers as digits in the export, the recogniser chosen by the recording's language.
+
+### Window and agents
+
+- Every route and window action is an MCP tool; the agent can be the studio's language model, as in YuE2 and MiniMax.
+- A command palette (Ctrl+K), own shortcuts, a simple mode with steps, inputs as tabs, built files on the home screen,
+  undo of a project deletion, hints on every control in six languages, button texts that say what happens, a phone
+  layout, lists in the theme's colours.
+- Models another program of timoncool's has are taken from it before downloading; the hub counts model downloads.
+- A project page in six languages with examples of every engine.
 
 ## 0.1.0 — 2026-10-15
 
