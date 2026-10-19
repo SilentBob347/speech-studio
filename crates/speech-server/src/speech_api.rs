@@ -499,7 +499,7 @@ pub async fn own_ref(State(st): State<AppState>, AxPath((pid, bid)): AxPath<(Str
     }
     let p = paths(&st);
     let res = joined(tokio::task::spawn_blocking(crate::mcp::carry(move || -> Result<Value, String> {
-        let mut project = sp::load(&p.workspace, &pid)?;
+        let project = sp::load(&p.workspace, &pid)?;
         if !project.blocks().any(|b| b.id == bid) {
             return Err(t!("speech-no-block", id = bid.clone()));
         }
@@ -514,12 +514,14 @@ pub async fn own_ref(State(st): State<AppState>, AxPath((pid, bid)): AxPath<(Str
         let _ = std::fs::remove_file(&raw);
         made?;
         let text = if text.trim().is_empty() { crate::asr_util::transcribe(&p.repo_root, &p.models_root, &wav, &project.settings.lang, &name)?.text } else { text.trim().to_string() };
-        for c in project.chapters.iter_mut() {
-            for b in c.blocks.iter_mut().filter(|b| b.id == bid) {
-                b.own_ref = Some(sp::OwnRef { file: file.clone(), text: text.clone(), whole });
+        let project = sp::edit(&p.workspace, &pid, |project| {
+            for c in project.chapters.iter_mut() {
+                for b in c.blocks.iter_mut().filter(|b| b.id == bid) {
+                    b.own_ref = Some(sp::OwnRef { file: file.clone(), text: text.clone(), whole });
+                }
             }
-        }
-        sp::save(&p.workspace, &pid, &project)?;
+            project.clone()
+        })?;
         Ok(shown(&p, &project))
     }))
     .await);
@@ -828,10 +830,8 @@ pub async fn tracks_music(State(st): State<AppState>, AxPath(pid): AxPath<String
             clip.label = title.clone();
             clip.source = Some(json!({ "studio": studio.id, "song": song, "values": body.values }));
         }
-        let mut project = sp::load(&p.workspace, &pid2)?;
         let name = body.name.clone().filter(|n| !n.trim().is_empty()).unwrap_or_else(|| t!("music-track"));
-        let track = crate::tracks::place(&mut project, body.track.as_deref(), &name, clips, body.at)?;
-        sp::save(&p.workspace, &pid2, &project)?;
+        let track = sp::edit(&p.workspace, &pid2, |project| crate::tracks::place(project, body.track.as_deref(), &name, clips, body.at))??;
         Ok(json!({ "track": track, "songs": songs.iter().map(|(_, song, title)| json!({ "song": song, "title": title })).collect::<Vec<_>>() }))
     });
     match st.jobs.enqueue(crate::jobs::JobMeta::new(crate::jobs::JobKind::Music, Some(&pid)), job).await {
@@ -841,10 +841,9 @@ pub async fn tracks_music(State(st): State<AppState>, AxPath(pid): AxPath<String
 }
 
 fn place_files(p: &SpeechPaths, pid: &str, files: &[std::path::PathBuf], track: Option<&str>, name: &str, at: Option<f64>) -> Result<Value, String> {
-    let mut project = sp::load(&p.workspace, pid)?;
+    sp::load(&p.workspace, pid)?;
     let clips = crate::tracks::clips_of(&p.workspace, pid, files, at.unwrap_or(0.0))?;
-    crate::tracks::place(&mut project, track, name, clips, at)?;
-    sp::save(&p.workspace, pid, &project)?;
+    let project = sp::edit(&p.workspace, pid, |project| crate::tracks::place(project, track, name, clips, at).map(|_| project.clone()))??;
     Ok(shown(p, &project))
 }
 
@@ -930,13 +929,13 @@ pub async fn engines(State(st): State<AppState>) -> Json<Value> {
     Json(json!({ "engines": crate::engines::for_window(&st.models_root) }))
 }
 
-/// GET /engine/tags?engine= — теги экспрессии движка по категориям (окно строит из них палитру вставки); без
-/// `engine` — Higgs. У движка без тегов категорий нет.
-pub async fn tags(Query(q): Query<HashMap<String, String>>) -> Json<Value> {
+pub async fn tags(Query(q): Query<HashMap<String, String>>) -> Response {
     let id = q.get("engine").map(String::as_str).unwrap_or("higgs");
-    let engine = crate::engines::get(id).unwrap_or_else(crate::engines::higgs);
+    let Some(engine) = crate::engines::get(id) else {
+        return refuse(StatusCode::BAD_REQUEST, "bad_engine", t!("speech-engine-unknown", engine = id.to_string()));
+    };
     let cats: Vec<Value> = engine.tags.iter().map(|(c, values)| json!({ "category": c, "values": values })).collect();
-    Json(json!({ "engine": engine.id, "format": engine.tag_format, "direction": engine.direction, "direction_presets_only": engine.direction_presets_only, "sentence_tags": engine.sentence_tags, "glued_tags": engine.glued_tags, "categories": cats }))
+    Json(json!({ "engine": engine.id, "format": engine.tag_format, "direction": engine.direction, "direction_presets_only": engine.direction_presets_only, "sentence_tags": engine.sentence_tags, "glued_tags": engine.glued_tags, "categories": cats })).into_response()
 }
 
 #[derive(serde::Deserialize)]
@@ -1268,9 +1267,17 @@ pub async fn renders(State(st): State<AppState>) -> Response {
         let mut out: Vec<Value> = Vec::new();
         for entry in std::fs::read_dir(&workspace).into_iter().flatten().flatten() {
             let pid = entry.file_name().to_string_lossy().into_owned();
-            let Ok(project) = sp::load(&workspace, &pid) else { continue };
             let exports = entry.path().join("exports");
-            for file in std::fs::read_dir(&exports).into_iter().flatten().flatten() {
+            let Ok(listing) = std::fs::read_dir(&exports) else { continue };
+            // only the project's kind and name are needed: a book's whole project is not parsed for them
+            #[derive(serde::Deserialize)]
+            struct Head {
+                kind: String,
+                #[serde(default)]
+                name: String,
+            }
+            let Some(project) = std::fs::read(sp::path(&workspace, &pid)).ok().and_then(|b| serde_json::from_slice::<Head>(&b).ok()).filter(|h| h.kind == sp::KIND) else { continue };
+            for file in listing.flatten() {
                 let path = file.path();
                 let Some(ext) = path.extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase) else { continue };
                 if !path.is_file() || !crate::media::EXPORT_FORMATS.contains(&ext.as_str()) {

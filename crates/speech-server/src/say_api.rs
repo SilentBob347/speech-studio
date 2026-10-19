@@ -27,13 +27,17 @@ struct Session {
 /// A text stopped at the end of a phrase this long is taken as finished: an agent's last sentence has nothing after it.
 const SETTLE_MS: u64 = 600;
 
-/// The blocks a person's speaking cut off before they were said.
-static INTERRUPTED: LazyLock<Mutex<std::collections::HashSet<String>>> = LazyLock::new(Default::default);
+/// The blocks a person's speaking cut off before they were said, and when.
+static INTERRUPTED: LazyLock<Mutex<HashMap<String, std::time::Instant>>> = LazyLock::new(Default::default);
+
+/// How long an interrupted block is still told as interrupted rather than waiting.
+const INTERRUPTED_SECS: u64 = 3600;
 
 static SESSIONS: LazyLock<Mutex<HashMap<String, Session>>> = LazyLock::new(Default::default);
 
-/// What the studio said aloud lately and when: a microphone hearing it back is the studio's own voice, not a person.
-static SAID: LazyLock<Mutex<Vec<(std::time::Instant, String)>>> = LazyLock::new(Default::default);
+/// What the studio said aloud lately, when and in which session: a microphone hearing it back is the studio's own
+/// voice, not a person, and a window may still be playing it after its session has ended.
+static SAID: LazyLock<Mutex<Vec<(std::time::Instant, String, String)>>> = LazyLock::new(Default::default);
 
 /// How long a phrase said aloud may still come back through the microphone.
 const ECHO_SECS: u64 = 30;
@@ -45,20 +49,32 @@ pub fn is_echo(heard: &str) -> bool {
         return false;
     }
     let mut said = SAID.lock().unwrap_or_else(|p| p.into_inner());
-    said.retain(|(at, _)| at.elapsed().as_secs() < ECHO_SECS);
-    let spoken: std::collections::HashSet<String> = said.iter().flat_map(|(_, t)| crate::qc::normalize(t)).collect();
+    said.retain(|(at, _, _)| at.elapsed().as_secs() < ECHO_SECS);
+    let spoken: std::collections::HashSet<String> = said.iter().flat_map(|(_, _, t)| crate::qc::normalize(t)).collect();
     let known = words.iter().filter(|w| spoken.contains(*w)).count();
     known * 3 >= words.len() * 2
 }
 
-/// A person started talking: every session stops speaking, as people stop when interrupted. Answers whether anything
-/// was being said.
+/// A person started talking: every session stops speaking, as people stop when interrupted, the ended ones whose
+/// sound may still play included. Answers whether there was a session to stop.
 pub fn interrupt(st: &AppState) -> bool {
-    let open: Vec<String> = sessions().keys().cloned().collect();
-    let speaking = !open.is_empty() || !SAID.lock().unwrap_or_else(|p| p.into_inner()).is_empty();
+    // the open sessions, and the ended ones whose last phrases a window may still be playing
+    let mut open: Vec<String> = sessions().keys().cloned().collect();
+    {
+        let mut said = SAID.lock().unwrap_or_else(|p| p.into_inner());
+        said.retain(|(at, _, _)| at.elapsed().as_secs() < ECHO_SECS);
+        for (_, sid, _) in said.iter() {
+            if !open.contains(sid) {
+                open.push(sid.clone());
+            }
+        }
+    }
+    let speaking = !open.is_empty();
+    let now = std::time::Instant::now();
+    INTERRUPTED.lock().unwrap_or_else(|p| p.into_inner()).retain(|_, at| at.elapsed().as_secs() < INTERRUPTED_SECS);
     for sid in open.iter() {
         if let Ok(project) = sp::load(&st.workspace, sid) {
-            INTERRUPTED.lock().unwrap_or_else(|p| p.into_inner()).extend(project.blocks().filter(|b| b.takes.is_empty()).map(|b| b.id.clone()));
+            INTERRUPTED.lock().unwrap_or_else(|p| p.into_inner()).extend(project.blocks().filter(|b| b.takes.is_empty()).map(|b| (b.id.clone(), now)));
         }
         crate::speech_jobs::unqueue(sid, None);
         crate::live::silence(sid);
@@ -262,7 +278,7 @@ async fn voice(st: AppState, sid: String, phrases: Vec<String>, direction: Strin
         Ok(ids) => ids,
         Err(e) => return refuse(StatusCode::INTERNAL_SERVER_ERROR, "save_failed", e),
     };
-    SAID.lock().unwrap_or_else(|p| p.into_inner()).extend(phrases.iter().map(|p| (std::time::Instant::now(), p.clone())));
+    SAID.lock().unwrap_or_else(|p| p.into_inner()).extend(phrases.iter().map(|p| (std::time::Instant::now(), sid.clone(), p.clone())));
     let started = crate::speech_api::synth(State(st), AxPath(sid), Json(json!({ "ids": ids, "aloud": true }))).await;
     if !started.status().is_success() {
         return started;
@@ -298,7 +314,7 @@ pub async fn state(State(st): State<AppState>, AxPath(sid): AxPath<String>) -> R
         .blocks()
         .map(|b| {
             let take = b.takes.iter().find(|t| Some(t.n) == b.active);
-            json!({ "id": b.id, "text": b.text, "state": if take.is_some() { "said" } else if INTERRUPTED.lock().unwrap_or_else(|p| p.into_inner()).contains(&b.id) { "interrupted" } else if b.error.is_some() { "failed" } else { "waiting" }, "error": b.error.as_ref().map(|e| e.text.clone()), "first_ms": take.and_then(|t| t.first_ms), "seconds": take.map(|t| t.duration) })
+            json!({ "id": b.id, "text": b.text, "state": if take.is_some() { "said" } else if INTERRUPTED.lock().unwrap_or_else(|p| p.into_inner()).contains_key(&b.id) { "interrupted" } else if b.error.is_some() { "failed" } else { "waiting" }, "error": b.error.as_ref().map(|e| e.text.clone()), "first_ms": take.and_then(|t| t.first_ms), "seconds": take.map(|t| t.duration) })
         })
         .collect();
     Json(json!({ "session": sid, "open": pending.is_some(), "waiting_text": pending.unwrap_or_default(), "phrases": phrases })).into_response()
@@ -374,7 +390,9 @@ pub async fn listen_next(axum::extract::Query(q): axum::extract::Query<HashMap<S
             .map(|(n, l)| json!({ "n": n + 1, "text": l["text"], "start": l["start"], "end": l["end"] }))
             .collect();
         let running = state["running"].as_bool().unwrap_or(false);
-        if !fresh.is_empty() || !running || std::time::Instant::now() >= until {
+        // a recogniser that broke hears nothing more: the agent learns it now, not after the wait
+        let broken = !state["error"].is_null();
+        if !fresh.is_empty() || !running || broken || std::time::Instant::now() >= until {
             return Json(json!({ "lines": fresh, "heard": all.len(), "partial": state["partial"], "listening": running, "error": state["error"] }));
         }
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
@@ -415,7 +433,7 @@ mod tests {
 
     #[test]
     fn the_studio_hearing_its_own_phrase_is_echo_and_a_person_is_not() {
-        SAID.lock().unwrap().push((std::time::Instant::now(), "Старинный замок построили в тысяча восемьсот восемьдесят седьмом году.".into()));
+        SAID.lock().unwrap().push((std::time::Instant::now(), "s".into(), "Старинный замок построили в тысяча восемьсот восемьдесят седьмом году.".into()));
         assert!(is_echo("замок построили в тысяча восемьсот"));
         assert!(!is_echo("подожди, а кто его построил"));
         assert!(!is_echo(""));

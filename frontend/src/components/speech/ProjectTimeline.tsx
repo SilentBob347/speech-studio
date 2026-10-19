@@ -18,6 +18,8 @@ const RULER = 16;
 /** Edges of a clip stick to the end of the reply before within this many seconds (Dub Studio's timeline). */
 const SNAP = 0.15;
 const MIN_CLIP = 0.1;
+/** The pause after a block the project takes, ms (`speech_project` validates it). */
+const PAUSE_MS = [-2000, 10_000] as const;
 /** Dragging the gain line moves it a decibel every this many pixels, whatever the clip's height. */
 const PX_PER_DB = 3;
 /** Where the gain line sits in a clip `height` px high: 0 dB in the middle, following the pointer, held inside the clip. */
@@ -139,7 +141,7 @@ export default function ProjectTimeline({ pid, speakers, tintOf, textOf, refresh
       if (cueTimed) { onMontage(r.block, { shift }); return; }
       const before = rows?.find((x) => x.block === r.prev);
       if (!before) return;
-      onMontage(r.block, { pause: { prev: before.block, ms: Math.round((v.start - before.end) * 1000) } });
+      onMontage(r.block, { pause: { prev: before.block, ms: Math.max(PAUSE_MS[0], Math.min(PAUSE_MS[1], Math.round((v.start - before.end) * 1000))) } });
       return;
     }
     if (kind === "left" || kind === "right") {

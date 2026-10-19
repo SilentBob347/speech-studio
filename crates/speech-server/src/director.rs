@@ -331,7 +331,9 @@ pub fn punctuate(llm: &ChatClient, blocks: &[(String, String, String)], lang: &s
         lang_note = lang_note(lang),
     );
     let tags = |t: &str| TAG_LIKE.find_iter(t).map(|m| m.as_str().to_string()).collect::<Vec<_>>();
-    rewrite(llm, &system, blocks, 0.2, progress, &|before, after| (same_words(before, after) && tags(before) == tags(after)).then(|| after.to_string()))
+    // «ё» is said otherwise than «е» (всё, все): an answer that adds or drops one is refused
+    let yo = |t: &str| TAG_LIKE.replace_all(t, " ").chars().filter(|c| matches!(c, 'ё' | 'Ё')).count();
+    rewrite(llm, &system, blocks, 0.2, progress, &|before, after| (same_words(before, after) && tags(before) == tags(after) && yo(before) == yo(after)).then(|| after.to_string()))
 }
 
 fn lang_note(lang: &str) -> String {

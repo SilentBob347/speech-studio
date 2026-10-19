@@ -1354,42 +1354,43 @@ pub fn fix_take(p: &SpeechPaths, pid: &str, id: &str, progress: &dyn Fn(Value)) 
         crate::media::extract_audio(&takes_dir(p, pid).join(&old.file), &wav, SR, 1)?;
         let (x, sr) = crate::wavio::read_mono_f32(&wav)?;
         let out = crate::take_fix::splice(&x, sr, &plan.edits, &pieces);
-        let mut fresh = sp::load(&p.workspace, pid)?;
-        let key = keys(p, &fresh).remove(id).unwrap_or_default();
-        let block = fresh.block_mut(id).ok_or_else(|| t!("speech-no-block", id = id.to_string()))?;
-        let n = block.takes.iter().map(|t| t.n).max().unwrap_or(0) + 1;
-        let file = format!("{id}-{n}.flac");
-        let path = takes_dir(p, pid).join(&file);
-        write_flac(&out, &path)?;
-        let mut take = old.clone();
-        take.n = n;
-        take.file = file;
-        take.duration = out.len() as f64 / sr as f64;
-        take.bytes = std::fs::metadata(&path).map_err(|e| e.to_string())?.len();
-        take.key = key;
-        take.source = "patch".into();
-        take.created = sp::now();
-        take.qc = None;
-        take.cut = None;
-        take.tidy = None;
-        take.text = b.text.clone();
-        block.takes.push(take);
-        if block.pinned.is_none() {
-            block.active = Some(n);
-        }
-        sp::save(&p.workspace, pid, &fresh)?;
-        n
+        sp::edit(&p.workspace, pid, |fresh| -> Result<u32, String> {
+            let key = keys(p, fresh).remove(id).unwrap_or_default();
+            let block = fresh.block_mut(id).ok_or_else(|| t!("speech-no-block", id = id.to_string()))?;
+            let n = block.takes.iter().map(|t| t.n).max().unwrap_or(0) + 1;
+            let file = format!("{id}-{n}.flac");
+            let path = takes_dir(p, pid).join(&file);
+            write_flac(&out, &path)?;
+            let mut take = old.clone();
+            take.n = n;
+            take.file = file;
+            take.duration = out.len() as f64 / sr as f64;
+            take.bytes = std::fs::metadata(&path).map_err(|e| e.to_string())?.len();
+            take.key = key;
+            take.source = "patch".into();
+            take.created = sp::now();
+            take.qc = None;
+            take.cut = None;
+            take.tidy = None;
+            take.text = b.text.clone();
+            block.takes.push(take);
+            if block.pinned.is_none() {
+                block.active = Some(n);
+            }
+            Ok(n)
+        })??
     };
     let failed = check_takes(p, pid, &BTreeMap::from([(id.to_string(), vec![n])]), true, progress)?;
-    let mut fresh = sp::load(&p.workspace, pid)?;
     let rank = |c: &crate::qc::Check| (!c.ok(), c.wer, c.issues.len());
-    if let Some(block) = fresh.block_mut(id) {
+    let kept = sp::edit(&p.workspace, pid, |fresh| {
+        let block = fresh.block_mut(id)?;
         let new = block.takes.iter().find(|t| t.n == n).and_then(|t| t.qc.clone()).unwrap_or_default();
         if block.pinned.is_none() && rank(&new) > rank(&qc) {
             block.active = Some(old.n);
         }
-        let kept = block.active;
-        sp::save(&p.workspace, pid, &fresh)?;
+        Some(block.active)
+    })?;
+    if let Some(kept) = kept {
         let still = if kept == Some(n) { failed.clone() } else { vec![id.to_string()] };
         mark_checked(p, pid, &[id.to_string()], &still)?;
         let mode = if plan.whole || plan.edits.is_empty() { "whole" } else { "patch" };
@@ -1432,41 +1433,41 @@ pub fn ab_takes(p: &SpeechPaths, pid: &str, id: &str, sides: &[sp::AbSide], prog
         take.file = file;
         take.key = key;
         take.source = "ab".into();
-        let mut fresh = sp::load(&p.workspace, pid)?;
-        let Some(block) = fresh.block_mut(id) else { return Err(t!("speech-no-block", id = id.to_string())) };
-        block.takes.push(take);
-        sp::save(&p.workspace, pid, &fresh)?;
+        sp::edit(&p.workspace, pid, |fresh| match fresh.block_mut(id) {
+            Some(block) => {
+                block.takes.push(take);
+                Ok(())
+            }
+            None => Err(t!("speech-no-block", id = id.to_string())),
+        })??;
         made.push(n);
     }
     Ok(json!({ "takes": made }))
 }
 
-/// The blocks of `checked` whose take failed the check (`failed`) stand as failed with its reason; the others lose
-/// a failure an earlier check gave them.
 fn mark_checked(p: &SpeechPaths, pid: &str, checked: &[String], failed: &[String]) -> Result<(), String> {
-    for id in checked {
-        let mut fresh = sp::load(&p.workspace, pid)?;
-        let key = keys(p, &fresh).remove(id).unwrap_or_default();
-        let Some(block) = fresh.block_mut(id) else { continue };
-        if !failed.contains(id) {
-            if block.error.as_ref().is_some_and(|e| e.key == key) {
-                block.error = None;
-                sp::save(&p.workspace, pid, &fresh)?;
+    sp::edit(&p.workspace, pid, |fresh| {
+        let keys = keys(p, fresh);
+        for id in checked {
+            let key = keys.get(id).cloned().unwrap_or_default();
+            let Some(block) = fresh.block_mut(id) else { continue };
+            if !failed.contains(id) {
+                if block.error.as_ref().is_some_and(|e| e.key == key) {
+                    block.error = None;
+                }
+                continue;
             }
-            continue;
+            let qc = block.active.and_then(|n| block.takes.iter().find(|t| t.n == n)).and_then(|t| t.qc.clone()).unwrap_or_default();
+            let text = if qc.text_checked && !qc.passed {
+                t!("speech-qc-failed", heard = qc.heard.clone())
+            } else if qc.similar == Some(false) {
+                t!("speech-qc-unlike", similarity = format!("{:.2}", qc.similarity.unwrap_or(0.0)))
+            } else {
+                t!("speech-qc-defects", list = crate::qc::issue_names(&qc.issues))
+            };
+            block.error = Some(sp::BlockError { key, text });
         }
-        let qc = block.active.and_then(|n| block.takes.iter().find(|t| t.n == n)).and_then(|t| t.qc.clone()).unwrap_or_default();
-        let text = if qc.text_checked && !qc.passed {
-            t!("speech-qc-failed", heard = qc.heard.clone())
-        } else if qc.similar == Some(false) {
-            t!("speech-qc-unlike", similarity = format!("{:.2}", qc.similarity.unwrap_or(0.0)))
-        } else {
-            t!("speech-qc-defects", list = crate::qc::issue_names(&qc.issues))
-        };
-        block.error = Some(sp::BlockError { key, text });
-        sp::save(&p.workspace, pid, &fresh)?;
-    }
-    Ok(())
+    })
 }
 
 /// The ready blocks' takes checked by recognition after the fact: those of `ids`, or every one not checked yet.

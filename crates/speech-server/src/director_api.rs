@@ -124,21 +124,21 @@ pub async fn cast(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(
         let (lines, people) = director::cast_audiobook(provider.client(), &text, &narrator, &known, &project.settings.lang, &|n, of| {
             step(&cb, t!("director-casting", n = n as i64, total = of as i64), (5 + n * 90 / of.max(1)) as i64);
         })?;
-        let mut fresh = sp::load(&p.workspace, &pid2)?;
         let made = lines.len();
-        if let Some(ch) = fresh.chapters.iter_mut().find(|c| c.id == req.chapter) {
-            ch.blocks = lines.into_iter().map(|l| Block { id: sp::new_id(), speaker: l.speaker, text: l.text.trim().to_string(), direction: l.direction.trim().to_string(), ..Default::default() }).collect();
-        }
-        for p in people.into_iter().filter(|p| !p.gender.is_empty() || !p.age.is_empty()) {
-            let c = fresh.characters.entry(p.name).or_default();
-            if c.gender.is_empty() {
-                c.gender = p.gender;
+        sp::edit(&p.workspace, &pid2, |fresh| {
+            if let Some(ch) = fresh.chapters.iter_mut().find(|c| c.id == req.chapter) {
+                ch.blocks = lines.into_iter().map(|l| Block { id: sp::new_id(), speaker: l.speaker, text: l.text.trim().to_string(), direction: l.direction.trim().to_string(), ..Default::default() }).collect();
             }
-            if c.age.is_empty() {
-                c.age = p.age;
+            for p in people.into_iter().filter(|p| !p.gender.is_empty() || !p.age.is_empty()) {
+                let c = fresh.characters.entry(p.name).or_default();
+                if c.gender.is_empty() {
+                    c.gender = p.gender;
+                }
+                if c.age.is_empty() {
+                    c.age = p.age;
+                }
             }
-        }
-        sp::save(&p.workspace, &pid2, &fresh)?;
+        })?;
         step(&cb, t!("director-done"), 100);
         Ok(json!({ "blocks": made }))
     });

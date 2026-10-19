@@ -848,7 +848,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
           })(); }}
           onMusic={() => setMusicOpen(true)}
           onPlayMedia={(file, [from, to]) => {
-            audio.current?.pause();
+            stopAudio();
             const a = new Audio(speechApi.mediaUrl(pid, file));
             a.volume = volume.current;
             a.addEventListener("loadedmetadata", () => { a.currentTime = from; }, { once: true });
