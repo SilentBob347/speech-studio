@@ -63,6 +63,8 @@ release notes on GitHub are taken from the release's section.
 
 - The hardware preset names a card's memory as its box does: an RTX 4090 is 24 GB, not 26 (memory is counted in
   2³⁰-byte gigabytes, as the resource monitor already did); so is the diagnostics report.
+- The first-run screen's component ticks and Download buttons carry the component's name, so an agent and a screen reader
+  know which one they are.
 - Every route and window action is an MCP tool; the agent can be the studio's language model, as in YuE2 and MiniMax.
 - A command palette (Ctrl+K), own shortcuts, a simple mode with steps, inputs as tabs, built files on the home screen,
   undo of a project deletion, hints on every control in six languages, button texts that say what happens, a phone

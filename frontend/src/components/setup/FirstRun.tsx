@@ -196,7 +196,7 @@ export default function FirstRun() {
               <div key={c.id} className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-3">
                 <div className="flex items-center gap-3">
                   {canPick ? (
-                    <input type="checkbox" checked={sel.has(c.id)} onChange={() => toggle(c.id)} disabled={busy}
+                    <input type="checkbox" checked={sel.has(c.id)} onChange={() => toggle(c.id)} disabled={busy} aria-label={c.name}
                       className="w-4 h-4 accent-[var(--color-accent)] shrink-0" />
                   ) : (
                     <span className={`w-4 h-4 shrink-0 grid place-items-center rounded ${c.installed ? "text-[var(--color-accent)]" : "text-[var(--color-muted)]"}`}>
@@ -228,7 +228,7 @@ export default function FirstRun() {
                     ) : (
                       <div className="flex flex-col items-end gap-1">
                         <span className="mono text-[11px] text-[var(--color-muted)]">{fmtBytes(c.size)}</span>
-                        <button onClick={() => download([c.id])} disabled={busy}
+                        <button onClick={() => download([c.id])} disabled={busy} aria-label={`${t("setup.downloadOne")}: ${c.name}`}
                           className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[11px] hover:border-[var(--color-accent)] disabled:opacity-40">
                           <Download size={12} />{t("setup.downloadOne")}</button>
                       </div>
