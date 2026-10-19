@@ -48,7 +48,7 @@ function ModeSwitcher() {
       {MODE_ITEMS.map(({ id, icon: Icon, label, hint }) => {
         const active = mode === id;
         return (
-          <button key={id} type="button" role="tab" aria-selected={active} onClick={() => setMode(id)} title={t(hint, { keys: id === "speech" ? keys.modeSpeech : id === "listening" ? keys.modeListening : "" })} aria-label={t(label)}
+          <button key={id} type="button" role="tab" aria-selected={active} onClick={() => setMode(id)} title={t(hint, { keys: id === "speech" ? keys.modeSpeech : id === "listening" ? keys.modeListening : keys.modeLive })} aria-label={t(label)}
             className={`flex h-7 items-center gap-1.5 rounded-md px-3 text-[12px] font-medium transition-colors ${active ? "bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm" : "text-[var(--color-muted)] hover:text-[var(--color-text)]"}`}>
             <Icon size={14} className={active ? "text-[var(--color-accent)]" : ""} />
             <span className="hidden md:inline">{t(label)}</span>
@@ -217,6 +217,7 @@ export default function TopBar() {
     ...(ready ? [
       { id: "mode-speech", label: t("hotkeys.modeSpeech"), group, run: () => setMode("speech") },
       { id: "mode-listening", label: t("hotkeys.modeListening"), group, run: () => setMode("listening") },
+      { id: "mode-live", label: t("hotkeys.modeLive"), group, run: () => setMode("talk") },
       { id: "new", label: t("nav.newTitle", { keys: keys.new }), group, run: startFresh },
       { id: "voices", label: t("voices.title"), group, run: () => setVoices(true) },
       { id: "assistant", label: t("chat.title"), group, run: () => setAssistant((open) => !open) },

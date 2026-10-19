@@ -329,6 +329,7 @@
     "esc": "Закрыть / выйти из фулскрина",
     "modeSpeech": "Режим Speech",
     "modeListening": "Режим Listening",
+    "modeLive": "Режим Live",
     "new": "Начать текущий режим заново",
     "settings": "Настройки",
     "helpWindow": "Справка",
@@ -734,7 +735,7 @@
     "speechHint": "Озвучка текста вашими голосами ({{keys}})",
     "listeningHint": "Распознавание речи и проверка озвучки ({{keys}})",
     "talk": "Live",
-    "talkHint": "Разговор с агентом голосом"
+    "talkHint": "Разговор с агентом голосом ({{keys}})"
   },
   "voices": {
     "open": "Голоса",

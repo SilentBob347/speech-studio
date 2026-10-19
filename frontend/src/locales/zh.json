@@ -329,6 +329,7 @@
     "esc": "关闭 / 退出全屏",
     "modeSpeech": "Speech 模式",
     "modeListening": "Listening 模式",
+    "modeLive": "Live 模式",
     "new": "在当前模式中重新开始",
     "settings": "设置",
     "helpWindow": "帮助",
@@ -734,7 +735,7 @@
     "speechHint": "用你的声音为文本配音（{{keys}}）",
     "listeningHint": "识别语音并检查配音（{{keys}}）",
     "talk": "Live",
-    "talkHint": "用语音与智能体对话"
+    "talkHint": "用语音与智能体对话（{{keys}}）"
   },
   "voices": {
     "open": "声音",

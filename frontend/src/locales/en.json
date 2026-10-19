@@ -329,6 +329,7 @@
     "esc": "Close / exit fullscreen",
     "modeSpeech": "Speech mode",
     "modeListening": "Listening mode",
+    "modeLive": "Live mode",
     "new": "Start over in the current mode",
     "settings": "Settings",
     "helpWindow": "Help",
@@ -734,7 +735,7 @@
     "speechHint": "Voice text with your voices ({{keys}})",
     "listeningHint": "Recognise speech and check a voicing ({{keys}})",
     "talk": "Live",
-    "talkHint": "Talk with an agent by voice"
+    "talkHint": "Talk with an agent by voice ({{keys}})"
   },
   "voices": {
     "open": "Voices",

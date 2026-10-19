@@ -31,6 +31,7 @@ function ShortcutsHelp({ onClose }: { onClose: () => void }) {
   const rows: [string, string][] = [
     [keys.modeSpeech, t("hotkeys.modeSpeech")],
     [keys.modeListening, t("hotkeys.modeListening")],
+    [keys.modeLive, t("hotkeys.modeLive")],
     [keys.new, t("hotkeys.new")],
     [keys.settings, t("hotkeys.settings")],
     [keys.palette, t("hotkeys.palette")],
@@ -84,6 +85,7 @@ export default function Hotkeys() {
       if (s.stage !== "ready") { if (matches(e, "shortcuts")) setShown(true); return; }
       if (matches(e, "modeSpeech")) { e.preventDefault(); s.setMode("speech"); }
       else if (matches(e, "modeListening")) { e.preventDefault(); s.setMode("listening"); }
+      else if (matches(e, "modeLive")) { e.preventDefault(); s.setMode("talk"); }
       else if (matches(e, "new")) { e.preventDefault(); s.startFresh(); }
       else if (matches(e, "shortcuts")) setShown(true);
     };

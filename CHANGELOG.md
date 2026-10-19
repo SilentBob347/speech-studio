@@ -11,7 +11,8 @@ release notes on GitHub are taken from the release's section.
 - **Live mode: talk with an agent by voice.** An agent connected over MCP speaks each finished phrase at once
   (`say_start`, `say_text`), the person answers into the microphone and is recognised phrase by phrase; speaking over
   the agent stops it. Mute with M or Ctrl+Shift+Space from any window (hold to talk), type to the agent, choose the
-  recogniser and the agent's voice, the agent's name beside its lines.
+  recogniser and the agent's voice, the agent's name beside its lines. Ctrl+3 and the command palette open Live, as
+  Ctrl+1 and Ctrl+2 open Speech and Listening.
 - **The sound window**: microphone, agent's voice and speaker tabs, level meters with the peak held, hear yourself, a
   test chime, the agent's volume.
 - **Five looks** (aura, wave, bars, radial, matrix) and a widget — a frameless bar over every other window.

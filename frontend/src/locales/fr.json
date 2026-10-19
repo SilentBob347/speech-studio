@@ -329,6 +329,7 @@
     "esc": "Fermer / quitter le plein écran",
     "modeSpeech": "Mode Speech",
     "modeListening": "Mode Listening",
+    "modeLive": "Mode Live",
     "new": "Recommencer dans le mode actuel",
     "settings": "Paramètres",
     "helpWindow": "Aide",
@@ -734,7 +735,7 @@
     "speechHint": "Donner une voix à un texte avec vos voix ({{keys}})",
     "listeningHint": "Reconnaître la parole et vérifier une voix ({{keys}})",
     "talk": "Live",
-    "talkHint": "Parler à un agent à voix haute"
+    "talkHint": "Parler à un agent à voix haute ({{keys}})"
   },
   "voices": {
     "open": "Voix",

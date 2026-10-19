@@ -5,7 +5,7 @@ import { named } from "../../lib/a11y";
 import { SHORTCUTS, SHORTCUT_IDS, comboOf, setBinding, takenBy, useShortcuts, type ShortcutId } from "../../lib/shortcuts";
 
 const LABELS = {
-  palette: "hotkeys.palette", modeSpeech: "hotkeys.modeSpeech", modeListening: "hotkeys.modeListening", new: "hotkeys.new",
+  palette: "hotkeys.palette", modeSpeech: "hotkeys.modeSpeech", modeListening: "hotkeys.modeListening", modeLive: "hotkeys.modeLive", new: "hotkeys.new",
   settings: "hotkeys.settings", help: "hotkeys.helpWindow", fullscreen: "hotkeys.fsWindow", shortcuts: "hotkeys.help",
   search: "hotkeys.search", undo: "hotkeys.undo", redo: "hotkeys.redo",
 } as const satisfies Record<ShortcutId, string>;

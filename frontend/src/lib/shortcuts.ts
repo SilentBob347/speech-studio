@@ -5,6 +5,7 @@ export const SHORTCUTS = {
   palette: "Ctrl+K",
   modeSpeech: "Ctrl+1",
   modeListening: "Ctrl+2",
+  modeLive: "Ctrl+3",
   new: "Ctrl+N",
   settings: "Ctrl+,",
   help: "F1",
