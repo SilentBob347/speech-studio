@@ -207,9 +207,13 @@ fn synth_block_cloud(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Bl
     let prepared = crate::prep::prepare(&b.text, &prep_opts(p, project, project.lang_of(b), project.engine_of(b), Some(voice.as_str()), &entries, stress)).map_err(|e| t!("stress-failed", detail = e))?;
     let (mut out, mut rate, started) = (Vec::new(), 1.0f64, std::time::Instant::now());
     let (mut cost, mut estimate) = (None::<f64>, None::<f64>);
+    let live = crate::live::Phrase::begin(pid, &b.id);
     for (k, piece) in stx::pieces(&prepared.text).into_iter().enumerate() {
         match piece {
-            Piece::Pause(ms) => out.extend(std::iter::repeat_n(0.0, (SR as u64 * ms as u64 / 1000) as usize)),
+            Piece::Pause(ms) => {
+                live.pause(ms, SR);
+                out.extend(std::iter::repeat_n(0.0, (SR as u64 * ms as u64 / 1000) as usize))
+            }
             Piece::Rate(r) => rate = r,
             Piece::Say(text) => {
                 let say = stx::visible(&text);
@@ -233,7 +237,9 @@ fn synth_block_cloud(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Bl
                     estimate = match (estimate, done.estimate) { (Some(a), Some(b)) => Some(a + b), (a, b) => a.or(b) };
                     samples
                 };
-                out.extend(if (rate - 1.0).abs() > 1e-3 { at_rate(&samples, rate)? } else { samples });
+                let samples = if (rate - 1.0).abs() > 1e-3 { at_rate(&samples, rate)? } else { samples };
+                live.chunk(&samples, SR);
+                out.extend(samples);
             }
         }
     }
@@ -257,8 +263,10 @@ fn synth_block_cloud(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Bl
         fit_over: fitted.over,
         cost,
         estimate,
+        first_ms: live.first_ms(),
         ..Default::default()
     };
+    live.end(true);
     Ok((fitted.samples, serde_json::to_value(&prepared.ignored).unwrap_or(Value::Null), take))
 }
 

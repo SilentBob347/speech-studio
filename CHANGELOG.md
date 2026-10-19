@@ -13,6 +13,8 @@ release notes on GitHub are taken from the release's section.
 - **Voice-pack voices clone in Drama 3.** A reference longer than the engine's limit and without word timings got cut
   without its text, and Drama 3 refused it; the timings are now recognized once, before voicing, and saved beside the
   voice. The typed transcript is kept.
+- **Cloud voices play while they voice.** OpenRouter, Gemini, fal and Runware blocks reach the window phrase by phrase
+  as each one arrives, as the local engines do, and their takes keep the time to the first sound.
 
 ## 0.1.0 — 2026-10-15
 
