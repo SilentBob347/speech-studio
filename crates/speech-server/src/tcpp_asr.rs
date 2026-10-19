@@ -1,4 +1,4 @@
-//! Recognition by transcribe.cpp (ggml, CUDA): Parakeet TDT v3, Nemotron 3.5, GigaAM-v3, Cohere Transcribe and Whisper
+//! Recognition by transcribe.cpp (ggml, CUDA): Parakeet TDT v3, Nemotron 3.5, Cohere Transcribe and Whisper
 //! large-v3-turbo from their GGUF files. The engine is one library, `transcribe_engine` (fork timoncool/transcribe.cpp,
 //! branch studio): libtranscribe and ggml linked whole into it, so it shares nothing with the TTS engines' ggml in the
 //! same process. Loaded once and kept, as the other ggml engines are.
@@ -34,7 +34,6 @@ pub const FAMILIES: &[Family] = &[
         file: "nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf",
         languages: &["en", "es", "fr", "de", "it", "pt", "nl", "ru", "zh", "ja", "ko", "ar", "hi", "tr", "pl", "uk", "cs", "sv", "da", "fi", "no", "el", "hu", "ro", "bg", "hr", "sk", "sl", "et", "lv", "lt", "vi", "th", "id", "ms"],
     },
-    Family { id: "gguf-gigaam", component: "asr-gguf-gigaam", file: "gigaam-v3-e2e-rnnt-Q8_0.gguf", languages: &["ru"] },
     Family { id: "gguf-cohere", component: "asr-gguf-cohere", file: "cohere-transcribe-03-2026-Q8_0.gguf", languages: &["en", "fr", "de", "it", "es", "pt", "el", "nl", "pl", "zh", "ja", "ko", "vi", "ar"] },
     Family { id: "gguf-whisper", component: "asr-gguf-whisper", file: "whisper-large-v3-turbo-Q8_0.gguf", languages: &[] },
 ];

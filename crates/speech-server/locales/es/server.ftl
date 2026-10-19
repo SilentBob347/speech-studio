@@ -1054,7 +1054,6 @@ setup-comp-nemotron-asr-purpose = Reconocimiento de voz en 35 idiomas con puntua
 setup-comp-transcribe-engine-purpose = El motor de reconocimiento transcribe.cpp en la GPU: varias veces más rápido, lo necesitan los modelos GGUF de abajo
 setup-comp-asr-gguf-parakeet-purpose = Parakeet TDT v3 en transcribe.cpp: 25 idiomas europeos, entre ellos ruso y ucraniano, con tiempos de palabras (NVIDIA)
 setup-comp-asr-gguf-nemotron-purpose = Nemotron 3.5 en transcribe.cpp: 35 idiomas con puntuación, entre ellos ruso, chino y japonés (NVIDIA)
-setup-comp-asr-gguf-gigaam-purpose = GigaAM-v3 en transcribe.cpp: ruso con puntuación y mayúsculas (Sber)
 setup-comp-asr-gguf-cohere-purpose = Cohere Transcribe en transcribe.cpp: 14 idiomas sin ruso, muy preciso en inglés (Cohere)
 setup-comp-asr-gguf-whisper-purpose = Whisper large-v3-turbo en transcribe.cpp: unos 100 idiomas (OpenAI)
 render-defect-clipping = saturación

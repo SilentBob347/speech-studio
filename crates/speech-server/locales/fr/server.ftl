@@ -1054,7 +1054,6 @@ setup-comp-nemotron-asr-purpose = Reconnaissance vocale en 35 langues avec ponct
 setup-comp-transcribe-engine-purpose = Le moteur de reconnaissance transcribe.cpp sur la carte graphique : plusieurs fois plus rapide, requis par les modèles GGUF ci-dessous
 setup-comp-asr-gguf-parakeet-purpose = Parakeet TDT v3 sur transcribe.cpp : 25 langues européennes, dont le russe et l’ukrainien, avec l’horodatage des mots (NVIDIA)
 setup-comp-asr-gguf-nemotron-purpose = Nemotron 3.5 sur transcribe.cpp : 35 langues avec ponctuation, dont le russe, le chinois et le japonais (NVIDIA)
-setup-comp-asr-gguf-gigaam-purpose = GigaAM-v3 sur transcribe.cpp : le russe avec ponctuation et majuscules (Sber)
 setup-comp-asr-gguf-cohere-purpose = Cohere Transcribe sur transcribe.cpp : 14 langues sans le russe, très précis en anglais (Cohere)
 setup-comp-asr-gguf-whisper-purpose = Whisper large-v3-turbo sur transcribe.cpp : une centaine de langues (OpenAI)
 render-defect-clipping = écrêtage

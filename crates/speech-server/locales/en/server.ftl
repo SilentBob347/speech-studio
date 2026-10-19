@@ -1060,7 +1060,6 @@ setup-comp-nemotron-asr-purpose = Speech recognition in 35 languages with punctu
 setup-comp-transcribe-engine-purpose = The transcribe.cpp recognition engine on the GPU: several times faster, needed by the GGUF models below
 setup-comp-asr-gguf-parakeet-purpose = Parakeet TDT v3 on transcribe.cpp: 25 European languages, Russian and Ukrainian among them, with word times (NVIDIA)
 setup-comp-asr-gguf-nemotron-purpose = Nemotron 3.5 on transcribe.cpp: 35 languages with punctuation, Russian, Chinese and Japanese among them (NVIDIA)
-setup-comp-asr-gguf-gigaam-purpose = GigaAM-v3 on transcribe.cpp: Russian with punctuation and casing (Sber)
 setup-comp-asr-gguf-cohere-purpose = Cohere Transcribe on transcribe.cpp: 14 languages without Russian, very accurate in English (Cohere)
 setup-comp-asr-gguf-whisper-purpose = Whisper large-v3-turbo on transcribe.cpp: about 100 languages (OpenAI)
 render-defect-clipping = clipping

@@ -1080,7 +1080,6 @@ setup-comp-nemotron-asr-purpose = Распознавание речи на 35 я
 setup-comp-transcribe-engine-purpose = Движок распознавания transcribe.cpp на видеокарте: в разы быстрее, нужен для моделей GGUF ниже
 setup-comp-asr-gguf-parakeet-purpose = Parakeet TDT v3 на transcribe.cpp: 25 европейских языков, включая русский и украинский, с временем слов (NVIDIA)
 setup-comp-asr-gguf-nemotron-purpose = Nemotron 3.5 на transcribe.cpp: 35 языков с пунктуацией, включая русский, китайский и японский (NVIDIA)
-setup-comp-asr-gguf-gigaam-purpose = GigaAM-v3 на transcribe.cpp: русский язык с пунктуацией и регистром (Сбер)
 setup-comp-asr-gguf-cohere-purpose = Cohere Transcribe на transcribe.cpp: 14 языков без русского, высокая точность на английском (Cohere)
 setup-comp-asr-gguf-whisper-purpose = Whisper large-v3-turbo на transcribe.cpp: около 100 языков (OpenAI)
 render-defect-clipping = клиппинг

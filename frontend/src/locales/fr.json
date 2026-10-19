@@ -1773,12 +1773,10 @@
     "source_folder": "Dossier",
     "engine_gguf-parakeet": "Parakeet v3 (transcribe.cpp, rapide)",
     "engine_gguf-nemotron": "Nemotron 3.5 (transcribe.cpp, 35 langues)",
-    "engine_gguf-gigaam": "GigaAM-v3 (transcribe.cpp, russe)",
     "engine_gguf-cohere": "Cohere (transcribe.cpp, 14 langues)",
     "engine_gguf-whisper": "Whisper turbo (transcribe.cpp, 100 langues)",
     "engineHint_gguf-parakeet": "Parakeet sur le moteur transcribe.cpp : le même Parakeet, plusieurs fois plus rapide sur la carte graphique.",
     "engineHint_gguf-nemotron": "Nemotron 3.5 sur transcribe.cpp : 35 langues avec ponctuation, des dizaines de fois plus rapide sur la carte graphique que la version ONNX.",
-    "engineHint_gguf-gigaam": "GigaAM-v3 sur transcribe.cpp : le modèle russe de Sber avec ponctuation et majuscules.",
     "engineHint_gguf-cohere": "Cohere Transcribe sur transcribe.cpp : 14 langues sans le russe, très précis en anglais.",
     "engineHint_gguf-whisper": "Whisper large-v3-turbo sur transcribe.cpp : une centaine de langues."
   },

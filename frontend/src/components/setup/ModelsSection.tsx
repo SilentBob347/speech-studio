@@ -367,7 +367,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
         ) : asrEngine.startsWith("gguf-") ? (
           <>
             {rowOf("transcribe-engine")}
-            {variantPicker("transcribe.cpp", ["asr-gguf-parakeet", "asr-gguf-nemotron", "asr-gguf-gigaam", "asr-gguf-cohere", "asr-gguf-whisper"])}
+            {variantPicker("transcribe.cpp", ["asr-gguf-parakeet", "asr-gguf-nemotron", "asr-gguf-cohere", "asr-gguf-whisper"])}
           </>
         ) : (
           <>

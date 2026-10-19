@@ -1773,12 +1773,10 @@
     "source_folder": "文件夹",
     "engine_gguf-parakeet": "Parakeet v3（transcribe.cpp，快）",
     "engine_gguf-nemotron": "Nemotron 3.5（transcribe.cpp，35 种语言）",
-    "engine_gguf-gigaam": "GigaAM-v3（transcribe.cpp，俄语）",
     "engine_gguf-cohere": "Cohere（transcribe.cpp，14 种语言）",
     "engine_gguf-whisper": "Whisper turbo（transcribe.cpp，100 种语言）",
     "engineHint_gguf-parakeet": "transcribe.cpp 引擎上的 Parakeet：同一个 Parakeet，在 GPU 上快数倍。",
     "engineHint_gguf-nemotron": "transcribe.cpp 上的 Nemotron 3.5：35 种带标点的语言，在 GPU 上比 ONNX 版快数十倍。",
-    "engineHint_gguf-gigaam": "transcribe.cpp 上的 GigaAM-v3：Sber 的俄语模型，带标点和大小写。",
     "engineHint_gguf-cohere": "transcribe.cpp 上的 Cohere Transcribe：14 种语言（不含俄语），英语很准。",
     "engineHint_gguf-whisper": "transcribe.cpp 上的 Whisper large-v3-turbo：约 100 种语言。"
   },

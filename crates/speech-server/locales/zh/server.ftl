@@ -856,7 +856,6 @@ setup-comp-nemotron-asr-purpose = 支持 35 种语言并带标点的语音识别
 setup-comp-transcribe-engine-purpose = GPU 上的 transcribe.cpp 识别引擎：快数倍，下方的 GGUF 模型需要它
 setup-comp-asr-gguf-parakeet-purpose = transcribe.cpp 上的 Parakeet TDT v3：25 种欧洲语言，包括俄语和乌克兰语，带词时间（NVIDIA）
 setup-comp-asr-gguf-nemotron-purpose = transcribe.cpp 上的 Nemotron 3.5：35 种带标点的语言，包括俄语、中文和日语（NVIDIA）
-setup-comp-asr-gguf-gigaam-purpose = transcribe.cpp 上的 GigaAM-v3：带标点和大小写的俄语（Sber）
 setup-comp-asr-gguf-cohere-purpose = transcribe.cpp 上的 Cohere Transcribe：14 种语言（不含俄语），英语极准（Cohere）
 setup-comp-asr-gguf-whisper-purpose = transcribe.cpp 上的 Whisper large-v3-turbo：约 100 种语言（OpenAI）
 render-defect-clipping = 削波
