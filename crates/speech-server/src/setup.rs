@@ -224,7 +224,13 @@ mod platform {
 
     // transcribe.cpp (fork timoncool/transcribe.cpp, branch studio): libtranscribe and ggml whole in one library,
     // CUDA 13, sm 75/80/86/89/90/100/120 without PTX; cudart and cuBLAS come from cuda-runtime.
-    pub const TRANSCRIBE_ENGINE: Parts = Parts { size: 0, files: &[], markers: &[] };
+    pub const TRANSCRIBE_ENGINE: Parts = Parts {
+        size: 144_462_848,
+        files: &[
+            FileSpec { url: "https://github.com/timoncool/transcribe.cpp/releases/download/engine-0.1.0/transcribe_engine.dll", dest_rel: "models/transcribe-engine/transcribe_engine.dll", size: 144_462_848, sha256: "3dd4a84a225797dd54de41f9a542f5b402270e7ae766348b7882e8d0154b279b", extract: Extract::None },
+        ],
+        markers: &[Marker { rel: "models/transcribe-engine/transcribe_engine.dll", expect: 144_462_848 }],
+    };
 
     // Движок Qwen3-TTS (форк timoncool/qwentts.cpp, ветка studio, ABI 7), CUDA 13, sm 75/80/86/89/90/100/120 без PTX;
     // библиотеки ggml лежат рядом с qwen.dll, cudart и cuBLAS ставит cuda-runtime.

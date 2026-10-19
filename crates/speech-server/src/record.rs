@@ -215,6 +215,16 @@ pub fn stop() -> Result<std::path::PathBuf, String> {
     Ok(st.path)
 }
 
+/// Остановить запись, только если пишется именно `path`: чужая запись (проект Listening, разговор Live) идёт дальше.
+pub fn stop_only(path: &std::path::Path) -> Result<std::path::PathBuf, String> {
+    let other = recorder().lock().map_err(|_| "recorder poisoned".to_string())?.as_ref().map(|st| st.path != path);
+    match other {
+        None => Err(t!("record-not-recording")),
+        Some(true) => Err(t!("record-test-other")),
+        Some(false) => stop(),
+    }
+}
+
 // Пак голосов VibeVoice (HF) закреплён коммитом: размер и SHA-256 (lfs.oid) — этой ревизии.
 const VOICE_PACK_URL: &str = "https://huggingface.co/datasets/nerualdreming/VibeVoice/resolve/5c884b3cbdc932c39a5167951c4072120e1a0310/voice-pack.zip";
 const VOICE_PACK_SIZE: u64 = 104_685_334;

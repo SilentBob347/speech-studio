@@ -628,6 +628,18 @@ pub fn save(workspace: &Path, pid: &str, project: &SpeechProject) -> Result<(), 
     })
 }
 
+/// Read, change and write the project as one step: two writers of the same project (a job keeping its take, the
+/// Live session adding its phrases) take turns, so neither writes over what the other has just saved.
+pub fn edit<R>(workspace: &Path, pid: &str, change: impl FnOnce(&mut SpeechProject) -> R) -> Result<R, String> {
+    static WRITERS: LazyLock<std::sync::Mutex<std::collections::HashMap<String, std::sync::Arc<std::sync::Mutex<()>>>>> = LazyLock::new(Default::default);
+    let lock = WRITERS.lock().unwrap_or_else(|p| p.into_inner()).entry(pid.to_string()).or_default().clone();
+    let _turn = lock.lock().unwrap_or_else(|p| p.into_inner());
+    let mut project = load(workspace, pid)?;
+    let out = change(&mut project);
+    save(workspace, pid, &project)?;
+    Ok(out)
+}
+
 static DIALOG: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\s*(?:\[([^\[\]\n]{1,40})\]\s+|([\p{L}][\p{L}\p{N} ._'-]{0,30}?)\s*(?::\s+|：\s*))(\S.*)$").expect("dialog"));
 static SENTENCE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[^.!?…]+[.!?…]+[»”\x22)]*\s*|[^.!?…]+$").expect("sentence"));
 

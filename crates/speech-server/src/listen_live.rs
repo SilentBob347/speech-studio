@@ -32,6 +32,8 @@ struct Live {
     error: Option<String>,
     /// The person turned the microphone off for a while: what it hears is taken as silence, the session goes on.
     muted: bool,
+    /// The places in `lines` of what the person typed: their own words, never the studio's voice heard back.
+    typed: std::collections::HashSet<usize>,
     stop: Arc<AtomicBool>,
     worker: Option<std::thread::JoinHandle<()>>,
 }
@@ -54,7 +56,7 @@ pub fn start(repo_root: &Path, models_root: &Path, lang: &str, engine: &str) -> 
     }
     let (to, from) = channel::<Vec<f32>>();
     let stop = Arc::new(AtomicBool::new(false));
-    *live().lock().unwrap_or_else(|p| p.into_inner()) = Some(Live { lines: Vec::new(), partial: None, error: None, muted: false, stop: stop.clone(), worker: None });
+    *live().lock().unwrap_or_else(|p| p.into_inner()) = Some(Live { lines: Vec::new(), partial: None, error: None, muted: false, typed: Default::default(), stop: stop.clone(), worker: None });
     crate::record::tap(Some(to));
     std::env::set_var("DUB_ASR_BACKEND", crate::models::stage_backend(models_root, "asr_backend"));
     let lang = if lang == "auto" { String::new() } else { lang.to_string() };
@@ -90,6 +92,7 @@ pub fn mute(muted: bool) -> Result<(), String> {
 pub fn type_line(text: &str) -> Result<(), String> {
     with(|l| {
         let at = l.lines.last().map(|line| line.1).unwrap_or(0.0);
+        l.typed.insert(l.lines.len());
         l.lines.push((at, at, text.to_string()));
     })
     .ok_or_else(|| t!("listen-live-not-running"))
@@ -100,7 +103,7 @@ pub fn state() -> Value {
     match live().lock().unwrap_or_else(|p| p.into_inner()).as_ref() {
         Some(l) => json!({
             "running": !l.stop.load(Ordering::Relaxed),
-            "lines": l.lines.iter().map(|(a, z, text)| json!({ "start": a, "end": z, "text": text })).collect::<Vec<_>>(),
+            "lines": l.lines.iter().enumerate().map(|(n, (a, z, text))| json!({ "start": a, "end": z, "text": text, "typed": l.typed.contains(&n) })).collect::<Vec<_>>(),
             "partial": l.partial.as_ref().map(|(a, text)| json!({ "start": a, "text": text })),
             "error": l.error,
             "muted": l.muted,
@@ -237,7 +240,7 @@ mod tests {
         let (x, sr) = crate::wavio::read_mono_f32(Path::new(&std::env::var("LIVE_WAV").expect("LIVE_WAV"))).unwrap();
         let choice = crate::asr_util::choice(&root, &models, "ru", "test").unwrap();
         std::env::set_var("DUB_ASR_BACKEND", crate::models::stage_backend(&models, "asr_backend"));
-        *live().lock().unwrap() = Some(Live { lines: Vec::new(), partial: None, error: None, muted: false, stop: Arc::new(AtomicBool::new(false)), worker: None });
+        *live().lock().unwrap() = Some(Live { lines: Vec::new(), partial: None, error: None, muted: false, typed: Default::default(), stop: Arc::new(AtomicBool::new(false)), worker: None });
         let (to, from) = channel::<Vec<f32>>();
         let feeder = std::thread::spawn(move || {
             for chunk in x.chunks((sr / 10) as usize) {

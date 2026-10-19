@@ -226,7 +226,12 @@ async fn work(st: AppState) {
         };
         let files = list_queued(files);
         for path in files {
-            if !state().lock().unwrap_or_else(|p| p.into_inner()).on {
+            // a start with other settings begins a new pass with them
+            let current = {
+                let s = state().lock().unwrap_or_else(|p| p.into_inner());
+                s.on && s.config == config
+            };
+            if !current {
                 break;
             }
             let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
@@ -273,9 +278,15 @@ async fn work(st: AppState) {
                 tracing::error!("[ERROR] watched folder state: {e}");
             }
         }
-        if !config.keep {
-            state().lock().unwrap_or_else(|p| p.into_inner()).on = false;
-            break;
+        {
+            let mut s = state().lock().unwrap_or_else(|p| p.into_inner());
+            if s.config != config {
+                continue;
+            }
+            if !config.keep {
+                s.on = false;
+                break;
+            }
         }
         tokio::time::sleep(LOOK_AGAIN).await;
     }

@@ -945,14 +945,12 @@ async fn record_test(State(st): State<AppState>, body: Option<Json<Value>>) -> R
 
 /// POST /record/test/stop — ends the microphone test: how long it heard and how loud at most; the file to play back.
 async fn record_test_stop(State(st): State<AppState>) -> Response {
-    let path = match tokio::task::spawn_blocking(record::stop).await {
+    let test = mic_test_path(&st);
+    let path = match tokio::task::spawn_blocking(move || record::stop_only(&test)).await {
         Ok(Ok(p)) => p,
-        Ok(Err(e)) => return (StatusCode::BAD_REQUEST, Json(json!({ "error": "record_failed", "detail": e }))).into_response(),
+        Ok(Err(e)) => return (StatusCode::CONFLICT, Json(json!({ "error": "not_a_test", "detail": e }))).into_response(),
         Err(e) => return join_failure(e),
     };
-    if path != mic_test_path(&st) {
-        return (StatusCode::CONFLICT, Json(json!({ "error": "not_a_test", "detail": t!("record-test-other") }))).into_response();
-    }
     let (seconds, peak) = match hound::WavReader::open(&path) {
         Ok(mut r) => {
             let spec = r.spec();

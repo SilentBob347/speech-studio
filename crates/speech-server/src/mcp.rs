@@ -1576,6 +1576,16 @@ pub(super) async fn agent_files() -> Result<PathBuf, String> {
     let data = paths["data_dir"].as_str().ok_or("the studio named no data folder")?;
     let folder = Path::new(data).join("agent-files");
     tokio::fs::create_dir_all(&folder).await.map_err(|e| format!("{}: {e}", folder.display()))?;
+    // an agent reads such a file right after the call: a day later it is only taking room
+    let mut old = tokio::fs::read_dir(&folder).await.map_err(|e| format!("{}: {e}", folder.display()))?;
+    while let Some(entry) = old.next_entry().await.map_err(|e| format!("{}: {e}", folder.display()))? {
+        let stale = entry.metadata().await.ok().and_then(|m| m.modified().ok()).and_then(|t| t.elapsed().ok()).is_some_and(|age| age > Duration::from_secs(24 * 3600));
+        if stale {
+            if let Err(e) = tokio::fs::remove_file(entry.path()).await {
+                tracing::warn!("{}: {e}", entry.path().display());
+            }
+        }
+    }
     Ok(folder)
 }
 

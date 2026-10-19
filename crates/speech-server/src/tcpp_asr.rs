@@ -108,6 +108,7 @@ struct Capabilities {
 }
 
 const ABI_RUN_PARAMS: c_int = 2;
+const ABI_CAPABILITIES: c_int = 4;
 const ABI_WORD: c_int = 7;
 const ABI_SESSION_LIMITS: c_int = 11;
 const TIMESTAMPS_WORD: c_int = 3;
@@ -134,6 +135,10 @@ struct Api {
     caps_init: unsafe extern "C" fn(*mut Capabilities),
     get_caps: unsafe extern "C" fn(*const RawModel, *mut Capabilities) -> c_int,
 }
+
+/// What the engine's capabilities struct is read into: room for the struct as it grows, its first fields read by
+/// `Capabilities`.
+type CapsBuffer = [u64; 64];
 
 /// The library, loaded once for the life of the process (ggml's static initialiser refuses a second load).
 static LOADED: std::sync::Mutex<Option<(Library, Api)>> = std::sync::Mutex::new(None);
@@ -176,6 +181,10 @@ fn library(dir: &Path) -> Result<Api, String> {
         if theirs != ours {
             return Err(format!("transcribe.cpp {}: its {name} struct is {theirs} bytes, the studio's {ours}", path.display()));
         }
+    }
+    let caps = unsafe { (api.abi_size)(ABI_CAPABILITIES) };
+    if caps < std::mem::size_of::<Capabilities>() || caps > std::mem::size_of::<CapsBuffer>() {
+        return Err(format!("transcribe.cpp {}: its capabilities struct is {caps} bytes, the studio reads {}..{}", path.display(), std::mem::size_of::<Capabilities>(), std::mem::size_of::<CapsBuffer>()));
     }
     *loaded = Some((lib, api));
     Ok(api)
@@ -227,14 +236,15 @@ impl TcppAsr {
             unsafe { (api.model_free)(model) };
             return Err(format!("transcribe.cpp {}: {}", path.display(), status(s)));
         }
-        let mut caps = std::mem::MaybeUninit::<[u64; 64]>::zeroed();
+        let mut caps = std::mem::MaybeUninit::<CapsBuffer>::zeroed();
         let caps_ptr = caps.as_mut_ptr() as *mut Capabilities;
         let mut languages = Vec::new();
         unsafe {
             (api.caps_init)(caps_ptr);
             if (api.get_caps)(model, caps_ptr) == 0 {
                 let c = &*caps_ptr;
-                for i in 0..c.n_languages.max(0) as usize {
+                let listed = if c.languages.is_null() { 0 } else { c.n_languages.max(0) as usize };
+                for i in 0..listed {
                     languages.push(text(*c.languages.add(i)));
                 }
             }

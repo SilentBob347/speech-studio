@@ -32,7 +32,8 @@ connected and the address to paste.
   `studio://guide/<topic>`); prompts `write_podcast` and `make_audiobook` start those tasks with their guides.
 - **Files come back as paths**: a tool that answers sound (`voice_sample`, `project_take_file`, `project_export_file`,
   `listen_audio`, `openai_api_speech`...) writes it into the studio's `agent-files` folder and answers its path, type
-  and size; a picture (`voice_photo_get`) comes as an image.
+  and size; the folder keeps a file for a day, so copy what you keep longer. A picture (`voice_photo_get`) comes as an
+  image.
 - **Models**: `models_status` lists every component with its size and state, `models_download` fetches by id in the
   background (resumable, every file checked against its pinned SHA-256), `models_cancel_download` pauses,
   `models_import` takes files already on disk, `models_select` picks a quantisation, `models_remove` frees disk space,

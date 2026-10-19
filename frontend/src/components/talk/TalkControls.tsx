@@ -165,20 +165,31 @@ function TalkSettings({ running }: { running: boolean }) {
   const micPeak = useRef(0);
   const tester = useRef<SpeakerTest | null>(null);
   tester.current ??= new SpeakerTest();
+  /** Ends the test recording now under way, once: whoever asks first stops it, a later ask is a no-op. */
+  const endTest = useRef<() => Promise<void>>(() => Promise.resolve());
 
   useEffect(() => {
     api.recordDevices().then((d) => setDevices(d.devices), (e: unknown) => { setDevices([]); setProblem(errorText(e)); });
     return () => tester.current?.close();
   }, []);
 
-  // the microphone heard while this is open: the conversation's own when it runs, a test recording otherwise
+  // the microphone heard while this is open: the conversation's own when it runs, a test recording otherwise; a test
+  // that answers after it was ended is stopped as soon as it has started
   useEffect(() => {
     if (running || hearing) return;
-    let open = false;
-    talkApi.micTest(prefs.device).then(() => { open = true; setProblem(null); }, (e: unknown) => setProblem(errorText(e)));
-    return () => {
-      if (open) talkApi.micTestStop().catch((e: unknown) => console.error("[ERROR] mic test stop:", e));
+    let state: "starting" | "open" | "ended" = "starting";
+    const end = async () => {
+      const was = state;
+      state = "ended";
+      if (was === "open") await talkApi.micTestStop();
     };
+    endTest.current = end;
+    talkApi.micTest(prefs.device).then(() => {
+      if (state === "ended") { talkApi.micTestStop().catch((e: unknown) => console.error("[ERROR] mic test stop:", e)); return; }
+      state = "open";
+      setProblem(null);
+    }, (e: unknown) => setProblem(errorText(e)));
+    return () => { end().catch((e: unknown) => console.error("[ERROR] mic test stop:", e)); };
   }, [running, hearing, prefs.device, round]);
 
   useEffect(() => {
@@ -188,9 +199,10 @@ function TalkSettings({ running }: { running: boolean }) {
 
   const hearBack = async () => {
     setProblem(null);
+    const end = endTest.current;
     setHearing(true);
     try {
-      await talkApi.micTestStop();
+      await end();
       await (tester.current as SpeakerTest).play(`${BASE}/record/test/audio?at=${Date.now()}`, prefs.output, prefs.muted ? 0 : prefs.volume);
     } catch (e) {
       setProblem(errorText(e));

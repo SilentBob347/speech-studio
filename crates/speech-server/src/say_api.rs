@@ -247,23 +247,22 @@ async fn voice(st: AppState, sid: String, phrases: Vec<String>, direction: Strin
     if phrases.is_empty() {
         return Json(json!({ "voicing": 0 })).into_response();
     }
-    let mut project = match sp::load(&st.workspace, &sid) {
-        Ok(p) => p,
-        Err(e) => return refuse(StatusCode::NOT_FOUND, "no_project", e),
+    let speaker = t!("speech-narrator");
+    let added = sp::edit(&st.workspace, &sid, |project| {
+        phrases
+            .iter()
+            .map(|phrase| {
+                let id = sp::new_id();
+                project.chapters[0].blocks.push(sp::Block { id: id.clone(), speaker: speaker.clone(), text: phrase.clone(), direction: direction.clone(), ..Default::default() });
+                id
+            })
+            .collect::<Vec<String>>()
+    });
+    let ids = match added {
+        Ok(ids) => ids,
+        Err(e) => return refuse(StatusCode::INTERNAL_SERVER_ERROR, "save_failed", e),
     };
     SAID.lock().unwrap_or_else(|p| p.into_inner()).extend(phrases.iter().map(|p| (std::time::Instant::now(), p.clone())));
-    let speaker = t!("speech-narrator");
-    let ids: Vec<String> = phrases
-        .iter()
-        .map(|phrase| {
-            let id = sp::new_id();
-            project.chapters[0].blocks.push(sp::Block { id: id.clone(), speaker: speaker.clone(), text: phrase.clone(), direction: direction.clone(), ..Default::default() });
-            id
-        })
-        .collect();
-    if let Err(e) = sp::save(&st.workspace, &sid, &project) {
-        return refuse(StatusCode::INTERNAL_SERVER_ERROR, "save_failed", e);
-    }
     let started = crate::speech_api::synth(State(st), AxPath(sid), Json(json!({ "ids": ids, "aloud": true }))).await;
     if !started.status().is_success() {
         return started;
@@ -371,7 +370,7 @@ pub async fn listen_next(axum::extract::Query(q): axum::extract::Query<HashMap<S
             .iter()
             .enumerate()
             .skip(after)
-            .filter(|(_, l)| !is_echo(l["text"].as_str().unwrap_or_default()))
+            .filter(|(_, l)| l["typed"] == true || !is_echo(l["text"].as_str().unwrap_or_default()))
             .map(|(n, l)| json!({ "n": n + 1, "text": l["text"], "start": l["start"], "end": l["end"] }))
             .collect();
         let running = state["running"].as_bool().unwrap_or(false);

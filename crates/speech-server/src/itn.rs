@@ -212,8 +212,10 @@ fn zh(text: &str) -> String {
         }
         let j = (i..chars.len()).find(|&k| !numeral(chars[k])).unwrap_or(chars.len());
         let run = &chars[i..j];
-        if run.len() == 1 && digit(run[0]).is_some() {
-            out.push(run[0]);
+        // a number opens with a digit or with 十 ("十五"); 百, 千, 万 or 亿 first is a word ("百姓", "万一", "千万")
+        let word = unit(run[0]).is_some_and(|u| u != 10);
+        if word || run.len() == 1 && digit(run[0]).is_some() {
+            out.extend(run);
         } else {
             out.push_str(&value(run).to_string());
         }
@@ -249,6 +251,7 @@ mod tests {
         assert_eq!(digits("一八八七年的信", "zh").unwrap(), "1887年的信");
         assert_eq!(digits("二十五分钟，一千九百四十五年，三万两千", "zh").unwrap(), "25分钟，1945年，32000");
         assert_eq!(digits("一言为定，一封信", "zh").unwrap(), "一言为定，一封信");
+        assert_eq!(digits("老百姓说万一下雨，千万别走", "zh").unwrap(), "老百姓说万一下雨，千万别走");
     }
 
     #[test]

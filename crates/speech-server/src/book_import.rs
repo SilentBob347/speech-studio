@@ -58,13 +58,26 @@ pub fn names(chapters: &[Chapter], min: usize, limit: usize) -> Vec<(String, usi
     out
 }
 
-/// Footnote marks and site addresses out of a chapter, counted.
+/// Footnote marks and site addresses out of a chapter, counted. A superscript after a digit or a unit of measure is a
+/// power («10³», «50 м²»), not a mark, and stays.
 fn strip_marks(text: &str, removed: &mut Removed) -> String {
-    removed.notes += NOTE_MARK.find_iter(text).count();
-    let t = NOTE_MARK.replace_all(text, "");
+    let t = NOTE_MARK.replace_all(text, |c: &regex::Captures| {
+        let m = c.get(0).expect("the match");
+        let before: String = text[..m.start()].chars().rev().take_while(|ch| ch.is_alphanumeric()).collect::<Vec<_>>().into_iter().rev().collect();
+        let power = m.as_str().starts_with(|ch: char| "¹²³⁴⁵⁶⁷⁸⁹⁰".contains(ch))
+            && (before.chars().last().is_some_and(|ch| ch.is_ascii_digit()) || UNITS.contains(&before.to_lowercase().as_str()));
+        if power {
+            return m.as_str().to_string();
+        }
+        removed.notes += 1;
+        String::new()
+    });
     removed.links += LINK.find_iter(&t).count();
     LINK.replace_all(&t, "").into_owned()
 }
+
+/// Units a power follows: «м²», «км²», «см³».
+const UNITS: [&str; 14] = ["м", "см", "мм", "км", "дм", "дюйм", "фут", "m", "cm", "mm", "km", "dm", "ft", "in"];
 
 pub const FORMATS: [&str; 8] = ["epub", "fb2", "pdf", "docx", "html", "htm", "md", "txt"];
 
@@ -494,6 +507,9 @@ mod tests {
         let b = parse("n.txt", "Текст[1] со сноской¹ и ссылкой (https://example.com/page). Конец.".as_bytes()).unwrap();
         assert_eq!(b.chapters[0].text, "Текст со сноской и ссылкой. Конец.");
         assert_eq!(b.removed, Removed { notes: 2, links: 1 });
+        let units = parse("u.txt", "Дом в 120 м², куб 10³ см³.".as_bytes()).unwrap();
+        assert_eq!(units.chapters[0].text, "Дом в 120 м², куб 10³ см³.");
+        assert_eq!(units.removed.notes, 0);
     }
 
     #[test]

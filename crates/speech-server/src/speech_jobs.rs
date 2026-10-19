@@ -716,24 +716,30 @@ fn voice_block(p: &SpeechPaths, pid: &str, id: &str, count: u32, source: &str, p
             take.source = source.into();
             Ok((take, ignored))
         });
-        let mut fresh = sp::load(&p.workspace, pid)?;
-        let Some(block) = fresh.block_mut(id) else { return Ok(made) };
-        match result {
-            Ok((take, ignored)) => {
-                block.takes.push(take);
-                if block.pinned.is_none() {
-                    block.active = Some(n);
+        let kept = sp::edit(&p.workspace, pid, |fresh| {
+            let block = fresh.block_mut(id)?;
+            Some(match result {
+                Ok((take, ignored)) => {
+                    block.takes.push(take);
+                    if block.pinned.is_none() {
+                        block.active = Some(n);
+                    }
+                    block.error = None;
+                    Ok(ignored)
                 }
-                block.error = None;
-                sp::save(&p.workspace, pid, &fresh)?;
+                Err(e) => {
+                    block.error = Some(sp::BlockError { key, text: e.clone() });
+                    Err(e)
+                }
+            })
+        })?;
+        match kept {
+            None => return Ok(made),
+            Some(Ok(ignored)) => {
                 made.push(n);
                 progress(json!({ "type": "progress", "stage": "speech_block_done", "block": id, "ignored": ignored }));
             }
-            Err(e) => {
-                block.error = Some(sp::BlockError { key, text: e.clone() });
-                sp::save(&p.workspace, pid, &fresh)?;
-                return Err(e);
-            }
+            Some(Err(e)) => return Err(e),
         }
     }
     Ok(made)
@@ -920,24 +926,23 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, re
             }
             checks.push((*n, check));
         }
-        let mut fresh = sp::load(&p.workspace, pid)?;
-        let Some(block) = fresh.block_mut(id) else { continue };
-        for (n, c) in &checks {
-            if let Some(t) = block.takes.iter_mut().find(|t| t.n == *n) {
-                t.qc = Some(c.clone());
-            }
-        }
         let rank = |c: &crate::qc::Check| (!c.ok(), c.wer, -c.similarity.unwrap_or(0.0));
-        let best = checks.iter().min_by(|a, b| rank(&a.1).partial_cmp(&rank(&b.1)).unwrap_or(std::cmp::Ordering::Equal));
-        if let Some((n, c)) = best {
+        let bad = sp::edit(&p.workspace, pid, |fresh| {
+            let block = fresh.block_mut(id)?;
+            for (n, c) in &checks {
+                if let Some(t) = block.takes.iter_mut().find(|t| t.n == *n) {
+                    t.qc = Some(c.clone());
+                }
+            }
+            let best = checks.iter().min_by(|a, b| rank(&a.1).partial_cmp(&rank(&b.1)).unwrap_or(std::cmp::Ordering::Equal))?;
             if block.pinned.is_none() {
-                block.active = Some(*n);
+                block.active = Some(best.0);
             }
-            if !c.ok() {
-                failed.push(id.clone());
-            }
+            Some(!best.1.ok())
+        })?;
+        if bad == Some(true) {
+            failed.push(id.clone());
         }
-        sp::save(&p.workspace, pid, &fresh)?;
     }
     Ok(failed)
 }
