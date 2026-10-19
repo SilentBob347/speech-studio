@@ -2,7 +2,7 @@
 # The Linux x86-64 .deb and AppImage, built on this machine in an Ubuntu 22.04 container (glibc 2.35, so they run there
 # and on anything newer; Docker under WSL on Windows) from the committed HEAD.
 #   scripts/build-linux-docker.sh <output folder> [cache folder]
-# The cache keeps Rust, Node, ffmpeg and the cargo target between runs.
+# The cache keeps Rust, Node, ffmpeg and the cargo target between runs; CARGO_BUILD_JOBS, when set, caps the compile jobs.
 set -euo pipefail
 
 if [ "${1:-}" = "--inside" ]; then
@@ -53,4 +53,4 @@ cache="${2:-$HOME/speech-linux2204-cache}"
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 mkdir -p "$out" "$cache"
 cp "$repo/scripts/build-linux-docker.sh" "$out/.build-linux-docker.sh"
-docker run --rm -v "$repo:/src:ro" -v "$(cd "$out" && pwd):/out" -v "$cache:/cache" ubuntu:22.04 bash /out/.build-linux-docker.sh --inside
+docker run --rm ${CARGO_BUILD_JOBS:+-e CARGO_BUILD_JOBS=$CARGO_BUILD_JOBS} -v "$repo:/src:ro" -v "$(cd "$out" && pwd):/out" -v "$cache:/cache" ubuntu:22.04 bash /out/.build-linux-docker.sh --inside
