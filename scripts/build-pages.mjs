@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { ORDER, STRINGS } from '../docs/site/strings.mjs';
 import { ENGINES, GROUPS, STRESS, voiceName } from '../docs/site/samples.mjs';
 import { STUDIO } from '../docs/site/studio.mjs';
+import { ENGINE_BENCH } from '../docs/site/engines.mjs';
 // the studio's version, from the one place it is written
 const VERSION = JSON.parse(readFileSync(new URL('../desktop/src-tauri/tauri.conf.json', import.meta.url), 'utf8')).version;
 
@@ -122,6 +123,21 @@ ${others.map((g, at, all) => group(g, at, all)).join('\n')}
   // the Russian page leads with its own stress pairs; the others show them after their own examples
   const listen = lang === 'ru' ? `${stress}${samples}` : `${samples}${stress}`;
 
+  const u = s.engineUnits;
+  const number = (value) => value.toLocaleString(lang, { minimumFractionDigits: value < 10 ? 1 : 0, maximumFractionDigits: 1 });
+  const first = (ms) => (ms < 1000 ? `${number(ms)} ${u.ms}` : `${number(ms / 1000)} ${u.s}`);
+  const engines = `  <section id="engines">
+    <h2>${escape(s.enginesTitle)}</h2>
+    <p class="sub">${escape(s.enginesSub)}</p>
+    <div class="scroll"><table>
+      <thead><tr>${s.engineCols.map((col) => `<th>${escape(col)}</th>`).join('')}</tr></thead>
+      <tbody>
+${ENGINE_BENCH.map((row) => `        <tr><td><b>${escape(ENGINES[row.engine])}</b></td><td>${escape(s.engineRoles[row.engine])}</td><td>${number(row.speed)}${u.x}</td><td>${first(row.firstMs)}</td><td>${escape(u[row.stream])}</td><td>${number(row.diskGB)} ${u.gb}</td><td>${number(row.vramGB)} ${u.gb}</td></tr>`).join('\n')}
+      </tbody>
+    </table></div>
+  </section>
+`;
+
   const shown = new Set([STUDIO.hero, ...STUDIO.bento.map(({ shot: name }) => name)]);
   const capital = (text) => text.charAt(0).toLocaleUpperCase(lang) + text.slice(1);
   const steps = s.steps
@@ -216,7 +232,7 @@ ${nav}
     <figure class="hero-shot"><img src="${shot(lang, STUDIO.hero)}" alt="${escape(shotAlt(STUDIO.hero))}" width="${pictureSize(lang, STUDIO.hero)[0]}" height="${pictureSize(lang, STUDIO.hero)[1]}" fetchpriority="high" /></figure>
   </section>
 
-${listen}  <section id="features">
+${listen}${engines}  <section id="features">
     <h2>${escape(s.featuresTitle)}</h2>
     <div class="bento">
 ${tiles}
