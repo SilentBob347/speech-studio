@@ -40,12 +40,13 @@ Speech Studio 打开时，会在 `http://127.0.0.1:8797/mcp` 提供 MCP：Claude
 
 同一端口上还提供 OpenAI 音频 API——`POST /v1/audio/speech`、`POST /v1/audio/transcriptions`、`GET /v1/models`——为 OpenAI 编写的工具可直接通过它配音和识别，`voice` 填声音库中的声音名称。[llms.txt](llms.txt) 为寻找它的工具提供同样的信息。只有本机上的程序可以连接。
 
-## 两种模式
+## 三种模式
 
 | 模式 | 作用 |
 |------|--------------|
 | 🔊 **Speech** | 文本、对话、播客或书 → 带多个版本的配音块，逐句听审，导出为 WAV、FLAC、MP3、OGG、M4A 或带章节的 M4B，附字幕和同步文本 |
 | 👂 **Listening** | 音频、视频或链接 → 带说话人和逐词时间的文字稿，卡拉 OK 播放器，按文字剪辑，导出 SRT、VTT、ASS、TXT 或 JSON，与参考文本核对 |
+| 🎙️ **Live** | 与 AI 智能体语音对话：通过 MCP 连接的智能体每写完一句就立即说出，你对着麦克风回答并逐句识别，插话会打断它；按 M 或 Ctrl+Shift+空格静音，悬浮在所有窗口之上的小组件 |
 
 ## 功能
 

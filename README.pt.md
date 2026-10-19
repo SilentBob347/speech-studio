@@ -40,12 +40,13 @@ Enquanto o Speech Studio está aberto, ele serve MCP em `http://127.0.0.1:8797/m
 
 Na mesma porta o estúdio fala a API de áudio da OpenAI — `POST /v1/audio/speech`, `POST /v1/audio/transcriptions`, `GET /v1/models` —, então ferramentas feitas para a OpenAI locutam e transcrevem por ele, com o nome de uma voz da biblioteca como `voice`. [llms.txt](llms.txt) diz o mesmo para ferramentas que o procuram. Só programas deste computador podem se conectar.
 
-## Dois modos
+## Três modos
 
 | Modo | O que faz |
 |------|--------------|
 | 🔊 **Speech** | Texto, diálogo, podcast ou livro → blocos locutados com tomadas, revisados de ouvido e exportados em WAV, FLAC, MP3, OGG, M4A ou M4B com capítulos, legendas e texto sincronizado |
 | 👂 **Listening** | Áudio, vídeo ou link → uma transcrição com falantes e tempos por palavra, um player karaokê, edição pelo texto, exportação para SRT, VTT, ASS, TXT ou JSON e conferência com um texto de referência |
+| 🎙️ **Live** | Uma conversa por voz com um agente de IA: o agente conectado por MCP diz cada frase assim que a escreve, você responde ao microfone e é reconhecido frase a frase, falar por cima o interrompe; mudo com M ou Ctrl+Shift+Espaço, um widget sobre todas as janelas |
 
 ## Recursos
 
