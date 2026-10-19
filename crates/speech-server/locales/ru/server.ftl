@@ -488,6 +488,11 @@ voices-pack-done = готово: { $count } { $count ->
     [few] файла
    *[many] файлов
 }
+voices-pack-taken = взято у { $app }: { $count } { $count ->
+    [one] файл
+    [few] файла
+   *[many] файлов
+}
 
 ## Downloads by link
 

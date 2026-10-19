@@ -466,6 +466,10 @@ voices-pack-done = terminé : { $count } { $count ->
     [one] fichier
    *[other] fichiers
 }
+voices-pack-taken = repris de { $app } : { $count } { $count ->
+    [one] fichier
+   *[other] fichiers
+}
 
 ## Downloads by link
 

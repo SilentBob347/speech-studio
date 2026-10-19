@@ -352,6 +352,7 @@ voices-open-zip = 打开 zip：{ $error }
 voices-create-file = 创建 { $name }：{ $error }
 voices-unpack-file = 解压 { $name }：{ $error }
 voices-pack-done = 完成：{ $count } 个文件
+voices-pack-taken = 已从 { $app } 获取：{ $count } 个文件
 
 ## Downloads by link
 

@@ -1378,15 +1378,21 @@ fn taken() -> &'static Mutex<std::collections::BTreeMap<String, String>> {
 /// A file another program of timoncool's has (same name and size, the folder name too), taken instead of downloaded
 /// and accepted only when its SHA-256 is the pinned one; the program's id, or None when nobody has it.
 fn take_from_neighbor(dest: &Path, f: &FileSpec, cancel: &dyn Fn() -> bool) -> Option<String> {
-    let (source, app) = studio_hub_client::neighbors::find_file(dest.file_name()?, f.size, dest.parent().and_then(Path::file_name))?;
-    let accept = |p: &Path| matches!(sha256_file(p, cancel), Ok(Some(h)) if h == f.sha256);
+    take_neighbor_file(dest, f.size, f.sha256, cancel)
+}
+
+/// `dest` from another program of timoncool's that has a file of its name in a folder of its folder's name, of `size`
+/// bytes and SHA-256 `sha256`: linked, or copied from another disk; the program's id, or None when nobody has it.
+pub(crate) fn take_neighbor_file(dest: &Path, size: u64, sha256: &str, cancel: &dyn Fn() -> bool) -> Option<String> {
+    let (source, app) = studio_hub_client::neighbors::find_file(dest.file_name()?, size, dest.parent().and_then(Path::file_name))?;
+    let accept = |p: &Path| matches!(sha256_file(p, cancel), Ok(Some(h)) if h == sha256);
     match studio_hub_client::neighbors::take_file(&source, dest, true, accept) {
         Ok(()) => {
-            tracing::info!("[OK] {} taken from {app} instead of downloading", f.dest_rel);
+            tracing::info!("[OK] {} taken from {app} instead of downloading", dest.display());
             Some(app)
         }
         Err(e) => {
-            tracing::warn!("{} from {app} ({}): {e}", f.dest_rel, source.display());
+            tracing::warn!("{} from {app} ({}): {e}", dest.display(), source.display());
             None
         }
     }
