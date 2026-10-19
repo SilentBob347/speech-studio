@@ -617,12 +617,13 @@ struct Agent {
     /// When an agent last called the server, and what it called.
     last_call: Mutex<Option<(std::time::Instant, String)>>,
     calls: AtomicU64,
+    /// The name the agent gave when it connected (its clientInfo), shown beside what it says.
+    name: Mutex<Option<String>>,
 }
 
 fn agent() -> &'static Agent {
     static AGENT: OnceLock<Agent> = OnceLock::new();
-    AGENT.get_or_init(|| Agent { last_call: Mutex::new(None), calls: AtomicU64::new(0),
-    })
+    AGENT.get_or_init(|| Agent { last_call: Mutex::new(None), calls: AtomicU64::new(0), name: Mutex::new(None) })
 }
 
 /// An agent that called within this long still counts as connected.
@@ -645,6 +646,7 @@ pub async fn status() -> Json<Value> {
         "agent_last_call": last.as_ref().map(|(_, what)| what.clone()),
         "agent_seconds_ago": last.as_ref().map(|(at, _)| at.elapsed().as_secs()),
         "agent_calls": agent().calls.load(Ordering::Relaxed),
+        "agent_name": agent().name.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).clone(),
         "window_open": window::windows_open() > 0,
     }))
 }
@@ -1820,6 +1822,9 @@ pub async fn handle(headers: HeaderMap, body: axum::body::Bytes) -> Response {
     }
     match method {
         "initialize" => {
+            if let Some(name) = params.pointer("/clientInfo/name").and_then(Value::as_str).map(str::trim).filter(|n| !n.is_empty()) {
+                *agent().name.lock().unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(name.chars().take(60).collect());
+            }
             let asked = params.get("protocolVersion").and_then(Value::as_str).unwrap_or_default();
             let protocol = LEGACY.iter().find(|version| **version == asked).copied().unwrap_or(LEGACY[0]);
             rpc(id, json!({

@@ -2448,6 +2448,7 @@
     "tab_mic": "麦克风",
     "tab_voice": "智能体的声音",
     "tab_speaker": "扬声器",
-    "ownParams": "自定义声音设置"
+    "ownParams": "自定义声音设置",
+    "agentNamed": "已连接：{{name}}"
   }
 }

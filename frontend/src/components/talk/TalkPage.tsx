@@ -41,7 +41,7 @@ export default function TalkPage() {
           </div>
           <span className={`inline-flex items-center gap-1.5 text-[12px] ${agent?.agent_connected ? "text-[var(--color-good)]" : "text-[var(--color-muted)]"}`}>
             <span className="w-2 h-2 rounded-full" style={{ background: agent?.agent_connected ? "var(--color-good)" : "var(--color-muted)" }} aria-hidden />
-            {agent?.agent_connected ? t("talk.agentOn") : t("talk.agentOff")}
+            {agent?.agent_connected ? (agent.agent_name ? t("talk.agentNamed", { name: agent.agent_name }) : t("talk.agentOn")) : t("talk.agentOff")}
           </span>
         </div>
 
@@ -82,7 +82,7 @@ export default function TalkPage() {
             {turns.length === 0 && <li className="text-[var(--color-muted)]">{t("talk.empty")}</li>}
             {turns.map((x, i) => (
               <li key={i} className={`rounded-lg px-3 py-2 ${x.who === "person" ? "bg-[var(--color-surface-2)]" : "border border-[var(--color-border)]"}`}>
-                <span className="block text-[11px] text-[var(--color-muted)]">{x.who === "person" ? t("talk.you") : t("talk.agent")}</span>
+                <span className="block text-[11px] text-[var(--color-muted)]">{x.who === "person" ? t("talk.you") : agent?.agent_name ?? t("talk.agent")}</span>
                 {x.text}
               </li>
             ))}

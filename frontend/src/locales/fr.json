@@ -2448,6 +2448,7 @@
     "tab_mic": "Micro",
     "tab_voice": "Voix de l'agent",
     "tab_speaker": "Haut-parleur",
-    "ownParams": "Réglages de voix propres"
+    "ownParams": "Réglages de voix propres",
+    "agentNamed": "Connecté : {{name}}"
   }
 }
