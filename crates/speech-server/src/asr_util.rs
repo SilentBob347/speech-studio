@@ -23,7 +23,7 @@ pub fn choice(repo_root: &Path, models_root: &Path, lang: &str, what: &str) -> R
     choice_of(repo_root, models_root, lang, what, "")
 }
 
-/// The recogniser for `lang` with `engine` (parakeet, nemotron, whisper, gguf-*) in place of the settings' one; empty
+/// The recogniser for `lang` with `engine` (parakeet, nemotron, whisper, cohere) in place of the settings' one; empty
 /// keeps it. A recogniser that was asked for but is not downloaded, or does not know the language, is an error, not
 /// another recogniser; only Parakeet, the default, gives way to Whisper for a language it lacks.
 pub fn choice_of(repo_root: &Path, models_root: &Path, lang: &str, what: &str, engine: &str) -> Result<crate::models::AsrChoice, String> {
@@ -37,20 +37,14 @@ pub fn choice_of(repo_root: &Path, models_root: &Path, lang: &str, what: &str, e
     let mut choice = crate::models::resolve_asr_choice(repo_root, models_root, &sel);
     let lang = if lang.is_empty() || lang == "auto" { "" } else { lang };
     let gguf = crate::tcpp_asr::family(&asked);
-    if asked == "nemotron" && !matches!(choice, crate::models::AsrChoice::Nemotron(_)) {
-        return Err(t!("listen-nemotron-missing"));
-    }
     if let Some(f) = gguf {
         if !matches!(choice, crate::models::AsrChoice::Ggml { .. }) {
-            return Err(t!("listen-gguf-missing", engine = f.id));
+            return Err(t!("listen-gguf-missing", engine = f.name));
         }
     }
     if !choice.knows(lang) {
         if let Some(f) = gguf {
-            return Err(t!("listen-gguf-lang", engine = f.id, lang = lang.to_string()));
-        }
-        if asked == "nemotron" {
-            return Err(t!("listen-nemotron-lang", lang = lang.to_string()));
+            return Err(t!("listen-gguf-lang", engine = f.name, lang = lang.to_string()));
         }
         if let Some(obj) = sel.as_object_mut() {
             obj.insert("asr_engine".into(), json!("whisper"));

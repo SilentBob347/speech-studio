@@ -1771,14 +1771,8 @@
     "source_link": "Link",
     "source_mic": "Microfone",
     "source_folder": "Pasta",
-    "engine_gguf-parakeet": "Parakeet v3 (transcribe.cpp, rápido)",
-    "engine_gguf-nemotron": "Nemotron 3.5 (transcribe.cpp, 35 idiomas)",
-    "engine_gguf-cohere": "Cohere (transcribe.cpp, 14 idiomas)",
-    "engine_gguf-whisper": "Whisper turbo (transcribe.cpp, 100 idiomas)",
-    "engineHint_gguf-parakeet": "Parakeet no motor transcribe.cpp: o mesmo Parakeet, várias vezes mais rápido na GPU.",
-    "engineHint_gguf-nemotron": "Nemotron 3.5 no transcribe.cpp: 35 idiomas com pontuação, dezenas de vezes mais rápido na GPU que o de ONNX.",
-    "engineHint_gguf-cohere": "Cohere Transcribe no transcribe.cpp: 14 idiomas sem russo, muito preciso em inglês.",
-    "engineHint_gguf-whisper": "Whisper large-v3-turbo no transcribe.cpp: cerca de 100 idiomas."
+    "engine_cohere": "Cohere Transcribe (GPU, 14 idiomas)",
+    "engineHint_cohere": "Cohere Transcribe: na placa de vídeo, 14 idiomas sem russo, muito preciso em inglês; baixe em Configurações → Modelos."
   },
   "podcast": {
     "open": "Roteiro de podcast",

@@ -1771,14 +1771,8 @@
     "source_link": "Ссылка",
     "source_mic": "Микрофон",
     "source_folder": "Папка",
-    "engine_gguf-parakeet": "Parakeet v3 (transcribe.cpp, быстро)",
-    "engine_gguf-nemotron": "Nemotron 3.5 (transcribe.cpp, 35 языков)",
-    "engine_gguf-cohere": "Cohere (transcribe.cpp, 14 языков)",
-    "engine_gguf-whisper": "Whisper turbo (transcribe.cpp, 100 языков)",
-    "engineHint_gguf-parakeet": "Parakeet на движке transcribe.cpp: тот же Parakeet, но в несколько раз быстрее на видеокарте.",
-    "engineHint_gguf-nemotron": "Nemotron 3.5 на transcribe.cpp: 35 языков с пунктуацией, на видеокарте в десятки раз быстрее варианта ONNX.",
-    "engineHint_gguf-cohere": "Cohere Transcribe на transcribe.cpp: 14 языков без русского, высокая точность на английском.",
-    "engineHint_gguf-whisper": "Whisper large-v3-turbo на transcribe.cpp: около 100 языков."
+    "engine_cohere": "Cohere Transcribe (видеокарта, 14 языков)",
+    "engineHint_cohere": "Cohere Transcribe: на видеокарте, 14 языков без русского, очень точен в английском; скачивается в «Настройки → Модели»."
   },
   "podcast": {
     "open": "Сценарий подкаста",

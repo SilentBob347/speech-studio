@@ -1771,14 +1771,8 @@
     "source_link": "Link",
     "source_mic": "Microphone",
     "source_folder": "Folder",
-    "engine_gguf-parakeet": "Parakeet v3 (transcribe.cpp, fast)",
-    "engine_gguf-nemotron": "Nemotron 3.5 (transcribe.cpp, 35 languages)",
-    "engine_gguf-cohere": "Cohere (transcribe.cpp, 14 languages)",
-    "engine_gguf-whisper": "Whisper turbo (transcribe.cpp, 100 languages)",
-    "engineHint_gguf-parakeet": "Parakeet on the transcribe.cpp engine: the same Parakeet, several times faster on the GPU.",
-    "engineHint_gguf-nemotron": "Nemotron 3.5 on transcribe.cpp: 35 languages with punctuation, tens of times faster on the GPU than the ONNX one.",
-    "engineHint_gguf-cohere": "Cohere Transcribe on transcribe.cpp: 14 languages without Russian, very accurate in English.",
-    "engineHint_gguf-whisper": "Whisper large-v3-turbo on transcribe.cpp: about 100 languages."
+    "engine_cohere": "Cohere Transcribe (GPU, 14 languages)",
+    "engineHint_cohere": "Cohere Transcribe: on the video card, 14 languages without Russian, very accurate in English; download it in Settings → Models."
   },
   "podcast": {
     "open": "Podcast script",

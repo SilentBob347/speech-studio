@@ -1,5 +1,4 @@
-//! Recognition by transcribe.cpp (ggml, CUDA): Parakeet TDT v3, Nemotron 3.5, Cohere Transcribe and Whisper
-//! large-v3-turbo from their GGUF files. The engine is one library, `transcribe_engine` (fork timoncool/transcribe.cpp,
+//! Recognition by transcribe.cpp (ggml, CUDA): Nemotron 3.5 and Cohere Transcribe from their GGUF files. The engine is one library, `transcribe_engine` (fork timoncool/transcribe.cpp,
 //! branch studio): libtranscribe and ggml linked whole into it, so it shares nothing with the TTS engines' ggml in the
 //! same process. Loaded once and kept, as the other ggml engines are.
 
@@ -14,28 +13,27 @@ pub const LIBRARY: &str = "transcribe_engine.dll";
 #[cfg(not(windows))]
 pub const LIBRARY: &str = "libtranscribe_engine.so";
 
-/// A model family the studio offers by transcribe.cpp: its id in the settings, its folder and file, and the languages
-/// its card lists (empty: every language Whisper knows).
+/// A recognition model that runs on transcribe.cpp: its id in the settings, its name, its folder and file, and the languages
+/// its card lists (empty: every language). A model not listed here runs on Dub Studio's engines, so each model is
+/// offered once, on one engine.
 #[derive(Debug)]
 pub struct Family {
     pub id: &'static str,
+    pub name: &'static str,
     pub component: &'static str,
     pub file: &'static str,
     pub languages: &'static [&'static str],
 }
 
-const EU25: &[&str] = &["bg", "hr", "cs", "da", "nl", "en", "et", "fi", "fr", "de", "el", "hu", "it", "lv", "lt", "mt", "pl", "pt", "ro", "sk", "sl", "es", "sv", "ru", "uk"];
-
 pub const FAMILIES: &[Family] = &[
-    Family { id: "gguf-parakeet", component: "asr-gguf-parakeet", file: "parakeet-tdt-0.6b-v3-Q8_0.gguf", languages: EU25 },
     Family {
-        id: "gguf-nemotron",
+        id: "nemotron",
+        name: "Nemotron 3.5",
         component: "asr-gguf-nemotron",
         file: "nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf",
         languages: &["en", "es", "fr", "de", "it", "pt", "nl", "ru", "zh", "ja", "ko", "ar", "hi", "tr", "pl", "uk", "cs", "sv", "da", "fi", "no", "el", "hu", "ro", "bg", "hr", "sk", "sl", "et", "lv", "lt", "vi", "th", "id", "ms"],
     },
-    Family { id: "gguf-cohere", component: "asr-gguf-cohere", file: "cohere-transcribe-03-2026-Q8_0.gguf", languages: &["en", "fr", "de", "it", "es", "pt", "el", "nl", "pl", "zh", "ja", "ko", "vi", "ar"] },
-    Family { id: "gguf-whisper", component: "asr-gguf-whisper", file: "whisper-large-v3-turbo-Q8_0.gguf", languages: &[] },
+    Family { id: "cohere", name: "Cohere Transcribe", component: "asr-gguf-cohere", file: "cohere-transcribe-03-2026-Q8_0.gguf", languages: &["en", "fr", "de", "it", "es", "pt", "el", "nl", "pl", "zh", "ja", "ko", "vi", "ar"] },
 ];
 
 pub fn family(id: &str) -> Option<&'static Family> {

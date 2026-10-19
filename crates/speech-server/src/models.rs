@@ -22,6 +22,7 @@ pub fn load_selection(mroot: &Path) -> Value {
 }
 
 
+
 /// The chosen Qwen3-TTS talker quantisation; the first of `qwen_tts::QUANTS` when none is chosen.
 pub fn qwen_quant(mroot: &Path) -> String {
     load_selection(mroot)
@@ -143,8 +144,9 @@ pub fn component_selection(id: &str) -> Vec<(&'static str, String)> {
         "qwen3-tts-q8_0" => vec![("qwen_tts_quant", "Q8_0".into())],
         "parakeet" => vec![("asr_engine", "parakeet".into()), ("asr", "int8".into())],
         "parakeet-ultra-int8" => vec![("asr_engine", "parakeet".into()), ("asr", "ultra-int8".into())],
-        "nemotron-asr" => vec![("asr_engine", "nemotron".into())],
-        id if id.starts_with("asr-gguf-") => vec![("asr_engine", id.trim_start_matches("asr-").to_string())],
+        id if crate::tcpp_asr::FAMILIES.iter().any(|f| f.component == id) => {
+            vec![("asr_engine", crate::tcpp_asr::FAMILIES.iter().find(|f| f.component == id).map_or("", |f| f.id).to_string())]
+        }
         "whisper-tiny" => vec![("asr_engine", "whisper".into()), ("whisper_model", "tiny".into()),
         ],
         "whisper-base" => vec![("asr_engine", "whisper".into()), ("whisper_model", "base".into()),
@@ -578,8 +580,6 @@ pub fn higgs_ref_secs(mroot: &Path) -> f64 {
 #[derive(Debug, Clone)]
 pub enum AsrChoice {
     Parakeet(PathBuf),
-    /// Nemotron 3.5 ASR: the folder of its int8 export.
-    Nemotron(PathBuf),
     /// A GGUF model run by transcribe.cpp on the GPU.
     Ggml { models_root: PathBuf, family: &'static crate::tcpp_asr::Family },
     Whisper { bin: PathBuf, model_dir: PathBuf, model: String, compute: String, device: String,
@@ -597,7 +597,6 @@ impl AsrChoice {
                 let variant = d.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| "tdt".into());
                 format!("Parakeet ({variant})")
             }
-            AsrChoice::Nemotron(_) => "Nemotron 3.5 ASR (int8)".into(),
             AsrChoice::Ggml { family, .. } => format!("transcribe.cpp ({})", family.file),
             AsrChoice::Whisper { model, compute, device, .. } => {
                 format!("Whisper {model} (compute={compute}, device={device})")
@@ -611,21 +610,10 @@ impl AsrChoice {
             || lang == "auto"
             || match self {
                 AsrChoice::Parakeet(_) => parakeet_knows(lang),
-                AsrChoice::Nemotron(_) => dub_asr::nemotron_lang(lang).is_some(),
                 AsrChoice::Ggml { family, .. } => crate::tcpp_asr::knows(family, lang),
                 AsrChoice::Whisper { .. } => true,
             }
     }
-}
-
-/// The folder Nemotron 3.5 ASR is downloaded into, and whether it is all there.
-pub fn nemotron_dir(mroot: &Path) -> PathBuf {
-    mroot.join("nemotron-asr-int8")
-}
-
-fn nemotron_installed(mroot: &Path) -> bool {
-    let dir = nemotron_dir(mroot);
-    ["encoder.onnx", "encoder.onnx.data", "decoder_joint.onnx", "tokenizer.model"].iter().all(|f| dir.join(f).is_file())
 }
 
 /// Путь к бинарю Whisper: env SPEECH_STUDIO_WHISPER_BIN, иначе приоритетом XXL-сборка
@@ -667,9 +655,6 @@ pub fn parakeet_knows(lang: &str) -> bool {
 /// Так «выбрал Whisper + скачал модель» применяется без рестарта, а недо-настроенный Whisper тихо
 /// откатывается на Parakeet (analyze не падает).
 pub fn resolve_asr_choice(repo_root: &Path, mroot: &Path, sel: &Value) -> AsrChoice {
-    if pick(sel, "asr_engine") == Some("nemotron") && nemotron_installed(mroot) {
-        return AsrChoice::Nemotron(nemotron_dir(mroot));
-    }
     if let Some(family) = pick(sel, "asr_engine").and_then(crate::tcpp_asr::family) {
         if crate::tcpp_asr::installed(mroot, family) {
             return AsrChoice::Ggml { models_root: mroot.to_path_buf(), family };
@@ -755,7 +740,6 @@ fn whisper_cuda_libs_present(bin: &std::path::Path) -> bool {
 pub fn build_engine(choice: &AsrChoice, prompt: Option<String>) -> Box<dyn dub_asr::AsrEngine> {
     match choice {
         AsrChoice::Parakeet(dir) => Box::new(dub_asr::Asr::new(dir)),
-        AsrChoice::Nemotron(dir) => Box::new(dub_asr::NemotronAsr::new(dir)),
         AsrChoice::Ggml { models_root, family } => Box::new(crate::tcpp_asr::LazyTcpp::new(models_root, family)),
         AsrChoice::Whisper { bin, model_dir, model, compute, device } => Box::new(dub_asr::WhisperAsr::new(bin, model_dir, model, compute, device).with_prompt(prompt)),
     }

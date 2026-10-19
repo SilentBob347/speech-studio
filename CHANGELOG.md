@@ -51,8 +51,8 @@ release notes on GitHub are taken from the release's section.
 
 ### Listening
 
-- **Nemotron 3.5 ASR** (35 languages with punctuation) as a third local recogniser, and recognition by transcribe.cpp
-  (Parakeet v3, Nemotron 3.5, Cohere, Whisper turbo as GGUF Q8_0) beside the default.
+- **Nemotron 3.5 ASR** (35 languages with punctuation) and **Cohere Transcribe** (14 languages) as local recognisers
+  beside Parakeet and Whisper, both GGUF Q8_0 on the transcribe.cpp engine; each model is offered once.
 - **Live recognition** from the microphone phrase by phrase, a **watched folder** recognised in the background,
   **quick recognition** of a file without the editor, a batch of files saved in several formats at once.
 - Subtitles by a broadcaster's rules (Netflix, BBC and others), who talks how much, a repeated phrase in the player,

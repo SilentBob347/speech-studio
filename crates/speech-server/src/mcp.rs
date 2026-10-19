@@ -838,7 +838,7 @@ fn tools() -> &'static [Tool] {
             },
             Tool {
                 name: "models_select",
-                description: "Use a downloaded variant for its stage (id from models_status): a quantisation of Higgs (higgs, higgs-q6_k, higgs-q4_k_m), of Gemma (gemma, gemma-q5_0, gemma-q6_k, gemma-q8_0) or of the separator (roformer, roformer-q5, roformer-q4), or a speech recogniser (parakeet, parakeet-ultra-int8, nemotron-asr, whisper-tiny ... whisper-large-v3-turbo). Applies from the next job, no restart.",
+                description: "Use a downloaded variant for its stage (id from models_status): a quantisation of Higgs (higgs, higgs-q6_k, higgs-q4_k_m), of Gemma (gemma, gemma-q5_0, gemma-q6_k, gemma-q8_0) or of the separator (roformer, roformer-q5, roformer-q4), or a speech recogniser (parakeet, parakeet-ultra-int8, asr-gguf-nemotron, asr-gguf-cohere, whisper-tiny ... whisper-large-v3-turbo). Applies from the next job, no restart.",
                 schema: || id_only("id", "component id from models_status"),
                 call: |args| post("/engine/select".into(), json!({ "id": text(args, "id")? })),
             },

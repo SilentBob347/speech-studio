@@ -882,29 +882,8 @@ pub fn manifest() -> Vec<Component> {
             ],
             external_url: None,
         },
-        // Nemotron 3.5 ASR (NVIDIA): 35 languages with punctuation, the int8 export in the layout parakeet-rs loads.
-        Component {
-            id: "nemotron-asr",
-            name: "Nemotron 3.5 ASR 0.6B (int8)".into(),
-            purpose: t!("setup-comp-nemotron-asr-purpose"),
-            requirement: Requirement::Optional,
-            delivery: Delivery::Download,
-            size: 682_503_189,
-            files: &[
-                FileSpec { url: "https://huggingface.co/smcleod/nemotron-3.5-asr-streaming-0.6b-int8/resolve/f1f26d22dab5c4eabe6d01b63c906889e7e817d3/encoder.onnx", dest_rel: "models/nemotron-asr-int8/encoder.onnx", size: 42_963_073, sha256: "a6fd0bbedae97047cb444dba928273b66b9cae36249cf697f4bf7b6f0e167c5d", extract: Extract::None },
-                FileSpec { url: "https://huggingface.co/smcleod/nemotron-3.5-asr-streaming-0.6b-int8/resolve/f1f26d22dab5c4eabe6d01b63c906889e7e817d3/encoder.onnx.data", dest_rel: "models/nemotron-asr-int8/encoder.onnx.data", size: 614_649_600, sha256: "c2f230b026aa4f29b1b5ce099b2fba853db361773157d478d67127b877f64c42", extract: Extract::None },
-                FileSpec { url: "https://huggingface.co/smcleod/nemotron-3.5-asr-streaming-0.6b-int8/resolve/f1f26d22dab5c4eabe6d01b63c906889e7e817d3/decoder_joint.onnx", dest_rel: "models/nemotron-asr-int8/decoder_joint.onnx", size: 24_483_962, sha256: "7fe1a8c2e247b55bbb8ca917ef64cf60227909c6fe63be2da7ea6fc3858d6a69", extract: Extract::None },
-                FileSpec { url: "https://huggingface.co/smcleod/nemotron-3.5-asr-streaming-0.6b-int8/resolve/f1f26d22dab5c4eabe6d01b63c906889e7e817d3/tokenizer.model", dest_rel: "models/nemotron-asr-int8/tokenizer.model", size: 406_554, sha256: "ce3895e40806f02a26c3a225161b96ef682d6c0054bae32a245dec4258d7d291", extract: Extract::None },
-            ],
-            markers: &[
-                Marker { rel: "models/nemotron-asr-int8/encoder.onnx.data", expect: 614_649_600 },
-                Marker { rel: "models/nemotron-asr-int8/decoder_joint.onnx", expect: 24_483_962 },
-                Marker { rel: "models/nemotron-asr-int8/tokenizer.model", expect: 406_554 },
-            ],
-            external_url: None,
-        },
-        // Recognition by transcribe.cpp (ggml, CUDA): the engine, then each model as its GGUF from its authors'
-        // repository at a pinned revision. A model is a choice of its own; the studio's default recogniser stays.
+        // Recognition by transcribe.cpp (ggml, CUDA): the engine, then each model it runs (tcpp_asr::FAMILIES) as its
+        // GGUF from its authors' repository at a pinned revision.
         Component {
             id: "transcribe-engine",
             name: "transcribe.cpp (CUDA)".into(),
@@ -914,17 +893,6 @@ pub fn manifest() -> Vec<Component> {
             size: platform::TRANSCRIBE_ENGINE.size,
             files: platform::TRANSCRIBE_ENGINE.files,
             markers: platform::TRANSCRIBE_ENGINE.markers,
-            external_url: None,
-        },
-        Component {
-            id: "asr-gguf-parakeet",
-            name: "Parakeet TDT 0.6B v3 (GGUF Q8_0, transcribe.cpp)".into(),
-            purpose: t!("setup-comp-asr-gguf-parakeet-purpose"),
-            requirement: Requirement::Optional,
-            delivery: Delivery::Download,
-            size: 739_508_576,
-            files: &[FileSpec { url: "https://huggingface.co/handy-computer/parakeet-tdt-0.6b-v3-gguf/resolve/d8d8c32cb2017c57e5307767343e97870f8a7f53/parakeet-tdt-0.6b-v3-Q8_0.gguf", dest_rel: "models/asr-gguf-parakeet/parakeet-tdt-0.6b-v3-Q8_0.gguf", size: 739_508_576, sha256: "5859f77944efcd8eafa23a6350731960b2b55b2203df51f319665c807d802cc7", extract: Extract::None }],
-            markers: &[Marker { rel: "models/asr-gguf-parakeet/parakeet-tdt-0.6b-v3-Q8_0.gguf", expect: 739_508_576 }],
             external_url: None,
         },
         Component {
@@ -947,17 +915,6 @@ pub fn manifest() -> Vec<Component> {
             size: 2_410_655_232,
             files: &[FileSpec { url: "https://huggingface.co/handy-computer/cohere-transcribe-03-2026-gguf/resolve/7353b6040bdc1be9e5a3823d99d5fe12afe88264/cohere-transcribe-03-2026-Q8_0.gguf", dest_rel: "models/asr-gguf-cohere/cohere-transcribe-03-2026-Q8_0.gguf", size: 2_410_655_232, sha256: "931916663432fd895423a4291a8400221802b288967ca2d435fc5e3141c9e71e", extract: Extract::None }],
             markers: &[Marker { rel: "models/asr-gguf-cohere/cohere-transcribe-03-2026-Q8_0.gguf", expect: 2_410_655_232 }],
-            external_url: None,
-        },
-        Component {
-            id: "asr-gguf-whisper",
-            name: "Whisper large-v3-turbo (GGUF Q8_0, transcribe.cpp)".into(),
-            purpose: t!("setup-comp-asr-gguf-whisper-purpose"),
-            requirement: Requirement::Optional,
-            delivery: Delivery::Download,
-            size: 886_381_728,
-            files: &[FileSpec { url: "https://huggingface.co/handy-computer/whisper-large-v3-turbo-gguf/resolve/18ada752005f5fddef499256f9a458d0b37a203a/whisper-large-v3-turbo-Q8_0.gguf", dest_rel: "models/asr-gguf-whisper/whisper-large-v3-turbo-Q8_0.gguf", size: 886_381_728, sha256: "257aa7ec9121c22c167d5e2c49e3e76b4ba0e6e27ebc13074eba0a80f8190220", extract: Extract::None }],
-            markers: &[Marker { rel: "models/asr-gguf-whisper/whisper-large-v3-turbo-Q8_0.gguf", expect: 886_381_728 }],
             external_url: None,
         },
         // ── АЛЬТЕРНАТИВНЫЙ ASR-ДВИЖОК: Whisper (Purfview standalone faster-whisper) ──────────
@@ -1450,11 +1407,8 @@ fn vram_estimate(id: &str) -> u64 {
         "gemma-q8_0" => gb(14.0),
         "parakeet" => gb(1.1),
         "parakeet-ultra-int8" => gb(1.1),
-        "nemotron-asr" => gb(1.2),
-        "asr-gguf-parakeet" => gb(1.4),
         "asr-gguf-nemotron" => gb(1.5),
         "asr-gguf-cohere" => gb(3.2),
-        "asr-gguf-whisper" => gb(1.6),
         "supertonic3" => gb(0.6),
         "qwen3-tts" => gb(2.8),
         "qwen3-tts-q8_0" => gb(3.7),
