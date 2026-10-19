@@ -2006,6 +2006,9 @@ pub fn setup_status(repo_root: &Path) -> SetupStatus {
             }
         } else if c.id == "bsroformer-engine-cpu" {
             c.requirement = Requirement::Optional;
+        } else if c.id == "onnxruntime-gpu" || c.id == "cudnn" {
+            // the process keeps the first ONNX Runtime it loads: on a GPU the CUDA build must be here before any session
+            c.requirement = Requirement::Required;
         }
     }
     if backend == "gpu" {

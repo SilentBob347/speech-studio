@@ -25,6 +25,9 @@ release notes on GitHub are taken from the release's section.
   and the card keeps a cache of the ones in use; the sound is the same. Settings → Models → *VRAM for Drama 3*: Auto
   (the whole model when it fits the free VRAM) or 5 to 24 GB by hand. Measured on an RTX 4090: whole model about 8×
   faster than real time, 12 GB 4.7×, 8 GB 3×, 6 GB 2.2×. Engine drama-rs engine-0.1.3.
+- **On an NVIDIA card the GPU ONNX Runtime and cuDNN are required.** Skipped on first run, the studio loaded the CPU
+  build of ONNX Runtime, which a running process cannot swap, and Supertonic on the card failed until a restart; first
+  run now fetches them with the other required parts.
 - **The voice pack comes from Dub Studio when it has it.** *Download the voice pack* links the pack's 100 files from
   another program of timoncool's that already has them, each checked by its hash, and downloads only when none has
   the whole pack; that program's own voices are not touched.
