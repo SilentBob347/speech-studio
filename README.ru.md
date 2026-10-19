@@ -79,7 +79,7 @@
 
 **Listening**
 
-- **Parakeet-TDT или Whisper**, до восьми спикеров через Nemotron 3 Diarization, длинная запись режется по паузам **Silero VAD v6**, шум убирает DPDFNet, музыку — Roformer.
+- **Parakeet-TDT, Whisper, Nemotron 3.5 (35 языков с пунктуацией) или Cohere Transcribe (14 языков)**, до восьми спикеров через Nemotron 3 Diarization, длинная запись режется по паузам **Silero VAD v6**, шум убирает DPDFNet, музыку — Roformer.
 - **Подсказка для Whisper** — тема и написания терминов, плюс ваши исправления.
 - **Пакет** — бросьте несколько файлов сразу: каждый станет записью в очереди распознавания.
 - **Текст поверх записи** — эталонный текст получает время каждого услышанного слова, предложение за предложением.
@@ -146,7 +146,9 @@ Listening — транскрипт со спикерами и временем �
 | Qwen3-TTS VoiceDesign Q8_0 | по желанию | [qwen-talker-1.7b-voicedesign-Q8_0.gguf](https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF/resolve/b7ee2e8c7459c3bea99da23e3d178125a7d1713c/qwen-talker-1.7b-voicedesign-Q8_0.gguf) → `models\qwen3-tts\qwen-talker-1.7b-voicedesign-Q8_0.gguf` | 2.0 GB | как есть, по пути после стрелки |
 | Qwen3-TTS Russian stress LoRA | по желанию | [adapter.safetensors](https://huggingface.co/siriusfreak/qwen3-tts-12hz-1.7b-ru-stress-cf/resolve/c16b3af3db3095120efc1ebb73f6522442bcb3b1/lora/adapter.safetensors) → `models\qwen3-tts\qwen-talker-1.7b-base-ru-stress-lora.safetensors` | 35 MB | как есть, по пути после стрелки |
 | Parakeet Ultra 0.6B int8 (Moondream) | по желанию | [encoder-model.int8.onnx](https://huggingface.co/Masterx/parakeet-tdt-0.6b-ultra-onnx/resolve/99b09f030a5a6efeaa13cf2cf54592100ce2c3f1/encoder-model.int8.onnx) → `models\tdt-ultra-int8\encoder-model.int8.onnx`<br>[decoder_joint-model.int8.onnx](https://huggingface.co/Masterx/parakeet-tdt-0.6b-ultra-onnx/resolve/99b09f030a5a6efeaa13cf2cf54592100ce2c3f1/decoder_joint-model.int8.onnx) → `models\tdt-ultra-int8\decoder_joint-model.int8.onnx`<br>[nemo128.onnx](https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce/nemo128.onnx) → `models\tdt-ultra-int8\nemo128.onnx`<br>[vocab.txt](https://huggingface.co/Masterx/parakeet-tdt-0.6b-ultra-onnx/resolve/99b09f030a5a6efeaa13cf2cf54592100ce2c3f1/vocab.txt) → `models\tdt-ultra-int8\vocab.txt`<br>[config.json](https://huggingface.co/Masterx/parakeet-tdt-0.6b-ultra-onnx/resolve/99b09f030a5a6efeaa13cf2cf54592100ce2c3f1/config.json) → `models\tdt-ultra-int8\config.json` | 671 MB | как есть, по пути после стрелки |
-| Nemotron 3.5 ASR 0.6B int8 (NVIDIA) | по желанию | [encoder.onnx](https://huggingface.co/smcleod/nemotron-3.5-asr-streaming-0.6b-int8/resolve/f1f26d22dab5c4eabe6d01b63c906889e7e817d3/encoder.onnx) → `models\nemotron-asr-int8\encoder.onnx`<br>[encoder.onnx.data](https://huggingface.co/smcleod/nemotron-3.5-asr-streaming-0.6b-int8/resolve/f1f26d22dab5c4eabe6d01b63c906889e7e817d3/encoder.onnx.data) → `models\nemotron-asr-int8\encoder.onnx.data`<br>[decoder_joint.onnx](https://huggingface.co/smcleod/nemotron-3.5-asr-streaming-0.6b-int8/resolve/f1f26d22dab5c4eabe6d01b63c906889e7e817d3/decoder_joint.onnx) → `models\nemotron-asr-int8\decoder_joint.onnx`<br>[tokenizer.model](https://huggingface.co/smcleod/nemotron-3.5-asr-streaming-0.6b-int8/resolve/f1f26d22dab5c4eabe6d01b63c906889e7e817d3/tokenizer.model) → `models\nemotron-asr-int8\tokenizer.model` | 683 MB | как есть, по пути после стрелки |
+| transcribe.cpp engine (CUDA) | по желанию | [transcribe_engine.dll](https://github.com/timoncool/transcribe.cpp/releases/download/engine-0.1.0/transcribe_engine.dll) → `models\transcribe-engine\transcribe_engine.dll` | 144 MB | как есть, по пути после стрелки |
+| Nemotron 3.5 ASR 0.6B Q8_0 (NVIDIA) | по желанию | [nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf](https://huggingface.co/handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf/resolve/53ce288f69326b415aeef030cfcb02a08a8096dd/nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf) → `models\asr-gguf-nemotron\nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf` | 751 MB | как есть, по пути после стрелки |
+| Cohere Transcribe 03-2026 Q8_0 | по желанию | [cohere-transcribe-03-2026-Q8_0.gguf](https://huggingface.co/handy-computer/cohere-transcribe-03-2026-gguf/resolve/7353b6040bdc1be9e5a3823d99d5fe12afe88264/cohere-transcribe-03-2026-Q8_0.gguf) → `models\asr-gguf-cohere\cohere-transcribe-03-2026-Q8_0.gguf` | 2.4 GB | как есть, по пути после стрелки |
 | Whisper-Faster (faster-whisper standalone) | по желанию | [Whisper-Faster_r192.3_windows.zip](https://github.com/Purfview/whisper-standalone-win/releases/download/faster-whisper/Whisper-Faster_r192.3_windows.zip) | 88 MB | распаковать файлы без подпапок в `tools\whisper\` |
 | Whisper CUDA (cuBLAS 11, cuDNN 8) | по желанию | [libcublas-windows-x86_64-11.11.3.6-archive.zip](https://developer.download.nvidia.com/compute/cuda/redist/libcublas/windows-x86_64/libcublas-windows-x86_64-11.11.3.6-archive.zip)<br>[cudnn-windows-x86_64-8.9.7.29_cuda11-archive.zip](https://developer.download.nvidia.com/compute/cudnn/redist/cudnn/windows-x86_64/cudnn-windows-x86_64-8.9.7.29_cuda11-archive.zip) | 1.1 GB | взять все .dll из архива в `tools\whisper\` |
 | Whisper tiny | по желанию | [model.bin](https://huggingface.co/Systran/faster-whisper-tiny/resolve/d90ca5fe260221311c53c58e660288d3deb8d356/model.bin) → `models\whisper\faster-whisper-tiny\model.bin`<br>[config.json](https://huggingface.co/Systran/faster-whisper-tiny/resolve/d90ca5fe260221311c53c58e660288d3deb8d356/config.json) → `models\whisper\faster-whisper-tiny\config.json`<br>[tokenizer.json](https://huggingface.co/Systran/faster-whisper-tiny/resolve/d90ca5fe260221311c53c58e660288d3deb8d356/tokenizer.json) → `models\whisper\faster-whisper-tiny\tokenizer.json`<br>[vocabulary.txt](https://huggingface.co/Systran/faster-whisper-tiny/resolve/d90ca5fe260221311c53c58e660288d3deb8d356/vocabulary.txt) → `models\whisper\faster-whisper-tiny\vocabulary.txt` | 78 MB | как есть, по пути после стрелки |
@@ -182,6 +184,7 @@ Listening — транскрипт со спикерами и временем �
 | Голос и клонирование | Higgs Audio v3, Drama 3, Qwen3-TTS | да (CUDA) | нет | OpenRouter, Gemini, fal.ai, Runware |
 | Голос | Supertonic 3 | да (ONNX Runtime CUDA) | да | — |
 | Распознавание речи | Parakeet-TDT или Whisper | да | да | OpenRouter, fal.ai |
+| Распознавание речи | Nemotron 3.5, Cohere Transcribe (transcribe.cpp) | да (CUDA) | не проверено | — |
 | Спикеры | Nemotron 3 Diarization | да | да | нет |
 | Паузы и шум | Silero VAD v6, DPDFNet | нет | да | нет |
 | Голос из музыки | Mel-Band Roformer (BSRoformer.cpp) | да | да (отдельная сборка) | нет |
@@ -202,7 +205,7 @@ Listening — транскрипт со спикерами и временем �
 
 ## Как это устроено
 
-**Стек:** нативная оболочка **Tauri 2 (Rust)** запускает `speech-server` (axum) в том же процессе на `127.0.0.1:8797` и открывает окно со SPA — React 19 + Vite + Tailwind. Движки живут в процессе через свои C ABI: Higgs (`audiocpp_engine.dll`), Drama 3 (`drama_engine.dll`, [timoncool/drama-rs](https://github.com/timoncool/drama-rs)), Qwen3-TTS (`qwen.dll`, [timoncool/qwentts.cpp](https://github.com/timoncool/qwentts.cpp)), Supertonic, Parakeet, Nemotron, Silero VAD, DPDFNet и RUAccent на ONNX Runtime, Whisper и BSRoformer.cpp — помощниками, ffmpeg — для звука. **Ни одного процесса Python во время работы.**
+**Стек:** нативная оболочка **Tauri 2 (Rust)** запускает `speech-server` (axum) в том же процессе на `127.0.0.1:8797` и открывает окно со SPA — React 19 + Vite + Tailwind. Движки живут в процессе через свои C ABI: Higgs (`audiocpp_engine.dll`), Drama 3 (`drama_engine.dll`, [timoncool/drama-rs](https://github.com/timoncool/drama-rs)), Qwen3-TTS (`qwen.dll`, [timoncool/qwentts.cpp](https://github.com/timoncool/qwentts.cpp)), Nemotron 3.5 и Cohere Transcribe (`transcribe_engine.dll`, [timoncool/transcribe.cpp](https://github.com/timoncool/transcribe.cpp)), Supertonic, Parakeet, Silero VAD, DPDFNet и RUAccent на ONNX Runtime, Whisper и BSRoformer.cpp — помощниками, ffmpeg — для звука. **Ни одного процесса Python во время работы.**
 
 ### Сборка из исходников
 
@@ -252,7 +255,8 @@ cd desktop && npm install && npx tauri build            # 3) оболочка (T
 - **[Команда Qwen](https://huggingface.co/Qwen)** — Qwen3-TTS; **[ServeurpersoCom / qwentts.cpp](https://github.com/ServeurpersoCom/qwentts.cpp)** и **[Serveurperso/Qwen3-TTS-GGUF](https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF)** — движок на C++ и GGUF-кванты; **[siriusfreak](https://huggingface.co/siriusfreak/qwen3-tts-12hz-1.7b-ru-stress-cf)** — LoRA русских ударений.
 - **[Supertone](https://huggingface.co/Supertone)** — Supertonic 3; **[askurios8/supertonic-3-int8](https://huggingface.co/askurios8/supertonic-3-int8)** — его экспорт в int8.
 - **[RUAccent](https://huggingface.co/ruaccent)** — ударения, «ё» и омографы.
-- **[NVIDIA](https://huggingface.co/nvidia)** — Parakeet-TDT и Nemotron 3 Diarization; ONNX-экспорты от [istupakov](https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx) и [altunenes/parakeet-rs](https://github.com/altunenes/parakeet-rs).
+- **[NVIDIA](https://huggingface.co/nvidia)** — Parakeet-TDT, Nemotron 3.5 ASR и Nemotron 3 Diarization; ONNX-экспорты от [istupakov](https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx) и [altunenes/parakeet-rs](https://github.com/altunenes/parakeet-rs).
+- **[Cohere](https://huggingface.co/CohereLabs/cohere-transcribe-03-2026)** — Cohere Transcribe; GGUF и движок transcribe.cpp от [handy-computer](https://github.com/handy-computer/transcribe.cpp).
 - **[Silero](https://github.com/snakers4/silero-vad)** — Silero VAD v6 ([istupakov/silero-vad-onnx](https://huggingface.co/istupakov/silero-vad-onnx)); **[Ceva-IP / DPDFNet](https://huggingface.co/Ceva-IP/DPDFNet)** — шумоподавление.
 - **[Systran / faster-whisper](https://github.com/SYSTRAN/faster-whisper)** и **[Purfview](https://github.com/Purfview/whisper-standalone-win)** — Whisper и его автономная сборка.
 - **[chenmozhijin / BSRoformer.cpp](https://github.com/chenmozhijin/BSRoformer.cpp)** и **[GaboxR67](https://huggingface.co/GaboxR67)** — отделение голоса.
@@ -292,6 +296,9 @@ cd desktop && npm install && npx tauri build            # 3) оболочка (T
 | Supertonic 3 (Supertone) | BigScience OpenRAIL-M | Прочтите ограничения использования |
 | RUAccent и его модель омографов в int8 | MIT |  |
 | Parakeet-TDT, Nemotron 3 Diarization (NVIDIA) | CC-BY-4.0, OpenMDW-1.1 | Упоминайте NVIDIA |
+| Nemotron 3.5 ASR (NVIDIA) | OpenMDW-1.1 | Упоминайте NVIDIA |
+| Cohere Transcribe (Cohere) | Apache-2.0 |  |
+| transcribe.cpp | MIT |  |
 | Silero VAD | MIT |  |
 | DPDFNet (Ceva) | Apache-2.0 |  |
 | Модели Whisper и faster-whisper | MIT |  |

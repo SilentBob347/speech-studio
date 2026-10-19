@@ -79,7 +79,7 @@ Speech Studio 打开时，会在 `http://127.0.0.1:8797/mcp` 提供 MCP：Claude
 
 **Listening**
 
-- **Parakeet-TDT 或 Whisper**，通过 Nemotron 3 Diarization 区分最多八个说话人，长录音由 **Silero VAD v6** 按停顿切分，DPDFNet 去噪，Roformer 去音乐。
+- **Parakeet-TDT、Whisper、Nemotron 3.5（35 种语言，带标点）或 Cohere Transcribe（14 种语言）**，通过 Nemotron 3 Diarization 区分最多八个说话人，长录音由 **Silero VAD v6** 按停顿切分，DPDFNet 去噪，Roformer 去音乐。
 - **给 Whisper 的提示**——主题和术语写法，加上你添加的更正。
 - **批量**——一次拖入多个文件，每个都会成为排队识别的录音。
 - **把已知文本铺到录音上**——参考文本逐句获得每个被听到的词的时间。
@@ -146,7 +146,9 @@ Listening——带说话人和逐词时间的文字稿、卡拉 OK 播放器、�
 | Qwen3-TTS VoiceDesign Q8_0 | 可选 | [qwen-talker-1.7b-voicedesign-Q8_0.gguf](https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF/resolve/b7ee2e8c7459c3bea99da23e3d178125a7d1713c/qwen-talker-1.7b-voicedesign-Q8_0.gguf) → `models\qwen3-tts\qwen-talker-1.7b-voicedesign-Q8_0.gguf` | 2.0 GB | 原样放入，路径见箭头后 |
 | Qwen3-TTS Russian stress LoRA | 可选 | [adapter.safetensors](https://huggingface.co/siriusfreak/qwen3-tts-12hz-1.7b-ru-stress-cf/resolve/c16b3af3db3095120efc1ebb73f6522442bcb3b1/lora/adapter.safetensors) → `models\qwen3-tts\qwen-talker-1.7b-base-ru-stress-lora.safetensors` | 35 MB | 原样放入，路径见箭头后 |
 | Parakeet Ultra 0.6B int8 (Moondream) | 可选 | [encoder-model.int8.onnx](https://huggingface.co/Masterx/parakeet-tdt-0.6b-ultra-onnx/resolve/99b09f030a5a6efeaa13cf2cf54592100ce2c3f1/encoder-model.int8.onnx) → `models\tdt-ultra-int8\encoder-model.int8.onnx`<br>[decoder_joint-model.int8.onnx](https://huggingface.co/Masterx/parakeet-tdt-0.6b-ultra-onnx/resolve/99b09f030a5a6efeaa13cf2cf54592100ce2c3f1/decoder_joint-model.int8.onnx) → `models\tdt-ultra-int8\decoder_joint-model.int8.onnx`<br>[nemo128.onnx](https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce/nemo128.onnx) → `models\tdt-ultra-int8\nemo128.onnx`<br>[vocab.txt](https://huggingface.co/Masterx/parakeet-tdt-0.6b-ultra-onnx/resolve/99b09f030a5a6efeaa13cf2cf54592100ce2c3f1/vocab.txt) → `models\tdt-ultra-int8\vocab.txt`<br>[config.json](https://huggingface.co/Masterx/parakeet-tdt-0.6b-ultra-onnx/resolve/99b09f030a5a6efeaa13cf2cf54592100ce2c3f1/config.json) → `models\tdt-ultra-int8\config.json` | 671 MB | 原样放入，路径见箭头后 |
-| Nemotron 3.5 ASR 0.6B int8 (NVIDIA) | 可选 | [encoder.onnx](https://huggingface.co/smcleod/nemotron-3.5-asr-streaming-0.6b-int8/resolve/f1f26d22dab5c4eabe6d01b63c906889e7e817d3/encoder.onnx) → `models\nemotron-asr-int8\encoder.onnx`<br>[encoder.onnx.data](https://huggingface.co/smcleod/nemotron-3.5-asr-streaming-0.6b-int8/resolve/f1f26d22dab5c4eabe6d01b63c906889e7e817d3/encoder.onnx.data) → `models\nemotron-asr-int8\encoder.onnx.data`<br>[decoder_joint.onnx](https://huggingface.co/smcleod/nemotron-3.5-asr-streaming-0.6b-int8/resolve/f1f26d22dab5c4eabe6d01b63c906889e7e817d3/decoder_joint.onnx) → `models\nemotron-asr-int8\decoder_joint.onnx`<br>[tokenizer.model](https://huggingface.co/smcleod/nemotron-3.5-asr-streaming-0.6b-int8/resolve/f1f26d22dab5c4eabe6d01b63c906889e7e817d3/tokenizer.model) → `models\nemotron-asr-int8\tokenizer.model` | 683 MB | 原样放入，路径见箭头后 |
+| transcribe.cpp engine (CUDA) | 可选 | [transcribe_engine.dll](https://github.com/timoncool/transcribe.cpp/releases/download/engine-0.1.0/transcribe_engine.dll) → `models\transcribe-engine\transcribe_engine.dll` | 144 MB | 原样放入，路径见箭头后 |
+| Nemotron 3.5 ASR 0.6B Q8_0 (NVIDIA) | 可选 | [nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf](https://huggingface.co/handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf/resolve/53ce288f69326b415aeef030cfcb02a08a8096dd/nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf) → `models\asr-gguf-nemotron\nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf` | 751 MB | 原样放入，路径见箭头后 |
+| Cohere Transcribe 03-2026 Q8_0 | 可选 | [cohere-transcribe-03-2026-Q8_0.gguf](https://huggingface.co/handy-computer/cohere-transcribe-03-2026-gguf/resolve/7353b6040bdc1be9e5a3823d99d5fe12afe88264/cohere-transcribe-03-2026-Q8_0.gguf) → `models\asr-gguf-cohere\cohere-transcribe-03-2026-Q8_0.gguf` | 2.4 GB | 原样放入，路径见箭头后 |
 | Whisper-Faster (faster-whisper standalone) | 可选 | [Whisper-Faster_r192.3_windows.zip](https://github.com/Purfview/whisper-standalone-win/releases/download/faster-whisper/Whisper-Faster_r192.3_windows.zip) | 88 MB | 解压文件（不含子文件夹）到 `tools\whisper\` |
 | Whisper CUDA (cuBLAS 11, cuDNN 8) | 可选 | [libcublas-windows-x86_64-11.11.3.6-archive.zip](https://developer.download.nvidia.com/compute/cuda/redist/libcublas/windows-x86_64/libcublas-windows-x86_64-11.11.3.6-archive.zip)<br>[cudnn-windows-x86_64-8.9.7.29_cuda11-archive.zip](https://developer.download.nvidia.com/compute/cudnn/redist/cudnn/windows-x86_64/cudnn-windows-x86_64-8.9.7.29_cuda11-archive.zip) | 1.1 GB | 取出压缩包中所有 .dll 放入 `tools\whisper\` |
 | Whisper tiny | 可选 | [model.bin](https://huggingface.co/Systran/faster-whisper-tiny/resolve/d90ca5fe260221311c53c58e660288d3deb8d356/model.bin) → `models\whisper\faster-whisper-tiny\model.bin`<br>[config.json](https://huggingface.co/Systran/faster-whisper-tiny/resolve/d90ca5fe260221311c53c58e660288d3deb8d356/config.json) → `models\whisper\faster-whisper-tiny\config.json`<br>[tokenizer.json](https://huggingface.co/Systran/faster-whisper-tiny/resolve/d90ca5fe260221311c53c58e660288d3deb8d356/tokenizer.json) → `models\whisper\faster-whisper-tiny\tokenizer.json`<br>[vocabulary.txt](https://huggingface.co/Systran/faster-whisper-tiny/resolve/d90ca5fe260221311c53c58e660288d3deb8d356/vocabulary.txt) → `models\whisper\faster-whisper-tiny\vocabulary.txt` | 78 MB | 原样放入，路径见箭头后 |
@@ -182,6 +184,7 @@ Listening——带说话人和逐词时间的文字稿、卡拉 OK 播放器、�
 | 声音与克隆 | Higgs Audio v3、Drama 3、Qwen3-TTS | 是（CUDA） | 否 | OpenRouter、Gemini、fal.ai、Runware |
 | 声音 | Supertonic 3 | 是（ONNX Runtime CUDA） | 是 | — |
 | 语音识别 | Parakeet-TDT 或 Whisper | 是 | 是 | OpenRouter、fal.ai |
+| 语音识别 | Nemotron 3.5、Cohere Transcribe（transcribe.cpp） | 是（CUDA） | 未测试 | — |
 | 说话人 | Nemotron 3 Diarization | 是 | 是 | 否 |
 | 停顿与噪声 | Silero VAD v6、DPDFNet | 否 | 是 | 否 |
 | 从音乐中分离人声 | Mel-Band Roformer（BSRoformer.cpp） | 是 | 是（单独构建） | 否 |
@@ -202,7 +205,7 @@ Listening——带说话人和逐词时间的文字稿、卡拉 OK 播放器、�
 
 ## 工作原理
 
-**技术栈：** 原生 **Tauri 2（Rust）** 外壳在同一进程中运行 `speech-server`（axum，`127.0.0.1:8797`），并打开 SPA 窗口——React 19 + Vite + Tailwind。引擎通过各自的 C ABI 运行在进程内：Higgs（`audiocpp_engine.dll`）、Drama 3（`drama_engine.dll`，[timoncool/drama-rs](https://github.com/timoncool/drama-rs)）、Qwen3-TTS（`qwen.dll`，[timoncool/qwentts.cpp](https://github.com/timoncool/qwentts.cpp)），Supertonic、Parakeet、Nemotron、Silero VAD、DPDFNet 和 RUAccent 运行在 ONNX Runtime 上，Whisper 和 BSRoformer.cpp 作为辅助程序，ffmpeg 处理音频。**运行时没有任何 Python 进程。**
+**技术栈：** 原生 **Tauri 2（Rust）** 外壳在同一进程中运行 `speech-server`（axum，`127.0.0.1:8797`），并打开 SPA 窗口——React 19 + Vite + Tailwind。引擎通过各自的 C ABI 运行在进程内：Higgs（`audiocpp_engine.dll`）、Drama 3（`drama_engine.dll`，[timoncool/drama-rs](https://github.com/timoncool/drama-rs)）、Qwen3-TTS（`qwen.dll`，[timoncool/qwentts.cpp](https://github.com/timoncool/qwentts.cpp)），Nemotron 3.5 和 Cohere Transcribe（`transcribe_engine.dll`，[timoncool/transcribe.cpp](https://github.com/timoncool/transcribe.cpp)），Supertonic、Parakeet、Silero VAD、DPDFNet 和 RUAccent 运行在 ONNX Runtime 上，Whisper 和 BSRoformer.cpp 作为辅助程序，ffmpeg 处理音频。**运行时没有任何 Python 进程。**
 
 ### 从源码构建
 
@@ -252,7 +255,8 @@ Linux x86-64 的 .deb 和 AppImage 为**实验性**：同一份代码，配上�
 - **[Qwen 团队](https://huggingface.co/Qwen)**——Qwen3-TTS；**[ServeurpersoCom / qwentts.cpp](https://github.com/ServeurpersoCom/qwentts.cpp)** 和 **[Serveurperso/Qwen3-TTS-GGUF](https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF)**——C++ 引擎和 GGUF 量化；**[siriusfreak](https://huggingface.co/siriusfreak/qwen3-tts-12hz-1.7b-ru-stress-cf)**——俄语重音 LoRA。
 - **[Supertone](https://huggingface.co/Supertone)**——Supertonic 3；**[askurios8/supertonic-3-int8](https://huggingface.co/askurios8/supertonic-3-int8)**——int8 导出。
 - **[RUAccent](https://huggingface.co/ruaccent)**——重音、«ё» 和同形异音词。
-- **[NVIDIA](https://huggingface.co/nvidia)**——Parakeet-TDT 和 Nemotron 3 Diarization；ONNX 导出来自 [istupakov](https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx) 和 [altunenes/parakeet-rs](https://github.com/altunenes/parakeet-rs)。
+- **[NVIDIA](https://huggingface.co/nvidia)**——Parakeet-TDT、Nemotron 3.5 ASR 和 Nemotron 3 Diarization；ONNX 导出来自 [istupakov](https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx) 和 [altunenes/parakeet-rs](https://github.com/altunenes/parakeet-rs)。
+- **[Cohere](https://huggingface.co/CohereLabs/cohere-transcribe-03-2026)**——Cohere Transcribe；GGUF 和 transcribe.cpp 引擎来自 [handy-computer](https://github.com/handy-computer/transcribe.cpp)。
 - **[Silero](https://github.com/snakers4/silero-vad)**——Silero VAD v6（[istupakov/silero-vad-onnx](https://huggingface.co/istupakov/silero-vad-onnx)）；**[Ceva-IP / DPDFNet](https://huggingface.co/Ceva-IP/DPDFNet)**——降噪。
 - **[Systran / faster-whisper](https://github.com/SYSTRAN/faster-whisper)** 和 **[Purfview](https://github.com/Purfview/whisper-standalone-win)**——Whisper 及其独立构建。
 - **[chenmozhijin / BSRoformer.cpp](https://github.com/chenmozhijin/BSRoformer.cpp)** 和 **[GaboxR67](https://huggingface.co/GaboxR67)**——人声分离。
@@ -292,6 +296,9 @@ Linux x86-64 的 .deb 和 AppImage 为**实验性**：同一份代码，配上�
 | Supertonic 3（Supertone） | BigScience OpenRAIL-M | 请阅读其使用限制 |
 | RUAccent 及其 int8 同形词模型 | MIT |  |
 | Parakeet-TDT、Nemotron 3 Diarization（NVIDIA） | CC-BY-4.0、OpenMDW-1.1 | 需注明 NVIDIA |
+| Nemotron 3.5 ASR（NVIDIA） | OpenMDW-1.1 | 请注明 NVIDIA |
+| Cohere Transcribe（Cohere） | Apache-2.0 |  |
+| transcribe.cpp | MIT |  |
 | Silero VAD | MIT |  |
 | DPDFNet（Ceva） | Apache-2.0 |  |
 | Whisper 模型和 faster-whisper | MIT |  |
