@@ -34,6 +34,9 @@ struct Live {
     muted: bool,
     /// The places in `lines` of what the person typed: their own words, never the studio's voice heard back.
     typed: std::collections::HashSet<usize>,
+    /// The recogniser that hears now, as the window names it, and the language asked of it.
+    engine: String,
+    lang: String,
     stop: Arc<AtomicBool>,
     worker: Option<std::thread::JoinHandle<()>>,
 }
@@ -53,21 +56,63 @@ pub fn start(repo_root: &Path, models_root: &Path, lang: &str, engine: &str) -> 
     if !crate::vad::installed(models_root) {
         return Err(t!("listen-live-no-vad"));
     }
+    let stop = Arc::new(AtomicBool::new(false));
+    *live().lock().unwrap_or_else(|p| p.into_inner()) = Some(Live {
+        lines: Vec::new(),
+        partial: None,
+        error: None,
+        muted: false,
+        typed: Default::default(),
+        engine: choice.label(),
+        lang: lang.to_string(),
+        stop: stop.clone(),
+        worker: None,
+    });
+    run(choice, models_root, lang, stop, 0.0);
+    Ok(())
+}
+
+/// The recogniser of the running conversation is changed while the microphone goes on recording: the next phrase is
+/// heard by `engine`, what was heard stays. Answers the new recogniser's name.
+pub fn switch(repo_root: &Path, models_root: &Path, engine: &str) -> Result<String, String> {
+    let lang = with(|l| l.lang.clone()).ok_or_else(|| t!("listen-live-not-running"))?;
+    let choice = crate::asr_util::choice_of(repo_root, models_root, &lang, &t!("listen-live-name"), engine)?;
+    let (stop, worker) = with(|l| (l.stop.clone(), l.worker.take())).ok_or_else(|| t!("listen-live-not-running"))?;
+    stop.store(true, Ordering::Relaxed);
+    if let Some(w) = worker {
+        let _ = w.join();
+    }
+    let at = crate::record::in_use().map_or(0.0, |(_, on_for)| on_for.as_secs_f64());
+    let stop = Arc::new(AtomicBool::new(false));
+    let label = choice.label();
+    with(|l| {
+        l.stop = stop.clone();
+        l.partial = None;
+        l.engine = label.clone();
+    });
+    run(choice, models_root, &lang, stop, at);
+    Ok(label)
+}
+
+/// The recogniser hearing the running conversation, and its language; None with no conversation.
+pub fn engine() -> Option<(String, String)> {
+    with(|l| (l.engine.clone(), l.lang.clone()))
+}
+
+/// Recognises what the recorder hears from now on, its phrases placed `at` seconds into the recording.
+fn run(choice: crate::models::AsrChoice, models_root: &Path, lang: &str, stop: Arc<AtomicBool>, at: f64) {
     let models_root = models_root.to_path_buf();
     let (to, from) = channel::<Vec<f32>>();
-    let stop = Arc::new(AtomicBool::new(false));
-    *live().lock().unwrap_or_else(|p| p.into_inner()) = Some(Live { lines: Vec::new(), partial: None, error: None, muted: false, typed: Default::default(), stop: stop.clone(), worker: None });
     crate::record::tap(Some(to));
     std::env::set_var("DUB_ASR_BACKEND", crate::models::stage_backend(&models_root, "asr_backend"));
     let lang = if lang == "auto" { String::new() } else { lang.to_string() };
     let worker = std::thread::spawn(move || {
-        if let Err(e) = listen(choice, &models_root, &lang, from, &stop, &crate::record::rate) {
+        if let Err(e) = listen(choice, &models_root, &lang, from, &stop, &crate::record::rate, at) {
             tracing::error!("[ERROR] live recognition: {e}");
             with(|l| l.error = Some(e));
         }
     });
     with(|l| l.worker = Some(worker));
-    Ok(())
 }
 
 /// A piece of the microphone as recognition takes it: silence while the person has it muted.
@@ -148,7 +193,8 @@ pub(crate) fn to_16k(x: &[f32], sr: u32) -> Vec<f32> {
         .collect()
 }
 
-fn listen(choice: crate::models::AsrChoice, models_root: &Path, lang: &str, from: Receiver<Vec<f32>>, stop: &AtomicBool, rate: &dyn Fn() -> u32) -> Result<(), String> {
+fn listen(choice: crate::models::AsrChoice, models_root: &Path, lang: &str, from: Receiver<Vec<f32>>, stop: &AtomicBool, rate: &dyn Fn() -> u32, at: f64) -> Result<(), String> {
+    let label = choice.label();
     // Nemotron 3.5 is a streaming model: a phrase is recognised as it is spoken instead of again from its start
     let mut stream = match &choice {
         crate::models::AsrChoice::Ggml { models_root, build, model } if model.id == "nemotron" => Some(
@@ -161,7 +207,7 @@ fn listen(choice: crate::models::AsrChoice, models_root: &Path, lang: &str, from
     let mut asr = crate::models::build_engine(&choice, None);
     let work = tempfile::Builder::new().prefix("live-").tempdir().map_err(|e| e.to_string())?;
     let mut pending: Vec<f32> = Vec::new();
-    let mut offset = 0.0f64;
+    let mut offset = at;
     let mut ended = false;
     let mut interim_at = 0.0f64;
     let wav = work.path().join("utterance.wav");
@@ -229,6 +275,7 @@ fn listen(choice: crate::models::AsrChoice, models_root: &Path, lang: &str, from
             continue;
         };
         let to_z = ((z * 16_000.0) as usize).min(audio.len());
+        let recognising = std::time::Instant::now();
         let text = match stream.as_mut() {
             Some(s) => {
                 s.feed(&audio[streamed.max(from_a).min(to_z)..to_z])?;
@@ -239,6 +286,13 @@ fn listen(choice: crate::models::AsrChoice, models_root: &Path, lang: &str, from
         };
         with(|l| l.partial = None);
         interim_at = 0.0;
+        let recognise_ms = recognising.elapsed().as_millis() as u64;
+        // from the end of the person's speech to the text: the pause that ends a phrase, then recognising it
+        let after_speech_ms = ((secs - last).max(0.0) * 1000.0) as u64 + recognise_ms;
+        crate::timings::note("asr", json!({
+            "engine": label, "lang": if lang.is_empty() { "auto" } else { lang }, "speech_secs": ((z - a) * 100.0).round() / 100.0,
+            "recognise_ms": recognise_ms, "after_speech_ms": after_speech_ms, "words": text.split_whitespace().count(),
+        }));
         if !text.is_empty() {
             let line = (((offset + a) * 100.0).round() / 100.0, ((offset + z) * 100.0).round() / 100.0, text);
             with(|l| l.lines.push(line));
@@ -264,7 +318,7 @@ mod tests {
         let (x, sr) = crate::wavio::read_mono_f32(Path::new(&std::env::var("LIVE_WAV").expect("LIVE_WAV"))).unwrap();
         let choice = crate::asr_util::choice(&root, &models, "ru", "test").unwrap();
         std::env::set_var("DUB_ASR_BACKEND", crate::models::stage_backend(&models, "asr_backend"));
-        *live().lock().unwrap() = Some(Live { lines: Vec::new(), partial: None, error: None, muted: false, typed: Default::default(), stop: Arc::new(AtomicBool::new(false)), worker: None });
+        *live().lock().unwrap() = Some(Live { lines: Vec::new(), partial: None, error: None, muted: false, typed: Default::default(), engine: String::new(), lang: "ru".into(), stop: Arc::new(AtomicBool::new(false)), worker: None });
         let (to, from) = channel::<Vec<f32>>();
         let feeder = std::thread::spawn(move || {
             for chunk in x.chunks((sr / 10) as usize) {
@@ -285,7 +339,7 @@ mod tests {
             seen
         });
         let stop = AtomicBool::new(false);
-        listen(choice, &models, "ru", from, &stop, &move || sr).unwrap();
+        listen(choice, &models, "ru", from, &stop, &move || sr, 0.0).unwrap();
         feeder.join().unwrap();
         let seen = partials.join().unwrap();
         for p in &seen {

@@ -559,6 +559,7 @@ const JOURNAL: &[(&str, &str, &str)] = &[
     ("models_import", "import", "model"),
     ("models_select", "select", "model"),
     ("settings_set", "update", "setting"),
+    ("say_voice_set", "select", "voice"),
     ("engine_preset_apply", "apply", "preset"),
     ("proxy_settings_set", "update", "proxy"),
     ("google_set_key", "set", "key"),

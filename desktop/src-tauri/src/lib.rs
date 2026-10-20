@@ -390,6 +390,7 @@ pub fn run() {
     }
     #[cfg(windows)]
     hide_console_window();
+    speech_server::diagnostics::init_logging();
     let placed = match layout::resolve().and_then(|l| layout::apply_environment(&l).map(|_| l)) {
         Ok(l) => l,
         Err(e) => layout::fatal(&e),

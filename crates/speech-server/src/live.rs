@@ -50,6 +50,16 @@ pub fn voice_loading(engine: Option<&str>) {
     let _ = channel().send(json!({ "kind": "voice", "loading": engine, "aloud": true }));
 }
 
+/// The voice for speaking aloud was chosen (by an agent or another window): the windows show it.
+pub fn voice_chosen() {
+    let _ = channel().send(json!({ "kind": "chosen", "aloud": true }));
+}
+
+/// An agent changed the conversation's recogniser (`engine`, named `label`): the window shows it as chosen.
+pub fn asr_switched(engine: &str, label: &str) {
+    let _ = channel().send(json!({ "kind": "asr", "engine": engine, "label": label, "aloud": true }));
+}
+
 /// The window stops playing `project` now and drops what it queued.
 pub fn silence(project: &str) {
     let _ = channel().send(json!({ "kind": "stop", "project": project, "aloud": true }));
@@ -95,6 +105,7 @@ pub struct Phrase {
     block: String,
     started: Instant,
     first_ms: Mutex<Option<u64>>,
+    heard_ms: Mutex<Option<u64>>,
     ended: AtomicBool,
     gate: Mutex<crate::tts_trim::PauseGate>,
 }
@@ -114,6 +125,7 @@ impl Phrase {
             block: block.into(),
             started: Instant::now(),
             first_ms: Mutex::new(None),
+            heard_ms: Mutex::new(None),
             ended: AtomicBool::new(false),
             gate: Mutex::new(Default::default()),
         };
@@ -143,7 +155,10 @@ impl Phrase {
             return;
         }
         if let Ok(mut first) = self.first_ms.lock() {
-            first.get_or_insert_with(|| self.started.elapsed().as_millis() as u64);
+            if first.is_none() {
+                *first = Some(self.started.elapsed().as_millis() as u64);
+                *self.heard_ms.lock().unwrap_or_else(|p| p.into_inner()) = crate::timings::since_arrival(&self.block);
+            }
         }
         // a phrase said aloud is heard without the long pauses an engine leaves inside it, as an export is
         if self.is_aloud() {
@@ -182,6 +197,16 @@ impl Phrase {
     /// Milliseconds from the start of the block to its first sound.
     pub fn first_ms(&self) -> Option<u64> {
         self.first_ms.lock().ok().and_then(|f| *f)
+    }
+
+    /// A phrase said aloud: milliseconds from its text arriving to its first sound.
+    pub fn heard_ms(&self) -> Option<u64> {
+        *self.heard_ms.lock().unwrap_or_else(|p| p.into_inner())
+    }
+
+    /// The block's id.
+    pub fn block(&self) -> &str {
+        &self.block
     }
 
     pub fn end(&self, ok: bool) {

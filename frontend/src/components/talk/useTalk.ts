@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api, type McpStatus } from "../../lib/api";
 import { aloudPlayback, onLiveEvents } from "../../lib/livePlayback";
 import { receiveTalkFeed } from "../../lib/talkFeed";
-import { talkPrefs } from "../../lib/talkPrefs";
+import { setTalkPrefs, talkPrefs } from "../../lib/talkPrefs";
 import { talkApi, type HeardLine } from "../../lib/talk";
 import { useAfterDownload } from "../../lib/useAfterDownload";
 import { errorText } from "../../lib/voices";
@@ -56,6 +56,8 @@ export function useTalk({ fed }: { fed: boolean }) {
   useEffect(() => {
     return onLiveEvents((ev) => {
       if (ev.kind === "voice") { setVoiceLoading(ev.loading !== null); return; }
+      if (ev.kind === "asr") { setTalkPrefs({ asr: ev.engine }); return; }
+      if (ev.kind === "chosen") return;
       if (ev.kind === "lagged" || ev.kind === "hello" || !ev.aloud) return;
       if (ev.kind === "stop") { setSaying(null); return; }
       if (ev.kind !== "start") return;
@@ -109,6 +111,8 @@ export function useTalk({ fed }: { fed: boolean }) {
     setError(null);
     if (!running) return listen();
     try {
+      // ending the conversation ends what the agent is saying too, as hanging up a call does
+      await talkApi.silence();
       await talkApi.listenStop();
       setRunning(false);
       setPartial("");

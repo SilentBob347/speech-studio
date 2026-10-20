@@ -56,6 +56,7 @@ mod supertonic;
 mod qwen_tts;
 mod tcpp_asr;
 mod tagging;
+mod timings;
 mod tts_text;
 mod tts_trim;
 mod speaker_profiles;
@@ -572,6 +573,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/speech/listen/next", get(say_api::listen_next))
         .route("/speech/listen/mute", post(say_api::listen_mute))
         .route("/mic/state", get(say_api::mic_state_route))
+        .route("/timings", get(timings::route))
         .route("/speech/say/voice", get(say_api::voice_get).post(say_api::voice_set))
         .route("/speech/listen/text", post(say_api::listen_text))
         .route("/projects/{pid}/export", post(speech_api::export))

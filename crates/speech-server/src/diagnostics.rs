@@ -63,6 +63,21 @@ impl<S: tracing::Subscriber> Layer<S> for RecentLog {
     }
 }
 
+/// The process's logging: the console (info and above, RUST_LOG overrides) and the latest lines kept for the report.
+/// The service binary and the desktop app call it once at start.
+pub fn init_logging() {
+    use tracing_subscriber::layer::SubscriberExt;
+    use tracing_subscriber::util::SubscriberInitExt;
+    let started = tracing_subscriber::registry()
+        .with(tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info,ort=warn".into()))
+        .with(tracing_subscriber::fmt::layer())
+        .with(RecentLog)
+        .try_init();
+    if let Err(e) = started {
+        eprintln!("[ERROR] logging was set up before: {e}");
+    }
+}
+
 /// Anything that looks like a key masked: OpenRouter, the studio's own API, Google, fal, Hugging Face, bearer headers.
 fn masked(text: &str) -> String {
     static KEYS: OnceLock<regex::Regex> = OnceLock::new();

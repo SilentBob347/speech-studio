@@ -4,7 +4,7 @@ import { AudioLines, ChevronUp, Pause, Play, SendHorizontal, Square, Volume2, Vo
 import { byPerson, personOnly } from "../../lib/person";
 import { named } from "../../lib/a11y";
 import { api, BASE } from "../../lib/api";
-import { aloudPlayback } from "../../lib/livePlayback";
+import { aloudPlayback, onLiveEvents } from "../../lib/livePlayback";
 import { talkApi } from "../../lib/talk";
 import { errorText } from "../../lib/voices";
 import LevelMeter from "./LevelMeter";
@@ -125,7 +125,11 @@ function VoiceTab() {
   const engines = useEngines();
   const [chosen, setChosen] = useState<TalkVoice | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
-  useEffect(() => { talkApi.voice().then(setChosen, (e: unknown) => setProblem(errorText(e))); }, []);
+  useEffect(() => {
+    const read = () => { talkApi.voice().then(setChosen, (e: unknown) => setProblem(errorText(e))); };
+    read();
+    return onLiveEvents((ev) => { if (ev.kind === "chosen") read(); });
+  }, []);
   const save = (next: TalkVoice) => {
     setChosen(next);
     talkApi.setVoice(next).then(() => setProblem(null), (e: unknown) => setProblem(errorText(e)));

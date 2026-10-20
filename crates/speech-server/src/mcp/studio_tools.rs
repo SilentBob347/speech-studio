@@ -355,7 +355,7 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "voice_listen_start",
-            description: "Join the spoken conversation the person started with Live's microphone button: each phrase they end with a pause is recognised for voice_listen, and their speaking over the studio stops its speech at once. Only the person turns the microphone on, with their own button in the window; no tool and no ui_* click does. When it is off this answers mic_off: ask the person to press Live, then call this again. Pair it with say_start: listen, answer with say_text as you write, listen again.",
+            description: "Join the spoken conversation the person started with Live's microphone button: each phrase they end with a pause is recognised for voice_listen, and their speaking over the studio stops its speech at once. Only the person turns the microphone on, with their own button in the window; no tool and no ui_* click does. When it is off this answers mic_off: ask the person to press Live, then call this again. engine changes the recogniser of the running conversation at once, the microphone recording on (the setting asr_engine is only the default for new recordings); the answer names the recogniser that hears now (asr), as mic_state does. Pair it with say_start: listen, answer with say_text as you write, listen again.",
             schema: || object(json!({ "lang": { "type": "string" }, "device": { "type": "string", "description": "a microphone of voice_record_devices; none: the default one" }, "engine": { "type": "string", "enum": ["parakeet", "nemotron", "whisper"], "description": "the recogniser; none: the one in the settings" } }), &[]),
             call: |args| post("/speech/listen".into(), args.clone()),
         },
@@ -397,9 +397,15 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "mic_state",
-            description: "What the microphone does now, as the window's indicator shows it: on or not, for what (live, listening, voice, test), for how many seconds, and whether the conversation is muted. The microphone turns off by itself when no window of the studio has been open for a few seconds.",
+            description: "What the microphone does now, as the window's indicator shows it: on or not, for what (live, listening, voice, test), for how many seconds, whether the conversation is muted, and in Live the recogniser that hears now (asr) and its language. The microphone turns off by itself when no window of the studio has been open for a few seconds.",
             schema: nothing,
             call: |_| get("/mic/state".into()),
+        },
+        Tool {
+            name: "studio_timings",
+            description: "How long each step took, latest last, to compare engines with the person: asr - each phrase heard live (the recogniser, the speech's length, recognise_ms, after_speech_ms from the end of the person's speech to its text); tts - each phrase said aloud (engine and voice, heard_ms from its text arriving to its first sound, first_ms the engine's own time to it, synth_ms, audio_secs); load - an engine loaded for speaking (ms). kind picks one of them; last how many (100).",
+            schema: || object(json!({ "kind": { "type": "string", "enum": ["asr", "tts", "load"] }, "last": { "type": "integer", "minimum": 1 } }), &[]),
+            call: |args| get(format!("/timings{}", query(&[("kind", given(args, "kind")), ("last", args.get("last").and_then(Value::as_u64).map(|v| v.to_string()))]))),
         },
         Tool {
             name: "voice_listen_type",
@@ -415,9 +421,9 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "say_state",
-            description: "A say_start session: each phrase with whether it was said, is waiting or failed, how soon its first sound came (first_ms) and its length; the text not yet a phrase; whether the session is open.",
-            schema: || object(json!({ "session": { "type": "string" } }), &["session"]),
-            call: |args| get(format!("/speech/say/{}", segment(&text(args, "session")?))),
+            description: "A say_start session: each phrase with whether it was said, is waiting, was interrupted or failed, the wait the person heard from its text arriving to its first sound (heard_ms: loading the engine and the queue included), the engine's own time to the first sound (first_ms) and its length; the text not yet a phrase; whether the session is open. last gives only the last N phrases.",
+            schema: || object(json!({ "session": { "type": "string" }, "last": { "type": "integer", "minimum": 1 } }), &["session"]),
+            call: |args| get(format!("/speech/say/{}{}", segment(&text(args, "session")?), query(&[("last", args.get("last").and_then(Value::as_u64).map(|v| v.to_string()))]))),
         },
         Tool {
             name: "job_events",

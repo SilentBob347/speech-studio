@@ -26,7 +26,26 @@ pub struct SpeechPaths {
 
 /// Loads what voicing `engine` with `voice` in `lang` takes before its first phrase: the engine as that phrase will
 /// use it (a clone or the engine's own voice) and, for Russian, the stress model.
+/// A phrase said aloud goes into the timings: its engine and voice, the wait the person heard, the engine's time.
+fn time_aloud(live: &crate::live::Phrase, take: &Take) {
+    if live.is_aloud() {
+        crate::timings::note("tts", json!({
+            "block": live.block(), "engine": take.engine, "voice": take.voice, "chars": take.text.chars().count(),
+            "heard_ms": take.heard_ms, "first_ms": take.first_ms, "synth_ms": (take.synth_secs * 1000.0).round() as u64,
+            "audio_secs": (take.duration * 100.0).round() / 100.0,
+        }));
+    }
+}
+
+/// Loads `engine` (and the stress model for Russian) ahead of its first phrase; how long it took goes into the timings.
 pub fn warm(p: &SpeechPaths, engine: &str, voice: Option<&str>, lang: &str) -> Result<(), String> {
+    let started = std::time::Instant::now();
+    let warmed = load(p, engine, voice, lang);
+    crate::timings::note("load", json!({ "engine": engine, "voice": voice, "ms": started.elapsed().as_millis() as u64, "error": warmed.as_ref().err() }));
+    warmed
+}
+
+fn load(p: &SpeechPaths, engine: &str, voice: Option<&str>, lang: &str) -> Result<(), String> {
     let clones = voice.is_some_and(|v| crate::voice_library::audio_path(&p.voices_dir, v).is_some());
     if engine == crate::models::DRAMA_TTS {
         tts_host::drama(&p.models_root)?;
@@ -264,8 +283,10 @@ fn synth_block_cloud(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Bl
         cost,
         estimate,
         first_ms: live.first_ms(),
+        heard_ms: live.heard_ms(),
         ..Default::default()
     };
+    time_aloud(&live, &take);
     live.end(true);
     Ok((fitted.samples, serde_json::to_value(&prepared.ignored).unwrap_or(Value::Null), take))
 }
@@ -499,8 +520,10 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
         fit_lead: fitted.lead,
         fit_over: fitted.over,
         first_ms: live.first_ms(),
+        heard_ms: live.heard_ms(),
         ..Default::default()
     };
+    time_aloud(&live, &take);
     live.end(true);
     Ok((out, serde_json::to_value(&ignored).unwrap_or(Value::Null), take))
 }

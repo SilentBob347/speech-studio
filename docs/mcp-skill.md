@@ -112,13 +112,17 @@ connected and the address to paste.
   heard. It needs the studio's window open; a session is a Speech project, kept with its takes.
 - **Talk with a person by voice** (the studio as an agent's walkie-talkie): only the person turns the microphone on,
   with Live's button in the window - no tool and no `ui_*` click or key does, and the window shows while it is on
-  (`mic_state`). With no window of the studio open for a few seconds it turns off by itself. `voice_listen_start` joins
-  the conversation the person started (mic_off: ask them to press Live); `voice_listen` (after the last `heard`) waits
+  (`mic_state`, with the recogniser that hears now). With no window of the studio open for a few seconds it turns off by itself. `voice_listen_start` joins
+  the conversation the person started (mic_off: ask them to press Live; its `engine` changes the recogniser of the
+  running conversation at once); `voice_listen` (after the last `heard`) waits
   for their next phrase; answer with `say_start` / `say_text` as you write; listen again. When the person speaks over
   the studio, its speech stops by itself. You may turn the microphone down, never up: `voice_listen_mute` mutes it,
   `voice_listen_stop` ends the conversation. A phrase the person types in Live (`voice_listen_type` puts one in) comes
   from `voice_listen` like a spoken one. `say_silence` stops everything said aloud, in every session. The person's
   microphone test in Live: `voice_record_level` while it runs, `mic_test_stop`, `mic_test_audio` for what it heard.
+  To compare engines with the person, `studio_timings` tells how long each step took: each phrase recognised (the
+  recogniser, recognise_ms, after_speech_ms), each phrase said aloud (heard_ms from its text to its first sound,
+  first_ms, synth_ms) and each engine loaded; `say_state` with `last` gives a session's latest phrases.
   The voice the person chose in Live (`say_voice`, set with `say_voice_set`) is what `say_start` speaks with when you
   give no engine or voice: leave them out unless the person asks for another.
 - **Projects**: `projects_list`, `project_create` (paragraphs become blocks; "Anna: ..." lines become a dialogue; `corpus` ru_hard instead of a text makes the engine check - hard Russian phrases with the recognition check on, voiced and read through `project_quality`),

@@ -57,6 +57,21 @@ pub fn is_echo(heard: &str) -> bool {
     known * 3 >= words.len() * 2
 }
 
+/// Words a listener says without taking the floor (backchannels): heard alone, they do not stop the studio's speech.
+const BACKCHANNEL: &[&str] = &[
+    "угу", "ага", "ага-ага", "да", "ну", "мм", "ммм", "хм", "ок", "окей", "так", "mm", "mmm", "mhm", "hmm", "uh", "um", "huh", "uh-huh",
+    "yeah", "yes", "ok", "okay", "right", "good", "ха", "хах", "хаха", "хе", "хи", "кхм", "кхе", "кх", "ha", "haha", "he", "hehe",
+    "ahem",
+];
+
+/// Whether what the person is saying over the studio is a turn of their own, as voice agents tell it apart (Pipecat's
+/// `min_words`, LiveKit's `min_words`): two words at least, and not only backchannels. A cough, a laugh or the studio's
+/// own non-speech sounds come out of recognition as a word or none and do not cut its speech off.
+pub fn takes_the_floor(heard: &str) -> bool {
+    let words = crate::qc::normalize(heard);
+    words.len() >= 2 && !words.iter().all(|w| BACKCHANNEL.contains(&w.as_str()))
+}
+
 /// A person started talking: every session stops speaking, as people stop when interrupted, the ended ones whose
 /// sound may still play included. Answers whether there was a session to stop.
 pub fn interrupt(st: &AppState) -> bool {
@@ -177,6 +192,7 @@ pub async fn voice_set(State(st): State<AppState>, headers: HeaderMap, Json(chos
     if let Err(e) = std::fs::write(talk_voice_path(&st), body) {
         return refuse(StatusCode::INTERNAL_SERVER_ERROR, "save_failed", e.to_string());
     }
+    crate::live::voice_chosen();
     // the voice the person picks in the window is the one heard, whatever voice an agent opened its session with
     if !crate::mcp::by_agent(&headers) {
         for session in sessions().values_mut() {
@@ -312,6 +328,7 @@ async fn voice(st: AppState, sid: String, phrases: Vec<String>, direction: Strin
             .iter()
             .map(|phrase| {
                 let id = sp::new_id();
+                crate::timings::arrived(&id);
                 project.chapters[0].blocks.push(sp::Block { id: id.clone(), speaker: speaker.clone(), text: phrase.clone(), direction: direction.clone(), ..Default::default() });
                 id
             })
@@ -378,18 +395,22 @@ pub async fn stop(State(st): State<AppState>, AxPath(sid): AxPath<String>) -> Re
     Json(json!({ "stopped": sid })).into_response()
 }
 
-/// GET /speech/say/{session} — what was said and how soon each phrase was heard, what waits, whether it is open.
-pub async fn state(State(st): State<AppState>, AxPath(sid): AxPath<String>) -> Response {
+/// GET /speech/say/{session}[?last=N] — what was said and how soon each phrase was heard, what waits, whether it is
+/// open; with `last`, only the last N phrases.
+pub async fn state(State(st): State<AppState>, AxPath(sid): AxPath<String>, axum::extract::Query(q): axum::extract::Query<HashMap<String, String>>) -> Response {
     let project = match sp::load(&st.workspace, &sid) {
         Ok(p) => p,
         Err(e) => return refuse(StatusCode::NOT_FOUND, "no_project", e),
     };
     let pending = sessions().get(&sid).map(|s| s.buf.clone());
+    let last = q.get("last").and_then(|n| n.parse::<usize>().ok()).unwrap_or(usize::MAX);
+    let skip = project.blocks().count().saturating_sub(last);
     let phrases: Vec<Value> = project
         .blocks()
+        .skip(skip)
         .map(|b| {
             let take = b.takes.iter().find(|t| Some(t.n) == b.active);
-            json!({ "id": b.id, "text": b.text, "state": if take.is_some() { "said" } else if INTERRUPTED.lock().unwrap_or_else(|p| p.into_inner()).contains_key(&b.id) { "interrupted" } else if b.error.is_some() { "failed" } else { "waiting" }, "error": b.error.as_ref().map(|e| e.text.clone()), "first_ms": take.and_then(|t| t.first_ms), "seconds": take.map(|t| t.duration) })
+            json!({ "id": b.id, "text": b.text, "state": if take.is_some() { "said" } else if INTERRUPTED.lock().unwrap_or_else(|p| p.into_inner()).contains_key(&b.id) { "interrupted" } else if b.error.is_some() { "failed" } else { "waiting" }, "error": b.error.as_ref().map(|e| e.text.clone()), "first_ms": take.and_then(|t| t.first_ms), "heard_ms": take.and_then(|t| t.heard_ms), "seconds": take.map(|t| t.duration) })
         })
         .collect();
     Json(json!({ "session": sid, "open": pending.is_some(), "waiting_text": pending.unwrap_or_default(), "phrases": phrases })).into_response()
@@ -422,10 +443,24 @@ fn hushed() -> bool {
 pub async fn listen_start(State(st): State<AppState>, headers: HeaderMap, body: Option<Json<Value>>) -> Response {
     let body = body.map(|Json(v)| v).unwrap_or(Value::Null);
     let lang = body.get("lang").and_then(Value::as_str).unwrap_or("auto");
-    // the microphone is on already (the window or another agent turned it on): this conversation listens to it too
+    // the microphone is on already (the person turned it on): this conversation listens to it too, and a recogniser
+    // named here hears its next phrase while the microphone goes on recording
     if let Some(pid) = crate::listen_api::recording().filter(|_| crate::listen_live::state()["running"] == true) {
+        let engine = body.get("engine").and_then(Value::as_str).filter(|e| !e.is_empty()).map(str::to_string);
+        if let Some(engine) = engine {
+            if !matches!(engine.as_str(), "parakeet" | "nemotron" | "whisper") {
+                return refuse(StatusCode::BAD_REQUEST, "bad_engine", t!("listen-live-engine", engine = engine));
+            }
+            let (root, models, asked) = (st.repo_root.clone(), st.models_root.clone(), engine.clone());
+            match tokio::task::spawn_blocking(move || crate::listen_live::switch(&root, &models, &asked)).await {
+                Ok(Ok(label)) => crate::live::asr_switched(&engine, &label),
+                Ok(Err(e)) => return refuse(StatusCode::CONFLICT, "asr_switch_failed", e),
+                Err(e) => return refuse(StatusCode::INTERNAL_SERVER_ERROR, "internal", e.to_string()),
+            }
+        }
         watch_interruptions(st);
-        return Json(json!({ "pid": pid, "live": true, "joined": true })).into_response();
+        let (asr, lang) = crate::listen_live::engine().unwrap_or_default();
+        return Json(json!({ "pid": pid, "live": true, "joined": true, "asr": asr, "lang": lang })).into_response();
     }
     // the microphone is the person's: an agent listens to a conversation the person started and never turns it on
     if crate::mcp::by_agent(&headers) {
@@ -449,7 +484,7 @@ fn watch_interruptions(st: AppState) {
         while LISTENING.load(std::sync::atomic::Ordering::Relaxed) {
             let state = crate::listen_live::state();
             let partial = state["partial"]["text"].as_str().unwrap_or_default().to_string();
-            if !partial.is_empty() && partial != heard && !is_echo(&partial) {
+            if partial != heard && takes_the_floor(&partial) && !is_echo(&partial) {
                 interrupt(&st);
                 heard = partial;
             }
@@ -545,7 +580,8 @@ pub fn mic_state() -> Value {
     } else {
         "voice"
     };
-    json!({ "on": true, "what": what, "seconds": on_for.as_secs(), "muted": crate::listen_live::muted().unwrap_or(false) })
+    let (asr, lang) = crate::listen_live::engine().unzip();
+    json!({ "on": true, "what": what, "seconds": on_for.as_secs(), "muted": crate::listen_live::muted().unwrap_or(false), "asr": asr, "lang": lang })
 }
 
 /// GET /mic/state — see `mic_state`.
@@ -567,7 +603,7 @@ pub fn guard_mic(st: AppState) {
         while crate::record::in_use().is_some() {
             gone = if crate::live::listening() { 0 } else { gone + 1 };
             if gone >= NO_WINDOW_SECS {
-                eprintln!("[mic] no window of the studio is open: the microphone is turned off");
+                tracing::warn!("no window of the studio is open: the microphone is turned off");
                 LISTENING.store(false, std::sync::atomic::Ordering::Relaxed);
                 if crate::listen_api::recording().is_some() {
                     let _ = crate::listen_api::record_stop(State(st.clone())).await;
@@ -598,6 +634,19 @@ mod tests {
         assert!(cut(&mut buf, false).is_empty());
         assert_eq!(cut(&mut buf, true), ["А это ещё не кончилась"]);
         assert!(buf.is_empty());
+    }
+
+    #[test]
+    fn a_cough_a_laugh_or_a_backchannel_does_not_cut_the_studio_off() {
+        assert!(!takes_the_floor("Mm."));
+        assert!(!takes_the_floor("Good."));
+        assert!(!takes_the_floor("Ха"));
+        assert!(!takes_the_floor("угу, ага"));
+        assert!(!takes_the_floor("Ха-ха-ха!"));
+        assert!(!takes_the_floor("Кхм, кхм."));
+        assert!(!takes_the_floor(""));
+        assert!(takes_the_floor("подожди, стоп"));
+        assert!(takes_the_floor("Что случилось?"));
     }
 
     #[tokio::test]

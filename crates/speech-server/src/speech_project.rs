@@ -53,6 +53,9 @@ pub struct Take {
     /// Сколько миллисекунд от начала синтеза до первого звука, у движков, что отдают звук потоком.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub first_ms: Option<u64>,
+    /// A phrase said aloud: milliseconds from its text arriving to its first sound, the wait the person hears.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub heard_ms: Option<u64>,
     /// Длина дубля в склейке с ровными паузами, с.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tidy: Option<f64>,
