@@ -16,6 +16,7 @@ import OpenRouterKey from "../OpenRouterKey";
 import HubTelemetryPreview from "../HubTelemetryPreview";
 import PresetsSection from "./PresetsSection";
 import { ASR_VARIANT_I18N } from "../../lib/modelVariants";
+import { PROGRAMS } from "../../lib/programs";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
@@ -216,7 +217,7 @@ export default function FirstRun() {
                               {isDefault
                                 ? <span className="text-[9px] px-1.5 py-0.5 rounded bg-[color-mix(in_oklab,var(--color-accent)_16%,transparent)] text-[var(--color-accent)] uppercase tracking-wide shrink-0">{t("setup.default")}</span>
                                 : <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--color-surface-2)] text-[var(--color-muted)] uppercase tracking-wide shrink-0">{t("setup.alt")}</span>}
-                              {c.installed && <span className="text-[10px] text-[var(--color-accent)] shrink-0">{t("setup.installed")}</span>}
+                              {c.installed && <span className="text-[10px] text-[var(--color-accent)] shrink-0">{c.takenFrom ? t("setup.takenFrom", { app: PROGRAMS[c.takenFrom] ?? c.takenFrom }) : t("setup.installed")}</span>}
                             </div>
                             {ASR_VARIANT_I18N[c.id] && <div className="text-[11px] leading-snug text-[var(--color-muted)]">{t(ASR_VARIANT_I18N[c.id].hint)}</div>}
                             {c.fitsVram === false && !c.installed && <div className="text-[11px] leading-snug text-[var(--color-warn)]">{t("setup.noVram")}</div>}
@@ -265,7 +266,7 @@ export default function FirstRun() {
                         : <button onClick={() => c.externalUrl && window.open(c.externalUrl, "_blank")}
                             className="inline-flex items-center gap-1 text-[12px] text-[var(--color-accent-2)] hover:underline"><ExternalLink size={13} />{t("setup.openDriver")}</button>
                     ) : c.installed ? (
-                      <span className="text-[12px] text-[var(--color-accent)]">{t("setup.installed")}</span>
+                      <span className="text-[12px] text-[var(--color-accent)]">{c.takenFrom ? t("setup.takenFrom", { app: PROGRAMS[c.takenFrom] ?? c.takenFrom }) : t("setup.installed")}</span>
                     ) : c.delivery === "bundled" ? (
                       <span className="text-[11px] text-[var(--color-muted)] max-w-[120px] inline-block leading-tight">{deliveryNote(c)}</span>
                     ) : (
