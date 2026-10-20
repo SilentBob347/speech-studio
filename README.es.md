@@ -20,7 +20,7 @@
 
 ## Qué es
 
-**Speech Studio** tiene dos modos. **Speech** pone voz a un texto: una frase, un diálogo con una voz por personaje, un pódcast que te escribe el director o un libro entero desde EPUB, FB2, PDF o DOCX. **Listening** convierte una grabación, un vídeo o un enlace en texto con quién dijo qué y cuándo, lo edita por sus palabras, comprueba una locución contra el texto que debía decir y crea voces de la biblioteca a partir de sus hablantes.
+**Speech Studio** tiene tres modos. **Speech** pone voz a un texto: una frase, un diálogo con una voz por personaje, un pódcast que te escribe el director o un libro entero desde EPUB, FB2, PDF o DOCX. **Listening** convierte una grabación, un vídeo o un enlace en texto con quién dijo qué y cuándo, lo edita por sus palabras, comprueba una locución contra el texto que debía decir y crea voces de la biblioteca a partir de sus hablantes. **Live** es una conversación por voz con un agente de IA conectado por MCP: dice cada frase en cuanto la escribe y te oye por el micrófono.
 
 Todo funciona **en tu equipo**: sin nube ni suscripción; tus textos, grabaciones y huellas de voz no salen del ordenador. Si quieres una voz que tu tarjeta no puede ejecutar, también están las voces en la nube de **OpenRouter**, **Google Gemini**, **fal.ai** y **Runware**, cada una con su clave y una confirmación antes de la primera llamada; vienen desactivadas.
 
@@ -39,6 +39,18 @@ Mientras Speech Studio está abierto, sirve MCP en `http://127.0.0.1:8797/mcp`: 
 3. Lee la habilidad que sirve el servidor (recurso `studio://skill`), el mismo texto que [docs/mcp-skill.md](docs/mcp-skill.md), y empieza por la herramienta `studio_status`.
 
 En el mismo puerto el estudio habla la API de audio de OpenAI —`POST /v1/audio/speech`, `POST /v1/audio/transcriptions`, `GET /v1/models`—, así que las herramientas hechas para OpenAI locutan y transcriben a través de él, con el nombre de una voz de la biblioteca como `voice`. [llms.txt](llms.txt) dice lo mismo para las herramientas que lo buscan. Solo pueden conectarse los programas de este equipo.
+
+## Qué puedes hacer con él
+
+- **Un audiolibro** — suelta un EPUB o FB2: capítulos, personajes con sus voces, un M4B con capítulos y portada, volumen ACX comprobado.
+- **Un pódcast o un diálogo** — el director escribe un pódcast sobre un tema para dos o tres voces, o pega líneas como «Ana: …»; la línea de tiempo muestra cada solapamiento.
+- **Una locución para un vídeo** — pon voz a un guion o a subtítulos dentro de sus tiempos, añade música y sonidos en el editor de pistas y exporta al volumen del vídeo.
+- **La transcripción de una entrevista o una clase** — quién dijo qué y cuándo, tiempos de cada palabra, subtítulos según las normas de las cadenas, la grabación editada por su texto.
+- **La revisión de un doblaje** — superpón el guion a la grabación y verás cada palabra dicha mal u omitida.
+- **Tu propia biblioteca de voces** — graba o importa voces, límpialas y crea voces a partir de los hablantes de una grabación.
+- **Una voz para tu agente de IA** — habla con Claude Code o cualquier agente MCP en Live, o deja que locute y transcriba archivos por MCP o por la API compatible con OpenAI.
+
+Ejemplos de todos los motores y voces, con los acentos rusos antes y después, en la [página del proyecto](https://timoncool.github.io/speech-studio/es.html).
 
 ## Tres modos
 
@@ -59,12 +71,16 @@ En el mismo puerto el estudio habla la API de audio de OpenAI —`POST /v1/audio
 - **El mejor fragmento de la referencia**: ventanas en las pausas entre palabras reconocidas, cada una con su duración, relación señal/ruido, saturación y pausa más larga.
 - **Voz por descripción**: Qwen3-TTS VoiceDesign crea una voz a partir de «una anciana con voz suave y algo ronca…»: escucha varios candidatos y guarda uno en la biblioteca.
 
+- **Voces en la nube** — OpenRouter, Google Gemini (peticiones en paralelo o Batch a mitad de precio), fal.ai y Runware, cada una con su clave y una confirmación antes de la primera llamada.
+
 **Texto que suena bien**
 
 - **Normalizador del ruso**: números en el caso y género correctos, fechas, horas, dinero, unidades, números romanos, marcas latinas y siglas.
 - **Acentos, «ё» y homógrafos** con RUAccent: el modelo grande de homógrafos (big_poetry en int8, las mismas elecciones que fp32) elige por la frase; los dudosos se resaltan para ti y tus `+` se respetan.
 - **Diccionario de pronunciación**: sustitución, regex y fonemas, con ámbito de proyecto, idioma, voz o motor, importación de Balabolka `.rex`/`.dic`/`.bxd` y prueba de oído desde el propio diccionario.
 - **Marcado compatible con SpeechKit**: acento `+`, pausas `sil<[300]>` y `[pause 500ms]`, tempo `[rate:1.2]`, `**énfasis**`; lo que un motor ignora se marca, nunca se pierde en silencio.
+
+- **Aún más texto bien leído** — un subconjunto de SSML, pistas de prosodia en color palabra por palabra, teléfonos, correos y códigos, un fragmento en otro idioma con la misma voz y una revisión del guion antes de locutar.
 
 **Proyectos**
 
@@ -77,6 +93,11 @@ En el mismo puerto el estudio habla la API de audio de OpenAI —`POST /v1/audio
 - **Volumen**: preajustes de vídeo (−14 LUFS), pódcast (−16 LUFS) y ACX con limitador true-peak, room tone y respiraciones entre bloques.
 - **Archivo de proyecto**: `.speechproj` con texto, voces y audio lleva un proyecto a otro equipo.
 
+- **Montaje** — un editor de pistas bajo el texto: mover, recortar, fundidos y volumen de cada clip, pistas de música y sonidos desde archivos o carpetas, o una canción hecha allí mismo en YuE2, MiniMax Music3 o ACE-Step Studio.
+- **Exportación para cada uso** — un archivo por capítulo, una pista por personaje en un ZIP, una tabla CSV de réplicas, efectos de voz (radio, teléfono, megáfono), volumen parejo de los fragmentos, frecuencia y profundidad de bits, plantillas de nombres, un manifiesto SHA-256 y una nota de cómo se hizo.
+- **Comparar y aprobar** — A/B de tomas, una comparación a ciegas de motores sobre el mismo texto, bloques aprobados que una nueva locución no toca, un semáforo de calidad y un informe del proyecto.
+- **Libros y obras** — el estilo directo aparte del narrador, un reparto de personajes con voces elegidas para ellos, notas al pie limpiadas, los nombres del libro al diccionario, un proyecto actualizado desde un libro corregido sin perder lo ya locutado y un reproductor HTML del libro.
+
 **Listening**
 
 - **Parakeet-TDT y Nemotron 3.5 (28 idiomas con puntuación) en transcribe.cpp, o Whisper**, hasta ocho hablantes con Nemotron 3 Diarization, una grabación larga cortada en las pausas por **Silero VAD v6**, ruido quitado por DPDFNet y música por Roformer.
@@ -85,11 +106,56 @@ En el mismo puerto el estudio habla la API de audio de OpenAI —`POST /v1/audio
 - **Un texto conocido sobre la grabación**: el texto de referencia toma el tiempo de cada palabra oída, frase a frase.
 - **Voces desde hablantes**: una voz de biblioteca con las palabras más limpias de cada hablante.
 
+- **Mientras hablas** — reconocimiento desde el micrófono frase a frase, una carpeta vigilada reconocida en segundo plano, reconocimiento rápido sin el editor.
+- **El modelo adecuado por sí solo** — con el idioma en Auto, VoxLingua107 lo detecta y la grabación va a un reconocedor que lo conoce; el modelo elegido se descarga la primera vez que se usa.
+- **Subtítulos según las normas de las cadenas** (Netflix, BBC y otras), quién habla cuánto, números en cifras al exportar.
+
+**Live**
+
+- **Una conversación por voz** — el agente conectado por MCP dice cada frase en cuanto la escribe; respondes al micrófono y se te reconoce frase a frase; hablar encima del agente lo detiene; una línea escrita le llega como si la hubieras dicho.
+- **Cambios al vuelo** — la voz del agente, el reconocedor, el idioma y el micrófono se cambian en mitad de la conversación: el micrófono se reinicia con la nueva elección y, mientras carga el motor de la nueva voz, la ventana dice «Cargando la voz…».
+- **Un ritmo natural** — una frase del agente se dice entera hasta 300 caracteres, una pausa que el motor deja dentro de una frase dura como mucho 0,6 s y cada frase suena una sola vez.
+- **Micrófono y sonido** — silenciar con M o Ctrl+Mayús+Espacio desde cualquier ventana (mantener para hablar), medidores de nivel, escucharte a ti mismo, prueba del altavoz y volumen del agente.
+- **Cinco aspectos y un widget** — aura, onda, barras, radial y matriz, y un pequeño widget sobre todas las ventanas; Ctrl+3 abre Live.
+- **Medido** — tu frase es texto 0,64–0,74 s después de que dejas de hablar (Parakeet en una RTX 4090), y el primer sonido de la respuesta llega entre 15 ms y 1 s después de que el agente la escribe, según el motor.
+
 **En todas partes**
 
 - **API compatible con OpenAI**, **MCP** con control de la ventana para agentes y un panel de asistente con un modelo de OpenRouter y las mismas herramientas.
 - **Diagnóstico**: tarjeta gráfica, controlador, CUDA, bibliotecas, registros y un paquete para informes de errores sin claves.
 - **Toda la aplicación en seis idiomas**, tema claro y oscuro, actualización automática y totalmente portátil.
+- **El primer arranque pregunta solo lo que quieres** — voces, reconocimiento y extras; los motores, las bibliotecas y la versión para tu tarjeta llegan con ellos, una línea cada uno con su tamaño.
+- **Paleta de comandos** (Ctrl+K), atajos propios, un modo simple y una pista «?» en cada control.
+
+## Velocidad medida
+
+En un mismo ordenador: RTX 4090 (24 GB) con Windows 11, Speech Studio tal como se instala.
+
+**Locución** — Speech Studio 0.2.0, el mismo texto ruso de 17 segundos, la segunda ejecución de cada motor (modelo cargado); el primer sonido es el tiempo hasta que empieza el audio en la ventana, la memoria de vídeo el pico mientras habla.
+
+| Motor | Más rápido que el tiempo real | Primer sonido | Streaming | Descarga | Memoria de vídeo |
+|---|---|---|---|---|---|
+| Supertonic 3 | 168× | 103 ms | por frase | 0,1 GB | 1,0 GB |
+| Qwen3-TTS | 12× | 19 ms | mientras habla | 2,2 GB | 3,1 GB |
+| Qwen3-TTS + ru stress LoRA | 10× | 26 ms | mientras habla | 2,3 GB | 3,5 GB |
+| Fish Audio Drama 3 | 7,0× | 326 ms | mientras habla | 21,4 GB | 21,9 GB |
+| Higgs Audio v3 | 2,3× | 1,0 s | mientras habla | 5,3 GB | 18,1 GB |
+
+**Reconocimiento** — Speech Studio 0.2.1, una grabación rusa de 5 minutos de una sola voz (299,7 s) en Listening sin separar hablantes, con la carga del modelo incluida; el modelo libera la memoria de vídeo al terminar.
+
+| Modelo | En la tarjeta | En el procesador | Idiomas | Descarga | Memoria de vídeo |
+|---|---|---|---|---|---|
+| Parakeet TDT v3 | 96× (3,1 s) | 33× (9,2 s) | 25 | 0,7 GB | 1,2 GB |
+| Parakeet Ultra | 73× (4,1 s) | 33× (9,2 s) | 25 | 0,7 GB | 1,0 GB |
+| Nemotron 3.5 | 73× (4,1 s) | 29× (10,3 s) | 28 | 0,7 GB | 1,0 GB |
+
+**Live** — un turno de conversación.
+
+| Paso | Tiempo |
+|---|---|
+| Tu frase como texto después de que dejas de hablar (Parakeet en la tarjeta, incluida la pausa que cierra la frase) | 0,64–0,74 s |
+| El agente escribe su respuesta (Claude Sonnet) | 2,0–3,9 s |
+| Primer sonido de la respuesta (según el motor, ver Locución) | 15 ms – 1,0 s |
 
 ## Capturas
 
