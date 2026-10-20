@@ -15,7 +15,7 @@ use crate::speech_project as sp;
 use crate::AppState;
 
 /// A phrase longer than this is said up to its last comma rather than waiting for its full stop.
-const LONG_PHRASE: usize = 120;
+const LONG_PHRASE: usize = 300;
 
 struct Session {
     buf: String,
@@ -508,7 +508,9 @@ mod tests {
     fn a_number_with_a_dot_and_a_long_phrase_without_a_stop() {
         let mut buf = "Встреча в 10.30 у входа. Дальше".to_string();
         assert_eq!(cut(&mut buf, false), ["Встреча в 10.30 у входа."]);
-        let mut long = format!("{}, и ещё немного", "слово ".repeat(25));
+        let mut whole = format!("{}, и ещё немного", "слово ".repeat(25));
+        assert!(cut(&mut whole, false).is_empty(), "a sentence of 150 characters waits for its stop and is said whole");
+        let mut long = format!("{}, и ещё немного", "слово ".repeat(60));
         let said = cut(&mut long, false);
         assert_eq!(said.len(), 1, "{said:?}");
         assert!(said[0].ends_with(','));
