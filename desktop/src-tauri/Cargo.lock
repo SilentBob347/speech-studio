@@ -6215,7 +6215,7 @@ dependencies = [
 
 [[package]]
 name = "speech-server"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -6297,7 +6297,7 @@ dependencies = [
 
 [[package]]
 name = "speech-studio-desktop"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "rfd 0.17.2",
  "serde",
