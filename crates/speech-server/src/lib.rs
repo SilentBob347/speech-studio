@@ -103,7 +103,7 @@ mod wavio;
 mod ytdlp;
 
 use axum::extract::{Path as AxPath, Query, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::sse::{Event, Sse};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
@@ -937,7 +937,10 @@ fn mic_test_path(st: &AppState) -> PathBuf {
 
 /// POST /record/test {device?} — a microphone test, as call apps have one: records until /record/test/stop while
 /// /record/level shows how loud it hears; the recording is then played back to the person.
-async fn record_test(State(st): State<AppState>, body: Option<Json<Value>>) -> Response {
+async fn record_test(State(st): State<AppState>, headers: HeaderMap, body: Option<Json<Value>>) -> Response {
+    if mcp::by_agent(&headers) {
+        return (StatusCode::FORBIDDEN, Json(json!({ "error": "mic_only_person", "detail": t!("mic-only-person") }))).into_response();
+    }
     let device = body.as_ref().and_then(|Json(v)| v.get("device")).and_then(Value::as_str).filter(|d| !d.is_empty()).map(str::to_string);
     let path = mic_test_path(&st);
     match tokio::task::spawn_blocking(move || record::start_test(&path, device)).await {
@@ -977,7 +980,10 @@ async fn record_test_audio(State(st): State<AppState>, req: axum::http::Request<
 }
 
 /// POST /record/start {name, device?} — начать запись голоса в новый файл voices/<имя>.wav (занятое имя получает номер).
-async fn record_start(State(st): State<AppState>, Json(body): Json<Value>) -> Json<Value> {
+async fn record_start(State(st): State<AppState>, headers: HeaderMap, Json(body): Json<Value>) -> Json<Value> {
+    if mcp::by_agent(&headers) {
+        return Json(json!({ "ok": false, "error": t!("mic-only-person") }));
+    }
     let base = voice_library::sanitize(body.get("name").and_then(|v| v.as_str()).unwrap_or(""));
     let base = if base.is_empty() { t!("voice-default-name") } else { base };
     let device = body.get("device").and_then(|v| v.as_str()).map(|s| s.to_string());

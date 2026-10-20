@@ -5,7 +5,7 @@
 use std::path::Path;
 
 use axum::extract::{Path as AxPath, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde_json::{json, Value};
@@ -137,7 +137,10 @@ async fn live_parts(st: &AppState, engine: &str) -> Result<(), Response> {
 
 /// POST /listen/record/start {device?, live?, lang?, engine?} — запись с микрофона в новый проект; с `live` она распознаётся по
 /// фразам, пока идёт (`/listen/record/live`).
-pub async fn record_start(State(st): State<AppState>, body: Option<Json<Value>>) -> Response {
+pub async fn record_start(State(st): State<AppState>, headers: HeaderMap, body: Option<Json<Value>>) -> Response {
+    if crate::mcp::by_agent(&headers) {
+        return refuse(StatusCode::FORBIDDEN, "mic_only_person", t!("mic-only-person"));
+    }
     let body = body.map(|Json(v)| v).unwrap_or(Value::Null);
     let device = body.get("device").and_then(Value::as_str).map(str::to_string).filter(|d| !d.is_empty());
     let live = body.get("live").and_then(Value::as_bool).unwrap_or(false);

@@ -85,6 +85,11 @@ fn get(path: String) -> Result<Call, String> {
     })
 }
 
+/// Whether a request is an agent's tool call rather than the person's own control in a window.
+pub(crate) fn by_agent(headers: &axum::http::HeaderMap) -> bool {
+    headers.contains_key(window::AGENT_HEADER)
+}
+
 fn post(path: String, body: Value) -> Result<Call, String> {
     Ok(Call { method: Method::POST, path, payload: Payload::Json(body),
     })

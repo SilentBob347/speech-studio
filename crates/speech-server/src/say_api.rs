@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex};
 
 use axum::extract::{Path as AxPath, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde_json::{json, Value};
@@ -161,7 +161,7 @@ pub async fn voice_get(State(st): State<AppState>) -> Json<TalkVoice> {
 }
 
 /// POST /speech/say/voice {engine, voice?, params?} — choose the voice agents speak aloud with when they give none.
-pub async fn voice_set(State(st): State<AppState>, Json(chosen): Json<TalkVoice>) -> Response {
+pub async fn voice_set(State(st): State<AppState>, headers: HeaderMap, Json(chosen): Json<TalkVoice>) -> Response {
     if !chosen.engine.is_empty() && crate::engines::get(&chosen.engine).is_none() {
         return refuse(StatusCode::BAD_REQUEST, "bad_engine", t!("speech-engine-unknown", engine = chosen.engine.clone()));
     }
@@ -176,6 +176,12 @@ pub async fn voice_set(State(st): State<AppState>, Json(chosen): Json<TalkVoice>
     };
     if let Err(e) = std::fs::write(talk_voice_path(&st), body) {
         return refuse(StatusCode::INTERNAL_SERVER_ERROR, "save_failed", e.to_string());
+    }
+    // the voice the person picks in the window is the one heard, whatever voice an agent opened its session with
+    if !crate::mcp::by_agent(&headers) {
+        for session in sessions().values_mut() {
+            session.follows = true;
+        }
     }
     // a conversation going on takes the new voice at its next phrase: the engine loads now, not in that phrase
     if !chosen.engine.is_empty() && sessions().values().any(|s| s.follows) {
@@ -241,6 +247,9 @@ pub async fn start(State(st): State<AppState>, Json(body): Json<Value>) -> Respo
 /// POST /speech/say/{session} {text, end?} — more of the text; each finished phrase is voiced at once, `end` says the
 /// rest and closes the session.
 pub async fn text(State(st): State<AppState>, AxPath(sid): AxPath<String>, Json(body): Json<Value>) -> Response {
+    if hushed() {
+        return refuse(StatusCode::CONFLICT, "hushed", t!("say-hushed"));
+    }
     let piece = body.get("text").and_then(Value::as_str).unwrap_or_default();
     let end = body.get("end").and_then(Value::as_bool).unwrap_or(false);
     let (phrases, direction, pieces, follows) = {
@@ -350,7 +359,10 @@ async fn failed_job_marks_phrases(st: AppState, sid: String, job_id: String, ids
 }
 
 /// DELETE /speech/say — every session stops speaking now, as when the person interrupts.
-pub async fn stop_all(State(st): State<AppState>) -> Json<Value> {
+pub async fn stop_all(State(st): State<AppState>, headers: HeaderMap) -> Json<Value> {
+    if !crate::mcp::by_agent(&headers) {
+        *HUSHED_AT.lock().unwrap_or_else(|p| p.into_inner()) = Some(heard_count());
+    }
     Json(json!({ "stopped": interrupt(&st) }))
 }
 
@@ -384,10 +396,30 @@ pub async fn state(State(st): State<AppState>, AxPath(sid): AxPath<String>) -> R
 }
 
 static LISTENING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+/// The person stopped the speech in a window, when this many phrases had been heard: what an agent says next waits for
+/// the person's next phrase, said or typed.
+static HUSHED_AT: Mutex<Option<usize>> = Mutex::new(None);
+
+fn heard_count() -> usize {
+    crate::listen_live::state()["lines"].as_array().map_or(0, Vec::len)
+}
+
+/// Whether the person stopped the speech and has not spoken or typed since.
+fn hushed() -> bool {
+    let mut at = HUSHED_AT.lock().unwrap_or_else(|p| p.into_inner());
+    match *at {
+        Some(n) if heard_count() <= n => true,
+        Some(_) => {
+            *at = None;
+            false
+        }
+        None => false,
+    }
+}
 
 /// POST /speech/listen {lang?, device?, engine?} — the microphone heard live for a conversation: each phrase the person ends with
 /// a pause is recognised (`next`), and their speaking over the studio stops its speech.
-pub async fn listen_start(State(st): State<AppState>, body: Option<Json<Value>>) -> Response {
+pub async fn listen_start(State(st): State<AppState>, headers: HeaderMap, body: Option<Json<Value>>) -> Response {
     let body = body.map(|Json(v)| v).unwrap_or(Value::Null);
     let lang = body.get("lang").and_then(Value::as_str).unwrap_or("auto");
     // the microphone is on already (the window or another agent turned it on): this conversation listens to it too
@@ -395,7 +427,11 @@ pub async fn listen_start(State(st): State<AppState>, body: Option<Json<Value>>)
         watch_interruptions(st);
         return Json(json!({ "pid": pid, "live": true, "joined": true })).into_response();
     }
-    let started = crate::listen_api::record_start(State(st.clone()), Some(Json(json!({ "live": true, "lang": lang, "device": body.get("device"), "engine": body.get("engine") })))).await;
+    // the microphone is the person's: an agent listens to a conversation the person started and never turns it on
+    if crate::mcp::by_agent(&headers) {
+        return refuse(StatusCode::CONFLICT, "mic_off", t!("say-mic-off"));
+    }
+    let started = crate::listen_api::record_start(State(st.clone()), HeaderMap::new(), Some(Json(json!({ "live": true, "lang": lang, "device": body.get("device"), "engine": body.get("engine") })))).await;
     if !started.status().is_success() {
         return started;
     }
@@ -475,7 +511,10 @@ pub async fn listen_next(axum::extract::Query(q): axum::extract::Query<HashMap<S
 }
 
 /// DELETE /speech/listen — the microphone off; the conversation's recording and what was heard stay a Listening project.
-pub async fn listen_stop(State(st): State<AppState>) -> Response {
+pub async fn listen_stop(State(st): State<AppState>, headers: HeaderMap) -> Response {
+    if crate::mcp::by_agent(&headers) {
+        return refuse(StatusCode::CONFLICT, "mic_is_the_persons", t!("say-mic-persons"));
+    }
     LISTENING.store(false, std::sync::atomic::Ordering::Relaxed);
     let stopped = crate::listen_api::record_stop(State(st)).await;
     if !stopped.status().is_success() {
