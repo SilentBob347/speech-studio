@@ -21,6 +21,7 @@ export function useTalk({ fed }: { fed: boolean }) {
   const [heard, setHeard] = useState<HeardLine[]>([]);
   const [partial, setPartial] = useState("");
   const [saying, setSaying] = useState<string | null>(null);
+  const [voiceLoading, setVoiceLoading] = useState(false);
   const [turns, setTurns] = useState<Turn[]>([]);
   const [agent, setAgent] = useState<McpStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +55,7 @@ export function useTalk({ fed }: { fed: boolean }) {
   // what the agent says: each phrase as it starts, its text from its session
   useEffect(() => {
     return onLiveEvents((ev) => {
+      if (ev.kind === "voice") { setVoiceLoading(ev.loading !== null); return; }
       if (ev.kind === "lagged" || ev.kind === "hello" || !ev.aloud) return;
       if (ev.kind === "stop") { setSaying(null); return; }
       if (ev.kind !== "start") return;
@@ -191,5 +193,5 @@ export function useTalk({ fed }: { fed: boolean }) {
     });
   }, [speaking, fed]);
 
-  return { state, running, muted, bands, toggleMute, type, heard, partial, saying, turns, lastPerson, lastAgent, agent, error, fetching, speaking, loudness, toggleMic, relisten, silence };
+  return { state, running, muted, bands, toggleMute, type, heard, partial, saying, turns, lastPerson, lastAgent, agent, error, fetching, voiceLoading, speaking, loudness, toggleMic, relisten, silence };
 }

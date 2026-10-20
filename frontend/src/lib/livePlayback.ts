@@ -17,6 +17,7 @@ export type LiveEvent =
   | { kind: "chunk"; project: string; block: string; sr: number; data: string; aloud?: boolean; player?: number | null }
   | { kind: "end"; project: string; block: string; ok: boolean; first_ms: number | null; aloud?: boolean; player?: number | null }
   | { kind: "stop"; project: string; aloud: true }
+  | { kind: "voice"; loading: string | null; aloud: true }
   | { kind: "hello"; id: number }
   | { kind: "lagged"; missed: number };
 
@@ -78,7 +79,7 @@ export class LivePlayer {
   /** This window's number on the server's aloud stream: of several open windows only the phrase's `player` sounds it. */
   private me: number | null = null;
 
-  private accepts(ev: Exclude<LiveEvent, { kind: "lagged" | "hello" }>): boolean {
+  private accepts(ev: Exclude<LiveEvent, { kind: "lagged" | "hello" | "voice" }>): boolean {
     if (this.pid !== null) return !ev.aloud && ev.project === this.pid;
     const player = "player" in ev ? ev.player : undefined;
     return ev.aloud === true && (player == null || player === this.me);
@@ -141,7 +142,7 @@ export class LivePlayer {
 
   handle(ev: LiveEvent): void {
     if (ev.kind === "hello") { this.me = ev.id; return; }
-    if (ev.kind === "lagged" || !this.accepts(ev)) return;
+    if (ev.kind === "lagged" || ev.kind === "voice" || !this.accepts(ev)) return;
     if (ev.kind === "restart" || ev.kind === "stop") { this.stop(); return; }
     if (ev.kind !== "chunk") return;
     this.ctx ??= this.makeContext();

@@ -2455,6 +2455,7 @@
     "tab_voice": "Agent's voice",
     "tab_speaker": "Speaker",
     "ownParams": "Own voice settings",
-    "agentNamed": "Connected: {{name}}"
+    "agentNamed": "Connected: {{name}}",
+    "voiceLoading": "Loading the voice…"
   }
 }

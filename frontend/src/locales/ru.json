@@ -2455,6 +2455,7 @@
     "tab_voice": "Голос агента",
     "tab_speaker": "Динамик",
     "ownParams": "Свои настройки голоса",
-    "agentNamed": "Подключён: {{name}}"
+    "agentNamed": "Подключён: {{name}}",
+    "voiceLoading": "Загружаю голос…"
   }
 }

@@ -181,9 +181,11 @@ pub async fn voice_set(State(st): State<AppState>, Json(chosen): Json<TalkVoice>
     if !chosen.engine.is_empty() && sessions().values().any(|s| s.follows) {
         let (paths, engine, voice) = (crate::speech_api::paths(&st), chosen.engine.clone(), chosen.voice.clone());
         tokio::task::spawn_blocking(move || {
+            crate::live::voice_loading(Some(&engine));
             if let Err(e) = crate::speech_jobs::warm(&paths, &engine, voice.as_deref(), "auto") {
                 tracing::warn!("say: the new voice's engine was not warmed: {e}");
             }
+            crate::live::voice_loading(None);
         });
     }
     Json(chosen).into_response()
@@ -227,9 +229,11 @@ pub async fn start(State(st): State<AppState>, Json(body): Json<Value>) -> Respo
     sessions().insert(pid.clone(), Session { buf: String::new(), direction: field("direction").unwrap_or_default(), pieces: 0, follows });
     let (paths, engine, voice, lang) = (crate::speech_api::paths(&st), project.settings.engine.clone(), project.settings.voice.clone(), project.settings.lang.clone());
     tokio::task::spawn_blocking(move || {
+        crate::live::voice_loading(Some(&engine));
         if let Err(e) = crate::speech_jobs::warm(&paths, &engine, voice.as_deref(), &lang) {
             tracing::warn!("say: the engine was not warmed before the first phrase: {e}");
         }
+        crate::live::voice_loading(None);
     });
     Json(json!({ "session": pid, "engine": project.settings.engine, "voice": project.settings.voice })).into_response()
 }

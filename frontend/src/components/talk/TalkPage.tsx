@@ -24,7 +24,7 @@ export default function TalkPage() {
   const prefs = useTalkPrefs();
   const look: TalkStyle = TALK_STYLES.includes(prefs.style as TalkStyle) ? (prefs.style as TalkStyle) : "aura";
   const talk = useTalk({ fed: false });
-  const { state, running, heard, partial, saying, turns, lastPerson, lastAgent, agent, error, fetching, loudness } = talk;
+  const { state, running, heard, partial, saying, turns, lastPerson, lastAgent, agent, error, fetching, voiceLoading, loudness } = talk;
   const side = "grid place-items-center w-11 h-11 rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] hover:border-[var(--color-accent)]";
 
   return (
@@ -62,6 +62,7 @@ export default function TalkPage() {
               <p className="text-[var(--color-muted)]">{t("talk.ask")}</p>
             </div>
           )}
+          {voiceLoading && <p role="status" className="text-[13px] text-[var(--color-muted)] text-center">{t("talk.voiceLoading")}</p>}
           {fetching && <p role="status" className="text-[13px] text-[var(--color-muted)] text-center">{fetching}</p>}
           {error && <p role="alert" className="text-[13px] text-[var(--color-warn)] text-center">{error}</p>}
         </div>

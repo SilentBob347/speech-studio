@@ -2455,6 +2455,7 @@
     "tab_voice": "Voz do agente",
     "tab_speaker": "Alto-falante",
     "ownParams": "Ajustes de voz próprios",
-    "agentNamed": "Conectado: {{name}}"
+    "agentNamed": "Conectado: {{name}}",
+    "voiceLoading": "Carregando a voz…"
   }
 }

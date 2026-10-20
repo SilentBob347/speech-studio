@@ -45,6 +45,11 @@ pub fn listening() -> bool {
     channel().receiver_count() > 0
 }
 
+/// The voice of what is said aloud is loading (its engine), or is ready (`None`): the window says so meanwhile.
+pub fn voice_loading(engine: Option<&str>) {
+    let _ = channel().send(json!({ "kind": "voice", "loading": engine, "aloud": true }));
+}
+
 /// The window stops playing `project` now and drops what it queued.
 pub fn silence(project: &str) {
     let _ = channel().send(json!({ "kind": "stop", "project": project, "aloud": true }));
