@@ -106,6 +106,11 @@ pub async fn upload(State(st): State<AppState>, mut multipart: axum::extract::Mu
 
 static RECORDING: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 
+/// The recording the microphone is making now, if it is on.
+pub fn recording() -> Option<String> {
+    RECORDING.lock().unwrap_or_else(|e| e.into_inner()).clone()
+}
+
 /// Live recognition starts only with its recogniser and the speech detector on disk: what is missing is downloaded in
 /// the background (the setup download, with its progress), and the request is refused with `asr_downloading` and the
 /// components until it is done.

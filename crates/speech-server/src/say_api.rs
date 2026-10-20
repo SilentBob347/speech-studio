@@ -177,6 +177,15 @@ pub async fn voice_set(State(st): State<AppState>, Json(chosen): Json<TalkVoice>
     if let Err(e) = std::fs::write(talk_voice_path(&st), body) {
         return refuse(StatusCode::INTERNAL_SERVER_ERROR, "save_failed", e.to_string());
     }
+    // a conversation going on takes the new voice at its next phrase: the engine loads now, not in that phrase
+    if !chosen.engine.is_empty() && sessions().values().any(|s| s.follows) {
+        let (paths, engine, voice) = (crate::speech_api::paths(&st), chosen.engine.clone(), chosen.voice.clone());
+        tokio::task::spawn_blocking(move || {
+            if let Err(e) = crate::speech_jobs::warm(&paths, &engine, voice.as_deref(), "auto") {
+                tracing::warn!("say: the new voice's engine was not warmed: {e}");
+            }
+        });
+    }
     Json(chosen).into_response()
 }
 
@@ -345,11 +354,24 @@ static LISTENING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool:
 pub async fn listen_start(State(st): State<AppState>, body: Option<Json<Value>>) -> Response {
     let body = body.map(|Json(v)| v).unwrap_or(Value::Null);
     let lang = body.get("lang").and_then(Value::as_str).unwrap_or("auto");
+    // the microphone is on already (the window or another agent turned it on): this conversation listens to it too
+    if let Some(pid) = crate::listen_api::recording().filter(|_| crate::listen_live::state()["running"] == true) {
+        watch_interruptions(st);
+        return Json(json!({ "pid": pid, "live": true, "joined": true })).into_response();
+    }
     let started = crate::listen_api::record_start(State(st.clone()), Some(Json(json!({ "live": true, "lang": lang, "device": body.get("device"), "engine": body.get("engine") })))).await;
     if !started.status().is_success() {
         return started;
     }
-    LISTENING.store(true, std::sync::atomic::Ordering::Relaxed);
+    watch_interruptions(st);
+    started
+}
+
+/// While the microphone is on, a phrase the person starts interrupts what the studio says; one watcher at a time.
+fn watch_interruptions(st: AppState) {
+    if LISTENING.swap(true, std::sync::atomic::Ordering::Relaxed) {
+        return;
+    }
     tokio::spawn(async move {
         let mut heard = String::new();
         while LISTENING.load(std::sync::atomic::Ordering::Relaxed) {
@@ -362,7 +384,6 @@ pub async fn listen_start(State(st): State<AppState>, body: Option<Json<Value>>)
             tokio::time::sleep(std::time::Duration::from_millis(150)).await;
         }
     });
-    started
 }
 
 /// POST /speech/listen/mute {muted | toggle} — the microphone muted or back on (toggle: the other way round); the
@@ -420,7 +441,16 @@ pub async fn listen_next(axum::extract::Query(q): axum::extract::Query<HashMap<S
 /// DELETE /speech/listen — the microphone off; the conversation's recording and what was heard stay a Listening project.
 pub async fn listen_stop(State(st): State<AppState>) -> Response {
     LISTENING.store(false, std::sync::atomic::Ordering::Relaxed);
-    crate::listen_api::record_stop(State(st)).await
+    let stopped = crate::listen_api::record_stop(State(st)).await;
+    if !stopped.status().is_success() {
+        return stopped;
+    }
+    // the recording is a Listening project now: its id and how much was heard, not the whole project
+    let made: Value = match axum::body::to_bytes(stopped.into_body(), usize::MAX).await.map_err(|e| e.to_string()).and_then(|b| serde_json::from_slice(&b).map_err(|e| e.to_string())) {
+        Ok(v) => v,
+        Err(e) => return refuse(StatusCode::INTERNAL_SERVER_ERROR, "internal", e),
+    };
+    Json(json!({ "pid": made["pid"], "lines": made["project"]["lines"].as_array().map_or(0, Vec::len) })).into_response()
 }
 
 #[cfg(test)]
