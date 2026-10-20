@@ -129,9 +129,11 @@ const NAMES = {
   ruaccent: "RUAccent (stress, «ё», homographs)",
   "ruaccent-omograph-big": "RUAccent big_poetry homographs int8",
   "transcribe-engine": "transcribe.cpp engine (CUDA)",
+  "transcribe-engine-cpu": "transcribe.cpp engine (CPU)",
   "asr-gguf-nemotron": "Nemotron 3.5 ASR 0.6B Q8_0 (NVIDIA)",
   wespeaker: "WeSpeaker ResNet34-LM (voice similarity)",
-  "silero-vad": "Silero VAD v6",
+  "silero-vad": "Silero VAD v6.2",
+  langid: "VoxLingua107 language identification Q8_0",
   dpdfnet: "DPDFNet 48 kHz (noise suppression)",
 };
 
