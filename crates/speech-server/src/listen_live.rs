@@ -152,7 +152,7 @@ fn listen(choice: crate::models::AsrChoice, models_root: &Path, lang: &str, from
     // Nemotron 3.5 is a streaming model: a phrase is recognised as it is spoken instead of again from its start
     let mut stream = match &choice {
         crate::models::AsrChoice::Ggml { models_root, model } if model.id == "nemotron" => Some(
-            dub_asr::tcpp::TcppStream::new(&dub_asr::tcpp::engine_dir(models_root), &dub_asr::tcpp::model_path(models_root, model), lang).map_err(|e| e.localize())?,
+            dub_asr::tcpp::TcppStream::new(&dub_asr::tcpp::engine_dir(models_root), &dub_asr::tcpp::model_path(models_root, model), lang)?,
         ),
         _ => None,
     };
@@ -215,7 +215,7 @@ fn listen(choice: crate::models::AsrChoice, models_root: &Path, lang: &str, from
         let Some(z) = cut else {
             // the phrase goes on: show what it says so far
             if let Some(s) = stream.as_mut() {
-                let so_far = s.feed(&audio[(from_a + fed).min(audio.len())..]).map_err(|e| e.localize())?;
+                let so_far = s.feed(&audio[(from_a + fed).min(audio.len())..])?;
                 fed = audio.len().saturating_sub(from_a);
                 with(|l| l.partial = Some((offset + a, so_far)));
             } else if secs - interim_at >= INTERIM_SECS && last - first >= INTERIM_SECS {
@@ -228,9 +228,9 @@ fn listen(choice: crate::models::AsrChoice, models_root: &Path, lang: &str, from
         let to_z = ((z * 16_000.0) as usize).min(audio.len());
         let text = match stream.as_mut() {
             Some(s) => {
-                s.feed(&audio[(from_a + fed).min(to_z)..to_z]).map_err(|e| e.localize())?;
+                s.feed(&audio[(from_a + fed).min(to_z)..to_z])?;
                 fed = 0;
-                s.finish().map_err(|e| e.localize())?
+                s.finish()?
             }
             None => hear(&audio[from_a..to_z])?,
         };
