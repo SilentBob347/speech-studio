@@ -143,10 +143,8 @@ pub fn component_selection(id: &str) -> Vec<(&'static str, String)> {
         "qwen3-tts" => vec![("qwen_tts_quant", "Q4_K_M".into())],
         "qwen3-tts-q8_0" => vec![("qwen_tts_quant", "Q8_0".into())],
         "parakeet" => vec![("asr_engine", "parakeet".into()), ("asr", "int8".into())],
-        "parakeet-ultra-int8" => vec![("asr_engine", "parakeet".into()), ("asr", "ultra-int8".into())],
-        id if crate::tcpp_asr::FAMILIES.iter().any(|f| f.component == id) => {
-            vec![("asr_engine", crate::tcpp_asr::FAMILIES.iter().find(|f| f.component == id).map_or("", |f| f.id).to_string())]
-        }
+        "parakeet-ultra" => vec![("asr_engine", "parakeet".into()), ("asr", "ultra-int8".into())],
+        "asr-gguf-nemotron" => vec![("asr_engine", "nemotron".into())],
         "whisper-tiny" => vec![("asr_engine", "whisper".into()), ("whisper_model", "tiny".into()),
         ],
         "whisper-base" => vec![("asr_engine", "whisper".into()), ("whisper_model", "base".into()),
@@ -576,12 +574,11 @@ pub fn higgs_ref_secs(mroot: &Path) -> f64 {
     sel_num(mroot, "higgs_ref_secs").filter(|s| *s > 0.0 && *s <= 60.0).unwrap_or(12.0)
 }
 
-/// Выбор ASR-движка для одной джобы: Parakeet (каталог TDT) либо Whisper (бинарь + модель + квант + девайс).
+/// Выбор ASR-движка для одной джобы: модель transcribe.cpp (Parakeet, Nemotron) либо Whisper (бинарь + модель + квант + девайс).
 #[derive(Debug, Clone)]
 pub enum AsrChoice {
-    Parakeet(PathBuf),
     /// A GGUF model run by transcribe.cpp on the GPU.
-    Ggml { models_root: PathBuf, family: &'static crate::tcpp_asr::Family },
+    Ggml { models_root: PathBuf, model: &'static crate::tcpp_asr::Model },
     Whisper { bin: PathBuf, model_dir: PathBuf, model: String, compute: String, device: String,
     },
 }
@@ -593,11 +590,7 @@ impl AsrChoice {
     /// машинами/папками (ревью-находка).
     pub fn describe(&self) -> String {
         match self {
-            AsrChoice::Parakeet(d) => {
-                let variant = d.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| "tdt".into());
-                format!("Parakeet ({variant})")
-            }
-            AsrChoice::Ggml { family, .. } => format!("transcribe.cpp ({})", family.file),
+            AsrChoice::Ggml { model, .. } => format!("transcribe.cpp ({})", model.file),
             AsrChoice::Whisper { model, compute, device, .. } => {
                 format!("Whisper {model} (compute={compute}, device={device})")
             }
@@ -609,8 +602,7 @@ impl AsrChoice {
         lang.is_empty()
             || lang == "auto"
             || match self {
-                AsrChoice::Parakeet(_) => parakeet_knows(lang),
-                AsrChoice::Ggml { family, .. } => crate::tcpp_asr::knows(family, lang),
+                AsrChoice::Ggml { model, .. } => crate::tcpp_asr::knows(model, lang),
                 AsrChoice::Whisper { .. } => true,
             }
     }
@@ -639,27 +631,10 @@ fn whisper_model_installed(mroot: &Path, size: &str) -> bool {
     mroot.join("whisper").join(format!("faster-whisper-{size}")).join("model.bin").is_file()
 }
 
-/// Languages Parakeet-TDT 0.6B v3 (and its Ultra fine-tune) transcribes: the 25 European ones of the
-/// NVIDIA model card. Any other language comes out as a few stray words, not as an error.
-pub const PARAKEET_LANGS: [&str; 25] = [
-    "bg", "hr", "cs", "da", "nl", "en", "et", "fi", "fr", "de", "el", "hu", "it", "lv", "lt", "mt", "pl", "pt", "ro",
-    "sk", "sl", "es", "sv", "ru", "uk",
-];
-
-pub fn parakeet_knows(lang: &str) -> bool {
-    PARAKEET_LANGS.contains(&lang)
-}
-
 /// Резолв активного ASR: если выбран движок whisper И бинарь+модель на диске — Whisper (модель = выбор,
-/// иначе первый установленный по убыванию качества); иначе — Parakeet (существующий резолв каталога TDT).
-/// Так «выбрал Whisper + скачал модель» применяется без рестарта, а недо-настроенный Whisper тихо
-/// откатывается на Parakeet (analyze не падает).
+/// иначе первый установленный по убыванию качества); иначе — модель transcribe.cpp из настроек (Nemotron или
+/// Parakeet в своём варианте), скачана она или нет: недостающую называет `asr_util::choice_of`.
 pub fn resolve_asr_choice(repo_root: &Path, mroot: &Path, sel: &Value) -> AsrChoice {
-    if let Some(family) = pick(sel, "asr_engine").and_then(crate::tcpp_asr::family) {
-        if crate::tcpp_asr::installed(mroot, family) {
-            return AsrChoice::Ggml { models_root: mroot.to_path_buf(), family };
-        }
-    }
     if pick(sel, "asr_engine") == Some("whisper") {
         let bin = whisper_bin(repo_root);
         // выбранная модель, если скачана; иначе — лучшая из установленных.
@@ -703,7 +678,10 @@ pub fn resolve_asr_choice(repo_root: &Path, mroot: &Path, sel: &Value) -> AsrCho
             };
         }
     }
-    AsrChoice::Parakeet(resolve_asr(mroot, sel))
+    let model = crate::tcpp_asr::chosen(pick(sel, "asr_engine").unwrap_or(""), pick(sel, "asr"))
+        .or_else(|| crate::tcpp_asr::model("parakeet-v3"))
+        .expect("parakeet-v3 is in dub_asr::tcpp::MODELS");
+    AsrChoice::Ggml { models_root: mroot.to_path_buf(), model }
 }
 
 /// Лежат ли рядом с whisper-faster.exe CUDA-библиотеки CTranslate2 (cuBLAS 11/12 + cuDNN).
@@ -739,8 +717,7 @@ fn whisper_cuda_libs_present(bin: &std::path::Path) -> bool {
 /// распознавателю; её понимает только Whisper, Parakeet подсказок не принимает.
 pub fn build_engine(choice: &AsrChoice, prompt: Option<String>) -> Box<dyn dub_asr::AsrEngine> {
     match choice {
-        AsrChoice::Parakeet(dir) => Box::new(dub_asr::Asr::new(dir)),
-        AsrChoice::Ggml { models_root, family } => Box::new(crate::tcpp_asr::LazyTcpp::new(models_root, family)),
+        AsrChoice::Ggml { models_root, model } => Box::new(dub_asr::tcpp::TcppEngine::new(models_root, model)),
         AsrChoice::Whisper { bin, model_dir, model, compute, device } => Box::new(dub_asr::WhisperAsr::new(bin, model_dir, model, compute, device).with_prompt(prompt)),
     }
 }
@@ -851,29 +828,6 @@ pub fn resolve_sep(mroot: &Path, sel: &Value) -> PathBuf {
     f("Q8_0")
 }
 
-/// Parakeet ASR: каталоги tdt (int8) и tdt-ultra-int8 (Parakeet Ultra, int8) — только квантованные веса.
-/// from_pretrained сам различает имена файлов внутри. Без выбора — int8. Env SPEECH_STUDIO_TDT имеет приоритет.
-pub fn resolve_asr(mroot: &Path, sel: &Value) -> PathBuf {
-    if let Ok(env) = std::env::var("SPEECH_STUDIO_TDT") {
-        return PathBuf::from(env);
-    }
-    resolve_asr_dir(mroot, sel)
-}
-
-fn resolve_asr_dir(mroot: &Path, sel: &Value) -> PathBuf {
-    let int8 = mroot.join("tdt");
-    let ultra_int8 = mroot.join("tdt-ultra-int8");
-    let int8_ok = int8.join("encoder-model.int8.onnx").is_file();
-    let ultra_int8_ok = ultra_int8.join("encoder-model.int8.onnx").is_file();
-    match pick(sel, "asr") {
-        Some("int8") if int8_ok => int8,
-        Some("ultra-int8") if ultra_int8_ok => ultra_int8,
-        _ if int8_ok => int8,
-        _ if ultra_int8_ok => ultra_int8,
-        _ => int8,
-    }
-}
-
 /// Gemma MT + vision: папки mt-q8_0/mt-q6_k/mt-q5_0 + mt (q4_0-дефолт). Возврат (модель, mmproj).
 /// Каталог годится, только если есть И модель, И mmproj (полускачанный игнорируется). Имя файла не
 /// важно — берём любой .gguf (mmproj по подстроке). Env-root уже учтён в mroot.
@@ -926,60 +880,26 @@ mod asr_variant_tests {
 
     #[test]
     fn parakeet_components_map_to_their_asr_slot() {
-        for (id, variant) in [("parakeet", "int8"), ("parakeet-ultra-int8", "ultra-int8"),
-        ] {
+        for (id, variant) in [("parakeet", "int8"), ("parakeet-ultra", "ultra-int8")] {
             let sel = component_selection(id);
             assert_eq!(sel, vec![("asr_engine", "parakeet".to_string()), ("asr", variant.to_string())], "{id}");
         }
+        assert_eq!(component_selection("asr-gguf-nemotron"), vec![("asr_engine", "nemotron".to_string())]);
     }
 
-    struct TmpModels(PathBuf);
-    impl TmpModels {
-        fn new(tag: &str, dirs: &[(&str, &str)]) -> Self {
-            let root = std::env::temp_dir().join(format!("dub-asr-variant-{tag}-{}", std::process::id()));
-            let _ = std::fs::remove_dir_all(&root);
-            for (dir, file) in dirs {
-                std::fs::create_dir_all(root.join(dir)).unwrap();
-                std::fs::write(root.join(dir).join(file), b"x").unwrap();
-            }
-            TmpModels(root)
-        }
-    }
-    impl Drop for TmpModels {
-        fn drop(&mut self) {
-            let _ = std::fs::remove_dir_all(&self.0);
+    fn file_of(sel: Value) -> &'static str {
+        match resolve_asr_choice(Path::new("."), Path::new("no-models"), &sel) {
+            AsrChoice::Ggml { model, .. } => model.file,
+            other => panic!("{}", other.describe()),
         }
     }
 
-    const ALL: &[(&str, &str)] = &[("tdt", "encoder-model.int8.onnx"), ("tdt-ultra-int8", "encoder-model.int8.onnx")];
-
-    fn sel(asr: &str) -> Value {
-        serde_json::json!({ "asr": asr })
-    }
-
-    fn leaf(p: &Path) -> String {
-        p.file_name().unwrap().to_string_lossy().into_owned()
-    }
-
     #[test]
-    fn each_selected_variant_resolves_to_its_folder() {
-        let m = TmpModels::new("all", ALL);
-        assert_eq!(leaf(&resolve_asr_dir(&m.0, &sel("int8"))), "tdt");
-        assert_eq!(leaf(&resolve_asr_dir(&m.0, &sel("ultra-int8"))), "tdt-ultra-int8");
-        assert_eq!(leaf(&resolve_asr_dir(&m.0, &sel("fp32"))), "tdt", "full-precision choices of an older version fall to int8");
-    }
-
-    #[test]
-    fn default_stays_int8_when_ultra_installed() {
-        let m = TmpModels::new("default", ALL);
-        assert_eq!(leaf(&resolve_asr_dir(&m.0, &serde_json::json!({}))), "tdt");
-    }
-
-    #[test]
-    fn only_ultra_installed_is_used() {
-        let m = TmpModels::new("only", &ALL[1..2]);
-        assert_eq!(leaf(&resolve_asr_dir(&m.0, &serde_json::json!({}))), "tdt-ultra-int8");
-        assert_eq!(AsrChoice::Parakeet(resolve_asr_dir(&m.0, &sel("ultra-int8"))).describe(), "Parakeet (tdt-ultra-int8)");
+    fn each_selected_variant_resolves_to_its_model() {
+        assert_eq!(file_of(serde_json::json!({})), "parakeet-tdt-0.6b-v3-Q8_0.gguf");
+        assert_eq!(file_of(serde_json::json!({ "asr": "int8" })), "parakeet-tdt-0.6b-v3-Q8_0.gguf");
+        assert_eq!(file_of(serde_json::json!({ "asr": "ultra-int8" })), "parakeet-ultra-Q8_0.gguf");
+        assert_eq!(file_of(serde_json::json!({ "asr_engine": "nemotron" })), "nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf");
     }
 }
 

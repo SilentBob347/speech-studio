@@ -24,7 +24,7 @@ const EASE = [0.22, 1, 0.36, 1] as const;
 const QUANT_GROUP: Record<string, string> = {
   higgs: "higgs", "higgs-q6_k": "higgs", "higgs-q4_k_m": "higgs",
   gemma: "gemma", "gemma-q5_0": "gemma", "gemma-q6_k": "gemma", "gemma-q8_0": "gemma",
-  parakeet: "parakeet", "parakeet-ultra-int8": "parakeet",
+  parakeet: "parakeet", "parakeet-ultra": "parakeet",
   roformer: "roformer", "roformer-q5": "roformer", "roformer-q4": "roformer",
 };
 

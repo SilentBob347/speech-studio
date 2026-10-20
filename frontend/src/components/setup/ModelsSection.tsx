@@ -338,9 +338,9 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
       </>)}
       {group(t("settings.roleText"), <>{rowOf("ruaccent")}{rowOf("ruaccent-omograph-big")}</>)}
       {group(t("settings.roleAsr"), <>
-        {/* Модель ASR — одна кнопка на модель: Parakeet-TDT и Whisper на движках Dub, Nemotron 3.5 и Cohere на transcribe.cpp, OpenRouter (облако). */}
+        {/* Модель ASR — одна кнопка на модель: Parakeet-TDT и Nemotron 3.5 на transcribe.cpp, Whisper на whisper-faster, OpenRouter (облако). */}
         <div className="flex gap-1 mb-1.5">
-          {[{ id: "parakeet", label: "Parakeet-TDT", cloud: false }, { id: "nemotron", label: "Nemotron 3.5", cloud: false }, { id: "whisper", label: "Whisper", cloud: false }, { id: "cohere", label: "Cohere", cloud: false }, { id: "openrouter", label: "OpenRouter", cloud: true }].map((e) => {
+          {[{ id: "parakeet", label: "Parakeet-TDT", cloud: false }, { id: "nemotron", label: "Nemotron 3.5", cloud: false }, { id: "whisper", label: "Whisper", cloud: false }, { id: "openrouter", label: "OpenRouter", cloud: true }].map((e) => {
             const asrCloud = selv("or_asr_on") === "1";
             const active = e.cloud ? asrCloud : (!asrCloud && asrEngine === e.id);
             const dis = e.cloud && !hasOrKey;
@@ -353,19 +353,22 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
             );
           })}
         </div>
-        {/* Локальный ASR (Parakeet/Whisper) — на чём считать: свои табы устройства. */}
-        {selv("or_asr_on") !== "1" && asrEngine !== "nemotron" && asrEngine !== "cohere" && backendTabs("asr_backend")}
+        {/* Whisper — на чём считать: свои табы устройства; transcribe.cpp идёт на видеокарте. */}
+        {selv("or_asr_on") !== "1" && asrEngine === "whisper" && backendTabs("asr_backend")}
         {selv("or_asr_on") === "1" ? (
           <div className={`${orRowCls} space-y-2`}>
             {orModelSelect("asr", "or_asr", t("providers.pickAsrModel"))}
             <div className="text-[11px] text-[var(--color-muted)]">{t("providers.asrCloudHint")}</div>
           </div>
         ) : asrEngine === "parakeet" ? (
-          variantPicker("Parakeet-TDT 0.6B v3", ["parakeet", "parakeet-ultra-int8"], ASR_VARIANT_I18N)
-        ) : asrEngine === "nemotron" || asrEngine === "cohere" ? (
           <>
             {rowOf("transcribe-engine")}
-            {rowOf(`asr-gguf-${asrEngine}`)}
+            {variantPicker("Parakeet-TDT 0.6B v3", ["parakeet", "parakeet-ultra"], ASR_VARIANT_I18N)}
+          </>
+        ) : asrEngine === "nemotron" ? (
+          <>
+            {rowOf("transcribe-engine")}
+            {rowOf("asr-gguf-nemotron")}
           </>
         ) : (
           <>

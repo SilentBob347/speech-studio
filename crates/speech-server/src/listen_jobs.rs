@@ -33,18 +33,15 @@ fn engine_for(p: &ListenPaths, project: &ListenProject) -> Result<Engine, String
     let mut sel = crate::models::load_selection(&p.models_root);
     let lang = project.settings.lang.as_str();
     let mut for_lang = false;
+    let studio = sel.get("asr_engine").and_then(Value::as_str).unwrap_or("parakeet").to_string();
     let picked = match project.settings.engine.as_str() {
-        // the studio's recogniser, but a language Parakeet or a transcribe.cpp model does not know goes to Whisper
-        "" => match sel.get("asr_engine").and_then(Value::as_str).unwrap_or("parakeet") {
-            "parakeet" if !matches!(lang, "" | "auto") && !crate::models::parakeet_knows(lang) => {
+        // the studio's recogniser, but a language its transcribe.cpp model does not know goes to Whisper
+        "" => match crate::tcpp_asr::chosen(&studio, sel.get("asr").and_then(Value::as_str)) {
+            Some(m) if !crate::tcpp_asr::knows(m, lang) => {
                 for_lang = true;
                 "whisper".to_string()
             }
-            g if crate::tcpp_asr::family(g).is_some_and(|f| !crate::tcpp_asr::knows(f, lang)) => {
-                for_lang = true;
-                "whisper".to_string()
-            }
-            e => e.to_string(),
+            _ => studio,
         },
         e => e.to_string(),
     };
@@ -62,27 +59,23 @@ fn engine_for(p: &ListenPaths, project: &ListenProject) -> Result<Engine, String
         }
         return Ok(Engine::Cloud(model));
     }
-    let gguf = crate::tcpp_asr::family(&picked);
     if let Some(obj) = sel.as_object_mut() {
-        obj.insert("asr_engine".into(), json!(match (picked.as_str(), gguf) { ("whisper", _) => "whisper", (_, Some(f)) => f.id, _ => "parakeet" }));
+        obj.insert("asr_engine".into(), json!(picked));
     }
     let choice = crate::models::resolve_asr_choice(&p.repo_root, &p.models_root, &sel);
-    let whisper = matches!(choice, crate::models::AsrChoice::Whisper { .. });
-    if picked == "whisper" && !whisper {
-        return Err(if for_lang { t!("listen-whisper-for-lang", lang = lang.to_string()) } else { t!("listen-whisper-missing") });
-    }
-    if let Some(f) = gguf {
-        if !matches!(choice, crate::models::AsrChoice::Ggml { .. }) {
-            return Err(t!("listen-gguf-missing", engine = f.name));
+    match &choice {
+        crate::models::AsrChoice::Whisper { .. } => Ok(Engine::Local(choice, "whisper")),
+        _ if picked == "whisper" => Err(if for_lang { t!("listen-whisper-for-lang", lang = lang.to_string()) } else { t!("listen-whisper-missing") }),
+        crate::models::AsrChoice::Ggml { model, .. } => {
+            if !crate::tcpp_asr::installed(&p.models_root, model) {
+                return Err(t!("listen-gguf-missing", engine = model.name));
+            }
+            if !crate::tcpp_asr::knows(model, lang) {
+                return Err(t!("listen-gguf-lang", engine = model.name, lang = lang.to_string()));
+            }
+            Ok(Engine::Local(choice.clone(), if model.id == "nemotron" { "nemotron" } else { "parakeet" }))
         }
     }
-    if !choice.knows(lang) {
-        return Err(match gguf {
-            Some(f) => t!("listen-gguf-lang", engine = f.name, lang = lang.to_string()),
-            None => t!("listen-parakeet-lang", lang = lang.to_string()),
-        });
-    }
-    Ok(Engine::Local(choice, if whisper { "whisper" } else if let Some(f) = gguf { f.id } else { "parakeet" }))
 }
 
 fn step(progress: &dyn Fn(Value), msg: String, pct: i64) {
@@ -293,7 +286,7 @@ fn recognise(p: &ListenPaths, engine: &Engine, wav: &Path, work: &Path, s: &lp::
             // Whisper windows a long recording itself; the others get it in pieces cut at pauses
             let segments = match choice {
                 crate::models::AsrChoice::Whisper { .. } => crate::models::build_engine(choice, prompt).transcribe(wav, lang).map_err(|e| e.localize())?,
-                crate::models::AsrChoice::Parakeet(_) | crate::models::AsrChoice::Ggml { .. } => recognise_by_pauses(p, choice, wav, work, lang, &s.vad, prompt, progress)?,
+                crate::models::AsrChoice::Ggml { .. } => recognise_by_pauses(p, choice, wav, work, lang, &s.vad, prompt, progress)?,
             };
             dub_asr::split_at_speaker_turns(segments, turns)
                 .into_iter()
@@ -356,7 +349,7 @@ pub fn transcribe(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Resul
     let diar = s.speakers != 1;
     crate::ensure_job_components(&p.repo_root, &p.models_root, s.speakers > 1, diar, &|ev| progress(ev))?;
     let mut extra = Vec::new();
-    if matches!(engine, Engine::Local(crate::models::AsrChoice::Parakeet(_), _)) {
+    if matches!(engine, Engine::Local(crate::models::AsrChoice::Ggml { .. }, _)) {
         extra.push("silero-vad");
     }
     if s.denoise {

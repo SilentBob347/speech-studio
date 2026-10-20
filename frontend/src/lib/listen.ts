@@ -6,7 +6,7 @@ export type ListenLine = {
   id: string; start: number; end: number; speaker: string; text: string; words: ListenWord[];
   approx: boolean; flag: HallucinationFlag | null; evidence: string | null; hidden: boolean;
 };
-export type ListenEngine = "" | "parakeet" | "nemotron" | "whisper" | "cohere" | "openrouter" | "fal";
+export type ListenEngine = "" | "parakeet" | "nemotron" | "whisper" | "openrouter" | "fal";
 export type VadConfig = { threshold: number; hysteresis: number; min_speech_ms: number; min_silence_ms: number; pad_ms: number };
 export type ListenSettings = {
   engine: ListenEngine; cloud_model: string; lang: string; speakers: number; separate: boolean; filter: boolean; prompt: string;

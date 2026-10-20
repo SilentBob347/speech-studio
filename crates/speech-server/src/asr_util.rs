@@ -23,7 +23,7 @@ pub fn choice(repo_root: &Path, models_root: &Path, lang: &str, what: &str) -> R
     choice_of(repo_root, models_root, lang, what, "")
 }
 
-/// The recogniser for `lang` with `engine` (parakeet, nemotron, whisper, cohere) in place of the settings' one; empty
+/// The recogniser for `lang` with `engine` (parakeet, nemotron, whisper) in place of the settings' one; empty
 /// keeps it. A recogniser that was asked for but is not downloaded, or does not know the language, is an error, not
 /// another recogniser; only Parakeet, the default, gives way to Whisper for a language it lacks.
 pub fn choice_of(repo_root: &Path, models_root: &Path, lang: &str, what: &str, engine: &str) -> Result<crate::models::AsrChoice, String> {
@@ -34,24 +34,28 @@ pub fn choice_of(repo_root: &Path, models_root: &Path, lang: &str, what: &str, e
         }
     }
     let asked = sel.get("asr_engine").and_then(serde_json::Value::as_str).unwrap_or_default().to_string();
-    let mut choice = crate::models::resolve_asr_choice(repo_root, models_root, &sel);
+    let choice = crate::models::resolve_asr_choice(repo_root, models_root, &sel);
     let lang = if lang.is_empty() || lang == "auto" { "" } else { lang };
-    let gguf = crate::tcpp_asr::family(&asked);
-    if let Some(f) = gguf {
-        if !matches!(choice, crate::models::AsrChoice::Ggml { .. }) {
-            return Err(t!("listen-gguf-missing", engine = f.name));
-        }
-    }
     if !choice.knows(lang) {
-        if let Some(f) = gguf {
-            return Err(t!("listen-gguf-lang", engine = f.name, lang = lang.to_string()));
+        if !matches!(asked.as_str(), "" | "parakeet") {
+            let name = match &choice {
+                crate::models::AsrChoice::Ggml { model, .. } => model.name,
+                crate::models::AsrChoice::Whisper { .. } => "Whisper",
+            };
+            return Err(t!("listen-gguf-lang", engine = name, lang = lang.to_string()));
         }
         if let Some(obj) = sel.as_object_mut() {
             obj.insert("asr_engine".into(), json!("whisper"));
         }
-        choice = crate::models::resolve_asr_choice(repo_root, models_root, &sel);
-        if !matches!(choice, crate::models::AsrChoice::Whisper { .. }) {
+        let whisper = crate::models::resolve_asr_choice(repo_root, models_root, &sel);
+        if !matches!(whisper, crate::models::AsrChoice::Whisper { .. }) {
             return Err(t!("voice-lang-needs-whisper", name = what.to_string(), lang = lang.to_string()));
+        }
+        return Ok(whisper);
+    }
+    if let crate::models::AsrChoice::Ggml { model, .. } = &choice {
+        if !crate::tcpp_asr::installed(models_root, model) {
+            return Err(t!("listen-gguf-missing", engine = model.name));
         }
     }
     Ok(choice)

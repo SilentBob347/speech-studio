@@ -128,8 +128,6 @@ pub struct AppState {
     pub web_root: Option<PathBuf>,
     pub opts: Arc<EngineOpts>,
     pub jobs: JobQueue,
-    /// Каталог TDT-модели ASR (analyze). Env SPEECH_STUDIO_TDT, иначе <models_root>/tdt.
-    pub tdt_dir: PathBuf,
     /// Путь к модели диаризации (Nemotron 3 Diarization .onnx). Env SPEECH_STUDIO_SORTFORMER, иначе
     /// <models_root>/nemotron-diar/nemotron3_diar_v3.onnx.
     pub sortformer_onnx: PathBuf,
@@ -314,9 +312,6 @@ impl AppState {
             Ok(_) => {}
             Err(e) => tracing::error!("secrets from active.json were not moved to the store: {e:#}"),
         }
-        let tdt_dir = std::env::var("SPEECH_STUDIO_TDT")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| mroot.join("tdt"));
         let sortformer_onnx = std::env::var("SPEECH_STUDIO_SORTFORMER")
             .map(PathBuf::from)
             .unwrap_or_else(|_| {
@@ -349,7 +344,6 @@ impl AppState {
             web_root,
             opts: Arc::new(EngineOpts::default()),
             jobs: JobQueue::new(),
-            tdt_dir,
             sortformer_onnx,
             llama_bin,
             bsroformer_cli,
@@ -656,7 +650,7 @@ async fn capabilities(State(st): State<AppState>) -> Json<Value> {
         "modes": ["speech","listening"],
         // Выбор ASR: движок (parakeet|nemotron|whisper), модель Whisper, квант Whisper (compute_type).
         "selection": sel,
-        "asr_engines": ["parakeet","nemotron","whisper","cohere"],
+        "asr_engines": ["parakeet","nemotron","whisper"],
         "whisper_models": ["tiny","base","small","medium","large-v3","large-v3-turbo"],
         // Кванты Whisper (compute_type): float16 / int8_float16 задействуют Tensor Cores на CUDA GPU.
         "whisper_computes": ["int8","int8_float16","float16","int8_float32","float32"],

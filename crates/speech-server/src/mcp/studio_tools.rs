@@ -362,7 +362,7 @@ pub(super) fn tools() -> Vec<Tool> {
         Tool {
             name: "voice_listen_start",
             description: "Turn the studio's microphone on for a spoken conversation: each phrase the person ends with a pause is recognised for voice_listen, and their speaking over the studio stops its speech at once (the studio's own voice heard back is told apart). lang a code or auto. Pair it with say_start for a talking agent: listen, answer with say_text as you write, listen again.",
-            schema: || object(json!({ "lang": { "type": "string" }, "device": { "type": "string", "description": "a microphone of voice_record_devices; none: the default one" }, "engine": { "type": "string", "enum": ["parakeet", "nemotron", "whisper", "cohere"], "description": "the recogniser; none: the one in the settings" } }), &[]),
+            schema: || object(json!({ "lang": { "type": "string" }, "device": { "type": "string", "description": "a microphone of voice_record_devices; none: the default one" }, "engine": { "type": "string", "enum": ["parakeet", "nemotron", "whisper"], "description": "the recogniser; none: the one in the settings" } }), &[]),
             call: |args| post("/speech/listen".into(), args.clone()),
         },
         Tool {

@@ -60,8 +60,10 @@ release notes on GitHub are taken from the release's section.
 
 ### Listening
 
-- **Nemotron 3.5 ASR** (35 languages with punctuation) and **Cohere Transcribe** (14 languages) as local recognisers
-  beside Parakeet and Whisper, both GGUF Q8_0 on the transcribe.cpp engine; each model is offered once.
+- **Recognition on transcribe.cpp** (GGUF Q8_0 on the GPU): Parakeet-TDT v3 and Parakeet Ultra move off ONNX Runtime,
+  and **Nemotron 3.5 ASR** (28 languages with punctuation) joins them; the model stays loaded between jobs instead of
+  loading for each one. Whisper stays on faster-whisper for its word times. The engine and the models are the ones
+  Dub Studio uses, so either program takes them from the other.
 - **Live recognition** from the microphone phrase by phrase, a **watched folder** recognised in the background,
   **quick recognition** of a file without the editor, a batch of files saved in several formats at once.
 - Subtitles by a broadcaster's rules (Netflix, BBC and others), who talks how much, a repeated phrase in the player,

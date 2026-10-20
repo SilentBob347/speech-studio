@@ -445,10 +445,10 @@
     }
   },
   "asrVariant": {
-    "int8": "int8",
-    "int8Hint": "NVIDIA base model, int8 quant — fast and light (~0.7 GB)",
-    "ultraInt8": "Ultra · int8",
-    "ultraInt8Hint": "Moondream fine-tune of the base model, quantized: fewer recognition errors, same 25 languages · int8 ~0.7 GB"
+    "int8": "v3 · Q8_0",
+    "int8Hint": "NVIDIA base model, Q8_0 quant — fast and light (~0.7 GB)",
+    "ultraInt8": "Ultra · Q8_0",
+    "ultraInt8Hint": "Moondream fine-tune of the base model, quantized: fewer recognition errors, same 25 languages · Q8_0 ~0.7 GB"
   },
   "units": {
     "gb": "GB",
@@ -1771,9 +1771,7 @@
     "source_file": "File",
     "source_link": "Link",
     "source_mic": "Microphone",
-    "source_folder": "Folder",
-    "engine_cohere": "Cohere Transcribe (GPU, 14 languages)",
-    "engineHint_cohere": "Cohere Transcribe: on the video card, 14 languages without Russian, very accurate in English; download it in Settings → Models."
+    "source_folder": "Folder"
   },
   "podcast": {
     "open": "Podcast script",

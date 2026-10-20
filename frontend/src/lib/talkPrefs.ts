@@ -5,7 +5,7 @@ import i18n from "i18next";
 export type TalkPrefs = {
   style: string;
   lang: string;
-  /** the recogniser: parakeet, nemotron, whisper or cohere; empty is the one in the settings */
+  /** the recogniser: parakeet, nemotron or whisper; empty is the one in the settings */
   asr: string;
   /** the microphone by the studio's name for it; empty is the system's default */
   device: string;

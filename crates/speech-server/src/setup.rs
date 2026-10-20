@@ -711,23 +711,13 @@ pub fn manifest() -> Vec<Component> {
         },
         Component {
             id: "parakeet",
-            name: "Parakeet-TDT 0.6B v3 (int8)".into(),
+            name: "Parakeet TDT 0.6B v3 (GGUF Q8_0, transcribe.cpp)".into(),
             purpose: t!("setup-comp-parakeet-purpose"),
             requirement: Requirement::Required,
             delivery: Delivery::Download,
-            size: 670_619_803,
-            files: &[
-                FileSpec { url: "https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce/encoder-model.int8.onnx", dest_rel: "models/tdt/encoder-model.int8.onnx", size: 652_183_999, sha256: "6139d2fa7e1b086097b277c7149725edbab89cc7c7ae64b23c741be4055aff09", extract: Extract::None },
-                FileSpec { url: "https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce/decoder_joint-model.int8.onnx", dest_rel: "models/tdt/decoder_joint-model.int8.onnx", size: 18_202_004, sha256: "eea7483ee3d1a30375daedc8ed83e3960c91b098812127a0d99d1c8977667a70", extract: Extract::None },
-                FileSpec { url: "https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce/nemo128.onnx", dest_rel: "models/tdt/nemo128.onnx", size: 139_764, sha256: "a9fde1486ebfcc08f328d75ad4610c67835fea58c73ba57e3209a6f6cf019e9f", extract: Extract::None },
-                FileSpec { url: "https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce/vocab.txt", dest_rel: "models/tdt/vocab.txt", size: 93_939, sha256: "d58544679ea4bc6ac563d1f545eb7d474bd6cfa467f0a6e2c1dc1c7d37e3c35d", extract: Extract::None },
-                FileSpec { url: "https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce/config.json", dest_rel: "models/tdt/config.json", size: 97, sha256: "666903c76b9798caf2c210afd4f6cd60b08a8dbf9800ec8d7a3bc0d2148ac466", extract: Extract::None },
-            ],
-            markers: &[
-                Marker { rel: "models/tdt/encoder-model.int8.onnx", expect: 652_183_999 },
-                Marker { rel: "models/tdt/decoder_joint-model.int8.onnx", expect: 18_202_004 },
-                Marker { rel: "models/tdt/vocab.txt", expect: 93_939 },
-            ],
+            size: 739_508_576,
+            files: &[FileSpec { url: "https://huggingface.co/handy-computer/parakeet-tdt-0.6b-v3-gguf/resolve/d8d8c32cb2017c57e5307767343e97870f8a7f53/parakeet-tdt-0.6b-v3-Q8_0.gguf", dest_rel: "models/asr-gguf-parakeet-v3/parakeet-tdt-0.6b-v3-Q8_0.gguf", size: 739_508_576, sha256: "5859f77944efcd8eafa23a6350731960b2b55b2203df51f319665c807d802cc7", extract: Extract::None }],
+            markers: &[Marker { rel: "models/asr-gguf-parakeet-v3/parakeet-tdt-0.6b-v3-Q8_0.gguf", expect: 739_508_576 }],
             external_url: None,
         },
         // Альтернативные кванты TTS Higgs (выбор в настройках; своя папка на квант, aux те же).
@@ -862,33 +852,23 @@ pub fn manifest() -> Vec<Component> {
         // istupakov int8 базовой. Своя папка: энкодер в пределах допуска по размеру от базового int8, а декодер
         // и словарь совпадают с ним по размеру при других байтах.
         Component {
-            id: "parakeet-ultra-int8",
-            name: "Parakeet Ultra 0.6B (int8)".into(),
+            id: "parakeet-ultra",
+            name: "Parakeet Ultra 0.6B (GGUF Q8_0, transcribe.cpp)".into(),
             purpose: t!("setup-comp-parakeet-ultra-purpose"),
             requirement: Requirement::Optional,
             delivery: Delivery::Download,
-            size: 670_619_018,
-            files: &[
-                FileSpec { url: "https://huggingface.co/Masterx/parakeet-tdt-0.6b-ultra-onnx/resolve/99b09f030a5a6efeaa13cf2cf54592100ce2c3f1/encoder-model.int8.onnx", dest_rel: "models/tdt-ultra-int8/encoder-model.int8.onnx", size: 652_183_214, sha256: "46e78f85f1ae43b43bd359889c966da5c7ca401df60a42eeffc2e7699b357ba6", extract: Extract::None },
-                FileSpec { url: "https://huggingface.co/Masterx/parakeet-tdt-0.6b-ultra-onnx/resolve/99b09f030a5a6efeaa13cf2cf54592100ce2c3f1/decoder_joint-model.int8.onnx", dest_rel: "models/tdt-ultra-int8/decoder_joint-model.int8.onnx", size: 18_202_004, sha256: "2276a335d4c8dc48686e931475a634595954956427d485830e1214c0d1a18d07", extract: Extract::None },
-                FileSpec { url: "https://huggingface.co/istupakov/parakeet-tdt-0.6b-v3-onnx/resolve/8f23f0c03c8761650bdb5b40aaf3e40d2c15f1ce/nemo128.onnx", dest_rel: "models/tdt-ultra-int8/nemo128.onnx", size: 139_764, sha256: "a9fde1486ebfcc08f328d75ad4610c67835fea58c73ba57e3209a6f6cf019e9f", extract: Extract::None },
-                FileSpec { url: "https://huggingface.co/Masterx/parakeet-tdt-0.6b-ultra-onnx/resolve/99b09f030a5a6efeaa13cf2cf54592100ce2c3f1/vocab.txt", dest_rel: "models/tdt-ultra-int8/vocab.txt", size: 93_939, sha256: "d58544679ea4bc6ac563d1f545eb7d474bd6cfa467f0a6e2c1dc1c7d37e3c35d", extract: Extract::None },
-                FileSpec { url: "https://huggingface.co/Masterx/parakeet-tdt-0.6b-ultra-onnx/resolve/99b09f030a5a6efeaa13cf2cf54592100ce2c3f1/config.json", dest_rel: "models/tdt-ultra-int8/config.json", size: 97, sha256: "666903c76b9798caf2c210afd4f6cd60b08a8dbf9800ec8d7a3bc0d2148ac466", extract: Extract::None },
-            ],
-            markers: &[
-                Marker { rel: "models/tdt-ultra-int8/encoder-model.int8.onnx", expect: 652_183_214 },
-                Marker { rel: "models/tdt-ultra-int8/decoder_joint-model.int8.onnx", expect: 18_202_004 },
-                Marker { rel: "models/tdt-ultra-int8/vocab.txt", expect: 93_939 },
-            ],
+            size: 740_363_168,
+            files: &[FileSpec { url: "https://huggingface.co/handy-computer/parakeet-ultra-gguf/resolve/a1539be1b849ea7463b88343e5277b373d0c4ea9/parakeet-ultra-Q8_0.gguf", dest_rel: "models/asr-gguf-parakeet-ultra/parakeet-ultra-Q8_0.gguf", size: 740_363_168, sha256: "007a59761e9258779f189df396b50d12b83bb5b79e66df4b955c230d2f2a0a59", extract: Extract::None }],
+            markers: &[Marker { rel: "models/asr-gguf-parakeet-ultra/parakeet-ultra-Q8_0.gguf", expect: 740_363_168 }],
             external_url: None,
         },
-        // Recognition by transcribe.cpp (ggml, CUDA): the engine, then each model it runs (tcpp_asr::FAMILIES) as its
+        // Recognition by transcribe.cpp (ggml, CUDA): the engine, then each model it runs (dub_asr::tcpp::MODELS) as its
         // GGUF from its authors' repository at a pinned revision.
         Component {
             id: "transcribe-engine",
             name: "transcribe.cpp (CUDA)".into(),
             purpose: t!("setup-comp-transcribe-engine-purpose"),
-            requirement: Requirement::Optional,
+            requirement: Requirement::Required,
             delivery: Delivery::Download,
             size: platform::TRANSCRIBE_ENGINE.size,
             files: platform::TRANSCRIBE_ENGINE.files,
@@ -904,17 +884,6 @@ pub fn manifest() -> Vec<Component> {
             size: 751_094_240,
             files: &[FileSpec { url: "https://huggingface.co/handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf/resolve/53ce288f69326b415aeef030cfcb02a08a8096dd/nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf", dest_rel: "models/asr-gguf-nemotron/nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf", size: 751_094_240, sha256: "b94545b313b3223fda7b2857a52681da813935c2127643d1e9ff0c23d988089c", extract: Extract::None }],
             markers: &[Marker { rel: "models/asr-gguf-nemotron/nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf", expect: 751_094_240 }],
-            external_url: None,
-        },
-        Component {
-            id: "asr-gguf-cohere",
-            name: "Cohere Transcribe 03-2026 (GGUF Q8_0, transcribe.cpp)".into(),
-            purpose: t!("setup-comp-asr-gguf-cohere-purpose"),
-            requirement: Requirement::Optional,
-            delivery: Delivery::Download,
-            size: 2_410_655_232,
-            files: &[FileSpec { url: "https://huggingface.co/handy-computer/cohere-transcribe-03-2026-gguf/resolve/7353b6040bdc1be9e5a3823d99d5fe12afe88264/cohere-transcribe-03-2026-Q8_0.gguf", dest_rel: "models/asr-gguf-cohere/cohere-transcribe-03-2026-Q8_0.gguf", size: 2_410_655_232, sha256: "931916663432fd895423a4291a8400221802b288967ca2d435fc5e3141c9e71e", extract: Extract::None }],
-            markers: &[Marker { rel: "models/asr-gguf-cohere/cohere-transcribe-03-2026-Q8_0.gguf", expect: 2_410_655_232 }],
             external_url: None,
         },
         // ── АЛЬТЕРНАТИВНЫЙ ASR-ДВИЖОК: Whisper (Purfview standalone faster-whisper) ──────────
@@ -1412,9 +1381,8 @@ fn vram_estimate(id: &str) -> u64 {
         "gemma-q6_k" => gb(11.2),
         "gemma-q8_0" => gb(14.0),
         "parakeet" => gb(1.1),
-        "parakeet-ultra-int8" => gb(1.1),
+        "parakeet-ultra" => gb(1.1),
         "asr-gguf-nemotron" => gb(1.5),
-        "asr-gguf-cohere" => gb(3.2),
         "supertonic3" => gb(0.6),
         "qwen3-tts" => gb(2.8),
         "qwen3-tts-q8_0" => gb(3.7),
@@ -1987,7 +1955,7 @@ pub fn setup_status(repo_root: &Path) -> SetupStatus {
         }
         let is_gemma = c.id.starts_with("gemma") || c.id == "llama";
         let is_higgs = c.id.starts_with("higgs");
-        let is_asr = c.id.starts_with("parakeet") || c.id.starts_with("whisper");
+        let is_asr = c.id.starts_with("parakeet") || c.id.starts_with("whisper") || c.id == "transcribe-engine";
         if (cloud_llm && is_gemma) || (cloud_tts && is_higgs) || (cloud_asr && is_asr) {
             c.requirement = Requirement::Optional;
         }
@@ -3320,7 +3288,7 @@ mod tests {
     fn a_downloaded_variant_stands_for_its_model_on_the_first_run() {
         let mut comps = vec![
             model("parakeet", 1.1, Requirement::Required),
-            model("parakeet-ultra-int8", 0.7, Requirement::Optional),
+            model("parakeet-ultra", 0.7, Requirement::Optional),
             model("gemma", 8.5, Requirement::Required),
             model("higgs-engine", 0.0, Requirement::Required),
         ];
@@ -3476,7 +3444,7 @@ mod tests {
 
     #[test]
     fn new_model_components_pinned_and_sized() {
-        for id in ["sortformer", "parakeet-ultra-int8"] {
+        for id in ["sortformer", "parakeet-ultra"] {
             let c = comp(id);
             let sum: u64 = c.files.iter().map(|f| f.size).sum();
             assert_eq!(c.size, sum, "{id}: size != сумме файлов");
@@ -3542,50 +3510,18 @@ mod tests {
         }
     }
 
-    fn index(files: &[(&str, u64)]) -> std::collections::HashMap<String, Vec<(PathBuf, u64)>> {
-        let mut map: std::collections::HashMap<String, Vec<(PathBuf, u64)>> = Default::default();
-        for (p, sz) in files {
-            let p = PathBuf::from(p);
-            let base = p.file_name().unwrap().to_string_lossy().to_lowercase();
-            map.entry(base).or_default().push((p, *sz));
-        }
-        map
-    }
-
-
-    fn picks(id: &str, map: &std::collections::HashMap<String, Vec<(PathBuf, u64)>>,
-    ) -> Vec<Option<String>> {
-        let c = comp(id);
-        c.markers
-            .iter()
-            .map(|m| pick_import_source(&c, m, map).map(|p| p.to_string_lossy().replace('\\', "/")))
-            .collect()
-    }
-
-    const INT8_DIR: &[(&str, u64)] = &[
-        ("src/int8/encoder-model.int8.onnx", 652_183_999),
-        ("src/int8/decoder_joint-model.int8.onnx", 18_202_004),
-        ("src/int8/vocab.txt", 93_939),
-    ];
-    const ULTRA_INT8_DIR: &[(&str, u64)] = &[
-        ("src/ultra-int8/encoder-model.int8.onnx", 652_183_214),
-        ("src/ultra-int8/decoder_joint-model.int8.onnx", 18_202_004),
-        ("src/ultra-int8/vocab.txt", 93_939),
-    ];
-
+    /// The recognition models and their engine download the same files as dub_asr::tcpp names, so every program
+    /// that keeps them takes them from its neighbour.
     #[test]
-    fn import_never_mixes_base_int8_and_ultra_int8() {
-        let map = index(INT8_DIR);
-        assert!(picks("parakeet-ultra-int8", &map).iter().all(Option::is_none), "{:?}", picks("parakeet-ultra-int8", &map));
-        let map = index(ULTRA_INT8_DIR);
-        assert!(picks("parakeet", &map).iter().all(Option::is_none), "{:?}", picks("parakeet", &map));
-        let both: Vec<(&str, u64)> = INT8_DIR.iter().chain(ULTRA_INT8_DIR).copied().collect();
-        let map = index(&both);
-        for (id, dir) in [("parakeet", "src/int8/"), ("parakeet-ultra-int8", "src/ultra-int8/")] {
-            for p in picks(id, &map) {
-                assert!(p.as_deref().is_some_and(|p| p.starts_with(dir)), "{id}: {p:?}");
-            }
+    fn transcribe_cpp_components_are_dub_asrs() {
+        for m in crate::tcpp_asr::MODELS {
+            let c = comp(crate::tcpp_asr::component(m));
+            let [f] = c.files else { panic!("{}: one file", c.id) };
+            assert_eq!((f.url, f.size, f.sha256), (m.download.url, m.download.size, m.download.sha256), "{}", c.id);
+            assert_eq!(std::path::Path::new(f.dest_rel), std::path::Path::new("models").join(m.dir).join(m.file), "{}", c.id);
         }
+        let e = comp("transcribe-engine");
+        assert!(e.files.iter().any(|f| (f.url, f.size, f.sha256) == (crate::tcpp_asr::ENGINE.url, crate::tcpp_asr::ENGINE.size, crate::tcpp_asr::ENGINE.sha256)));
     }
 
     /// Имена архивов в каталоге закачек не пересекаются (два _engine.zip разных движков).

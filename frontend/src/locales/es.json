@@ -445,10 +445,10 @@
     }
   },
   "asrVariant": {
-    "int8": "int8",
-    "int8Hint": "Modelo base de NVIDIA, cuantización int8: rápido y ligero (~0,7 GB)",
-    "ultraInt8": "Ultra · int8",
-    "ultraInt8Hint": "Versión del modelo base ajustada por Moondream, cuantizada: menos errores de reconocimiento, los mismos 25 idiomas · int8 ~0,7 GB"
+    "int8": "v3 · Q8_0",
+    "int8Hint": "Modelo base de NVIDIA, cuantización Q8_0: rápido y ligero (~0,7 GB)",
+    "ultraInt8": "Ultra · Q8_0",
+    "ultraInt8Hint": "Versión del modelo base ajustada por Moondream, cuantizada: menos errores de reconocimiento, los mismos 25 idiomas · Q8_0 ~0,7 GB"
   },
   "units": {
     "gb": "GB",
@@ -1771,9 +1771,7 @@
     "source_file": "Archivo",
     "source_link": "Enlace",
     "source_mic": "Micrófono",
-    "source_folder": "Carpeta",
-    "engine_cohere": "Cohere Transcribe (GPU, 14 idiomas)",
-    "engineHint_cohere": "Cohere Transcribe: en la tarjeta gráfica, 14 idiomas sin ruso, muy preciso en inglés; se descarga en Ajustes → Modelos."
+    "source_folder": "Carpeta"
   },
   "podcast": {
     "open": "Guion de pódcast",
