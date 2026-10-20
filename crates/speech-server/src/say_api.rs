@@ -309,11 +309,40 @@ async fn voice(st: AppState, sid: String, phrases: Vec<String>, direction: Strin
         Err(e) => return refuse(StatusCode::INTERNAL_SERVER_ERROR, "save_failed", e),
     };
     SAID.lock().unwrap_or_else(|p| p.into_inner()).extend(phrases.iter().map(|p| (std::time::Instant::now(), sid.clone(), p.clone())));
-    let started = crate::speech_api::synth(State(st), AxPath(sid), Json(json!({ "ids": ids, "aloud": true }))).await;
+    let started = crate::speech_api::synth(State(st.clone()), AxPath(sid.clone()), Json(json!({ "ids": ids, "aloud": true }))).await;
     if !started.status().is_success() {
         return started;
     }
+    let job: Value = match axum::body::to_bytes(started.into_body(), usize::MAX).await.map_err(|e| e.to_string()).and_then(|b| serde_json::from_slice(&b).map_err(|e| e.to_string())) {
+        Ok(v) => v,
+        Err(e) => return refuse(StatusCode::INTERNAL_SERVER_ERROR, "internal", e),
+    };
+    if let Some(job_id) = job["job_id"].as_str().map(str::to_string) {
+        tokio::spawn(failed_job_marks_phrases(st, sid, job_id, ids.clone()));
+    }
     Json(json!({ "voicing": ids.len(), "blocks": ids })).into_response()
+}
+
+/// A voicing job that fails as a whole (an engine without the language, a missing model) leaves its phrases unsaid with
+/// its reason, so `state` says they failed instead of waiting for ever.
+async fn failed_job_marks_phrases(st: AppState, sid: String, job_id: String, ids: Vec<String>) {
+    let end = loop {
+        match st.jobs.wait(&job_id, 300).await {
+            Some(snap) if matches!(snap["status"].as_str(), Some("running" | "queued")) => continue,
+            other => break other,
+        }
+    };
+    let Some(error) = end.filter(|s| s["status"] == "error").and_then(|s| s["error"].as_str().map(str::to_string)) else { return };
+    let marked = sp::edit(&st.workspace, &sid, |project| {
+        for id in &ids {
+            if let Some(b) = project.block_mut(id).filter(|b| b.takes.is_empty() && b.error.is_none()) {
+                b.error = Some(sp::BlockError { key: String::new(), text: error.clone() });
+            }
+        }
+    });
+    if let Err(e) = marked {
+        tracing::error!("[ERROR] say: the failed phrases of {sid} were not marked: {e}");
+    }
 }
 
 /// DELETE /speech/say — every session stops speaking now, as when the person interrupts.
