@@ -81,12 +81,13 @@ void main() {
     bloom += clamp(1.0 / max(d + dynamicBlur, 0.001), 0.0, 250.0) * color;
   }
   pp *= 1.0 / ITERATIONS;
+  float fade = 1.0 - smoothstep(0.34, 0.5, length(uv - 0.5));
   vec3 color;
   if (uMode < 0.5) {
     color = -pp * 1.2;
     color += (randFibo(gl_FragCoord.xy).x - 0.5) / 255.0;
     color = tonemap(color);
-    gl_FragColor = vec4(color * uMix, luma(color) * uMix);
+    gl_FragColor = vec4(color * uMix, luma(color) * uMix) * fade;
   } else {
     color = -pp;
     color += (randFibo(gl_FragCoord.xy).x - 0.5) / 255.0;
@@ -96,7 +97,7 @@ void main() {
     color = direction * mapped;
     color = clamp(mix(vec3(dot(color, vec3(0.2, 0.5, 0.1))), color, 3.0), 0.0, 1.0);
     float alpha = mapped * clamp(uMix, 1.0, 2.0);
-    gl_FragColor = vec4(color * alpha, alpha);
+    gl_FragColor = vec4(color * alpha, alpha) * fade;
   }
 }`;
 

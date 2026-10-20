@@ -27,11 +27,15 @@ export default function Wave({ state, level, className }: VisualProps) {
     const resize = new ResizeObserver(make);
     resize.observe(el);
     const calm = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const tick = () => {
+    let last = performance.now();
+    const tick = (time: number) => {
+      const dt = Math.min(0.1, (time - last) / 1000);
+      last = time;
       const s = stateRef.current;
       const reactive = s === "speaking" || s === "hearing";
       const goal = reactive ? Math.min(3, 0.6 + levelRef.current() * 5) : AMPLITUDE[s];
-      shown += (goal - shown) * 0.25;
+      // the loudness arrives in steps: rise fast, fall slowly, so the curves swell instead of twitching
+      shown += (goal - shown) * (1 - Math.exp(-dt / (goal > shown ? 0.08 : 0.35)));
       wave?.setAmplitude(shown);
       wave?.setSpeed(SPEED[s] * (calm.matches ? 0.3 : 1));
       frame = requestAnimationFrame(tick);
