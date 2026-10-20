@@ -25,6 +25,7 @@ release notes on GitHub are taken from the release's section.
   and the card keeps a cache of the ones in use; the sound is the same. Settings → Models → *VRAM for Drama 3*: Auto
   (the whole model when it fits the free VRAM) or 5 to 24 GB by hand. Measured on an RTX 4090: whole model about 8×
   faster than real time, 12 GB 4.7×, 8 GB 3×, 6 GB 2.2×. Engine drama-rs engine-0.1.3.
+- **Whisper keeps int8 weights on the card** (int8_float16 by default; only the int8 computes are offered, a saved float16/float32 choice falls back to the default), and a card that fails says so instead of recognising on the processor in silence.
 - **A single line with a colon is voiced whole** («Внимание: поезд прибывает»): only two lines or more like «Anna: …» make a dialog, a single one lost its words before the colon as a speaker's name.
 - **A stress model that failed to load no longer stops voicing for the rest of the session.** The failure kept a lock
   closed and every later block failed with "stress lock"; it now says why the load failed, and the next block tries
