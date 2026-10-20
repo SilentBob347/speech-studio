@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { ORDER, STRINGS } from '../docs/site/strings.mjs';
 import { ENGINES, GROUPS, STRESS, voiceName } from '../docs/site/samples.mjs';
 import { STUDIO } from '../docs/site/studio.mjs';
-import { ENGINE_BENCH } from '../docs/site/engines.mjs';
+import { ASR_BENCH, ENGINE_BENCH, LIVE_BENCH } from '../docs/site/engines.mjs';
 // the studio's version, from the one place it is written
 const VERSION = JSON.parse(readFileSync(new URL('../desktop/src-tauri/tauri.conf.json', import.meta.url), 'utf8')).version;
 
@@ -133,6 +133,21 @@ ${others.map((g, at, all) => group(g, at, all)).join('\n')}
       <thead><tr>${s.engineCols.map((col) => `<th>${escape(col)}</th>`).join('')}</tr></thead>
       <tbody>
 ${ENGINE_BENCH.map((row) => `        <tr><td><b>${escape(ENGINES[row.engine])}</b></td><td>${escape(s.engineRoles[row.engine])}</td><td>${number(row.speed)}${u.x}</td><td>${first(row.firstMs)}</td><td>${escape(u[row.stream])}</td><td>${number(row.diskGB)} ${u.gb}</td><td>${number(row.vramGB)} ${u.gb}</td></tr>`).join('\n')}
+      </tbody>
+    </table></div>
+    <h3>${escape(s.asrTitle)}</h3>
+    <p class="sub">${escape(s.asrSub)}</p>
+    <div class="scroll"><table>
+      <thead><tr>${s.asrCols.map((col) => `<th>${escape(col)}</th>`).join('')}</tr></thead>
+      <tbody>
+${ASR_BENCH.map((row) => `        <tr><td><b>${escape(row.name)}</b></td><td>${escape(s.asrRoles[row.model])}</td><td>${number(row.gpu)}${u.x}</td><td>${number(row.cpu)}${u.x}</td><td>${row.langs}</td><td>${number(row.diskGB)} ${u.gb}</td><td>${number(row.vramGB)} ${u.gb}</td></tr>`).join('\n')}
+      </tbody>
+    </table></div>
+    <h3>${escape(s.liveTitle)}</h3>
+    <p class="sub">${escape(s.liveSub)}</p>
+    <div class="scroll"><table>
+      <tbody>
+${LIVE_BENCH.map((row) => `        <tr><td>${escape(s.liveSteps[row.step])}</td><td><b>${row.ms.map(first).join(' – ')}</b></td></tr>`).join('\n')}
       </tbody>
     </table></div>
   </section>

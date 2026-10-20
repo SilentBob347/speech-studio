@@ -9,3 +9,23 @@ export const ENGINE_BENCH = [
   { engine: 'drama3', speed: 7.0, firstMs: 326, stream: 'yes', diskGB: 21.4, vramGB: 21.9 },
   { engine: 'higgs', speed: 2.3, firstMs: 1023, stream: 'yes', diskGB: 5.3, vramGB: 18.1 },
 ];
+
+// Recognition as measured on 2026-10-20: Speech Studio 0.2.1 as installed, the same RTX 4090 and Windows 11, one
+// 5-minute Russian recording of one speaker (299.7 s) transcribed in Listening without telling speakers apart, the
+// model loading included. gpu and cpu: seconds of recording per second of work; vramGB: peak during the job above
+// idle; diskGB: the GGUF Q8_0 as downloaded.
+export const ASR_BENCH = [
+  { model: 'parakeet', name: 'Parakeet TDT v3', gpu: 96, cpu: 33, langs: 25, diskGB: 0.7, vramGB: 1.2 },
+  { model: 'parakeet-ultra', name: 'Parakeet Ultra', gpu: 73, cpu: 33, langs: 25, diskGB: 0.7, vramGB: 1.0 },
+  { model: 'nemotron', name: 'Nemotron 3.5', gpu: 73, cpu: 29, langs: 28, diskGB: 0.7, vramGB: 1.0 },
+];
+
+// One turn of a Live conversation, ms: the phrase as text after the speech ends (Parakeet on the card, the pause that
+// ends a phrase included; three runs of a phrase fed as the microphone, 0.2.1), the agent writing its answer (Claude
+// Sonnet, measured 2026-10-19, from the phrase heard to its first text) and the first sound of the answer (the
+// fastest and slowest engine of ENGINE_BENCH).
+export const LIVE_BENCH = [
+  { step: 'heard', ms: [641, 735] },
+  { step: 'agent', ms: [2000, 3900] },
+  { step: 'voice', ms: [19, 1023] },
+];
