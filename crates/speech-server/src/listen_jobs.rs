@@ -29,21 +29,32 @@ enum Engine {
     Fal(String),
 }
 
+/// The recogniser a recording in `lang` gets: the project's, else the studio's, and Whisper for a language the studio's
+/// transcribe.cpp model does not know (then `true`).
+fn picked_engine(p: &ListenPaths, project: &ListenProject, lang: &str) -> (String, bool) {
+    let sel = crate::models::load_selection(&p.models_root);
+    let studio = sel.get("asr_engine").and_then(Value::as_str).unwrap_or("parakeet").to_string();
+    match project.settings.engine.as_str() {
+        "" => match crate::tcpp_asr::chosen(&studio, sel.get("asr").and_then(Value::as_str)) {
+            Some(m) if !crate::tcpp_asr::knows(m, lang) => ("whisper".to_string(), true),
+            _ => (studio, false),
+        },
+        e => (e.to_string(), false),
+    }
+}
+
+/// `engine_for` after the local recogniser it picks is downloaded, if it was not.
+fn ready_engine(p: &ListenPaths, project: &ListenProject, lang: &str, progress: &dyn Fn(Value)) -> Result<Engine, String> {
+    let (picked, _) = picked_engine(p, project, lang);
+    if !matches!(picked.as_str(), "fal" | "openrouter") {
+        crate::asr_util::ensure(&p.repo_root, &p.models_root, &picked, &|ev| progress(ev))?;
+    }
+    engine_for(p, project, lang)
+}
+
 fn engine_for(p: &ListenPaths, project: &ListenProject, lang: &str) -> Result<Engine, String> {
     let mut sel = crate::models::load_selection(&p.models_root);
-    let mut for_lang = false;
-    let studio = sel.get("asr_engine").and_then(Value::as_str).unwrap_or("parakeet").to_string();
-    let picked = match project.settings.engine.as_str() {
-        // the studio's recogniser, but a language its transcribe.cpp model does not know goes to Whisper
-        "" => match crate::tcpp_asr::chosen(&studio, sel.get("asr").and_then(Value::as_str)) {
-            Some(m) if !crate::tcpp_asr::knows(m, lang) => {
-                for_lang = true;
-                "whisper".to_string()
-            }
-            _ => studio,
-        },
-        e => e.to_string(),
-    };
+    let (picked, for_lang) = picked_engine(p, project, lang);
     if picked == "fal" {
         let model = project.settings.cloud_model.trim().to_string();
         if model.is_empty() {
@@ -364,7 +375,7 @@ pub fn transcribe(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Resul
     let mut project = lp::load(&p.workspace, pid)?;
     let src = lp::source_path(&p.workspace, pid, &project)?;
     let mut s = project.settings.clone();
-    let mut engine = engine_for(p, &project, &s.lang)?;
+    let mut engine = ready_engine(p, &project, &s.lang, progress)?;
     let diar = s.speakers != 1;
     crate::ensure_job_components(&p.repo_root, &p.models_root, s.speakers > 1, diar, &|ev| progress(ev))?;
     let mut extra = Vec::new();
@@ -400,7 +411,7 @@ pub fn transcribe(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Resul
         crate::ensure_components(&p.repo_root, &[crate::models::tcpp_build(&p.models_root).dir(), "langid"], &|ev| progress(ev))?;
         if let Some(lang) = spoken_language(&p.models_root, &mix, model.languages)? {
             step(progress, t!("listen-step-langid", lang = lang.to_uppercase()), 7);
-            engine = engine_for(p, &project, &lang)?;
+            engine = ready_engine(p, &project, &lang, progress)?;
             s.lang = lang;
         }
     }

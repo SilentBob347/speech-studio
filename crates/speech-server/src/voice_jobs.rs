@@ -27,6 +27,7 @@ pub fn transcribe(p: &VoicePaths, name: &str, progress: &dyn Fn(Value)) -> Resul
     progress(json!({ "type": "progress", "stage": "voice_transcript", "msg": t!("voice-transcribing", name = name.to_string()) }));
     crate::tts_host::make_room();
     crate::ensure_job_components(&p.repo_root, &p.models_root, false, false, &|ev| progress(ev))?;
+    crate::asr_util::ensure(&p.repo_root, &p.models_root, "", &|ev| progress(ev))?;
     let heard = crate::asr_util::transcribe(&p.repo_root, &p.models_root, &audio, &card.lang, name)?;
     let text = heard.text;
     if text.is_empty() {
@@ -54,6 +55,7 @@ pub fn ensure_words(p: &VoicePaths, name: &str, limit: f64) -> Result<(), String
     // распознавание рядом с целой моделью озвучки не входит и в 24 ГБ
     crate::tts_host::unload();
     crate::ensure_job_components(&p.repo_root, &p.models_root, false, false, &|_| {})?;
+    crate::asr_util::ensure(&p.repo_root, &p.models_root, "", &|_| {})?;
     let heard = crate::asr_util::transcribe(&p.repo_root, &p.models_root, &audio, &card.lang, name)?;
     if heard.words.is_empty() {
         return Err(t!("voice-no-speech", name = name.to_string()));

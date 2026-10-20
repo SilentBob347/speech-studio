@@ -817,6 +817,7 @@ speech-qc-unlike = 该版本的声音与参考不像（相似度 { $similarity }
 listen-speaker-n = 说话人 { $n }
 listen-no-source = 项目中没有录音
 listen-whisper-missing = 已选择 Whisper，但尚未安装：请在“设置 → 模型”中下载
+listen-live-downloading = 正在下载识别模型，下载完成后即开始识别
 listen-gguf-missing = 识别模型「{ $engine }」尚未下载：请在「设置 → 模型」中下载它和 transcribe.cpp 引擎。
 listen-gguf-lang = 模型「{ $engine }」无法识别「{ $lang }」：请选择其他模型或 Whisper。
 listen-separate-missing = 分离人声需要 Roformer 引擎和模型：请在“设置 → 模型”中下载

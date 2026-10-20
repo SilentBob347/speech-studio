@@ -106,6 +106,30 @@ pub async fn upload(State(st): State<AppState>, mut multipart: axum::extract::Mu
 
 static RECORDING: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
 
+/// Live recognition starts only with its recogniser and the speech detector on disk: what is missing is downloaded in
+/// the background (the setup download, with its progress), and the request is refused with `asr_downloading` and the
+/// components until it is done.
+async fn live_parts(st: &AppState, engine: &str) -> Result<(), Response> {
+    let (root, models, engine) = (st.repo_root.clone(), st.models_root.clone(), engine.to_string());
+    let ids = joined(tokio::task::spawn_blocking(move || {
+        let mut ids = crate::asr_util::missing_parts(&root, &models, &engine);
+        if !crate::vad::installed(&models) {
+            ids.push("silero-vad".to_string());
+        }
+        ids
+    })
+    .await)?;
+    if ids.is_empty() {
+        return Ok(());
+    }
+    let dl = st.downloads.clone();
+    let wanted = ids.clone();
+    match joined(tokio::task::spawn_blocking(move || dl.start(wanted)).await)? {
+        Err(e) if e.code != "busy" => Err(refuse(StatusCode::CONFLICT, &e.code, e.detail)),
+        _ => Err((StatusCode::CONFLICT, Json(json!({ "error": "asr_downloading", "detail": t!("listen-live-downloading"), "args": { "ids": ids } }))).into_response()),
+    }
+}
+
 /// POST /listen/record/start {device?, live?, lang?, engine?} — запись с микрофона в новый проект; с `live` она распознаётся по
 /// фразам, пока идёт (`/listen/record/live`).
 pub async fn record_start(State(st): State<AppState>, body: Option<Json<Value>>) -> Response {
@@ -116,6 +140,11 @@ pub async fn record_start(State(st): State<AppState>, body: Option<Json<Value>>)
     let engine = body.get("engine").and_then(Value::as_str).unwrap_or_default().to_string();
     if !matches!(engine.as_str(), "" | "parakeet" | "nemotron" | "whisper") {
         return refuse(StatusCode::BAD_REQUEST, "bad_engine", t!("listen-live-engine", engine = engine));
+    }
+    if live {
+        if let Err(r) = live_parts(&st, &engine).await {
+            return r;
+        }
     }
     let pid = sp::new_id();
     let dir = lp::dir(&st.workspace, &pid);

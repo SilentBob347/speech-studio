@@ -4,6 +4,7 @@ import { aloudPlayback, type LiveEvent } from "../../lib/livePlayback";
 import { receiveTalkFeed } from "../../lib/talkFeed";
 import { talkPrefs } from "../../lib/talkPrefs";
 import { talkApi, type HeardLine } from "../../lib/talk";
+import { useAfterDownload } from "../../lib/useAfterDownload";
 import { errorText } from "../../lib/voices";
 import type { TalkState } from "./visual";
 
@@ -90,23 +91,29 @@ export function useTalk({ fed }: { fed: boolean }) {
     return () => window.clearInterval(id);
   }, []);
 
+  const { waiting: fetching, caught } = useAfterDownload(setError);
+  const listen = useCallback(async () => {
+    const { lang, device, asr } = talkPrefs();
+    try {
+      await talkApi.listenStart(lang, device || undefined, asr || undefined);
+      setRunning(true);
+      setMuted(false);
+    } catch (e) {
+      if (!caught(e, () => { void listen(); })) setError(errorText(e));
+    }
+  }, [caught]);
+
   const toggleMic = useCallback(async () => {
     setError(null);
+    if (!running) return listen();
     try {
-      if (running) {
-        await talkApi.listenStop();
-        setRunning(false);
-        setPartial("");
-      } else {
-        const { lang, device, asr } = talkPrefs();
-        await talkApi.listenStart(lang, device || undefined, asr || undefined);
-        setRunning(true);
-        setMuted(false);
-      }
+      await talkApi.listenStop();
+      setRunning(false);
+      setPartial("");
     } catch (e) {
       setError(errorText(e));
     }
-  }, [running]);
+  }, [running, listen]);
 
   const toggleMute = useCallback(async () => {
     setError(null);
@@ -160,5 +167,5 @@ export function useTalk({ fed }: { fed: boolean }) {
     });
   }, [speaking, fed]);
 
-  return { state, running, muted, bands, toggleMute, type, heard, partial, saying, turns, lastPerson, lastAgent, agent, error, speaking, loudness, toggleMic, silence };
+  return { state, running, muted, bands, toggleMute, type, heard, partial, saying, turns, lastPerson, lastAgent, agent, error, fetching, speaking, loudness, toggleMic, silence };
 }

@@ -838,7 +838,8 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, re
     let want = settings.qc.heuristics.clone();
     crate::ensure_job_components(&p.repo_root, &p.models_root, sim_on, false, &|ev| progress(ev))?;
     if asr_on {
-        crate::ensure_components(&p.repo_root, &[crate::models::tcpp_build(&p.models_root).dir(), "silero-vad"], &|ev| progress(ev))?;
+        crate::asr_util::ensure(&p.repo_root, &p.models_root, "", &|ev| progress(ev))?;
+        crate::ensure_components(&p.repo_root, &["silero-vad"], &|ev| progress(ev))?;
     }
     let mut embedder = if sim_on {
         Some(dub_faces::VoiceEmbedder::load(&dub_faces::wespeaker_path(&p.models_root)).map_err(|e| e.to_string())?)
@@ -925,6 +926,7 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, re
                     let first = if asr_on {
                         check.heard.clone()
                     } else {
+                        crate::asr_util::ensure(&p.repo_root, &p.models_root, "", &|ev| progress(ev))?;
                         let heard = crate::asr_util::transcribe(&p.repo_root, &p.models_root, &file, &lang, &b.id)?;
                         check.timed = heard.words.iter().map(|w| (w.word.clone(), (w.start * 1000.0).round() / 1000.0, (w.end * 1000.0).round() / 1000.0)).collect();
                         check.heard = heard.text.clone();

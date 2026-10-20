@@ -1045,6 +1045,7 @@ speech-qc-unlike = Голос дубля не похож на реф (похож
 listen-speaker-n = Спикер { $n }
 listen-no-source = в проекте нет записи
 listen-whisper-missing = выбран Whisper, но он не установлен: скачайте его в «Настройки → Модели»
+listen-live-downloading = скачиваю распознаватель: распознавание начнётся, как только он скачается
 listen-gguf-missing = Модель распознавания «{ $engine }» не скачана: скачайте её и движок transcribe.cpp в «Настройки → Модели».
 listen-gguf-lang = Модель «{ $engine }» не распознаёт язык «{ $lang }»: выберите другую модель или Whisper.
 listen-separate-missing = для отделения голоса нужны движок и модель Roformer: скачайте их в «Настройки → Модели»

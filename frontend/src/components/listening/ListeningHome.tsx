@@ -15,6 +15,7 @@ import { named } from "../../lib/a11y";
 import UrlImport from "../UrlImport";
 import Hint, { Tip } from "../Hint";
 import UndoToast from "../UndoToast";
+import { useAfterDownload } from "../../lib/useAfterDownload";
 
 const START = "listen.start";
 
@@ -242,6 +243,7 @@ function MicRecorder({ lang, onDone, onError }: { lang: string; onDone: (pid: st
     api.recordDevices().then((d) => { setDevices(d.devices); setDevice(d.devices[0] ?? ""); }, () => setDevices([]));
     return () => { if (timer.current) window.clearInterval(timer.current); };
   }, []);
+  const { waiting: fetching, caught } = useAfterDownload(onError);
   const start = async () => {
     try {
       await listenApi.recordStart(device || undefined, live, lang);
@@ -257,7 +259,7 @@ function MicRecorder({ lang, onDone, onError }: { lang: string; onDone: (pid: st
           listenApi.recordLive().then((s) => { setHeard(s.lines); setPartial(s.partial); if (s.error) onError(s.error); }, (e: unknown) => onError(errorText(e)));
         }
       }, 120);
-    } catch (e) { onError(errorText(e)); }
+    } catch (e) { if (!caught(e, () => { void start(); })) onError(errorText(e)); }
   };
   const stop = async () => {
     if (timer.current) window.clearInterval(timer.current);
@@ -292,6 +294,7 @@ function MicRecorder({ lang, onDone, onError }: { lang: string; onDone: (pid: st
           <button onClick={() => void start()} disabled={!devices?.length} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)] disabled:opacity-40"><Mic size={12} />{t("listen.micStart")}</button>
         )}
       </div>
+      {fetching && <p role="status" className="text-[12px] text-[var(--color-muted)]">{fetching}</p>}
       {recording && live && (
         <div aria-live="polite" className="max-h-40 overflow-y-auto rounded-md bg-[var(--color-surface-2)] px-2 py-1.5 text-[12px] space-y-1">
           {heard.map((h) => <p key={h.start}><span className="mono text-[10px] text-[var(--color-muted)] mr-2">{clock(h.start)}</span>{h.text}</p>)}

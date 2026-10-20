@@ -1024,6 +1024,7 @@ speech-qc-unlike = The voice of the take does not sound like the reference (simi
 listen-speaker-n = Speaker { $n }
 listen-no-source = the project has no recording
 listen-whisper-missing = Whisper is chosen, but it is not installed: download it in Settings → Models
+listen-live-downloading = Downloading the recogniser; live recognition starts when it is done
 listen-gguf-missing = The recognition model "{ $engine }" is not downloaded: get it and the transcribe.cpp engine in Settings → Models.
 listen-gguf-lang = The model "{ $engine }" does not recognise "{ $lang }": choose another model or Whisper.
 listen-separate-missing = voice separation needs the Roformer engine and model: download them in Settings → Models

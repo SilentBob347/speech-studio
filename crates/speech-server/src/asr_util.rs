@@ -111,6 +111,41 @@ pub fn choice_of(repo_root: &Path, models_root: &Path, lang: &str, what: &str, e
     Ok(choice)
 }
 
+/// What the recogniser `engine` (parakeet, nemotron, whisper; empty: the settings' one) needs and this computer does
+/// not have yet: its model and its engine, with their CUDA libraries when recognition runs on the card.
+pub fn missing_parts(repo_root: &Path, models_root: &Path, engine: &str) -> Vec<String> {
+    let mut sel = crate::models::load_selection(models_root);
+    if !engine.is_empty() {
+        if let Some(obj) = sel.as_object_mut() {
+            obj.insert("asr_engine".into(), json!(engine));
+        }
+    }
+    let gpu = crate::models::stage_backend(models_root, "asr_backend") == "gpu";
+    let mut ids: Vec<String> = Vec::new();
+    if sel.get("asr_engine").and_then(serde_json::Value::as_str) == Some("whisper") {
+        let model = sel.get("whisper_model").and_then(serde_json::Value::as_str).unwrap_or("large-v3-turbo");
+        ids.extend(["whisper-engine".to_string(), format!("whisper-{model}")]);
+        if gpu {
+            ids.push("whisper-cuda".to_string());
+        }
+    } else if let crate::models::AsrChoice::Ggml { build, model, .. } = crate::models::resolve_asr_choice(repo_root, models_root, &sel) {
+        ids.extend([build.dir().to_string(), model.component.to_string()]);
+        if matches!(build, crate::tcpp_asr::Build::Cuda) {
+            ids.push("cuda-runtime".to_string());
+        }
+    }
+    let manifest = crate::setup::manifest();
+    ids.retain(|id| manifest.iter().find(|c| c.id == id.as_str()).is_some_and(|c| !crate::setup::component_status(repo_root, c).installed));
+    ids
+}
+
+/// Downloads in the running job what the recogniser `engine` lacks (see `missing_parts`).
+pub fn ensure(repo_root: &Path, models_root: &Path, engine: &str, progress: &crate::setup::ProgressCb) -> Result<(), String> {
+    let ids = missing_parts(repo_root, models_root, engine);
+    let ids: Vec<&str> = ids.iter().map(String::as_str).collect();
+    crate::ensure_components(repo_root, &ids, progress)
+}
+
 /// Whisper when `transcribe` runs Parakeet or Nemotron, Parakeet when it runs Whisper, if that one is on this computer
 /// and knows the language: a second opinion on a take its sound made suspect (Game Dub's checks heard a repeat one of
 /// them missed). `None` when there is no such model.
@@ -139,4 +174,19 @@ fn run(choice: &crate::models::AsrChoice, models_root: &Path, audio: &Path, lang
     let text = segments.iter().map(|s| s.text.trim()).filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" ");
     let words = segments.iter().flat_map(|s| s.words.iter()).map(|w| Word { word: w.word.clone(), start: w.start, end: w.end }).collect();
     Ok(Heard { text, words })
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn missing_parts_name_the_chosen_recogniser() {
+        let root = tempfile::tempdir().unwrap();
+        let models = root.path().join("models");
+        let whisper = super::missing_parts(root.path(), &models, "whisper");
+        assert!(whisper.iter().any(|id| id == "whisper-engine"), "{whisper:?}");
+        assert!(whisper.iter().any(|id| id == "whisper-large-v3-turbo"), "{whisper:?}");
+        let nemotron = super::missing_parts(root.path(), &models, "nemotron");
+        assert!(nemotron.iter().any(|id| id == "asr-gguf-nemotron"), "{nemotron:?}");
+        assert!(!nemotron.iter().any(|id| id.starts_with("whisper")), "{nemotron:?}");
+    }
 }

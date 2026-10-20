@@ -1018,6 +1018,7 @@ speech-qc-unlike = La voix de la prise ne ressemble pas à la référence (simil
 listen-speaker-n = Locuteur { $n }
 listen-no-source = le projet n’a pas d’enregistrement
 listen-whisper-missing = Whisper est choisi, mais il n’est pas installé : téléchargez-le dans Réglages → Modèles
+listen-live-downloading = téléchargement du module de reconnaissance ; la reconnaissance démarrera dès qu’il sera prêt
 listen-gguf-missing = Le modèle de reconnaissance « { $engine } » n'est pas téléchargé : récupérez-le avec le moteur transcribe.cpp dans Réglages → Modèles.
 listen-gguf-lang = Le modèle « { $engine } » ne reconnaît pas « { $lang } » : choisissez un autre modèle ou Whisper.
 listen-separate-missing = séparer la voix demande le moteur et le modèle Roformer : téléchargez-les dans Réglages → Modèles
