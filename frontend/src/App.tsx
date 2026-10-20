@@ -41,9 +41,7 @@ export default function App() {
   useEffect(() => {
     if (stage !== "ready") return;
     api.capabilities().then((c) => {
-      const sel = (c as { selection?: Record<string, string> }).selection ?? {};
-      const asr = sel.asr_engine === "whisper" ? `whisper ${sel.whisper_model || "auto"}` : sel.asr_engine === "nemotron" ? "nemotron Q8_0" : `parakeet ${sel.asr === "ultra-int8" ? "ultra" : "v3"} Q8_0`;
-      const rest = [`ASR ${asr}`];
+      const rest = [`ASR ${c.asr_label}`];
       if (c.models?.llm) rest.push(`LLM ${modelName(c.models.llm)}`);
       setCap({ device: c.device, tts: c.models?.tts ? `${c.models.tts}${c.tts_quant ? ` ${c.tts_quant}` : ""}` : "", rest });
       setCapOffline(false);

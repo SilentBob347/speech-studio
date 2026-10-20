@@ -593,6 +593,23 @@ impl AsrChoice {
     /// ВАЖНО: участвует в param_hash ASR-стадии (analyze.rs) — только СТАБИЛЬНЫЕ токены (вариант
     /// каталога, не абсолютный путь), иначе кэш/чекпоинты инвалидируются от переноса репо между
     /// машинами/папками (ревью-находка).
+    /// What the window names as the recogniser: the model, its quantization and the transcribe.cpp build, or Whisper's
+    /// model and compute.
+    pub fn label(&self) -> String {
+        match self {
+            AsrChoice::Ggml { model, build, .. } => {
+                let quant = model.file.trim_end_matches(".gguf").rsplit('-').next().unwrap_or(model.file);
+                let on = match build {
+                    crate::tcpp_asr::Build::Cuda => "CUDA",
+                    crate::tcpp_asr::Build::Vulkan => "Vulkan",
+                    crate::tcpp_asr::Build::Cpu => "CPU",
+                };
+                format!("{} {quant} ({on})", model.name)
+            }
+            AsrChoice::Whisper { model, compute, .. } => format!("Whisper {model} {compute}"),
+        }
+    }
+
     pub fn describe(&self) -> String {
         match self {
             AsrChoice::Ggml { model, .. } => format!("transcribe.cpp ({})", model.file),
@@ -721,9 +738,34 @@ fn whisper_cuda_libs_present(bin: &std::path::Path) -> bool {
 
 /// Построить ASR-движок из выбора (boxed trait-object): analyze не знает деталей резолва. `prompt` — подсказка
 /// распознавателю; её понимает только Whisper, Parakeet подсказок не принимает.
+/// A transcribe.cpp recogniser that unloads the process's model when its holder lets it go: a Listening job or a take
+/// check at its end, Live when it is switched off (it holds one recogniser for the whole conversation).
+struct Unloading(dub_asr::tcpp::TcppEngine);
+
+impl Drop for Unloading {
+    fn drop(&mut self) {
+        dub_asr::tcpp::unload();
+    }
+}
+
+impl dub_asr::AsrEngine for Unloading {
+    fn transcribe(&mut self, wav: &Path, lang: &str) -> Result<Vec<dub_asr::Segment>, dub_asr::AsrError> {
+        self.0.transcribe(wav, lang)
+    }
+    fn transcribe_turns(&mut self, wav: &Path, turns: &[dub_asr::Turn], lang: &str) -> Result<Vec<dub_asr::SpeakerSegment>, dub_asr::AsrError> {
+        self.0.transcribe_turns(wav, turns, lang)
+    }
+    fn transcribe_many(&mut self, files: &[PathBuf], lang: &str) -> Vec<Result<String, dub_asr::AsrError>> {
+        self.0.transcribe_many(files, lang)
+    }
+    fn transcribe_many_words(&mut self, files: &[PathBuf], lang: &str) -> Vec<Result<Vec<dub_asr::Word>, dub_asr::AsrError>> {
+        self.0.transcribe_many_words(files, lang)
+    }
+}
+
 pub fn build_engine(choice: &AsrChoice, prompt: Option<String>) -> Box<dyn dub_asr::AsrEngine> {
     match choice {
-        AsrChoice::Ggml { models_root, build, model } => Box::new(dub_asr::tcpp::TcppEngine::new(models_root, *build, model)),
+        AsrChoice::Ggml { models_root, build, model } => Box::new(Unloading(dub_asr::tcpp::TcppEngine::new(models_root, *build, model))),
         AsrChoice::Whisper { bin, model_dir, model, compute, device } => Box::new(dub_asr::WhisperAsr::new(bin, model_dir, model, compute, device).with_prompt(prompt)),
     }
 }

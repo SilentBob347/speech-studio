@@ -381,15 +381,33 @@ mod platform {
     // transcribe.cpp (fork timoncool/transcribe.cpp, scripts/build-engine-linux-docker.sh: Ubuntu 22.04). CUDA 13.3,
     // sm 75/80/86/89/90/100/120, RUNPATH $ORIGIN and ../higgs-engine, where libcudart and libcublas come from
     // cuda-runtime; the CPU build for a computer without a card CUDA 13 runs on.
+    #[cfg(not(target_os = "macos"))]
     pub const TRANSCRIBE_ENGINE: Parts = Parts {
         size: 160_931_720,
         files: &[FileSpec { url: "https://github.com/timoncool/transcribe.cpp/releases/download/engine-0.1.1/libtranscribe_engine.so", dest_rel: "models/transcribe-engine/libtranscribe_engine.so", size: 160_931_720, sha256: "1dff339818952e1cf547d85bb216dae36dccf1d8654612f2197f98a75950368e", extract: Extract::None }],
         markers: &[Marker { rel: "models/transcribe-engine/libtranscribe_engine.so", expect: 160_931_720 }],
     };
+    #[cfg(not(target_os = "macos"))]
     pub const TRANSCRIBE_ENGINE_CPU: Parts = Parts {
         size: 5_002_200,
         files: &[FileSpec { url: "https://github.com/timoncool/transcribe.cpp/releases/download/engine-0.1.1/libtranscribe_engine-cpu.so", dest_rel: "models/transcribe-engine-cpu/libtranscribe_engine.so", size: 5_002_200, sha256: "8120113acb4f9a7b4b6c623e5e758b9260883ab3467eed07f712d6cb28f66c4f", extract: Extract::None }],
         markers: &[Marker { rel: "models/transcribe-engine-cpu/libtranscribe_engine.so", expect: 5_002_200 }],
+    };
+    // macOS: one build per architecture, in the processor build's folder (Metal and the processor on Apple silicon, the
+    // processor on Intel); there is no CUDA build.
+    #[cfg(target_os = "macos")]
+    pub const TRANSCRIBE_ENGINE: Parts = Parts { size: 0, files: &[], markers: &[] };
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    pub const TRANSCRIBE_ENGINE_CPU: Parts = Parts {
+        size: 8_994_040,
+        files: &[FileSpec { url: "https://github.com/timoncool/transcribe.cpp/releases/download/engine-0.1.1/libtranscribe_engine-macos-arm64.dylib", dest_rel: "models/transcribe-engine-cpu/libtranscribe_engine.dylib", size: 8_994_040, sha256: "683456e64f2cd16442895e0ac293c146b2b773f18a2aaedd2d7d6b6a90523829", extract: Extract::None }],
+        markers: &[Marker { rel: "models/transcribe-engine-cpu/libtranscribe_engine.dylib", expect: 8_994_040 }],
+    };
+    #[cfg(all(target_os = "macos", not(target_arch = "aarch64")))]
+    pub const TRANSCRIBE_ENGINE_CPU: Parts = Parts {
+        size: 9_918_736,
+        files: &[FileSpec { url: "https://github.com/timoncool/transcribe.cpp/releases/download/engine-0.1.1/libtranscribe_engine-macos-x86_64.dylib", dest_rel: "models/transcribe-engine-cpu/libtranscribe_engine.dylib", size: 9_918_736, sha256: "7f9d0d154540673227880fc27a6178e2bd2ebbdff73e8f9a1a18d7cb262a9290", extract: Extract::None }],
+        markers: &[Marker { rel: "models/transcribe-engine-cpu/libtranscribe_engine.dylib", expect: 9_918_736 }],
     };
 
     // Purfview faster-whisper r189.1 для Linux (последняя Linux-сборка не-XXL, CTranslate2 под CUDA 11).
@@ -1317,6 +1335,9 @@ pub fn manifest() -> Vec<Component> {
     }
     // a platform without a transcribe.cpp build has nothing to run its models on
     if platform::TRANSCRIBE_ENGINE.files.is_empty() {
+        all.retain(|c| c.id != "transcribe-engine");
+    }
+    if platform::TRANSCRIBE_ENGINE_CPU.files.is_empty() {
         all.retain(|c| !c.id.starts_with("transcribe-engine") && !c.id.starts_with("asr-gguf-"));
     }
     all
@@ -3622,7 +3643,9 @@ mod tests {
             assert_eq!((f.url, f.size, f.sha256), (h.download.url, h.download.size, h.download.sha256), "{}", c.id);
             assert_eq!(std::path::Path::new(f.dest_rel), std::path::Path::new("models").join(h.dir).join(h.file), "{}", c.id);
         }
-        for b in dub_asr::tcpp::Build::ALL.into_iter().filter(|b| *b != dub_asr::tcpp::Build::Vulkan) {
+        // the builds this platform ships: CUDA and the processor, on a Mac the processor's slot alone
+        let shipped = dub_asr::tcpp::Build::ALL.into_iter().filter(|b| *b != dub_asr::tcpp::Build::Vulkan && !(cfg!(target_os = "macos") && *b == dub_asr::tcpp::Build::Cuda));
+        for b in shipped {
             let d = b.download();
             let [f] = comp(b.dir()).files else { panic!("{b:?}: one file") };
             assert_eq!((f.url, f.size, f.sha256), (d.url, d.size, d.sha256), "{b:?}");
