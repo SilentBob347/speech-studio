@@ -52,7 +52,7 @@ export function useTalk({ fed }: { fed: boolean }) {
     const source = new EventSource(`${BASE}/speech/live`);
     source.onmessage = (msg: MessageEvent<string>) => {
       const ev = JSON.parse(msg.data) as LiveEvent;
-      if (ev.kind === "lagged" || !ev.aloud) return;
+      if (ev.kind === "lagged" || ev.kind === "hello" || !ev.aloud) return;
       if (ev.kind === "stop") { setSaying(null); return; }
       if (ev.kind !== "start") return;
       const key = `${ev.project}/${ev.block}`;

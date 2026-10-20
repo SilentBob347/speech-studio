@@ -1,7 +1,7 @@
 //! A block's audio while it is being voiced: the pieces the engine streams go to `GET /speech/live` (SSE).
 
 use std::convert::Infallible;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
 
@@ -50,6 +50,36 @@ pub fn silence(project: &str) {
     let _ = channel().send(json!({ "kind": "stop", "project": project, "aloud": true }));
 }
 
+/// The windows that play what is said aloud, by connection, in the order they opened: only the first plays it, so a
+/// second window does not sound the same phrase again a moment later.
+fn players() -> &'static Mutex<std::collections::BTreeSet<u64>> {
+    static SET: OnceLock<Mutex<std::collections::BTreeSet<u64>>> = OnceLock::new();
+    SET.get_or_init(Default::default)
+}
+
+/// A window's connection while it plays aloud; leaving the set when the connection closes.
+struct Player(u64);
+
+impl Player {
+    fn join() -> Self {
+        static NEXT: AtomicU64 = AtomicU64::new(1);
+        let id = NEXT.fetch_add(1, Ordering::Relaxed);
+        players().lock().unwrap_or_else(|p| p.into_inner()).insert(id);
+        Player(id)
+    }
+}
+
+impl Drop for Player {
+    fn drop(&mut self) {
+        players().lock().unwrap_or_else(|p| p.into_inner()).remove(&self.0);
+    }
+}
+
+/// The window that plays what is said aloud now.
+fn player() -> Option<u64> {
+    players().lock().unwrap_or_else(|p| p.into_inner()).first().copied()
+}
+
 fn is_aloud(project: &str) -> bool {
     aloud_set().lock().unwrap_or_else(|p| p.into_inner()).contains(project)
 }
@@ -89,7 +119,11 @@ impl Phrase {
         if tx.receiver_count() == 0 {
             return;
         }
-        let mut ev = json!({ "kind": kind, "project": self.project, "block": self.block, "aloud": is_aloud(&self.project) });
+        let aloud = is_aloud(&self.project);
+        let mut ev = json!({ "kind": kind, "project": self.project, "block": self.block, "aloud": aloud });
+        if aloud {
+            ev["player"] = json!(player());
+        }
         if let (Some(ev), Value::Object(extra)) = (ev.as_object_mut(), extra) {
             ev.extend(extra);
         }
@@ -138,10 +172,17 @@ impl Phrase {
     }
 }
 
-/// GET /speech/live — every block voiced from now on, while it is voiced.
-pub async fn events() -> Response {
+/// GET /speech/live[?aloud=1] — every block voiced from now on, while it is voiced; a window that plays what is said
+/// aloud asks with `aloud=1`, learns its number from the first event and plays an aloud phrase only when it is that
+/// phrase's `player`.
+pub async fn events(axum::extract::Query(q): axum::extract::Query<std::collections::HashMap<String, String>>) -> Response {
     let mut rx = channel().subscribe();
+    let player = (q.get("aloud").map(String::as_str) == Some("1")).then(Player::join);
     let stream = async_stream::stream! {
+        let player = player;
+        if let Some(p) = &player {
+            yield Ok::<_, Infallible>(Event::default().data(json!({ "kind": "hello", "id": p.0 }).to_string()));
+        }
         loop {
             match rx.recv().await {
                 Ok(ev) => yield Ok::<_, Infallible>(Event::default().data(ev.to_string())),
@@ -158,6 +199,15 @@ pub async fn events() -> Response {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_first_open_window_plays_what_is_said_aloud() {
+        let first = Player::join();
+        let second = Player::join();
+        assert_eq!(player(), Some(first.0));
+        drop(first);
+        assert_eq!(player(), Some(second.0), "the next window plays once the first closes");
+    }
 
     #[tokio::test]
     async fn a_listener_gets_the_pieces_in_order_and_the_first_sound() {

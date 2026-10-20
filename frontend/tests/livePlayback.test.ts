@@ -51,6 +51,20 @@ describe("live playback", () => {
     expect(aloud.speaking).toBe(false);
   });
 
+  it("of two open windows only the phrase's player sounds it", () => {
+    const first = fakeContext();
+    const second = fakeContext();
+    const a = new LivePlayer(null, () => first.ctx);
+    const b = new LivePlayer(null, () => second.ctx);
+    a.handle({ kind: "hello", id: 2 });
+    b.handle({ kind: "hello", id: 3 });
+    const said = { kind: "chunk" as const, project: "say1", block: "b1", sr: 24000, data: piece([0.1]), aloud: true, player: 2 };
+    a.handle(said);
+    b.handle(said);
+    expect(first.nodes).toHaveLength(1);
+    expect(second.nodes).toHaveLength(0);
+  });
+
   it("plays the pieces of its project back to back and drops a restarted take", () => {
     const fake = fakeContext();
     const player = new LivePlayer("p1", () => fake.ctx);

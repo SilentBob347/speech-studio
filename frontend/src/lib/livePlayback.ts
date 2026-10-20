@@ -13,10 +13,11 @@ export function setLivePlaybackEnabled(on: boolean): void {
 }
 
 export type LiveEvent =
-  | { kind: "start" | "restart"; project: string; block: string; aloud?: boolean }
-  | { kind: "chunk"; project: string; block: string; sr: number; data: string; aloud?: boolean }
-  | { kind: "end"; project: string; block: string; ok: boolean; first_ms: number | null; aloud?: boolean }
+  | { kind: "start" | "restart"; project: string; block: string; aloud?: boolean; player?: number | null }
+  | { kind: "chunk"; project: string; block: string; sr: number; data: string; aloud?: boolean; player?: number | null }
+  | { kind: "end"; project: string; block: string; ok: boolean; first_ms: number | null; aloud?: boolean; player?: number | null }
   | { kind: "stop"; project: string; aloud: true }
+  | { kind: "hello"; id: number }
   | { kind: "lagged"; missed: number };
 
 function samplesOf(data: string): Float32Array<ArrayBuffer> {
@@ -44,8 +45,13 @@ export class LivePlayer {
     this.makeContext = makeContext;
   }
 
-  private accepts(ev: Exclude<LiveEvent, { kind: "lagged" }>): boolean {
-    return this.pid === null ? ev.aloud === true : !ev.aloud && ev.project === this.pid;
+  /** This window's number on the server's aloud stream: of several open windows only the phrase's `player` sounds it. */
+  private me: number | null = null;
+
+  private accepts(ev: Exclude<LiveEvent, { kind: "lagged" | "hello" }>): boolean {
+    if (this.pid !== null) return !ev.aloud && ev.project === this.pid;
+    const player = "player" in ev ? ev.player : undefined;
+    return ev.aloud === true && (player == null || player === this.me);
   }
 
   /** Whether sound is queued or playing now. */
@@ -104,6 +110,7 @@ export class LivePlayer {
   }
 
   handle(ev: LiveEvent): void {
+    if (ev.kind === "hello") { this.me = ev.id; return; }
     if (ev.kind === "lagged" || !this.accepts(ev)) return;
     if (ev.kind === "restart" || ev.kind === "stop") { this.stop(); return; }
     if (ev.kind !== "chunk") return;
@@ -189,7 +196,7 @@ export function useAloudPlayback(): void {
     };
     apply(talkPrefs());
     const unfollow = onTalkPrefs(apply);
-    const source = new EventSource(`${BASE}/speech/live`);
+    const source = new EventSource(`${BASE}/speech/live?aloud=1`);
     source.onmessage = (msg: MessageEvent<string>) => player.handle(JSON.parse(msg.data) as LiveEvent);
     return () => {
       unfollow();
