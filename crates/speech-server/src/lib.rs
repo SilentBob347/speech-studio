@@ -234,13 +234,19 @@ pub fn set_ort_dylib_env(repo_root: &Path, beside_exe: &Path) {
     .find(|cand| cand.is_file());
     match found {
         Some(cand) => std::env::set_var("ORT_DYLIB_PATH", cand),
-        None => eprintln!("[ERROR] onnxruntime 1.28 not found in {}: recognition and diarization will not start until the ONNX Runtime component is downloaded", rt.display()),
+        None => {
+            // never unset: by bare name Windows finds another program's onnxruntime.dll (System32 has 1.17), which `ort`
+            // rejects with a panic; the path of the build this machine downloads works once it is there
+            let [gpu, cpu] = dub_core::runtime::ort_candidates(&repo_root.join("models")).try_into().expect("a GPU and a CPU build");
+            std::env::set_var("ORT_DYLIB_PATH", if hw::gpu_report().cuda13_ok { gpu } else { cpu });
+            eprintln!("[ERROR] onnxruntime 1.28 not found in {}: recognition and diarization will not start until the ONNX Runtime component is downloaded", rt.display());
+        }
     }
 }
 
-/// ONNX Runtime, скачанный задачей, — CUDA-сборка: путь на неё, пока процесс ещё не загрузил библиотеку (ort
-/// грузит её при первой сессии; загруженную до этого CPU-сборку сменит только перезапуск студии).
-fn point_ort_at_gpu(repo_root: &Path) {
+/// ONNX Runtime just downloaded: the path on the best installed build (CUDA first), while the process has not loaded
+/// one yet (ort loads it at the first session; a build loaded before is replaced only by a restart).
+pub(crate) fn point_ort(repo_root: &Path) {
     if let Some(gpu) = dub_core::runtime::ort_candidates(&repo_root.join("models")).into_iter().find(|c| c.is_file()) {
         std::env::set_var("ORT_DYLIB_PATH", gpu);
     }
@@ -887,9 +893,6 @@ pub(crate) fn ensure_job_components(
     let cancel = move || ctl.as_ref().is_some_and(|c| c.is_cancelled());
     if !need.is_empty() {
         setup::download_components(repo_root, &need, &cancel, progress).map_err(|e| e.detail)?;
-        if need.iter().any(|id| id == "onnxruntime-gpu") {
-            point_ort_at_gpu(repo_root);
-        }
     }
     if need_diar {
         if let Err(e) = setup::download_components(repo_root, &["sortformer".to_string()], &cancel, progress) {

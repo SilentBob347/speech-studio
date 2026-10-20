@@ -2798,6 +2798,19 @@ pub fn download_components(
     cancel: &dyn Fn() -> bool,
     progress: &ProgressCb,
 ) -> Result<Value, DlError> {
+    let done = fetch_components(repo_root, ids, cancel, progress)?;
+    if ids.iter().any(|id| id.starts_with("onnxruntime")) {
+        crate::point_ort(repo_root);
+    }
+    Ok(done)
+}
+
+fn fetch_components(
+    repo_root: &Path,
+    ids: &[String],
+    cancel: &dyn Fn() -> bool,
+    progress: &ProgressCb,
+) -> Result<Value, DlError> {
     let all = manifest();
     let selected: Vec<&Component> = all
         .iter()

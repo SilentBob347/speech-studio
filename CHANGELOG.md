@@ -27,7 +27,8 @@ release notes on GitHub are taken from the release's section.
   faster than real time, 12 GB 4.7×, 8 GB 3×, 6 GB 2.2×. Engine drama-rs engine-0.1.3.
 - **A stress model that failed to load no longer stops voicing for the rest of the session.** The failure kept a lock
   closed and every later block failed with "stress lock"; it now says why the load failed, and the next block tries
-  again.
+  again. The load itself failed when ONNX Runtime was downloaded after the studio started (on the first-run screen):
+  Windows then found another program's older onnxruntime.dll (1.17 in System32); the studio now always names its own.
 - **On an NVIDIA card the GPU ONNX Runtime and cuDNN are required.** Skipped on first run, the studio loaded the CPU
   build of ONNX Runtime, which a running process cannot swap, and Supertonic on the card failed until a restart; first
   run now fetches them with the other required parts.
