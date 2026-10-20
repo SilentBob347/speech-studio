@@ -1130,9 +1130,21 @@ pub fn manifest() -> Vec<Component> {
             purpose: t!("setup-comp-silero-vad-purpose"),
             requirement: Requirement::Recommended,
             delivery: Delivery::Download,
-            size: 2_327_524,
-            files: &[FileSpec { url: "https://huggingface.co/istupakov/silero-vad-onnx/resolve/b3e3ee3cce4c11ceb63b1a0b229d916069c1ddf6/silero_vad.onnx", dest_rel: "models/silero-vad/silero_vad.onnx", size: 2_327_524, sha256: "1a153a22f4509e292a94e67d6f9b85e8deb25b4988682b7e174c65279d8788e3", extract: Extract::None }],
-            markers: &[Marker { rel: "models/silero-vad/silero_vad.onnx", expect: 2_327_524 }],
+            size: 1_241_056,
+            files: &[FileSpec { url: "https://huggingface.co/handy-computer/silero-vad-v6.2-gguf/resolve/a9b2d61c20ae4ddf3644edb34969e8185a485448/silero-vad-v6.2-F32.gguf", dest_rel: "models/silero-vad/silero-vad-v6.2-F32.gguf", size: 1_241_056, sha256: "0d871a800c420fdd5d1b17a3aea4296d1c39608f0ff4a9295eb76457eb1c88e6", extract: Extract::None }],
+            markers: &[Marker { rel: "models/silero-vad/silero-vad-v6.2-F32.gguf", expect: 1_241_056 }],
+            external_url: None,
+        },
+        // The language of a recording whose language is Auto, so it goes to the model that knows it (transcribe.cpp).
+        Component {
+            id: "langid",
+            name: "VoxLingua107 ECAPA Q8_0 (transcribe.cpp)".into(),
+            purpose: t!("setup-comp-langid-purpose"),
+            requirement: Requirement::Required,
+            delivery: Delivery::Download,
+            size: 26_693_632,
+            files: &[FileSpec { url: "https://huggingface.co/handy-computer/lang-id-voxlingua107-ecapa-gguf/resolve/e59f0f3847e77723b7d58447ef9456fa0c7e9436/lang-id-voxlingua107-ecapa-Q8_0.gguf", dest_rel: "models/langid-voxlingua107/lang-id-voxlingua107-ecapa-Q8_0.gguf", size: 26_693_632, sha256: "063e6cb0af3d53085fc7d68356dfde5ecee2ffa7bc79855f7e4ff930081bfe3a", extract: Extract::None }],
+            markers: &[Marker { rel: "models/langid-voxlingua107/lang-id-voxlingua107-ecapa-Q8_0.gguf", expect: 26_693_632 }],
             external_url: None,
         },
         Component {
@@ -1955,7 +1967,7 @@ pub fn setup_status(repo_root: &Path) -> SetupStatus {
         }
         let is_gemma = c.id.starts_with("gemma") || c.id == "llama";
         let is_higgs = c.id.starts_with("higgs");
-        let is_asr = c.id.starts_with("parakeet") || c.id.starts_with("whisper") || c.id == "transcribe-engine";
+        let is_asr = c.id.starts_with("parakeet") || c.id.starts_with("whisper") || c.id == "transcribe-engine" || c.id == "langid";
         if (cloud_llm && is_gemma) || (cloud_tts && is_higgs) || (cloud_asr && is_asr) {
             c.requirement = Requirement::Optional;
         }
@@ -3519,6 +3531,12 @@ mod tests {
             let [f] = c.files else { panic!("{}: one file", c.id) };
             assert_eq!((f.url, f.size, f.sha256), (m.download.url, m.download.size, m.download.sha256), "{}", c.id);
             assert_eq!(std::path::Path::new(f.dest_rel), std::path::Path::new("models").join(m.dir).join(m.file), "{}", c.id);
+        }
+        for h in [&dub_asr::tcpp::VAD, &dub_asr::tcpp::LANGID] {
+            let c = comp(h.id);
+            let [f] = c.files else { panic!("{}: one file", c.id) };
+            assert_eq!((f.url, f.size, f.sha256), (h.download.url, h.download.size, h.download.sha256), "{}", c.id);
+            assert_eq!(std::path::Path::new(f.dest_rel), std::path::Path::new("models").join(h.dir).join(h.file), "{}", c.id);
         }
         let e = comp("transcribe-engine");
         assert!(e.files.iter().any(|f| (f.url, f.size, f.sha256) == (crate::tcpp_asr::ENGINE.url, crate::tcpp_asr::ENGINE.size, crate::tcpp_asr::ENGINE.sha256)));

@@ -13,6 +13,37 @@ pub struct Heard {
     pub words: Vec<Word>,
 }
 
+/// Many files at once, each with its language and what it is (named when no recogniser knows the language): a language's
+/// files go to its recogniser in one batch (transcribe.cpp runs them in one pass, Whisper in one process). Every file gets
+/// its own answer.
+pub fn transcribe_many(repo_root: &Path, models_root: &Path, files: &[(std::path::PathBuf, String, String)]) -> Result<std::collections::HashMap<std::path::PathBuf, Result<Heard, String>>, String> {
+    let mut by_lang: std::collections::BTreeMap<&str, Vec<(&std::path::PathBuf, &str)>> = Default::default();
+    for (file, lang, what) in files {
+        by_lang.entry(if lang == "auto" { "" } else { lang.as_str() }).or_default().push((file, what.as_str()));
+    }
+    let work = tempfile::Builder::new().prefix("asr-many-").tempdir().map_err(|e| e.to_string())?;
+    std::env::set_var("DUB_ASR_BACKEND", crate::models::stage_backend(models_root, "asr_backend"));
+    let mut out = std::collections::HashMap::new();
+    for (lang, group) in by_lang {
+        let choice = choice(repo_root, models_root, lang, group[0].1)?;
+        let mut wavs = Vec::new();
+        for (k, (file, _)) in group.iter().enumerate() {
+            let wav = work.path().join(format!("{lang}-{k}.wav"));
+            crate::media::to_16k_mono(file, &wav)?;
+            wavs.push(wav);
+        }
+        let heard = crate::models::build_engine(&choice, None).transcribe_many_words(&wavs, if lang.is_empty() { "auto" } else { lang });
+        for ((file, _), words) in group.into_iter().zip(heard) {
+            let heard = words.map_err(|e| e.localize()).map(|words| Heard {
+                text: words.iter().map(|w| w.word.trim()).filter(|w| !w.is_empty()).collect::<Vec<_>>().join(" "),
+                words: words.iter().map(|w| Word { word: w.word.clone(), start: w.start, end: w.end }).collect(),
+            });
+            out.insert(file.clone(), heard);
+        }
+    }
+    Ok(out)
+}
+
 pub fn transcribe(repo_root: &Path, models_root: &Path, audio: &Path, lang: &str, what: &str) -> Result<Heard, String> {
     let choice = choice(repo_root, models_root, lang, what)?;
     run(&choice, models_root, audio, if lang == "auto" { "" } else { lang })

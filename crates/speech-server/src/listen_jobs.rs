@@ -29,9 +29,8 @@ enum Engine {
     Fal(String),
 }
 
-fn engine_for(p: &ListenPaths, project: &ListenProject) -> Result<Engine, String> {
+fn engine_for(p: &ListenPaths, project: &ListenProject, lang: &str) -> Result<Engine, String> {
     let mut sel = crate::models::load_selection(&p.models_root);
-    let lang = project.settings.lang.as_str();
     let mut for_lang = false;
     let studio = sel.get("asr_engine").and_then(Value::as_str).unwrap_or("parakeet").to_string();
     let picked = match project.settings.engine.as_str() {
@@ -243,15 +242,14 @@ fn diarize(p: &ListenPaths, wav: &Path, speakers: u8) -> Result<Vec<dub_asr::Tur
 /// запись не грузится в него целиком.
 #[allow(clippy::too_many_arguments)]
 fn recognise_by_pauses(p: &ListenPaths, choice: &crate::models::AsrChoice, wav: &Path, work: &Path, lang: &str, vad: &crate::vad::VadConfig, prompt: Option<String>, progress: &dyn Fn(Value)) -> Result<Vec<dub_asr::Segment>, String> {
-    let model = crate::vad::model_path(&p.models_root);
-    if !model.is_file() {
+    if !crate::vad::installed(&p.models_root) {
         return Err(t!("vad-missing"));
     }
     let (samples, sr) = crate::wavio::read_mono_f32(wav)?;
     if sr as usize != crate::vad::SR {
         return Err(format!("{}: {sr} Hz, the speech finder takes {} Hz", wav.display(), crate::vad::SR));
     }
-    let probs = crate::vad::probabilities(&model, &samples)?;
+    let probs = crate::vad::probabilities(&p.models_root, &samples)?;
     let spans = crate::vad::speech(&probs, samples.len(), vad);
     let windows = crate::vad::windows(&spans, &probs, crate::vad::MAX_WINDOW_SECS);
     if windows.is_empty() {
@@ -339,18 +337,39 @@ fn recognise(p: &ListenPaths, engine: &Engine, wav: &Path, work: &Path, s: &lp::
     Ok(lines)
 }
 
+/// Below this share of the probability in a model's own languages the recording is taken to be in another language.
+/// VoxLingua107 mixes close languages (Russian FLEURS clips came out Belarusian 0.60 / Russian 0.40), so a share this
+/// size still means the model's language; Chinese gives its share near zero.
+const OWN_LANGUAGES_MIN: f32 = 0.1;
+
+/// The language of a 16 kHz recording by VoxLingua107 on its first 30 s, for a model that knows `known`: its likeliest
+/// own language while those hold a noticeable share, else the likeliest of all 107 (the recording goes to a model that
+/// knows it). None for a recording under half a second, which the detector does not hear.
+fn spoken_language(models_root: &Path, wav: &Path, known: &[&str]) -> Result<Option<String>, String> {
+    let (pcm, _) = crate::wavio::read_mono_f32(wav)?;
+    if pcm.len() < dub_asr::tcpp::LANGID_MIN_SAMPLES {
+        return Ok(None);
+    }
+    let pcm = &pcm[..pcm.len().min(30 * 16_000)];
+    let engine = dub_asr::tcpp::engine_dir(models_root);
+    let model = dub_asr::tcpp::helper_path(models_root, &dub_asr::tcpp::LANGID);
+    let own = dub_asr::tcpp::detect_language(&engine, &model, pcm, known)?;
+    let guess = if own.allowed_mass >= OWN_LANGUAGES_MIN { own } else { dub_asr::tcpp::detect_language(&engine, &model, pcm, &[])? };
+    Ok(guess.ranked.into_iter().next().map(|(code, _)| code))
+}
+
 /// Распознать запись проекта заново (прежний транскрипт заменяется; имена спикеров по ключам сохраняются).
 pub fn transcribe(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Result<Value, String> {
     crate::tts_host::make_room();
     let mut project = lp::load(&p.workspace, pid)?;
     let src = lp::source_path(&p.workspace, pid, &project)?;
-    let s = project.settings.clone();
-    let engine = engine_for(p, &project)?;
+    let mut s = project.settings.clone();
+    let mut engine = engine_for(p, &project, &s.lang)?;
     let diar = s.speakers != 1;
     crate::ensure_job_components(&p.repo_root, &p.models_root, s.speakers > 1, diar, &|ev| progress(ev))?;
     let mut extra = Vec::new();
     if matches!(engine, Engine::Local(crate::models::AsrChoice::Ggml { .. }, _)) {
-        extra.push("silero-vad");
+        extra.extend(["transcribe-engine", "silero-vad"]);
     }
     if s.denoise {
         extra.push("dpdfnet");
@@ -373,6 +392,18 @@ pub fn transcribe(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Resul
     };
     let mix = work.join("audio16.wav");
     crate::media::to_16k_mono(&src, &mix)?;
+    let studio_model = match &engine {
+        Engine::Local(crate::models::AsrChoice::Ggml { model, .. }, _) if matches!(s.lang.as_str(), "" | "auto") => Some(*model),
+        _ => None,
+    };
+    if let Some(model) = studio_model {
+        crate::ensure_components(&p.repo_root, &["transcribe-engine", "langid"], &|ev| progress(ev))?;
+        if let Some(lang) = spoken_language(&p.models_root, &mix, model.languages)? {
+            step(progress, t!("listen-step-langid", lang = lang.to_uppercase()), 7);
+            engine = engine_for(p, &project, &lang)?;
+            s.lang = lang;
+        }
+    }
     let clean = if s.separate {
         step(progress, t!("listen-step-separate"), 8);
         Some(separate(p, &src, &work)?)
@@ -418,7 +449,7 @@ pub fn transcribe(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Resul
     }
     let by = match &engine {
         Engine::Local(crate::models::AsrChoice::Whisper { model, .. }, _) => format!("whisper:{model}"),
-        Engine::Local(_, _) => "parakeet".to_string(),
+        Engine::Local(_, tag) => tag.to_string(),
         Engine::Cloud(model) => format!("openrouter:{model}"),
         Engine::Fal(model) => format!("fal:{model}"),
     };

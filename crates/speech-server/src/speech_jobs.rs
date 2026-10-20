@@ -766,15 +766,14 @@ fn voice_embedding(embedder: &mut dub_faces::VoiceEmbedder, audio: &Path) -> Res
 /// «прошёл всё → WER → похожесть» становится активным; блоки, где не прошёл ни один, — в ответе.
 /// Дубль, где вместо речи музыка или шум: его звук в 16 кГц через Silero VAD.
 fn non_speech(p: &SpeechPaths, file: &Path) -> Result<bool, String> {
-    let model = crate::vad::model_path(&p.models_root);
-    if !model.is_file() {
+    if !crate::vad::installed(&p.models_root) {
         return Err(t!("vad-missing"));
     }
     let tmp = tempfile::Builder::new().prefix("vad-").tempdir().map_err(|e| e.to_string())?;
     let wav = tmp.path().join("take16.wav");
     crate::media::to_16k_mono(file, &wav)?;
     let (samples, _) = crate::wavio::read_mono_f32(&wav)?;
-    let probs = crate::vad::probabilities(&model, &samples)?;
+    let probs = crate::vad::probabilities(&p.models_root, &samples)?;
     Ok(crate::qc::non_speech(&samples, &probs, crate::vad::FRAME))
 }
 
@@ -839,7 +838,7 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, re
     let want = settings.qc.heuristics.clone();
     crate::ensure_job_components(&p.repo_root, &p.models_root, sim_on, false, &|ev| progress(ev))?;
     if asr_on {
-        crate::ensure_components(&p.repo_root, &["silero-vad"], &|ev| progress(ev))?;
+        crate::ensure_components(&p.repo_root, &["transcribe-engine", "silero-vad"], &|ev| progress(ev))?;
     }
     let mut embedder = if sim_on {
         Some(dub_faces::VoiceEmbedder::load(&dub_faces::wespeaker_path(&p.models_root)).map_err(|e| e.to_string())?)
@@ -847,6 +846,20 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, re
         None
     };
     let threshold = dub_faces::voice_cos_threshold() as f64;
+    // every new take recognised up front, a language's takes in one batch, instead of one after another below
+    let mut heard_all = if asr_on {
+        let project = sp::load(&p.workspace, pid)?;
+        let mut files = Vec::new();
+        for (id, takes) in made {
+            let Some(b) = project.blocks().find(|b| &b.id == id) else { continue };
+            for take in b.takes.iter().filter(|t| takes.contains(&t.n)) {
+                files.push((takes_dir(p, pid).join(&take.file), project.lang_of(b).to_string(), b.id.clone()));
+            }
+        }
+        crate::asr_util::transcribe_many(&p.repo_root, &p.models_root, &files)?
+    } else {
+        Default::default()
+    };
     let mut refs: BTreeMap<String, Vec<f32>> = BTreeMap::new();
     let mut failed = Vec::new();
     for (i, (id, takes)) in made.iter().enumerate() {
@@ -875,7 +888,7 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, re
             let Some(take) = b.takes.iter().find(|t| t.n == *n) else { continue };
             let file = takes_dir(p, pid).join(&take.file);
             let mut check = if asr_on {
-                let heard = crate::asr_util::transcribe(&p.repo_root, &p.models_root, &file, &lang, &b.id)?;
+                let heard = heard_all.remove(&file).ok_or_else(|| format!("{}: not recognised", file.display()))??;
                 let expected = crate::prep::prepare(&b.text, &prep_opts(p, &project, project.lang_of(&b), project.engine_of(&b), voice.as_deref(), &entries, false)).map_err(|e| t!("stress-failed", detail = e))?.text;
                 let (expected, heard_said) = crate::qc::said_alike(&expected, &heard.text, &crate::prep::block_lang(&b.text, &lang))?;
                 let mut c = crate::qc::check(&expected, &heard_said, &strictness);

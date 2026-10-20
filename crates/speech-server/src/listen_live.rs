@@ -3,7 +3,7 @@
 //! loaded once for the whole recording. The phrases become the recording's first transcript when it stops; full
 //! recognition (speakers, exact words) runs as for any recording.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{channel, Receiver, RecvTimeoutError};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -50,18 +50,18 @@ fn with<R>(f: impl FnOnce(&mut Live) -> R) -> Option<R> {
 /// Starts recognising the recording that has just started, in `lang`.
 pub fn start(repo_root: &Path, models_root: &Path, lang: &str, engine: &str) -> Result<(), String> {
     let choice = crate::asr_util::choice_of(repo_root, models_root, lang, &t!("listen-live-name"), engine)?;
-    let vad = crate::vad::model_path(models_root);
-    if !vad.is_file() {
-        return Err(t!("listen-live-no-vad", path = vad.display().to_string()));
+    if !crate::vad::installed(models_root) {
+        return Err(t!("listen-live-no-vad"));
     }
+    let models_root = models_root.to_path_buf();
     let (to, from) = channel::<Vec<f32>>();
     let stop = Arc::new(AtomicBool::new(false));
     *live().lock().unwrap_or_else(|p| p.into_inner()) = Some(Live { lines: Vec::new(), partial: None, error: None, muted: false, typed: Default::default(), stop: stop.clone(), worker: None });
     crate::record::tap(Some(to));
-    std::env::set_var("DUB_ASR_BACKEND", crate::models::stage_backend(models_root, "asr_backend"));
+    std::env::set_var("DUB_ASR_BACKEND", crate::models::stage_backend(&models_root, "asr_backend"));
     let lang = if lang == "auto" { String::new() } else { lang.to_string() };
     let worker = std::thread::spawn(move || {
-        if let Err(e) = listen(choice, vad, &lang, from, &stop, &crate::record::rate) {
+        if let Err(e) = listen(choice, &models_root, &lang, from, &stop, &crate::record::rate) {
             tracing::error!("[ERROR] live recognition: {e}");
             with(|l| l.error = Some(e));
         }
@@ -148,7 +148,15 @@ pub(crate) fn to_16k(x: &[f32], sr: u32) -> Vec<f32> {
         .collect()
 }
 
-fn listen(choice: crate::models::AsrChoice, vad: PathBuf, lang: &str, from: Receiver<Vec<f32>>, stop: &AtomicBool, rate: &dyn Fn() -> u32) -> Result<(), String> {
+fn listen(choice: crate::models::AsrChoice, models_root: &Path, lang: &str, from: Receiver<Vec<f32>>, stop: &AtomicBool, rate: &dyn Fn() -> u32) -> Result<(), String> {
+    // Nemotron 3.5 is a streaming model: a phrase is recognised as it is spoken instead of again from its start
+    let mut stream = match &choice {
+        crate::models::AsrChoice::Ggml { models_root, model } if model.id == "nemotron" => Some(
+            dub_asr::tcpp::TcppStream::new(&dub_asr::tcpp::engine_dir(models_root), &dub_asr::tcpp::model_path(models_root, model), lang).map_err(|e| e.localize())?,
+        ),
+        _ => None,
+    };
+    let mut fed = 0usize;
     let mut asr = crate::models::build_engine(&choice, None);
     let work = tempfile::Builder::new().prefix("live-").tempdir().map_err(|e| e.to_string())?;
     let mut pending: Vec<f32> = Vec::new();
@@ -182,7 +190,7 @@ fn listen(choice: crate::models::AsrChoice, vad: PathBuf, lang: &str, from: Rece
         if secs < 1.0 && !ended {
             continue;
         }
-        let probs = crate::vad::probabilities(&vad, &audio)?;
+        let probs = crate::vad::probabilities(models_root, &audio)?;
         let spans = crate::vad::speech(&probs, audio.len(), &crate::vad::VadConfig::default());
         let Some(&(first, _)) = spans.first() else {
             // silence: keep only its last half second, where speech may be starting
@@ -203,16 +211,29 @@ fn listen(choice: crate::models::AsrChoice, vad: PathBuf, lang: &str, from: Rece
             None
         };
         let a = (first - EDGE_SECS).max(0.0);
+        let from_a = (a * 16_000.0) as usize;
         let Some(z) = cut else {
             // the phrase goes on: show what it says so far
-            if secs - interim_at >= INTERIM_SECS && last - first >= INTERIM_SECS {
+            if let Some(s) = stream.as_mut() {
+                let so_far = s.feed(&audio[(from_a + fed).min(audio.len())..]).map_err(|e| e.localize())?;
+                fed = audio.len().saturating_sub(from_a);
+                with(|l| l.partial = Some((offset + a, so_far)));
+            } else if secs - interim_at >= INTERIM_SECS && last - first >= INTERIM_SECS {
                 interim_at = secs;
-                let so_far = hear(&audio[(a * 16_000.0) as usize..])?;
+                let so_far = hear(&audio[from_a..])?;
                 with(|l| l.partial = Some((offset + a, so_far)));
             }
             continue;
         };
-        let text = hear(&audio[(a * 16_000.0) as usize..((z * 16_000.0) as usize).min(audio.len())])?;
+        let to_z = ((z * 16_000.0) as usize).min(audio.len());
+        let text = match stream.as_mut() {
+            Some(s) => {
+                s.feed(&audio[(from_a + fed).min(to_z)..to_z]).map_err(|e| e.localize())?;
+                fed = 0;
+                s.finish().map_err(|e| e.localize())?
+            }
+            None => hear(&audio[from_a..to_z])?,
+        };
         with(|l| l.partial = None);
         interim_at = 0.0;
         if !text.is_empty() {
@@ -234,7 +255,7 @@ mod tests {
     #[test]
     #[ignore]
     fn a_recording_fed_as_the_microphone_is_heard_phrase_by_phrase() {
-        let root = PathBuf::from(std::env::var("SPEECH_STUDIO_ROOT").expect("SPEECH_STUDIO_ROOT"));
+        let root = std::path::PathBuf::from(std::env::var("SPEECH_STUDIO_ROOT").expect("SPEECH_STUDIO_ROOT"));
         let models = root.join("models");
         crate::set_ort_dylib_env(&root, &root);
         let (x, sr) = crate::wavio::read_mono_f32(Path::new(&std::env::var("LIVE_WAV").expect("LIVE_WAV"))).unwrap();
@@ -261,7 +282,7 @@ mod tests {
             seen
         });
         let stop = AtomicBool::new(false);
-        listen(choice, crate::vad::model_path(&models), "ru", from, &stop, &move || sr).unwrap();
+        listen(choice, &models, "ru", from, &stop, &move || sr).unwrap();
         feeder.join().unwrap();
         let seen = partials.join().unwrap();
         for p in &seen {

@@ -390,6 +390,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
           </>
         )}
         {rowOf("silero-vad")}
+        {rowOf("langid")}
       </>)}
       {group(t("settings.roleMt"), <>
         {/* Перевод и vision — каждый своим провайдером: своя Gemma, локальный сервер или OpenRouter. */}

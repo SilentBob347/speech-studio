@@ -1,22 +1,14 @@
-//! Silero VAD v6: где в записи речь. Длинная запись режется по паузам на куски для распознавателя
-//! (`windows`), а не по таймеру посреди слова.
+//! Silero VAD v6.2 на transcribe.cpp (`dub_asr::tcpp`): где в записи речь. Длинная запись режется по паузам на куски
+//! для распознавателя (`windows`), а не по таймеру посреди слова.
 
-use std::path::{Path, PathBuf};
-use std::sync::{LazyLock, Mutex};
+use std::path::Path;
 
-use ort::session::Session;
-use ort::value::TensorRef;
 use serde::{Deserialize, Serialize};
 
 pub const SR: usize = 16_000;
 pub const FRAME: usize = 512;
-const CONTEXT: usize = 64;
 /// Кусок для распознавателя не длиннее стольких секунд (окна Dub `WindowConfig::chunk_size`).
 pub const MAX_WINDOW_SECS: f64 = 90.0;
-
-pub fn model_path(models_root: &Path) -> PathBuf {
-    models_root.join("silero-vad").join("silero_vad.onnx")
-}
 
 /// Настройки разметки (имена и значения по умолчанию — `get_speech_timestamps` Silero).
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
@@ -36,39 +28,16 @@ impl Default for VadConfig {
     }
 }
 
-static SESSION: LazyLock<Mutex<Option<(PathBuf, Session)>>> = LazyLock::new(|| Mutex::new(None));
+/// Скачаны ли модель разметки речи и движок, что её запускает.
+pub fn installed(models_root: &Path) -> bool {
+    dub_asr::tcpp::helper_path(models_root, &dub_asr::tcpp::VAD).is_file()
+        && dub_asr::tcpp::engine_dir(models_root).join(dub_asr::tcpp::LIBRARY).is_file()
+}
 
 /// Вероятность речи на каждый кадр в 32 мс (16 кГц моно).
-pub fn probabilities(model: &Path, samples: &[f32]) -> Result<Vec<f32>, String> {
-    let mut slot = SESSION.lock().map_err(|_| "vad lock".to_string())?;
-    if slot.as_ref().is_none_or(|(p, _)| p != model) {
-        let err = |e: &dyn std::fmt::Display| format!("{}: {e}", model.display());
-        let s = Session::builder().map_err(|e| err(&e))?.with_intra_threads(1).map_err(|e| err(&e))?.commit_from_file(model).map_err(|e| err(&e))?;
-        *slot = Some((model.to_path_buf(), s));
-    }
-    let (_, session) = slot.as_mut().expect("vad session");
-    let mut state = vec![0f32; 2 * 128];
-    let mut input = vec![0f32; CONTEXT + FRAME];
-    let sr = [SR as i64];
-    let mut probs = Vec::with_capacity(samples.len() / FRAME + 1);
-    for chunk in samples.chunks(FRAME) {
-        input.copy_within(FRAME.., 0);
-        input[CONTEXT..CONTEXT + chunk.len()].copy_from_slice(chunk);
-        input[CONTEXT + chunk.len()..].fill(0.0);
-        let out = session
-            .run(ort::inputs![
-                "input" => TensorRef::from_array_view((vec![1i64, (CONTEXT + FRAME) as i64], input.as_slice())).map_err(|e| e.to_string())?,
-                "state" => TensorRef::from_array_view((vec![2i64, 1, 128], state.as_slice())).map_err(|e| e.to_string())?,
-                "sr" => TensorRef::from_array_view((Vec::<i64>::new(), &sr[..])).map_err(|e| e.to_string())?,
-            ])
-            .map_err(|e| format!("vad: {e}"))?;
-        let (_, p) = out["output"].try_extract_tensor::<f32>().map_err(|e| format!("vad: {e}"))?;
-        probs.push(p[0]);
-        let (_, s) = out["stateN"].try_extract_tensor::<f32>().map_err(|e| format!("vad: {e}"))?;
-        let len = state.len();
-        state.copy_from_slice(&s[..len]);
-    }
-    Ok(probs)
+pub fn probabilities(models_root: &Path, samples: &[f32]) -> Result<Vec<f32>, String> {
+    let model = dub_asr::tcpp::helper_path(models_root, &dub_asr::tcpp::VAD);
+    dub_asr::tcpp::vad_probabilities(&dub_asr::tcpp::engine_dir(models_root), &model, samples)
 }
 
 /// Отрезки речи в секундах по вероятностям кадров (`get_speech_timestamps` Silero без ограничения длины: длинное
@@ -185,11 +154,11 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "needs the Silero model and a 16 kHz mono WAV: SPEECH_VAD_MODEL, SPEECH_VAD_IN"]
+    #[ignore = "needs a models folder with transcribe.cpp and Silero VAD and a 16 kHz mono WAV: SPEECH_VAD_MODELS, SPEECH_VAD_IN"]
     fn probabilities_of_a_file_for_comparison_with_the_python_wrapper() {
-        let var = |k: &str| PathBuf::from(std::env::var(k).unwrap());
+        let var = |k: &str| std::path::PathBuf::from(std::env::var(k).unwrap());
         let (x, _) = crate::wavio::read_mono_f32(&var("SPEECH_VAD_IN")).unwrap();
-        let p = probabilities(&var("SPEECH_VAD_MODEL"), &x).unwrap();
+        let p = probabilities(&var("SPEECH_VAD_MODELS"), &x).unwrap();
         println!("PROBS {}", p.iter().map(|v| format!("{v:.5}")).collect::<Vec<_>>().join(","));
         println!("SPANS {:?}", speech(&p, x.len(), &VadConfig::default()));
     }
