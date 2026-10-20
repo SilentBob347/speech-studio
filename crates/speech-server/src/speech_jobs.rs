@@ -13,8 +13,6 @@ use crate::speech_text::{self as stx, Piece};
 use crate::tts_host::{self, HiggsConfig};
 
 pub const SR: u32 = 24_000;
-/// The first piece of a phrase heard as it is made, characters, for an engine that does not stream within a phrase.
-const FIRST_PIECE: usize = 80;
 
 #[derive(Clone)]
 pub struct SpeechPaths {
@@ -375,7 +373,6 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
     let stress = project.settings.auto_stress && crate::stress::is_russian(&b.text, project.lang_of(b));
     let text = crate::prep::prepare(&b.text, &prep_opts(p, project, project.lang_of(b), own, voice.as_deref(), entries, stress)).map_err(|e| t!("stress-failed", detail = e))?.text;
     let max_chars = manifest.as_ref().map_or(usize::MAX, |m| m.max_chars.max(1));
-    let streams = manifest.as_ref().is_some_and(|m| m.streaming);
     let speeds = manifest.as_ref().is_some_and(|m| m.params.iter().any(|s| s.key == "speed"));
     if let Some(ahead) = tempo_ahead(project, b).filter(|_| speeds) {
         params.speed = (params.speed * ahead).min(SPEED_MAX);
@@ -385,7 +382,6 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
         let mut out: Vec<f32> = Vec::new();
         let (mut seed, mut temperature) = (0u64, params.temperature);
         let mut rate = 1.0f64;
-        let mut said = false;
         for (k, piece) in stx::pieces(&text).into_iter().enumerate() {
             match piece {
                 Piece::Pause(ms) => {
@@ -404,18 +400,7 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
                     if say.is_empty() {
                         continue;
                     }
-                    let mut cut = stx::phrases(&say, max_chars);
-                    // an engine that gives a phrase only once it is whole: heard as it is made, its first piece is
-                    // kept short, so the first sound does not wait for a long phrase
-                    if !said && !streams && live.is_some_and(|l| l.is_aloud()) && cut.first().is_some_and(|(h, _)| h.chars().count() > FIRST_PIECE) {
-                        let (head, gap) = cut.remove(0);
-                        let mut parts = stx::phrases(&head, FIRST_PIECE);
-                        if let Some(first) = parts.first_mut() {
-                            first.1 = gap;
-                        }
-                        cut.splice(0..0, parts);
-                    }
-                    said = true;
+                    let cut = stx::phrases(&say, max_chars);
                     for (j, (phrase, gap)) in cut.iter().enumerate() {
                         // a cut between words is no pause: the pieces meet with a crossfade instead of a gap
                         let joined = *gap == stx::WORD_GAP_MS;

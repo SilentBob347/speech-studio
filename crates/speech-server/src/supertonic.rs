@@ -321,6 +321,23 @@ mod tests {
     /// `SUPERTONIC_OUT_DIR` gets `<n>-plain.wav` and `<n>-acute.wav` to listen to.
     #[test]
     #[ignore]
+    fn a_short_piece_against_the_whole_phrase() {
+        let root = PathBuf::from(std::env::var("SUPERTONIC_ROOT").expect("SUPERTONIC_ROOT"));
+        let m = Model::load(&root, true).unwrap();
+        let whole = "Сегодня утром мы обсудили выпуск, договорились перенести его на пятницу, отдать субтитры Анне, а голоса оставить такими, какие они есть сейчас, потому что менять их перед самым выпуском слишком рискованно.";
+        let short = "Сегодня утром мы обсудили выпуск,";
+        m.speak(whole, "ru", "F1", DEFAULT_STEPS, DEFAULT_SPEED, 1).unwrap();
+        for round in 0..5 {
+            for (name, text) in [("short", short), ("whole", whole)] {
+                let started = std::time::Instant::now();
+                let wav = m.speak(text, "ru", "F1", DEFAULT_STEPS, DEFAULT_SPEED, round).unwrap();
+                eprintln!("{name}: {:.1} s of audio in {} ms", wav.len() as f64 / m.sample_rate() as f64, started.elapsed().as_millis());
+            }
+        }
+    }
+
+    #[test]
+    #[ignore]
     fn speaks_marked_stress_beside_plain_text() {
         let root = PathBuf::from(std::env::var("SUPERTONIC_ROOT").expect("SUPERTONIC_ROOT"));
         let out = PathBuf::from(std::env::var("SUPERTONIC_OUT_DIR").expect("SUPERTONIC_OUT_DIR"));
