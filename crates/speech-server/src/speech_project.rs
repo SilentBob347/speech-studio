@@ -714,8 +714,9 @@ pub fn split_text_lines(text: &str, narrator: &str, lines: Option<&str>) -> Vec<
         .collect()
 }
 
-/// Строки текста с их спикером, если текст — диалог (не меньше половины непустых строк с `Имя:` или `[Имя]`, не
-/// больше восьми спикеров): строка → `Some((спикер, реплика))` или `None` для строки без имени.
+/// Строки текста с их спикером, если текст — диалог (хотя бы две строки с `Имя:` или `[Имя]` и не меньше половины
+/// непустых строк, не больше восьми спикеров): строка → `Some((спикер, реплика))` или `None` для строки без имени.
+/// Одна строка «Слово: текст» — фраза, а не диалог («Внимание: поезд прибывает»).
 fn dialog_tags(text: &str) -> Option<std::collections::HashMap<&str, Option<(String, String)>>> {
     let lines: Vec<&str> = text.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
     let tags: std::collections::HashMap<&str, Option<(String, String)>> = lines
@@ -724,7 +725,7 @@ fn dialog_tags(text: &str) -> Option<std::collections::HashMap<&str, Option<(Str
         .collect();
     let tagged = lines.iter().filter(|l| tags.get(*l).is_some_and(Option::is_some)).count();
     let speakers: std::collections::BTreeSet<&str> = tags.values().flatten().map(|(s, _)| s.as_str()).collect();
-    (!lines.is_empty() && tagged * 2 >= lines.len() && speakers.len() <= 8).then_some(tags)
+    (tagged >= 2 && tagged * 2 >= lines.len() && speakers.len() <= 8).then_some(tags)
 }
 
 /// Новый проект из текста: одна глава, блоки по `split_text`.
@@ -953,6 +954,12 @@ mod tests {
             ("Борис".to_string(), "Здравствуй. как дела?".to_string()),
             ("Анна".to_string(), "Хорошо.".to_string()),
         ]);
+    }
+
+    #[test]
+    fn one_line_with_a_colon_is_a_phrase_not_a_dialog() {
+        assert_eq!(split_text("Проверка релиза: озвучка работает.", "Рассказчик"), vec![("Рассказчик".to_string(), "Проверка релиза: озвучка работает.".to_string())]);
+        assert_eq!(split_text("Анна: Привет!\nБорис: Здравствуй.", "Рассказчик").len(), 2, "two named lines are still a dialog");
     }
 
     #[test]
