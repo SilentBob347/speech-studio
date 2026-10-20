@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { AudioLines, Mic, MicOff, Square, X } from "lucide-react";
+import { AudioLines, Pause, Play, Square, X } from "lucide-react";
+import { byPerson, personOnly } from "../../lib/person";
 import { named } from "../../lib/a11y";
 import { useTalkPrefs } from "../../lib/talkPrefs";
 import { Tip } from "../Hint";
@@ -31,13 +32,13 @@ export default function TalkWidget() {
         </div>
         {running && (
           <Tip text={t("talk.muteHint")}>
-            <button onClick={() => void talk.toggleMute()} aria-pressed={muted} className={`${button} ${muted ? "bg-[var(--color-warn)] text-black" : "bg-white/10 hover:bg-white/20"}`} {...named(muted ? t("talk.unmute") : t("talk.mute"))}>
-              {muted ? <MicOff size={15} /> : <Mic size={15} />}
+            <button onClick={(e) => { if (muted && !byPerson(e)) return; void talk.toggleMute(); }} aria-pressed={muted} className={`${button} ${muted ? "bg-[var(--color-warn)] text-black" : "bg-white/10 hover:bg-white/20"}`} {...personOnly(muted)} {...named(muted ? t("talk.unmute") : t("talk.mute"))}>
+              {muted ? <Play size={15} /> : <Pause size={15} />}
             </button>
           </Tip>
         )}
         <Tip text={running ? t("talk.micOffHint") : t("talk.micOnHint")}>
-          <button onClick={() => void talk.toggleMic()} className={`${button} ${running ? "bg-[var(--color-bad)]" : "bg-[var(--color-accent)] text-[var(--color-on-accent)]"}`} {...named(running ? t("talk.micOff") : t("talk.micOn"))}>
+          <button onClick={(e) => { if (!running && !byPerson(e)) return; void talk.toggleMic(); }} {...personOnly(!running)} className={`${button} ${running ? "bg-[var(--color-bad)]" : "bg-[var(--color-accent)] text-[var(--color-on-accent)]"}`} {...named(running ? t("talk.micOff") : t("talk.micOn"))}>
             {running ? <X size={15} /> : <AudioLines size={15} />}
           </button>
         </Tip>

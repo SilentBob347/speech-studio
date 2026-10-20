@@ -2421,10 +2421,10 @@
     "widgetHint": "Abrir Live como una barra pequeña sobre todas las ventanas. El sonido se reproduce aquí.",
     "close": "Cerrar el widget",
     "widgetMove": "Arrastra para moverlo",
-    "state_muted": "Micrófono apagado",
-    "mute": "Apagar el micrófono (M)",
-    "unmute": "Encender el micrófono (M)",
-    "muteHint": "El agente no te oye, pero la conversación sigue.",
+    "state_muted": "En pausa",
+    "mute": "Pausa (M)",
+    "unmute": "Seguir (M)",
+    "muteHint": "Pausa: el agente deja de hablar y no te oye. Pulsa otra vez para seguir la conversación.",
     "typePlaceholder": "Escribir al agente…",
     "send": "Enviar",
     "settings": "Micrófono y sonido",
@@ -2458,5 +2458,15 @@
     "agentNamed": "Conectado: {{name}}",
     "voiceLoading": "Cargando la voz…",
     "parakeetLang": "Parakeet detecta el idioma por sí mismo y puede escribir algunas palabras en otro; para ceñirse al idioma elegido, elija Nemotron 3.5."
+  },
+  "mic": {
+    "on": "Micrófono encendido",
+    "paused": "Micrófono en pausa",
+    "what_live": "Live",
+    "what_listening": "grabación de Listening",
+    "what_voice": "grabación de voz",
+    "what_test": "prueba del micrófono",
+    "off": "Apagar el micrófono",
+    "offHint": "Apagar el micrófono. Solo la persona lo enciende, con un botón del estudio; sin ninguna ventana del estudio abierta se apaga solo."
   }
 }

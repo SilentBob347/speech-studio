@@ -274,12 +274,6 @@ pub(super) fn tools() -> Vec<Tool> {
             call: |args| upload("/listen/upload", local_file(args, "path")?, "file", Vec::new()),
         },
         Tool {
-            name: "listen_record_start",
-            description: "Start recording a new Listening recording from the user's microphone (device from voice_record_devices; the default one when left out). With live it is recognised phrase by phrase while it records (listen_record_live), in lang (auto by default), and the phrases become its first transcript. listen_record_stop ends it and makes the recording.",
-            schema: || object(json!({ "device": { "type": "string" }, "live": { "type": "boolean" }, "lang": { "type": "string" } }), &[]),
-            call: |args| post("/listen/record/start".into(), body_without(args, &[])),
-        },
-        Tool {
             name: "listen_record_live",
             description: "What live recognition of the microphone recording under way has heard: its phrases with their start and end in seconds, whether it still runs, and why it stopped when it failed.",
             schema: || object(json!({}), &[]),
@@ -287,7 +281,7 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "listen_record_stop",
-            description: "Stop recording from the microphone and keep it as a Listening recording: answers its id; listen_transcribe recognises it.",
+            description: "Stop the microphone recording the person started in Listening and keep it as a Listening recording: answers its id; listen_transcribe recognises it.",
             schema: nothing,
             call: |_| post("/listen/record/stop".into(), json!({})),
         },
@@ -361,7 +355,7 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "voice_listen_start",
-            description: "Join the spoken conversation the person started with Live's microphone button: each phrase they end with a pause is recognised for voice_listen, and their speaking over the studio stops its speech at once. The microphone is the person's: when they have not turned it on, this answers mic_off and you wait for them. Pair it with say_start: listen, answer with say_text as you write, listen again.",
+            description: "Join the spoken conversation the person started with Live's microphone button: each phrase they end with a pause is recognised for voice_listen, and their speaking over the studio stops its speech at once. Only the person turns the microphone on, with their own button in the window; no tool and no ui_* click does. When it is off this answers mic_off: ask the person to press Live, then call this again. Pair it with say_start: listen, answer with say_text as you write, listen again.",
             schema: || object(json!({ "lang": { "type": "string" }, "device": { "type": "string", "description": "a microphone of voice_record_devices; none: the default one" }, "engine": { "type": "string", "enum": ["parakeet", "nemotron", "whisper"], "description": "the recogniser; none: the one in the settings" } }), &[]),
             call: |args| post("/speech/listen".into(), args.clone()),
         },
@@ -384,14 +378,8 @@ pub(super) fn tools() -> Vec<Tool> {
             call: |args| post("/speech/say/voice".into(), json!({ "engine": text(args, "engine")?, "voice": args.get("voice"), "params": args.get("params") })),
         },
         Tool {
-            name: "mic_test_start",
-            description: "Test a microphone as call apps do: it records while voice_record_level shows how loud it hears, until mic_test_stop.",
-            schema: || object(json!({ "device": { "type": "string", "description": "a microphone of voice_record_devices; none: the default one" } }), &[]),
-            call: |args| post("/record/test".into(), json!({ "device": args.get("device") })),
-        },
-        Tool {
             name: "mic_test_stop",
-            description: "End the microphone test: how long it heard, how loud at most, and the file of what it heard (mic_test_audio).",
+            description: "End the microphone test the person started: how long it heard, how loud at most, and the file of what it heard (mic_test_audio).",
             schema: nothing,
             call: |_| post("/record/test/stop".into(), json!({})),
         },
@@ -403,9 +391,15 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "voice_listen_mute",
-            description: "Mute the conversation's microphone (muted true) or turn it back on, as the person's mute button in Live does; toggle true turns it the other way round, as the hotkey does. While muted it hears silence, and the conversation, what was heard and voice_listen go on.",
+            description: "Mute the conversation's microphone, as the person's mute button in Live does. Only the person turns it back on: muted false answers mic_only_person. While muted it hears silence, and the conversation, what was heard and voice_listen go on.",
             schema: || object(json!({ "muted": { "type": "boolean" }, "toggle": { "type": "boolean" } }), &[]),
             call: |args| post("/speech/listen/mute".into(), match args.get("muted").and_then(Value::as_bool) { Some(m) => json!({ "muted": m }), None => json!({ "toggle": args.get("toggle").and_then(Value::as_bool).unwrap_or(false) }) }),
+        },
+        Tool {
+            name: "mic_state",
+            description: "What the microphone does now, as the window's indicator shows it: on or not, for what (live, listening, voice, test), for how many seconds, and whether the conversation is muted. The microphone turns off by itself when no window of the studio has been open for a few seconds.",
+            schema: nothing,
+            call: |_| get("/mic/state".into()),
         },
         Tool {
             name: "voice_listen_type",
@@ -415,7 +409,7 @@ pub(super) fn tools() -> Vec<Tool> {
         },
         Tool {
             name: "voice_listen_stop",
-            description: "The microphone is the person's and only they turn it off in Live: this answers mic_is_the_persons. To end your part of a conversation, close your say_start session with say_stop.",
+            description: "Turn the conversation's microphone off, as Live's end button does: what was heard stays a Listening recording (its id and how many phrases). Only the person turns it on again. To end only your part of the conversation, close your say_start session with say_stop.",
             schema: nothing,
             call: |_| send(Method::DELETE, "/speech/listen".into(), json!({})),
         },

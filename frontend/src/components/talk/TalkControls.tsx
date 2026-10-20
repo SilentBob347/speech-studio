@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { AudioLines, ChevronUp, Mic, MicOff, SendHorizontal, Square, Volume2, VolumeX, X } from "lucide-react";
+import { AudioLines, ChevronUp, Pause, Play, SendHorizontal, Square, Volume2, VolumeX, X } from "lucide-react";
+import { byPerson, personOnly } from "../../lib/person";
 import { named } from "../../lib/a11y";
 import { api, BASE } from "../../lib/api";
 import { aloudPlayback } from "../../lib/livePlayback";
@@ -152,8 +153,9 @@ function VoiceTab() {
 type SettingsTab = "mic" | "voice" | "speaker";
 
 /** The microphone and the speaker as call apps set them up: each with a live level meter, the microphone heard back
- * (Discord's mic test), the speaker tested with a chime (Zoom's speaker test), the agent's volume and the language. */
-function TalkSettings({ running, relisten }: { running: boolean; relisten: () => void }) {
+ * (Discord's mic test), the speaker tested with a chime (Zoom's speaker test), the agent's volume and the language.
+ * The microphone test runs only when the person opened it (`test`): an agent opening it tests nothing. */
+function TalkSettings({ running, relisten, test }: { running: boolean; relisten: () => void; test: boolean }) {
   const { t } = useTranslation();
   const prefs = useTalkPrefs();
   const [devices, setDevices] = useState<string[] | null>(null);
@@ -180,7 +182,7 @@ function TalkSettings({ running, relisten }: { running: boolean; relisten: () =>
   // the microphone heard while this is open: the conversation's own when it runs, a test recording otherwise; a test
   // that answers after it was ended is stopped as soon as it has started
   useEffect(() => {
-    if (running || hearing) return;
+    if (running || hearing || !test) return;
     let state: "starting" | "open" | "ended" = "starting";
     const end = async () => {
       const was = state;
@@ -194,7 +196,7 @@ function TalkSettings({ running, relisten }: { running: boolean; relisten: () =>
       setProblem(null);
     }, (e: unknown) => setProblem(errorText(e)));
     return () => { end().catch((e: unknown) => console.error("[ERROR] mic test stop:", e)); };
-  }, [running, hearing, prefs.device, round]);
+  }, [running, hearing, test, prefs.device, round]);
 
   useEffect(() => {
     const id = window.setInterval(() => { talkApi.level().then((l) => { micPeak.current = l.level; }, () => { micPeak.current = 0; }); }, 50);
@@ -298,7 +300,7 @@ function TalkSettings({ running, relisten }: { running: boolean; relisten: () =>
  * sound, stop the agent, and a field to write to the agent instead of saying it. */
 export default function TalkControls({ talk, compact = false, children }: { talk: Talk; compact?: boolean; children?: ReactNode }) {
   const { t } = useTranslation();
-  const [menu, setMenu] = useState(false);
+  const [menu, setMenu] = useState<false | "person" | "agent">(false);
   const [draft, setDraft] = useState("");
   const { running, muted, speaking } = talk;
 
@@ -308,12 +310,13 @@ export default function TalkControls({ talk, compact = false, children }: { talk
       const typing = e.target instanceof HTMLElement && (e.target.closest("input, textarea, select, [contenteditable]") !== null);
       if (!typing && running && !e.ctrlKey && !e.metaKey && !e.altKey && e.code === "KeyM") {
         e.preventDefault();
+        if (muted && !byPerson(e)) return;
         void talk.toggleMute();
       }
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
-  }, [running, talk]);
+  }, [running, muted, talk]);
 
   const send = async () => {
     const text = draft.trim();
@@ -336,26 +339,26 @@ export default function TalkControls({ talk, compact = false, children }: { talk
       <div className="flex items-center gap-2">
         <div className="relative">
           <Tip text={t("talk.settings")}>
-            <button onClick={() => setMenu((m) => !m)} aria-haspopup="dialog" aria-expanded={menu} className={`${round_} ${quiet} ${size}`} {...named(t("talk.settings"))}>
+            <button onClick={(e) => setMenu((m) => (m ? false : byPerson(e) ? "person" : "agent"))} aria-haspopup="dialog" aria-expanded={menu !== false} className={`${round_} ${quiet} ${size}`} {...named(t("talk.settings"))}>
               <ChevronUp size={16} className={`transition-transform ${menu ? "" : "rotate-180"}`} />
             </button>
           </Tip>
           {menu && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setMenu(false)} />
-              <TalkSettings running={running} relisten={() => void talk.relisten()} />
+              <TalkSettings running={running} relisten={() => void talk.relisten()} test={menu === "person"} />
             </>
           )}
         </div>
         {running && (
           <Tip text={t("talk.muteHint")}>
-            <button onClick={() => void talk.toggleMute()} aria-pressed={muted} className={`${round_} ${size} ${muted ? "bg-[var(--color-warn)] text-[var(--color-bg)]" : quiet}`} {...named(muted ? t("talk.unmute") : t("talk.mute"))}>
-              {muted ? <MicOff size={16} /> : <Mic size={16} />}
+            <button onClick={(e) => { if (muted && !byPerson(e)) return; void talk.toggleMute(); }} aria-pressed={muted} className={`${round_} ${size} ${muted ? "bg-[var(--color-warn)] text-[var(--color-bg)]" : quiet}`} {...personOnly(muted)} {...named(muted ? t("talk.unmute") : t("talk.mute"))}>
+              {muted ? <Play size={16} /> : <Pause size={16} />}
             </button>
           </Tip>
         )}
         <Tip text={running ? t("talk.micOffHint") : t("talk.micOnHint")}>
-          <button onClick={() => void talk.toggleMic()} className={`${round_} ${main} ${running ? "bg-[var(--color-bad)] text-white" : "bg-[var(--color-accent)] text-[var(--color-on-accent)]"}`} {...named(running ? t("talk.micOff") : t("talk.micOn"))}>
+          <button onClick={(e) => { if (!running && !byPerson(e)) return; void talk.toggleMic(); }} {...personOnly(!running)} className={`${round_} ${main} ${running ? "bg-[var(--color-bad)] text-white" : "bg-[var(--color-accent)] text-[var(--color-on-accent)]"}`} {...named(running ? t("talk.micOff") : t("talk.micOn"))}>
             {running ? <X size={compact ? 18 : 22} /> : <AudioLines size={compact ? 18 : 22} />}
           </button>
         </Tip>

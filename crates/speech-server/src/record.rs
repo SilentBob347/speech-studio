@@ -11,6 +11,7 @@ struct RecState {
     path: std::path::PathBuf,
     /// A microphone test: a recording that starts takes the microphone from it.
     test: bool,
+    since: std::time::Instant,
 }
 
 fn recorder() -> &'static Mutex<Option<RecState>> {
@@ -127,7 +128,7 @@ fn begin(path: &std::path::Path, device: Option<String>, test: bool) -> Result<(
             }
             let _ = writer.finalize();
         });
-        *guard = Some(RecState { stop_tx, path: path_buf, test });
+        *guard = Some(RecState { stop_tx, path: path_buf, test, since: std::time::Instant::now() });
         return Ok(());
     }
 
@@ -216,9 +217,14 @@ fn begin(path: &std::path::Path, device: Option<String>, test: bool) -> Result<(
     });
 
     match ready_rx.recv().map_err(|e| e.to_string())? {
-        Ok(()) => { *guard = Some(RecState { stop_tx, path: path_buf, test }); Ok(()) }
+        Ok(()) => { *guard = Some(RecState { stop_tx, path: path_buf, test, since: std::time::Instant::now() }); Ok(()) }
         Err(e) => Err(e),
     }
+}
+
+/// The microphone in use now: whether it is a microphone test, and how long it has been on.
+pub fn in_use() -> Option<(bool, std::time::Duration)> {
+    recorder().lock().ok()?.as_ref().map(|st| (st.test, st.since.elapsed()))
 }
 
 /// Остановить запись → путь к готовому WAV.

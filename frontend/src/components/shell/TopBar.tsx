@@ -19,6 +19,7 @@ import CloudProviders from "../cloud/CloudProviders";
 import ModelsSection from "../setup/ModelsSection";
 import PresetsSection from "../setup/PresetsSection";
 import HelpModal from "./HelpModal";
+import MicIndicator from "./MicIndicator";
 import VoiceLibrary from "../voices/VoiceLibrary";
 import AssistantPanel from "../AssistantPanel";
 
@@ -235,6 +236,7 @@ export default function TopBar() {
       </span>
       {ready && <ModeSwitcher />}
       <StatusBar />
+      <MicIndicator />
       {ready && <MoreMenu onVoices={() => setVoices(true)} onAssistant={() => setAssistant((open) => !open)} onNew={startFresh} onHelp={() => setHelp(true)} onSettings={() => openSettingsAt("models")} />}
       <div className="hidden md:flex items-center gap-1.5 md:gap-2 shrink-0">
         <div id="dock-slot" className="flex items-center gap-2 shrink-0" />

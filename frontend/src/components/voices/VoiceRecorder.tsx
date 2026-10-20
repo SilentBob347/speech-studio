@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Mic, Square, X } from "lucide-react";
+import { PERSON_ONLY, byPerson } from "../../lib/person";
 import { api } from "../../lib/api";
 import { askCloneTerms } from "../../lib/cloudConsent";
 import { named } from "../../lib/a11y";
@@ -86,7 +87,7 @@ export default function VoiceRecorder({ clean, onClose, onRecorded }: { clean: b
           {recording ? (
             <button onClick={stop} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--color-warn)] text-[var(--color-on-accent)] text-[13px] font-semibold"><Square size={13} />{t("voices.recordStop")}</button>
           ) : (
-            <button onClick={start} disabled={!devices?.length} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[13px] font-semibold disabled:opacity-40"><Mic size={13} />{t("voices.recordStart")}</button>
+            <button onClick={(e) => { if (byPerson(e)) void start(); }} {...PERSON_ONLY} disabled={!devices?.length} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--color-accent)] text-[var(--color-on-accent)] text-[13px] font-semibold disabled:opacity-40"><Mic size={13} />{t("voices.recordStart")}</button>
           )}
         </div>
       </div>

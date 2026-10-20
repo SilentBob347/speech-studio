@@ -144,7 +144,10 @@ export function useTalk({ fed }: { fed: boolean }) {
   const toggleMute = useCallback(async () => {
     setError(null);
     try {
-      setMuted((await talkApi.toggleMute()).muted);
+      const paused = (await talkApi.toggleMute()).muted;
+      setMuted(paused);
+      // a pause stops the agent's speech too: what it says next waits for the person's next phrase
+      if (paused) await talkApi.silence();
     } catch (e) {
       setError(errorText(e));
     }

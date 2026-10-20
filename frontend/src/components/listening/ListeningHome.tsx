@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Ear, FileAudio, FolderOpen, Link2, Loader2, Mic, Sparkles, Square, Trash2 } from "lucide-react";
+import { PERSON_ONLY, byPerson } from "../../lib/person";
 import { api } from "../../lib/api";
 import { listenApi, clock, MEDIA, prepare, TRANSCRIPT_FORMATS, type ListenCard, type ListenEngine, type ListenProject, type Start, type TranscriptFormat } from "../../lib/listen";
 import QuickListen from "./QuickListen";
@@ -291,7 +292,7 @@ function MicRecorder({ lang, onDone, onError }: { lang: string; onDone: (pid: st
         {recording ? (
           <button onClick={() => void stop()} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--color-warn)] text-[var(--color-on-accent)] text-[12px] font-semibold"><Square size={12} />{t("listen.micStop")}</button>
         ) : (
-          <button onClick={() => void start()} disabled={!devices?.length} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)] disabled:opacity-40"><Mic size={12} />{t("listen.micStart")}</button>
+          <button onClick={(e) => { if (byPerson(e)) void start(); }} {...PERSON_ONLY} disabled={!devices?.length} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-[12px] hover:border-[var(--color-accent)] disabled:opacity-40"><Mic size={12} />{t("listen.micStart")}</button>
         )}
       </div>
       {fetching && <p role="status" className="text-[12px] text-[var(--color-muted)]">{fetching}</p>}

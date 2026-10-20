@@ -2421,10 +2421,10 @@
     "widgetHint": "以小条形式在所有窗口之上打开 Live。声音在这里播放。",
     "close": "关闭小窗",
     "widgetMove": "拖动以移动",
-    "state_muted": "麦克风已关闭",
-    "mute": "关闭麦克风 (M)",
-    "unmute": "打开麦克风 (M)",
-    "muteHint": "智能体听不到你，但对话继续。",
+    "state_muted": "已暂停",
+    "mute": "暂停 (M)",
+    "unmute": "继续 (M)",
+    "muteHint": "暂停：智能体停止说话，也听不到你。再按一次继续对话。",
     "typePlaceholder": "写给智能体…",
     "send": "发送",
     "settings": "麦克风和声音",
@@ -2458,5 +2458,15 @@
     "agentNamed": "已连接：{{name}}",
     "voiceLoading": "正在加载声音…",
     "parakeetLang": "Parakeet 会自行判断语言，可能把部分词写成其他语言；如需固定为所选语言，请选择 Nemotron 3.5。"
+  },
+  "mic": {
+    "on": "麦克风已开启",
+    "paused": "麦克风已暂停",
+    "what_live": "Live",
+    "what_listening": "Listening 录音",
+    "what_voice": "声音录制",
+    "what_test": "麦克风测试",
+    "off": "关闭麦克风",
+    "offHint": "关闭麦克风。只有用户本人能用程序中的按钮打开它；没有打开的工作室窗口时，它会自动关闭。"
   }
 }

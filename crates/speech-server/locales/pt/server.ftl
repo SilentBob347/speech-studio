@@ -1021,7 +1021,6 @@ listen-whisper-missing = o Whisper foi escolhido, mas não está instalado: baix
 listen-live-downloading = baixando o reconhecedor; o reconhecimento começa assim que terminar
 say-hushed = a pessoa parou a fala na janela: espere a próxima frase dela antes de continuar
 say-mic-off = o microfone está desligado: a pessoa o liga no Live e então voice_listen a ouve
-say-mic-persons = o microfone é da pessoa: ela mesma o desliga no Live
 mic-only-person = só a pessoa liga o microfone, pelo botão no estúdio
 listen-gguf-missing = O modelo de reconhecimento «{ $engine }» não foi baixado: baixe-o com o motor transcribe.cpp em Configurações → Modelos.
 listen-gguf-lang = O modelo «{ $engine }» não reconhece «{ $lang }»: escolha outro modelo ou o Whisper.

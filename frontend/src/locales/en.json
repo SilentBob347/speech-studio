@@ -2421,10 +2421,10 @@
     "widgetHint": "Open Live as a small bar over every other window. The sound plays here.",
     "close": "Close the widget",
     "widgetMove": "Drag to move",
-    "state_muted": "Microphone off",
-    "mute": "Turn the microphone off (M)",
-    "unmute": "Turn the microphone on (M)",
-    "muteHint": "The agent does not hear you, the conversation goes on.",
+    "state_muted": "Paused",
+    "mute": "Pause (M)",
+    "unmute": "Resume (M)",
+    "muteHint": "Pause: the agent stops talking and does not hear you. Press again to go on with the conversation.",
     "typePlaceholder": "Write to the agent…",
     "send": "Send",
     "settings": "Microphone and sound",
@@ -2458,5 +2458,15 @@
     "agentNamed": "Connected: {{name}}",
     "voiceLoading": "Loading the voice…",
     "parakeetLang": "Parakeet picks the language itself and may write some words in another one; to keep to the language set here, choose Nemotron 3.5."
+  },
+  "mic": {
+    "on": "Microphone on",
+    "paused": "Microphone paused",
+    "what_live": "Live",
+    "what_listening": "Listening recording",
+    "what_voice": "voice recording",
+    "what_test": "microphone test",
+    "off": "Turn the microphone off",
+    "offHint": "Turn the microphone off. Only the person turns it on, with a button in the studio; with no studio window open it turns off by itself."
   }
 }

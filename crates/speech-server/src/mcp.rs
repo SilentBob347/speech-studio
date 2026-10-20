@@ -1131,26 +1131,14 @@ fn tools() -> &'static [Tool] {
                 call: |_| get("/record/devices".into()),
             },
             Tool {
-                name: "voice_record_start",
-                description: "Start recording a new library voice from the user's microphone: name of the voice, device from voice_record_devices (omitted: the default microphone). Ask the user to read 10-20 seconds of clear speech, watch voice_record_level, then voice_record_stop keeps it. ok false names why it could not start.",
-                schema: || object(json!({ "name": { "type": "string" }, "device": { "type": "string" } }), &["name"]),
-                call: |args| {
-                    let mut body = json!({ "name": text(args, "name")? });
-                    if let Some(device) = args.get("device").and_then(Value::as_str) {
-                        body["device"] = json!(device);
-                    }
-                    post("/record/start".into(), body)
-                },
-            },
-            Tool {
                 name: "voice_record_level",
-                description: "How loud the microphone hears the user now, 0 to 1, while voice_record_start records.",
+                description: "How loud the microphone hears the user now, 0 to 1, while a recording the person started in the window records (a voice, a Listening recording, a microphone test, Live).",
                 schema: nothing,
                 call: |_| get("/record/level".into()),
             },
             Tool {
                 name: "voice_record_stop",
-                description: "Stop the recording and keep it as a voice of the user's own: answers its name, the job that cleans it (clean; by default as the setting clean new voices, on unless turned off) and recognises its reference text (transcribe, default true) - follow it with studio_wait - and the library.",
+                description: "Stop the voice recording the person started in the voice library and keep it as a voice of the user's own: answers its name, the job that cleans it (clean; by default as the setting clean new voices, on unless turned off) and recognises its reference text (transcribe, default true) - follow it with studio_wait - and the library.",
                 schema: || object(json!({ "clean": { "type": "boolean" }, "transcribe": { "type": "boolean" } }), &[]),
                 call: |args| {
                     let mut body = json!({ "transcribe": args.get("transcribe").and_then(Value::as_bool).unwrap_or(true) });
@@ -1989,7 +1977,11 @@ mod tests {
     }
 
     /// Routes an agent is not given, and why.
-    const NOT_TOOLS: &[(&str, &str, &str)] = &[];
+    const NOT_TOOLS: &[(&str, &str, &str)] = &[
+        ("POST", "/record/start", "the microphone is turned on only by the person, with their button in the window"),
+        ("POST", "/record/test", "the microphone is turned on only by the person, with their button in the window"),
+        ("POST", "/listen/record/start", "the microphone is turned on only by the person, with their button in the window"),
+    ];
 
     /// Arguments for every property of a tool, and one set more for each other choice of an enum.
     fn samples(tool: &Tool, file: &std::path::Path) -> Vec<Value> {

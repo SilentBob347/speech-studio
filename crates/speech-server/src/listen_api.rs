@@ -171,6 +171,7 @@ pub async fn record_start(State(st): State<AppState>, headers: HeaderMap, body: 
                 }
             }
             *RECORDING.lock().unwrap_or_else(|e| e.into_inner()) = Some(pid.clone());
+            crate::say_api::guard_mic(st);
             Json(json!({ "pid": pid, "live": live })).into_response()
         }
         Ok(Err(e)) => {

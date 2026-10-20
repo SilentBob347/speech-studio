@@ -459,13 +459,16 @@ fn watch_interruptions(st: AppState) {
 }
 
 /// POST /speech/listen/mute {muted | toggle} — the microphone muted or back on (toggle: the other way round); the
-/// conversation and what was heard go on.
-pub async fn listen_mute(Json(body): Json<Value>) -> Response {
+/// conversation and what was heard go on. An agent only mutes it: turning it back on is the person's.
+pub async fn listen_mute(headers: HeaderMap, Json(body): Json<Value>) -> Response {
     let muted = match body.get("muted").and_then(Value::as_bool) {
         Some(m) => m,
         None if body.get("toggle").and_then(Value::as_bool) == Some(true) => !crate::listen_live::muted().unwrap_or(false),
         None => true,
     };
+    if !muted && crate::mcp::by_agent(&headers) {
+        return refuse(StatusCode::FORBIDDEN, "mic_only_person", t!("mic-only-person"));
+    }
     match crate::listen_live::mute(muted) {
         Ok(()) => Json(json!({ "muted": muted })).into_response(),
         Err(e) => refuse(StatusCode::CONFLICT, "not_listening", e),
@@ -511,10 +514,8 @@ pub async fn listen_next(axum::extract::Query(q): axum::extract::Query<HashMap<S
 }
 
 /// DELETE /speech/listen — the microphone off; the conversation's recording and what was heard stay a Listening project.
-pub async fn listen_stop(State(st): State<AppState>, headers: HeaderMap) -> Response {
-    if crate::mcp::by_agent(&headers) {
-        return refuse(StatusCode::CONFLICT, "mic_is_the_persons", t!("say-mic-persons"));
-    }
+/// An agent may turn it off too: only turning it on is the person's.
+pub async fn listen_stop(State(st): State<AppState>) -> Response {
     LISTENING.store(false, std::sync::atomic::Ordering::Relaxed);
     let stopped = crate::listen_api::record_stop(State(st)).await;
     if !stopped.status().is_success() {
@@ -526,6 +527,62 @@ pub async fn listen_stop(State(st): State<AppState>, headers: HeaderMap) -> Resp
         Err(e) => return refuse(StatusCode::INTERNAL_SERVER_ERROR, "internal", e),
     };
     Json(json!({ "pid": made["pid"], "lines": made["project"]["lines"].as_array().map_or(0, Vec::len) })).into_response()
+}
+
+/// What the microphone does now, for the window's indicator: on or not, for what (live, listening, voice, test), for
+/// how many seconds, and whether the conversation is muted.
+pub fn mic_state() -> Value {
+    let Some((test, on_for)) = crate::record::in_use() else {
+        return json!({ "on": false });
+    };
+    let listening = crate::listen_api::recording().is_some();
+    let what = if listening && LISTENING.load(std::sync::atomic::Ordering::Relaxed) {
+        "live"
+    } else if listening {
+        "listening"
+    } else if test {
+        "test"
+    } else {
+        "voice"
+    };
+    json!({ "on": true, "what": what, "seconds": on_for.as_secs(), "muted": crate::listen_live::muted().unwrap_or(false) })
+}
+
+/// GET /mic/state — see `mic_state`.
+pub async fn mic_state_route() -> Json<Value> {
+    Json(mic_state())
+}
+
+/// The microphone stays on with no window of the studio open this long at most: nobody would see it is on.
+const NO_WINDOW_SECS: u32 = 5;
+static GUARDED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// While the microphone is on, turns it off once no window of the studio has been open for `NO_WINDOW_SECS`.
+pub fn guard_mic(st: AppState) {
+    if GUARDED.swap(true, std::sync::atomic::Ordering::Relaxed) {
+        return;
+    }
+    tokio::spawn(async move {
+        let mut gone = 0;
+        while crate::record::in_use().is_some() {
+            gone = if crate::live::listening() { 0 } else { gone + 1 };
+            if gone >= NO_WINDOW_SECS {
+                eprintln!("[mic] no window of the studio is open: the microphone is turned off");
+                LISTENING.store(false, std::sync::atomic::Ordering::Relaxed);
+                if crate::listen_api::recording().is_some() {
+                    let _ = crate::listen_api::record_stop(State(st.clone())).await;
+                } else {
+                    let _ = tokio::task::spawn_blocking(crate::record::stop).await;
+                }
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        }
+        GUARDED.store(false, std::sync::atomic::Ordering::Relaxed);
+        if crate::record::in_use().is_some() {
+            guard_mic(st);
+        }
+    });
 }
 
 #[cfg(test)]
@@ -541,6 +598,17 @@ mod tests {
         assert!(cut(&mut buf, false).is_empty());
         assert_eq!(cut(&mut buf, true), ["А это ещё не кончилась"]);
         assert!(buf.is_empty());
+    }
+
+    #[tokio::test]
+    async fn an_agent_mutes_the_microphone_but_never_turns_it_back_on() {
+        let mut agent = HeaderMap::new();
+        agent.insert("x-speech-agent", "1".parse().unwrap());
+        let unmute = listen_mute(agent.clone(), Json(json!({ "muted": false }))).await;
+        assert_eq!(unmute.status(), StatusCode::FORBIDDEN);
+        let mute = listen_mute(agent, Json(json!({ "muted": true }))).await;
+        assert_eq!(mute.status(), StatusCode::CONFLICT, "muting is allowed: refused only because no conversation runs");
+        assert_eq!(mic_state(), json!({ "on": false }));
     }
 
     #[test]

@@ -571,6 +571,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/speech/listen", post(say_api::listen_start).delete(say_api::listen_stop))
         .route("/speech/listen/next", get(say_api::listen_next))
         .route("/speech/listen/mute", post(say_api::listen_mute))
+        .route("/mic/state", get(say_api::mic_state_route))
         .route("/speech/say/voice", get(say_api::voice_get).post(say_api::voice_set))
         .route("/speech/listen/text", post(say_api::listen_text))
         .route("/projects/{pid}/export", post(speech_api::export))
@@ -944,7 +945,10 @@ async fn record_test(State(st): State<AppState>, headers: HeaderMap, body: Optio
     let device = body.as_ref().and_then(|Json(v)| v.get("device")).and_then(Value::as_str).filter(|d| !d.is_empty()).map(str::to_string);
     let path = mic_test_path(&st);
     match tokio::task::spawn_blocking(move || record::start_test(&path, device)).await {
-        Ok(Ok(())) => Json(json!({ "testing": true })).into_response(),
+        Ok(Ok(())) => {
+            say_api::guard_mic(st);
+            Json(json!({ "testing": true })).into_response()
+        }
         Ok(Err(e)) => (StatusCode::CONFLICT, Json(json!({ "error": "record_busy", "detail": e }))).into_response(),
         Err(e) => join_failure(e),
     }
@@ -993,7 +997,10 @@ async fn record_start(State(st): State<AppState>, headers: HeaderMap, Json(body)
     let name = voice_library::free_name(&st.voices_dir, &base);
     let path = st.voices_dir.join(format!("{name}.wav"));
     match tokio::task::spawn_blocking(move || record::start(&path, device)).await {
-        Ok(Ok(())) => Json(json!({ "ok": true, "name": name })),
+        Ok(Ok(())) => {
+            say_api::guard_mic(st);
+            Json(json!({ "ok": true, "name": name }))
+        }
         Ok(Err(e)) => Json(json!({ "ok": false, "error": e })),
         Err(e) => Json(json!({ "ok": false, "error": e.to_string() })),
     }

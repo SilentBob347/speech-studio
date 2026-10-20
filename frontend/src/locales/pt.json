@@ -2421,10 +2421,10 @@
     "widgetHint": "Abrir o Live numa barra pequena por cima de todas as janelas. O som toca aqui.",
     "close": "Fechar o widget",
     "widgetMove": "Arraste para mover",
-    "state_muted": "Microfone desligado",
-    "mute": "Desligar o microfone (M)",
-    "unmute": "Ligar o microfone (M)",
-    "muteHint": "O agente não ouve você, mas a conversa continua.",
+    "state_muted": "Em pausa",
+    "mute": "Pausar (M)",
+    "unmute": "Continuar (M)",
+    "muteHint": "Pausa: o agente para de falar e não ouve você. Clique de novo para continuar a conversa.",
     "typePlaceholder": "Escrever ao agente…",
     "send": "Enviar",
     "settings": "Microfone e som",
@@ -2458,5 +2458,15 @@
     "agentNamed": "Conectado: {{name}}",
     "voiceLoading": "Carregando a voz…",
     "parakeetLang": "O Parakeet detecta o idioma sozinho e pode escrever algumas palavras em outro; para manter o idioma escolhido, escolha o Nemotron 3.5."
+  },
+  "mic": {
+    "on": "Microfone ligado",
+    "paused": "Microfone em pausa",
+    "what_live": "Live",
+    "what_listening": "gravação do Listening",
+    "what_voice": "gravação de voz",
+    "what_test": "teste do microfone",
+    "off": "Desligar o microfone",
+    "offHint": "Desligar o microfone. Só a pessoa o liga, com um botão do estúdio; sem nenhuma janela do estúdio aberta ele desliga sozinho."
   }
 }

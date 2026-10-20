@@ -2421,10 +2421,10 @@
     "widgetHint": "Ouvrir Live en petite barre au-dessus de toutes les fenêtres. Le son est joué ici.",
     "close": "Fermer le widget",
     "widgetMove": "Faites glisser pour déplacer",
-    "state_muted": "Micro coupé",
-    "mute": "Couper le micro (M)",
-    "unmute": "Rallumer le micro (M)",
-    "muteHint": "L'agent ne vous entend pas, la conversation continue.",
+    "state_muted": "En pause",
+    "mute": "Mettre en pause (M)",
+    "unmute": "Reprendre (M)",
+    "muteHint": "Pause : l’agent se tait et ne vous entend pas. Appuyez encore pour reprendre la conversation.",
     "typePlaceholder": "Écrire à l'agent…",
     "send": "Envoyer",
     "settings": "Micro et son",
@@ -2458,5 +2458,15 @@
     "agentNamed": "Connecté : {{name}}",
     "voiceLoading": "Chargement de la voix…",
     "parakeetLang": "Parakeet détecte la langue lui-même et peut écrire certains mots dans une autre ; pour s’en tenir à la langue choisie, prenez Nemotron 3.5."
+  },
+  "mic": {
+    "on": "Micro allumé",
+    "paused": "Micro en pause",
+    "what_live": "Live",
+    "what_listening": "enregistrement Listening",
+    "what_voice": "enregistrement de voix",
+    "what_test": "test du micro",
+    "off": "Couper le micro",
+    "offHint": "Couper le micro. Seule la personne l’allume, avec un bouton du studio ; sans fenêtre du studio ouverte, il se coupe tout seul."
   }
 }

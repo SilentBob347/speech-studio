@@ -52,8 +52,9 @@ connected and the address to paste.
 - **Voices**: `voices_list` (`brief` for names, kind, language and gender only), `voices_catalog` (the cloud voice
   library), `voice_download`, `voices_download_pack` (the starter pack), `voice_import`, `voices_import_zip`,
   `voices_export`, `voice_rename`, `voice_delete`, `voice_card_set`, `voice_photo_set`, `voice_transcribe`,
-  `voice_transcript_set`; a voice from the user's microphone: `voice_record_devices`, `voice_record_start`,
-  `voice_record_level`, `voice_record_stop`. Cleaning a reference: `voice_clean` (voice from music, Roformer),
+  `voice_transcript_set`; a voice from the user's microphone is recorded by the person in the voice library (no tool
+  turns the microphone on): `voice_record_devices`, `voice_record_level` while it records, `voice_record_stop` keeps
+  it. Cleaning a reference: `voice_clean` (voice from music, Roformer),
   `voice_denoise` (noise, DPDFNet, `db` limits how far), `voice_restore`; its best piece: `voice_ref_candidates`,
   `voice_ref_apply`. A voice from a description: `voice_design` (description best in English or Chinese, a sample text,
   1-6 candidates; a job), `voice_design_sample` (a candidate as a file), then `voice_design_keep` (one candidate into the
@@ -109,14 +110,15 @@ connected and the address to paste.
   the studio's window, the next one ready before the last stops; `end: true` with the last piece says the rest.
   `say_stop` falls silent at once (the person speaks over you), `say_state` shows each phrase and how soon it was
   heard. It needs the studio's window open; a session is a Speech project, kept with its takes.
-- **Talk with a person by voice** (the studio as an agent's walkie-talkie): `voice_listen_start` turns the microphone on;
-  `voice_listen` (after the last `heard`) waits for the person's next phrase; answer with `say_start` / `say_text` as you
-  write; listen again. When the person speaks over the studio, its speech stops by itself; `voice_listen_stop` ends.
-  The person can mute the microphone in Live without ending the conversation (`voice_listen_mute`) and type a phrase
-  instead of saying it (`voice_listen_type`): it comes from `voice_listen` like a spoken one. `say_silence` stops
-  everything said aloud, in every session.
-  Before a conversation the microphone can be tested as call apps do: `mic_test_start`, `voice_record_level` while the
-  person speaks, `mic_test_stop` for how loud it heard, `mic_test_audio` for what it heard.
+- **Talk with a person by voice** (the studio as an agent's walkie-talkie): only the person turns the microphone on,
+  with Live's button in the window - no tool and no `ui_*` click or key does, and the window shows while it is on
+  (`mic_state`). With no window of the studio open for a few seconds it turns off by itself. `voice_listen_start` joins
+  the conversation the person started (mic_off: ask them to press Live); `voice_listen` (after the last `heard`) waits
+  for their next phrase; answer with `say_start` / `say_text` as you write; listen again. When the person speaks over
+  the studio, its speech stops by itself. You may turn the microphone down, never up: `voice_listen_mute` mutes it,
+  `voice_listen_stop` ends the conversation. A phrase the person types in Live (`voice_listen_type` puts one in) comes
+  from `voice_listen` like a spoken one. `say_silence` stops everything said aloud, in every session. The person's
+  microphone test in Live: `voice_record_level` while it runs, `mic_test_stop`, `mic_test_audio` for what it heard.
   The voice the person chose in Live (`say_voice`, set with `say_voice_set`) is what `say_start` speaks with when you
   give no engine or voice: leave them out unless the person asks for another.
 - **Projects**: `projects_list`, `project_create` (paragraphs become blocks; "Anna: ..." lines become a dialogue; `corpus` ru_hard instead of a text makes the engine check - hard Russian phrases with the recognition check on, voiced and read through `project_quality`),
@@ -182,8 +184,8 @@ connected and the address to paste.
   `whisper`, `openrouter`, `fal`), `prompt` (a hint Whisper takes, with the corrections' spellings), `denoise` and
   `denoise_db` (DPDFNet before recognition), `vad` (Silero VAD cuts a long recording for Parakeet and Nemotron at
   pauses: `threshold`, `hysteresis`, `min_speech_ms`, `min_silence_ms`, `pad_ms`).
-- **Projects**: `listen_create_from_file` (`listen_upload` uploads a copy), `listen_record_start` /
-  `listen_watch_start` / `listen_watch_status` / `listen_watch_stop` (a folder of recordings recognised in the background into files, once or watching it for new ones, going on after a restart), `listen_record_stop` (a recording from the microphone; with `live` it is recognised phrase by phrase as it records - `listen_record_live` - and the phrases become its first transcript), `listen_audio` (its sound as a file), `listen_get`, `listen_update` (rename speakers, edit or hide lines, mark
+- **Projects**: `listen_create_from_file` (`listen_upload` uploads a copy),
+  `listen_watch_start` / `listen_watch_status` / `listen_watch_stop` (a folder of recordings recognised in the background into files, once or watching it for new ones, going on after a restart), `listen_record_live` (what is heard, phrase by phrase, while the person records from the microphone in the window; the phrases become the recording's first transcript), `listen_record_stop` (ends that recording), `listen_audio` (its sound as a file), `listen_get`, `listen_update` (rename speakers, edit or hide lines, mark
   words `cut`, recognition settings, corrections), `listen_transcribe`, `listen_cut` (a new recording without the
   marked words), `listen_stats` (who speaks how much: talk time, share, words, pace, longest stretch), `listen_export` (with `digits` numbers said in words come out as digits - "двадцать пять" as 25, "сорок пятом" as 45-м - in ru, en, es, fr, pt, de, it, nl, da, the transcript itself unchanged; with `rules`, a broadcaster's subtitle rules from `listen_subtitle_rules`, srt, vtt and ass go onto screens by its line length, lines and longest showing; without it the lines are exported as recognised), `listen_check`, `listen_align` (the reference text laid over the recording, each word
   at the time it was heard; put the lines back with `listen_update`), `listen_to_speech` (the transcript as a Speech project),
