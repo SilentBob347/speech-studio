@@ -22,6 +22,8 @@ struct Session {
     direction: String,
     /// Grows with every piece of text, so a later flush can tell no text came since.
     pieces: u64,
+    /// The agent named no engine and no voice: each phrase takes the voice the person has chosen in Live by then.
+    follows: bool,
 }
 
 /// A text stopped at the end of a phrase this long is taken as finished: an agent's last sentence has nothing after it.
@@ -209,7 +211,8 @@ pub async fn start(State(st): State<AppState>, Json(body): Json<Value>) -> Respo
     if let Err(e) = sp::save(&st.workspace, &pid, &project) {
         return refuse(StatusCode::INTERNAL_SERVER_ERROR, "save_failed", e);
     }
-    sessions().insert(pid.clone(), Session { buf: String::new(), direction: field("direction").unwrap_or_default(), pieces: 0 });
+    let follows = own_engine.is_none() && field("voice").is_none();
+    sessions().insert(pid.clone(), Session { buf: String::new(), direction: field("direction").unwrap_or_default(), pieces: 0, follows });
     let (paths, engine, voice, lang) = (crate::speech_api::paths(&st), project.settings.engine.clone(), project.settings.voice.clone(), project.settings.lang.clone());
     tokio::task::spawn_blocking(move || {
         if let Err(e) = crate::speech_jobs::warm(&paths, &engine, voice.as_deref(), &lang) {
@@ -224,7 +227,7 @@ pub async fn start(State(st): State<AppState>, Json(body): Json<Value>) -> Respo
 pub async fn text(State(st): State<AppState>, AxPath(sid): AxPath<String>, Json(body): Json<Value>) -> Response {
     let piece = body.get("text").and_then(Value::as_str).unwrap_or_default();
     let end = body.get("end").and_then(Value::as_bool).unwrap_or(false);
-    let (phrases, direction, pieces) = {
+    let (phrases, direction, pieces, follows) = {
         let mut all = sessions();
         let Some(session) = all.get_mut(&sid) else {
             return refuse(StatusCode::NOT_FOUND, "no_session", t!("say-no-session", session = sid));
@@ -234,10 +237,11 @@ pub async fn text(State(st): State<AppState>, AxPath(sid): AxPath<String>, Json(
         let phrases = cut(&mut session.buf, end);
         let direction = session.direction.clone();
         let pieces = session.pieces;
+        let follows = session.follows;
         if end {
             all.remove(&sid);
         }
-        (phrases, direction, pieces)
+        (phrases, direction, pieces, follows)
     };
     if !end {
         let (st2, sid2) = (st.clone(), sid.clone());
@@ -251,20 +255,34 @@ pub async fn text(State(st): State<AppState>, AxPath(sid): AxPath<String>, Json(
                 }
             };
             if let Some((phrases, direction)) = settled {
-                let _ = voice(st2, sid2, phrases, direction).await;
+                let _ = voice(st2, sid2, phrases, direction, follows).await;
             }
         });
     }
-    voice(st, sid, phrases, direction).await
+    voice(st, sid, phrases, direction, follows).await
 }
 
-/// Puts the phrases into the session's project and voices them aloud.
-async fn voice(st: AppState, sid: String, phrases: Vec<String>, direction: String) -> Response {
+/// Puts the phrases into the session's project and voices them aloud; a session that follows the person's choice takes
+/// the voice chosen in Live now.
+async fn voice(st: AppState, sid: String, phrases: Vec<String>, direction: String, follows: bool) -> Response {
     if phrases.is_empty() {
         return Json(json!({ "voicing": 0 })).into_response();
     }
+    let chosen = follows.then(|| talk_voice(&st)).filter(|c| !c.engine.is_empty());
+    let manifest = chosen.as_ref().and_then(|c| crate::engines::get(&c.engine));
     let speaker = t!("speech-narrator");
     let added = sp::edit(&st.workspace, &sid, |project| {
+        if let (Some(c), Some(m)) = (&chosen, &manifest) {
+            let s = &mut project.settings;
+            if s.engine != c.engine || s.voice != c.voice {
+                s.engine = c.engine.clone();
+                s.voice = c.voice.clone();
+                s.params.engine_defaults(m);
+                if let Some(p) = c.params.clone() {
+                    s.params = p;
+                }
+            }
+        }
         phrases
             .iter()
             .map(|phrase| {
