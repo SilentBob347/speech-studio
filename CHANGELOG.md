@@ -77,6 +77,7 @@ release notes on GitHub are taken from the release's section.
 
 ### Window and agents
 
+- **First run asks only what to have**: voices, recognition (one Whisper model or none) and extras; the engines, runtimes and the build for this computer's card come with them by themselves, named in one line with their size.
 - The hardware preset names a card's memory as its box does: an RTX 4090 is 24 GB, not 26 (memory is counted in
   2³⁰-byte gigabytes, as the resource monitor already did); so is the diagnostics report.
 - The first-run screen's component ticks and Download buttons carry the component's name, so an agent and a screen reader

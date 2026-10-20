@@ -825,7 +825,7 @@ pub fn manifest() -> Vec<Component> {
         },
         Component {
             id: "qwen3-tts-design",
-            name: t!("setup-comp-qwen3-tts-design-name"),
+            name: format!("{} · Q4_K_M", t!("setup-comp-qwen3-tts-design-name")),
             purpose: t!("setup-comp-qwen3-tts-design-purpose"),
             requirement: Requirement::Optional,
             delivery: Delivery::Download,
@@ -836,7 +836,7 @@ pub fn manifest() -> Vec<Component> {
         },
         Component {
             id: "qwen3-tts-design-q8_0",
-            name: t!("setup-comp-qwen3-tts-design-name"),
+            name: format!("{} · Q8_0", t!("setup-comp-qwen3-tts-design-name")),
             purpose: t!("setup-comp-qwen3-tts-design-purpose"),
             requirement: Requirement::Optional,
             delivery: Delivery::Download,
