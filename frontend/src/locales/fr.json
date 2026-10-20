@@ -2456,6 +2456,7 @@
     "tab_speaker": "Haut-parleur",
     "ownParams": "Réglages de voix propres",
     "agentNamed": "Connecté : {{name}}",
-    "voiceLoading": "Chargement de la voix…"
+    "voiceLoading": "Chargement de la voix…",
+    "parakeetLang": "Parakeet détecte la langue lui-même et peut écrire certains mots dans une autre ; pour s’en tenir à la langue choisie, prenez Nemotron 3.5."
   }
 }

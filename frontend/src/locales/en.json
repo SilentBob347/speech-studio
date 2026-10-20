@@ -2456,6 +2456,7 @@
     "tab_speaker": "Speaker",
     "ownParams": "Own voice settings",
     "agentNamed": "Connected: {{name}}",
-    "voiceLoading": "Loading the voice…"
+    "voiceLoading": "Loading the voice…",
+    "parakeetLang": "Parakeet picks the language itself and may write some words in another one; to keep to the language set here, choose Nemotron 3.5."
   }
 }

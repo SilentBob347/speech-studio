@@ -162,6 +162,10 @@ function TalkSettings({ running, relisten }: { running: boolean; relisten: () =>
   const [hearing, setHearing] = useState(false);
   const [round, setRound] = useState(0);
   const [tab, setTab] = useState<SettingsTab>("mic");
+  const [studioAsr, setStudioAsr] = useState("");
+  useEffect(() => { api.capabilities().then((c) => setStudioAsr(c.asr_label), (e: unknown) => setProblem(errorText(e))); }, []);
+  // Parakeet takes no language: it picks one itself, so a set language does not keep words of another out
+  const parakeet = prefs.asr === "parakeet" || (prefs.asr === "" && studioAsr.startsWith("Parakeet"));
   const micPeak = useRef(0);
   const tester = useRef<SpeakerTest | null>(null);
   tester.current ??= new SpeakerTest();
@@ -252,6 +256,7 @@ function TalkSettings({ running, relisten }: { running: boolean; relisten: () =>
           {LANG_CHOICES.map((l) => <option key={l} value={l}>{l === "auto" ? t("talk.langAuto") : l.toUpperCase()}</option>)}
         </select>
       </label>
+      {parakeet && prefs.lang !== "auto" && <p className="text-[11px] text-[var(--color-muted)]">{t("talk.parakeetLang")}</p>}
         </div>
       )}
       {tab === "voice" && <div role="tabpanel"><VoiceTab /></div>}

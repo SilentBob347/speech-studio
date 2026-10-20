@@ -2456,6 +2456,7 @@
     "tab_speaker": "扬声器",
     "ownParams": "自定义声音设置",
     "agentNamed": "已连接：{{name}}",
-    "voiceLoading": "正在加载声音…"
+    "voiceLoading": "正在加载声音…",
+    "parakeetLang": "Parakeet 会自行判断语言，可能把部分词写成其他语言；如需固定为所选语言，请选择 Nemotron 3.5。"
   }
 }
