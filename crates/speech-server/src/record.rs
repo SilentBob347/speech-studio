@@ -9,6 +9,8 @@ use std::sync::{Arc, Mutex, OnceLock};
 struct RecState {
     stop_tx: Sender<()>,
     path: std::path::PathBuf,
+    /// A microphone test: a recording that starts takes the microphone from it.
+    test: bool,
 }
 
 fn recorder() -> &'static Mutex<Option<RecState>> {
@@ -76,9 +78,23 @@ pub fn input_devices() -> Vec<String> {
 
 /// Начать запись в WAV по пути `path`. `device` — имя микрофона (None = системный).
 pub fn start(path: &std::path::Path, device: Option<String>) -> Result<(), String> {
+    begin(path, device, false)
+}
+
+/// A microphone test (`start` for a recording that gives way): it holds the microphone until a real recording starts.
+pub fn start_test(path: &std::path::Path, device: Option<String>) -> Result<(), String> {
+    begin(path, device, true)
+}
+
+fn begin(path: &std::path::Path, device: Option<String>, test: bool) -> Result<(), String> {
     let mut guard = recorder().lock().map_err(|_| "recorder poisoned".to_string())?;
-    if guard.is_some() {
-        return Err(t!("record-busy"));
+    if let Some(running) = guard.as_ref() {
+        if test || !running.test {
+            return Err(t!("record-busy"));
+        }
+        let _ = running.stop_tx.send(());
+        *guard = None;
+        std::thread::sleep(std::time::Duration::from_millis(200));
     }
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);
@@ -111,7 +127,7 @@ pub fn start(path: &std::path::Path, device: Option<String>) -> Result<(), Strin
             }
             let _ = writer.finalize();
         });
-        *guard = Some(RecState { stop_tx, path: path_buf });
+        *guard = Some(RecState { stop_tx, path: path_buf, test });
         return Ok(());
     }
 
@@ -200,7 +216,7 @@ pub fn start(path: &std::path::Path, device: Option<String>) -> Result<(), Strin
     });
 
     match ready_rx.recv().map_err(|e| e.to_string())? {
-        Ok(()) => { *guard = Some(RecState { stop_tx, path: path_buf }); Ok(()) }
+        Ok(()) => { *guard = Some(RecState { stop_tx, path: path_buf, test }); Ok(()) }
         Err(e) => Err(e),
     }
 }

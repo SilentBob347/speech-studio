@@ -940,7 +940,7 @@ fn mic_test_path(st: &AppState) -> PathBuf {
 async fn record_test(State(st): State<AppState>, body: Option<Json<Value>>) -> Response {
     let device = body.as_ref().and_then(|Json(v)| v.get("device")).and_then(Value::as_str).filter(|d| !d.is_empty()).map(str::to_string);
     let path = mic_test_path(&st);
-    match tokio::task::spawn_blocking(move || record::start(&path, device)).await {
+    match tokio::task::spawn_blocking(move || record::start_test(&path, device)).await {
         Ok(Ok(())) => Json(json!({ "testing": true })).into_response(),
         Ok(Err(e)) => (StatusCode::CONFLICT, Json(json!({ "error": "record_busy", "detail": e }))).into_response(),
         Err(e) => join_failure(e),
