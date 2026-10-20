@@ -3264,8 +3264,53 @@ fn write_entry(entry: &mut impl Read, out: &Path, mode: Option<u32>) -> Result<(
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+/// Models of a former version that nothing reads any more (Speech Studio 0.1.0: Parakeet and Silero VAD on ONNX Runtime), under the models folder.
+const RETIRED: &[&str] = &["tdt", "tdt-ultra-int8", "silero-vad/silero_vad.onnx"];
+
+/// Removes the retired models, so they do not keep gigabytes that no row of the setup screen shows. A link (another
+/// program's folder linked in) loses only the link; a hard-linked file stays with the program that shares it.
+pub fn remove_retired(models_root: &Path) {
+    for rel in RETIRED {
+        let path = models_root.join(rel);
+        let Ok(meta) = std::fs::symlink_metadata(&path) else { continue };
+        let removed = if meta.file_type().is_symlink() {
+            std::fs::remove_dir(&path).or_else(|_| std::fs::remove_file(&path))
+        } else if meta.is_dir() {
+            std::fs::remove_dir_all(&path)
+        } else {
+            std::fs::remove_file(&path)
+        };
+        match removed {
+            Ok(()) => tracing::info!("removed the retired models {}", path.display()),
+            Err(e) => tracing::error!("[ERROR] could not remove the retired models {}: {e}", path.display()),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn retired_models_go_and_current_ones_stay() {
+        let root = tempfile::tempdir().unwrap();
+        for rel in RETIRED {
+            let path = root.path().join(rel);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            if rel.ends_with(".onnx") {
+                std::fs::write(&path, b"x").unwrap();
+            } else {
+                std::fs::create_dir_all(&path).unwrap();
+                std::fs::write(path.join("encoder-model.int8.onnx"), b"x").unwrap();
+            }
+        }
+        let kept = root.path().join("asr-gguf-parakeet-v3").join("parakeet-tdt-0.6b-v3-Q8_0.gguf");
+        std::fs::create_dir_all(kept.parent().unwrap()).unwrap();
+        std::fs::write(&kept, b"x").unwrap();
+        remove_retired(root.path());
+        assert!(RETIRED.iter().all(|rel| !root.path().join(rel).exists()));
+        assert!(kept.is_file());
+        remove_retired(root.path());
+    }
     use super::*;
 
     /// A file a neighbouring program has is taken (copied here) only when its SHA-256 is the pinned one.

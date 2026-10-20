@@ -69,6 +69,7 @@ release notes on GitHub are taken from the release's section.
   and **Nemotron 3.5 ASR** (28 languages with punctuation) joins them; the model stays loaded between jobs instead of
   loading for each one. Whisper stays on faster-whisper for its word times. The engine and the models are the ones
   Dub Studio uses, so either program takes them from the other.
+- The ONNX recognition models of 0.1.0 (Parakeet v3 and Ultra, Silero VAD) are removed at start: transcribe.cpp does not read them.
 - **Live recognition** from the microphone phrase by phrase, a **watched folder** recognised in the background,
   **quick recognition** of a file without the editor, a batch of files saved in several formats at once.
 - Subtitles by a broadcaster's rules (Netflix, BBC and others), who talks how much, a repeated phrase in the player,
