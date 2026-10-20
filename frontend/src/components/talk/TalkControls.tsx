@@ -153,7 +153,7 @@ type SettingsTab = "mic" | "voice" | "speaker";
 
 /** The microphone and the speaker as call apps set them up: each with a live level meter, the microphone heard back
  * (Discord's mic test), the speaker tested with a chime (Zoom's speaker test), the agent's volume and the language. */
-function TalkSettings({ running }: { running: boolean }) {
+function TalkSettings({ running, relisten }: { running: boolean; relisten: () => void }) {
   const { t } = useTranslation();
   const prefs = useTalkPrefs();
   const [devices, setDevices] = useState<string[] | null>(null);
@@ -232,7 +232,7 @@ function TalkSettings({ running }: { running: boolean }) {
         <div role="tabpanel" className="space-y-4">
       <div className={label}>
         <span>{t("talk.device")}</span>
-        <select value={prefs.device} disabled={running || hearing} onChange={(e) => setTalkPrefs({ device: e.target.value })} className={field} {...named(t("talk.device"))}>
+        <select value={prefs.device} disabled={hearing} onChange={(e) => { setTalkPrefs({ device: e.target.value }); relisten(); }} className={field} {...named(t("talk.device"))}>
           <option value="">{t("talk.deviceDefault")}</option>
           {devices?.map((d) => <option key={d} value={d}>{d}</option>)}
         </select>
@@ -243,12 +243,12 @@ function TalkSettings({ running }: { running: boolean }) {
         </span>
       </div>
       <label className={label}>{t("talk.asr")}
-        <select value={prefs.asr} disabled={running} onChange={(e) => setTalkPrefs({ asr: e.target.value })} className={field}>
+        <select value={prefs.asr} onChange={(e) => { setTalkPrefs({ asr: e.target.value }); relisten(); }} className={field}>
           {LIVE_ASR.map((e) => <option key={e} value={e}>{t(`listen.engine_${e || "default"}`)}</option>)}
         </select>
       </label>
       <label className={label}>{t("talk.lang")}
-        <select value={prefs.lang} disabled={running} onChange={(e) => setTalkPrefs({ lang: e.target.value })} className={field}>
+        <select value={prefs.lang} onChange={(e) => { setTalkPrefs({ lang: e.target.value }); relisten(); }} className={field}>
           {LANG_CHOICES.map((l) => <option key={l} value={l}>{l === "auto" ? t("talk.langAuto") : l.toUpperCase()}</option>)}
         </select>
       </label>
@@ -338,7 +338,7 @@ export default function TalkControls({ talk, compact = false, children }: { talk
           {menu && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setMenu(false)} />
-              <TalkSettings running={running} />
+              <TalkSettings running={running} relisten={() => void talk.relisten()} />
             </>
           )}
         </div>

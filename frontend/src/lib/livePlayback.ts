@@ -20,6 +20,36 @@ export type LiveEvent =
   | { kind: "hello"; id: number }
   | { kind: "lagged"; missed: number };
 
+type LiveListener = (ev: LiveEvent) => void;
+const liveListeners = new Set<LiveListener>();
+let liveSource: EventSource | null = null;
+let livePlayers = 0;
+
+function reconnect(): void {
+  liveSource?.close();
+  liveSource = null;
+  if (!liveListeners.size) return;
+  liveSource = new EventSource(`${BASE}/speech/live${livePlayers > 0 ? "?aloud=1" : ""}`);
+  liveSource.onmessage = (msg: MessageEvent<string>) => {
+    const ev = JSON.parse(msg.data) as LiveEvent;
+    for (const listen of [...liveListeners]) listen(ev);
+  };
+}
+
+/** The studio's live voicing events, from one connection of this window shared by all who listen: a browser keeps six
+ * connections to the studio, and a stream for each listener of each window left none for the window's requests.
+ * `player`: the listener plays what is said aloud, so the window takes its share of that (`?aloud=1`). */
+export function onLiveEvents(listen: LiveListener, player = false): () => void {
+  liveListeners.add(listen);
+  if (player) livePlayers += 1;
+  if (!liveSource || (player && livePlayers === 1)) reconnect();
+  return () => {
+    liveListeners.delete(listen);
+    if (player) livePlayers -= 1;
+    if (!liveListeners.size || (player && livePlayers === 0)) reconnect();
+  };
+}
+
 function samplesOf(data: string): Float32Array<ArrayBuffer> {
   const bin = atob(data);
   const bytes = new Uint8Array(bin.length);
@@ -156,14 +186,13 @@ export class LivePlayer {
 export function useLivePlayback(pid: string): void {
   useEffect(() => {
     const player = new LivePlayer(pid);
-    let source: EventSource | null = null;
+    let off: (() => void) | null = null;
     const sync = () => {
-      if (livePlaybackEnabled() && !source) {
-        source = new EventSource(`${BASE}/speech/live`);
-        source.onmessage = (msg: MessageEvent<string>) => player.handle(JSON.parse(msg.data) as LiveEvent);
-      } else if (!livePlaybackEnabled() && source) {
-        source.close();
-        source = null;
+      if (livePlaybackEnabled() && !off) {
+        off = onLiveEvents((ev) => player.handle(ev));
+      } else if (!livePlaybackEnabled() && off) {
+        off();
+        off = null;
         player.stop();
       }
     };
@@ -171,7 +200,7 @@ export function useLivePlayback(pid: string): void {
     window.addEventListener(KEY, sync);
     return () => {
       window.removeEventListener(KEY, sync);
-      source?.close();
+      off?.();
       player.close();
     };
   }, [pid]);
@@ -196,11 +225,10 @@ export function useAloudPlayback(): void {
     };
     apply(talkPrefs());
     const unfollow = onTalkPrefs(apply);
-    const source = new EventSource(`${BASE}/speech/live?aloud=1`);
-    source.onmessage = (msg: MessageEvent<string>) => player.handle(JSON.parse(msg.data) as LiveEvent);
+    const off = onLiveEvents((ev) => player.handle(ev), true);
     return () => {
       unfollow();
-      source.close();
+      off();
       player.close();
       aloudPlayer = null;
     };

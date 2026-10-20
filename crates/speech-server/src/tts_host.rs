@@ -690,12 +690,11 @@ pub fn synth(engine: &Tts, req: &Request) -> Result<Synth, String> {
         let started = Instant::now();
         let (samples, sr) = run_guarded(engine, call, timeout, req.live.clone())?;
         let seconds = started.elapsed().as_secs_f64();
+        if aloud {
+            return Ok(Synth { samples, sr, seed, temperature, attempts: 1, defects, seconds });
+        }
         match defect(&samples, sr, chars, req.lang) {
             None => return Ok(Synth { samples, sr, seed, temperature, attempts: attempt + 1, defects, seconds }),
-            Some(kind) if aloud => {
-                defects.push(kind);
-                return Ok(Synth { samples, sr, seed, temperature, attempts: attempt + 1, defects, seconds });
-            }
             Some(kind) => defects.push(kind),
         }
     }

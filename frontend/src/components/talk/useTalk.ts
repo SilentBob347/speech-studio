@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, BASE, type McpStatus } from "../../lib/api";
-import { aloudPlayback, type LiveEvent } from "../../lib/livePlayback";
+import { api, type McpStatus } from "../../lib/api";
+import { aloudPlayback, onLiveEvents } from "../../lib/livePlayback";
 import { receiveTalkFeed } from "../../lib/talkFeed";
 import { talkPrefs } from "../../lib/talkPrefs";
 import { talkApi, type HeardLine } from "../../lib/talk";
@@ -12,6 +12,9 @@ export type Turn = { who: "person" | "agent"; text: string; at: number };
 
 /** A spoken conversation with an agent through the studio: what the person says heard live, what the agent says as it
  * starts each phrase, and the state of both. `fed`: the sound plays in another window, which sends its loudness. */
+/** Whether another change came while the microphone was restarting (read through a call: the restart awaits). */
+const changedAgain = (s: { current: string }) => s.current === "again";
+
 export function useTalk({ fed }: { fed: boolean }) {
   const [running, setRunning] = useState(false);
   const [muted, setMuted] = useState(false);
@@ -50,9 +53,7 @@ export function useTalk({ fed }: { fed: boolean }) {
 
   // what the agent says: each phrase as it starts, its text from its session
   useEffect(() => {
-    const source = new EventSource(`${BASE}/speech/live`);
-    source.onmessage = (msg: MessageEvent<string>) => {
-      const ev = JSON.parse(msg.data) as LiveEvent;
+    return onLiveEvents((ev) => {
       if (ev.kind === "lagged" || ev.kind === "hello" || !ev.aloud) return;
       if (ev.kind === "stop") { setSaying(null); return; }
       if (ev.kind !== "start") return;
@@ -68,8 +69,7 @@ export function useTalk({ fed }: { fed: boolean }) {
         const text = texts.current.get(key);
         if (text) show(text);
       }, (e: unknown) => setError(errorText(e)));
-    };
-    return () => source.close();
+    });
   }, []);
 
   useEffect(() => {
@@ -112,6 +112,30 @@ export function useTalk({ fed }: { fed: boolean }) {
       setPartial("");
     } catch (e) {
       setError(errorText(e));
+    }
+  }, [running, listen]);
+
+  // a recogniser, language or microphone chosen while listening applies at once: the microphone starts again with it
+  const switching = useRef<"idle" | "busy" | "again">("idle");
+  const relisten = useCallback(async () => {
+    if (!running) return;
+    // changes made while the microphone restarts end in one restart with the last of them
+    if (switching.current !== "idle") {
+      switching.current = "again";
+      return;
+    }
+    switching.current = "busy";
+    try {
+      do {
+        switching.current = "busy";
+        setError(null);
+        await talkApi.listenStop();
+        await listen();
+      } while (changedAgain(switching));
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      switching.current = "idle";
     }
   }, [running, listen]);
 
@@ -167,5 +191,5 @@ export function useTalk({ fed }: { fed: boolean }) {
     });
   }, [speaking, fed]);
 
-  return { state, running, muted, bands, toggleMute, type, heard, partial, saying, turns, lastPerson, lastAgent, agent, error, fetching, speaking, loudness, toggleMic, silence };
+  return { state, running, muted, bands, toggleMute, type, heard, partial, saying, turns, lastPerson, lastAgent, agent, error, fetching, speaking, loudness, toggleMic, relisten, silence };
 }

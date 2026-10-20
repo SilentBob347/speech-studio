@@ -215,7 +215,10 @@ pub async fn start(State(st): State<AppState>, Json(body): Json<Value>) -> Respo
     }
     project.settings.engine = engine;
     project.settings.qc.asr_check = false;
-    project.settings.qc.heuristics = vec!["defect".into()];
+    project.settings.qc.takes = 1;
+    project.settings.qc.similarity = false;
+    // a phrase said aloud is heard as it is made: no check after it, no second take of it
+    project.settings.qc.heuristics = Vec::new();
     let pid = sp::new_id();
     if let Err(e) = sp::save(&st.workspace, &pid, &project) {
         return refuse(StatusCode::INTERNAL_SERVER_ERROR, "save_failed", e);
