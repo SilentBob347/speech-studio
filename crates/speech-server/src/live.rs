@@ -96,6 +96,7 @@ pub struct Phrase {
     started: Instant,
     first_ms: Mutex<Option<u64>>,
     ended: AtomicBool,
+    gate: Mutex<crate::tts_trim::PauseGate>,
 }
 
 impl Drop for Phrase {
@@ -114,6 +115,7 @@ impl Phrase {
             started: Instant::now(),
             first_ms: Mutex::new(None),
             ended: AtomicBool::new(false),
+            gate: Mutex::new(Default::default()),
         };
         phrase.send("start", json!({}));
         phrase
@@ -143,7 +145,13 @@ impl Phrase {
         if let Ok(mut first) = self.first_ms.lock() {
             first.get_or_insert_with(|| self.started.elapsed().as_millis() as u64);
         }
-        self.play(samples, sr);
+        // a phrase said aloud is heard without the long pauses an engine leaves inside it, as an export is
+        if self.is_aloud() {
+            let kept = self.gate.lock().unwrap_or_else(|p| p.into_inner()).pass(samples, sr);
+            self.play(&kept, sr);
+        } else {
+            self.play(samples, sr);
+        }
     }
 
     fn play(&self, samples: &[f32], sr: u32) {

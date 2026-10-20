@@ -145,6 +145,31 @@ pub fn tidy(x: &[f32], sr: u32) -> Tidied {
     Tidied { samples, cuts, sr }
 }
 
+/// What `tidy` does to a finished take, done to a take heard as it is made: a pause inside it keeps at most
+/// `CAPPED_PAUSE_FRAMES`, its other quiet frames are not sent on.
+#[derive(Default)]
+pub struct PauseGate {
+    peak: f64,
+    quiet: usize,
+}
+
+impl PauseGate {
+    pub fn pass(&mut self, x: &[f32], sr: u32) -> Vec<f32> {
+        let hop = frame_len(sr).max(1);
+        let mut out = Vec::with_capacity(x.len());
+        for frame in x.chunks(hop) {
+            let rms = (frame.iter().map(|&v| v as f64 * v as f64).sum::<f64>() / frame.len() as f64).sqrt();
+            self.peak = self.peak.max(rms);
+            let thr = (self.peak * db_to_amp(-THRESHOLD_BELOW_PEAK_DB)).max(db_to_amp(THRESHOLD_FLOOR_DBFS));
+            self.quiet = if rms > thr { 0 } else { self.quiet + 1 };
+            if self.quiet <= CAPPED_PAUSE_FRAMES {
+                out.extend_from_slice(frame);
+            }
+        }
+        out
+    }
+}
+
 /// Склеить `next` с концом `out` равномощным кроссфейдом в 30 мс: стык двух кусков одной фразы без паузы и щелчка.
 pub fn crossfade_join(out: &mut Vec<f32>, next: &[f32], sr: u32) {
     let ov = ((sr as f64 * 0.030) as usize).min(out.len()).min(next.len());
@@ -200,6 +225,21 @@ fn squeeze_pauses(x: &[f32], sr: u32, long_frames: usize, short_frames: usize) -
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_pause_heard_as_it_is_made_keeps_at_most_the_capped_length() {
+        let sr = 24_000u32;
+        let tone = |secs: f64| (0..(secs * sr as f64) as usize).map(|i| (i as f32 * 0.05).sin() * 0.5).collect::<Vec<f32>>();
+        let mut gate = super::PauseGate::default();
+        let mut heard = Vec::new();
+        for piece in [tone(1.0), vec![0.0; 2 * sr as usize], tone(1.0)] {
+            for chunk in piece.chunks(4_800) {
+                heard.extend(gate.pass(chunk, sr));
+            }
+        }
+        let secs = heard.len() as f64 / sr as f64;
+        assert!((secs - 2.6).abs() < 0.05, "{secs}");
+    }
+
 
     #[test]
     fn tidy_keeps_a_short_pause_and_caps_an_anomalous_one() {

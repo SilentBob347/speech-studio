@@ -441,6 +441,50 @@ mod tests {
         }
     }
 
+    /// Our sampling against the model card's on one long phrase, six seeds each: length and pauses over 0.6 s inside.
+    /// `QWEN_ROOT` as above.
+    #[test]
+    #[ignore]
+    fn pauses_by_sampling() {
+        let root = PathBuf::from(std::env::var("QWEN_ROOT").expect("QWEN_ROOT"));
+        let e = Engine::load(&root, "Q4_K_M", false, false).unwrap();
+        let text = "Сегодня утром мы обсудили выпуск, договорились перенести его на пятницу, отдать субтитры Анне, а голоса оставить такими, какие они есть сейчас, потому что менять их перед самым выпуском слишком рискованно.";
+        let pauses = |wav: &[f32]| -> Vec<f64> {
+            let hop = SAMPLE_RATE as usize / 50;
+            let rms: Vec<f64> = wav.chunks(hop).map(|c| (c.iter().map(|&v| v as f64 * v as f64).sum::<f64>() / c.len() as f64).sqrt()).collect();
+            let thr = (rms.iter().copied().fold(0.0, f64::max) * 0.01).max(10f64.powf(-70.0 / 20.0));
+            let loud: Vec<bool> = rms.iter().map(|&r| r > thr).collect();
+            let (Some(a), Some(z)) = (loud.iter().position(|&l| l), loud.iter().rposition(|&l| l)) else { return Vec::new() };
+            let mut out = Vec::new();
+            let mut run = 0usize;
+            for &l in &loud[a..=z] {
+                if l {
+                    if run > 30 {
+                        out.push(run as f64 * 0.02);
+                    }
+                    run = 0;
+                } else {
+                    run += 1;
+                }
+            }
+            out
+        };
+        for (name, temperature, top_k, top_p) in [("ours", 0.7, 50, 0.9), ("card", 0.9, 50, 1.0)] {
+            let mut lens = Vec::new();
+            let mut counts = Vec::new();
+            for seed in 1..=6u64 {
+                let say = Say { text, lang: "ru", speaker: Some("ryan"), reference: None, instruct: None, seed, temperature, top_k, top_p, max_new_tokens: 0 };
+                let wav = e.speak(&say, None).unwrap();
+                let secs = wav.len() as f64 / SAMPLE_RATE as f64;
+                let p = pauses(&wav);
+                eprintln!("{name} seed {seed}: {secs:.1} s, pauses over 0.6 s: {p:.2?}");
+                lens.push(secs);
+                counts.push(p.len());
+            }
+            eprintln!("[OK] {name}: mean {:.1} s, pauses over 0.6 s per take {:.1}", lens.iter().sum::<f64>() / 6.0, counts.iter().sum::<usize>() as f64 / 6.0);
+        }
+    }
+
     /// Cloning on the Base talker, after the CustomVoice one was loaded and freed in the same process: `QWEN_REF` is a
     /// mono 24 kHz WAV, `QWEN_REF_TEXT` its transcript.
     #[test]
