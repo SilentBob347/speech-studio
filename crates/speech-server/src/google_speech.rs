@@ -534,6 +534,7 @@ mod tests {
 
     #[test]
     fn a_phrase_the_job_did_not_get_fails_with_its_reason_and_costs_nothing() {
+        let _language = crate::i18n::test_language("en");
         let dir = tempfile::tempdir().unwrap();
         let s = setup_with(Mode::Batch);
         let key = key_of(&s, "Привет", "", 1);
