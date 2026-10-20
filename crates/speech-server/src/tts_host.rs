@@ -643,7 +643,8 @@ fn drama_frames(expected: f64, max_tokens: u32) -> u32 {
 }
 
 /// Синтез фразы с повтором дефектного дубля: фиксированный сид — одна попытка, случайный — до трёх, каждая
-/// с новым сидом и температурой выше на 0,15.
+/// с новым сидом и температурой выше на 0,15. Фраза, которая звучит вслух по мере синтеза (агент говорит), — одна
+/// попытка, принятая и с дефектом: её уже услышали, повтор прозвучал бы второй раз.
 pub fn synth(engine: &Tts, req: &Request) -> Result<Synth, String> {
     req.params.checked()?;
     let expected = expected_secs(req.text, req.lang);
@@ -651,7 +652,8 @@ pub fn synth(engine: &Tts, req: &Request) -> Result<Synth, String> {
     let timeout = Duration::from_secs(((expected * 8.0).ceil() as u64).max(45));
     let chars = req.text.chars().filter(|c| c.is_alphanumeric()).count();
     let fixed = req.params.seed_mode != "random";
-    let tries = if fixed { 1 } else { 3 };
+    let aloud = req.live.as_ref().is_some_and(|l| l.is_aloud());
+    let tries = if fixed || aloud { 1 } else { 3 };
     let mut defects = Vec::new();
     for attempt in 0..tries {
         let seed = if fixed { req.params.seed } else { req.fresh_seed.wrapping_add(attempt as u64 * 7919) } % SEED_RANGE;
@@ -690,6 +692,10 @@ pub fn synth(engine: &Tts, req: &Request) -> Result<Synth, String> {
         let seconds = started.elapsed().as_secs_f64();
         match defect(&samples, sr, chars, req.lang) {
             None => return Ok(Synth { samples, sr, seed, temperature, attempts: attempt + 1, defects, seconds }),
+            Some(kind) if aloud => {
+                defects.push(kind);
+                return Ok(Synth { samples, sr, seed, temperature, attempts: attempt + 1, defects, seconds });
+            }
             Some(kind) => defects.push(kind),
         }
     }

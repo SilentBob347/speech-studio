@@ -161,6 +161,11 @@ impl Phrase {
         self.send("restart", json!({}));
     }
 
+    /// Whether the phrase is heard aloud as it comes (an agent speaking), not only in a project's player.
+    pub fn is_aloud(&self) -> bool {
+        is_aloud(&self.project)
+    }
+
     /// Milliseconds from the start of the block to its first sound.
     pub fn first_ms(&self) -> Option<u64> {
         self.first_ms.lock().ok().and_then(|f| *f)
