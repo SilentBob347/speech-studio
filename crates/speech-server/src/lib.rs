@@ -223,6 +223,7 @@ pub fn set_ort_dylib_env(repo_root: &Path, beside_exe: &Path) {
     if std::env::var_os("ORT_DYLIB_PATH").is_some() {
         return;
     }
+    ORT_PATH_OURS.store(true, std::sync::atomic::Ordering::Relaxed);
     let rt = repo_root.join("models").join("runtime");
     let found = dub_core::runtime::ort_candidates(&repo_root.join("models"))
         .into_iter()
@@ -235,8 +236,6 @@ pub fn set_ort_dylib_env(repo_root: &Path, beside_exe: &Path) {
     match found {
         Some(cand) => std::env::set_var("ORT_DYLIB_PATH", cand),
         None => {
-            // never unset: by bare name Windows finds another program's onnxruntime.dll (System32 has 1.17), which `ort`
-            // rejects with a panic; the path of the build this machine downloads works once it is there
             let [gpu, cpu] = dub_core::runtime::ort_candidates(&repo_root.join("models")).try_into().expect("a GPU and a CPU build");
             std::env::set_var("ORT_DYLIB_PATH", if hw::gpu_report().cuda13_ok { gpu } else { cpu });
             eprintln!("[ERROR] onnxruntime 1.28 not found in {}: recognition and diarization will not start until the ONNX Runtime component is downloaded", rt.display());
@@ -244,9 +243,15 @@ pub fn set_ort_dylib_env(repo_root: &Path, beside_exe: &Path) {
     }
 }
 
+/// The ONNX Runtime path was set by the studio, not given by the person (whose path stays as it is).
+static ORT_PATH_OURS: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
 /// ONNX Runtime just downloaded: the path on the best installed build (CUDA first), while the process has not loaded
 /// one yet (ort loads it at the first session; a build loaded before is replaced only by a restart).
 pub(crate) fn point_ort(repo_root: &Path) {
+    if !ORT_PATH_OURS.load(std::sync::atomic::Ordering::Relaxed) {
+        return;
+    }
     if let Some(gpu) = dub_core::runtime::ort_candidates(&repo_root.join("models")).into_iter().find(|c| c.is_file()) {
         std::env::set_var("ORT_DYLIB_PATH", gpu);
     }
