@@ -277,6 +277,11 @@ pub fn stage_backend(mroot: &Path, key: &str) -> &'static str {
         .unwrap_or(if crate::hw::gpu_report().cuda13_ok { "gpu" } else { "cpu" })
 }
 
+/// Сборка transcribe.cpp под backend распознавания: GPU — CUDA, CPU — CPU-сборка.
+pub fn tcpp_build(mroot: &Path) -> crate::tcpp_asr::Build {
+    if stage_backend(mroot, "asr_backend") == "cpu" { crate::tcpp_asr::Build::Cpu } else { crate::tcpp_asr::Build::Cuda }
+}
+
 /// Глобальный backend локальных стадий (обратная совместимость: пресеты/старые вызовы).
 /// Per-stage: `stage_backend(mroot, "<sep|diar|asr>_backend")`.
 pub fn local_backend(mroot: &Path) -> &'static str {
@@ -578,7 +583,7 @@ pub fn higgs_ref_secs(mroot: &Path) -> f64 {
 #[derive(Debug, Clone)]
 pub enum AsrChoice {
     /// A GGUF model run by transcribe.cpp on the GPU.
-    Ggml { models_root: PathBuf, model: &'static crate::tcpp_asr::Model },
+    Ggml { models_root: PathBuf, build: crate::tcpp_asr::Build, model: &'static crate::tcpp_asr::Model },
     Whisper { bin: PathBuf, model_dir: PathBuf, model: String, compute: String, device: String,
     },
 }
@@ -681,7 +686,7 @@ pub fn resolve_asr_choice(repo_root: &Path, mroot: &Path, sel: &Value) -> AsrCho
     let model = crate::tcpp_asr::chosen(pick(sel, "asr_engine").unwrap_or(""), pick(sel, "asr"))
         .or_else(|| crate::tcpp_asr::model("parakeet-v3"))
         .expect("parakeet-v3 is in dub_asr::tcpp::MODELS");
-    AsrChoice::Ggml { models_root: mroot.to_path_buf(), model }
+    AsrChoice::Ggml { models_root: mroot.to_path_buf(), build: tcpp_build(mroot), model }
 }
 
 /// Лежат ли рядом с whisper-faster.exe CUDA-библиотеки CTranslate2 (cuBLAS 11/12 + cuDNN).
@@ -717,7 +722,7 @@ fn whisper_cuda_libs_present(bin: &std::path::Path) -> bool {
 /// распознавателю; её понимает только Whisper, Parakeet подсказок не принимает.
 pub fn build_engine(choice: &AsrChoice, prompt: Option<String>) -> Box<dyn dub_asr::AsrEngine> {
     match choice {
-        AsrChoice::Ggml { models_root, model } => Box::new(dub_asr::tcpp::TcppEngine::new(models_root, model)),
+        AsrChoice::Ggml { models_root, build, model } => Box::new(dub_asr::tcpp::TcppEngine::new(models_root, *build, model)),
         AsrChoice::Whisper { bin, model_dir, model, compute, device } => Box::new(dub_asr::WhisperAsr::new(bin, model_dir, model, compute, device).with_prompt(prompt)),
     }
 }

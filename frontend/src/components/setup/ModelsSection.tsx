@@ -353,8 +353,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
             );
           })}
         </div>
-        {/* Whisper — на чём считать: свои табы устройства; transcribe.cpp идёт на видеокарте. */}
-        {selv("or_asr_on") !== "1" && asrEngine === "whisper" && backendTabs("asr_backend")}
+        {selv("or_asr_on") !== "1" && backendTabs("asr_backend")}
         {selv("or_asr_on") === "1" ? (
           <div className={`${orRowCls} space-y-2`}>
             {orModelSelect("asr", "or_asr", t("providers.pickAsrModel"))}
@@ -362,12 +361,12 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
           </div>
         ) : asrEngine === "parakeet" ? (
           <>
-            {rowOf("transcribe-engine")}
+            {get("transcribe-engine-cpu")?.requirement === "required" ? rowOf("transcribe-engine-cpu") : rowOf("transcribe-engine")}
             {variantPicker("Parakeet-TDT 0.6B v3", ["parakeet", "parakeet-ultra"], ASR_VARIANT_I18N)}
           </>
         ) : asrEngine === "nemotron" ? (
           <>
-            {rowOf("transcribe-engine")}
+            {get("transcribe-engine-cpu")?.requirement === "required" ? rowOf("transcribe-engine-cpu") : rowOf("transcribe-engine")}
             {rowOf("asr-gguf-nemotron")}
           </>
         ) : (

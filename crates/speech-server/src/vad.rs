@@ -31,13 +31,13 @@ impl Default for VadConfig {
 /// Скачаны ли модель разметки речи и движок, что её запускает.
 pub fn installed(models_root: &Path) -> bool {
     dub_asr::tcpp::helper_path(models_root, &dub_asr::tcpp::VAD).is_file()
-        && dub_asr::tcpp::engine_dir(models_root).join(dub_asr::tcpp::LIBRARY).is_file()
+        && dub_asr::tcpp::engine_dir(models_root, crate::models::tcpp_build(models_root)).join(dub_asr::tcpp::LIBRARY).is_file()
 }
 
 /// Вероятность речи на каждый кадр в 32 мс (16 кГц моно).
 pub fn probabilities(models_root: &Path, samples: &[f32]) -> Result<Vec<f32>, String> {
     let model = dub_asr::tcpp::helper_path(models_root, &dub_asr::tcpp::VAD);
-    dub_asr::tcpp::vad_probabilities(&dub_asr::tcpp::engine_dir(models_root), &model, samples)
+    dub_asr::tcpp::vad_probabilities(&dub_asr::tcpp::engine_dir(models_root, crate::models::tcpp_build(models_root)), &model, samples)
 }
 
 /// Отрезки речи в секундах по вероятностям кадров (`get_speech_timestamps` Silero без ограничения длины: длинное

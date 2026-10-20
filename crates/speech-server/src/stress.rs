@@ -110,11 +110,18 @@ static LOADED: LazyLock<Mutex<Option<Arc<Stresser>>>> = LazyLock::new(|| Mutex::
 
 /// Общий на процесс разметчик: грузится при первом обращении (словарь собирается в память один раз).
 pub fn shared(models_root: &Path) -> Result<Arc<Stresser>, String> {
-    let mut slot = LOADED.lock().map_err(|_| "stress lock".to_string())?;
+    // the slot changes only after a load succeeds, so a lock poisoned by a panic still holds a whole value
+    let mut slot = LOADED.lock().unwrap_or_else(|e| e.into_inner());
     if let Some(s) = slot.as_ref().filter(|s| s.omo_dir == omograph_dir(&dir(models_root))) {
         return Ok(s.clone());
     }
-    let s = Arc::new(Stresser::load(&dir(models_root))?);
+    let d = dir(models_root);
+    // ONNX Runtime that does not load panics inside `ort`
+    let loaded = std::panic::catch_unwind(|| Stresser::load(&d)).map_err(|p| {
+        let why = p.downcast_ref::<&str>().map(|s| s.to_string()).or_else(|| p.downcast_ref::<String>().cloned()).unwrap_or_default();
+        format!("{}: {why}", d.display())
+    })?;
+    let s = Arc::new(loaded?);
     *slot = Some(s.clone());
     Ok(s)
 }

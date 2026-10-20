@@ -25,6 +25,9 @@ release notes on GitHub are taken from the release's section.
   and the card keeps a cache of the ones in use; the sound is the same. Settings → Models → *VRAM for Drama 3*: Auto
   (the whole model when it fits the free VRAM) or 5 to 24 GB by hand. Measured on an RTX 4090: whole model about 8×
   faster than real time, 12 GB 4.7×, 8 GB 3×, 6 GB 2.2×. Engine drama-rs engine-0.1.3.
+- **A stress model that failed to load no longer stops voicing for the rest of the session.** The failure kept a lock
+  closed and every later block failed with "stress lock"; it now says why the load failed, and the next block tries
+  again.
 - **On an NVIDIA card the GPU ONNX Runtime and cuDNN are required.** Skipped on first run, the studio loaded the CPU
   build of ONNX Runtime, which a running process cannot swap, and Supertonic on the card failed until a restart; first
   run now fetches them with the other required parts.
@@ -60,7 +63,8 @@ release notes on GitHub are taken from the release's section.
 
 ### Listening
 
-- **Recognition on transcribe.cpp** (GGUF Q8_0 on the GPU): Parakeet-TDT v3 and Parakeet Ultra move off ONNX Runtime,
+- **Recognition on transcribe.cpp** (GGUF Q8_0 on the GPU, or its processor build on a computer without an NVIDIA
+  card; Settings → Models → Recognition, switched without a restart): Parakeet-TDT v3 and Parakeet Ultra move off ONNX Runtime,
   and **Nemotron 3.5 ASR** (28 languages with punctuation) joins them; the model stays loaded between jobs instead of
   loading for each one. Whisper stays on faster-whisper for its word times. The engine and the models are the ones
   Dub Studio uses, so either program takes them from the other.

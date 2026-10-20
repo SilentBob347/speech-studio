@@ -25,15 +25,31 @@ pub fn transcribe_many(repo_root: &Path, models_root: &Path, files: &[(std::path
     std::env::set_var("DUB_ASR_BACKEND", crate::models::stage_backend(models_root, "asr_backend"));
     let mut out = std::collections::HashMap::new();
     for (lang, group) in by_lang {
-        let choice = choice(repo_root, models_root, lang, group[0].1)?;
+        let choice = match choice(repo_root, models_root, lang, group[0].1) {
+            Ok(c) => c,
+            Err(e) => {
+                for (file, _) in group {
+                    out.insert(file.clone(), Err(e.clone()));
+                }
+                continue;
+            }
+        };
         let mut wavs = Vec::new();
+        let mut ready = Vec::new();
         for (k, (file, _)) in group.iter().enumerate() {
             let wav = work.path().join(format!("{lang}-{k}.wav"));
-            crate::media::to_16k_mono(file, &wav)?;
-            wavs.push(wav);
+            match crate::media::to_16k_mono(file, &wav) {
+                Ok(()) => {
+                    wavs.push(wav);
+                    ready.push(*file);
+                }
+                Err(e) => {
+                    out.insert((*file).clone(), Err(e));
+                }
+            }
         }
         let heard = crate::models::build_engine(&choice, None).transcribe_many_words(&wavs, if lang.is_empty() { "auto" } else { lang });
-        for ((file, _), words) in group.into_iter().zip(heard) {
+        for (file, words) in ready.into_iter().zip(heard) {
             let heard = words.map_err(|e| e.localize()).map(|words| Heard {
                 text: words.iter().map(|w| w.word.trim()).filter(|w| !w.is_empty()).collect::<Vec<_>>().join(" "),
                 words: words.iter().map(|w| Word { word: w.word.clone(), start: w.start, end: w.end }).collect(),
@@ -66,6 +82,9 @@ pub fn choice_of(repo_root: &Path, models_root: &Path, lang: &str, what: &str, e
     }
     let asked = sel.get("asr_engine").and_then(serde_json::Value::as_str).unwrap_or_default().to_string();
     let choice = crate::models::resolve_asr_choice(repo_root, models_root, &sel);
+    if asked == "whisper" && !matches!(choice, crate::models::AsrChoice::Whisper { .. }) {
+        return Err(t!("listen-whisper-missing"));
+    }
     let lang = if lang.is_empty() || lang == "auto" { "" } else { lang };
     if !choice.knows(lang) {
         if !matches!(asked.as_str(), "" | "parakeet") {
@@ -84,8 +103,8 @@ pub fn choice_of(repo_root: &Path, models_root: &Path, lang: &str, what: &str, e
         }
         return Ok(whisper);
     }
-    if let crate::models::AsrChoice::Ggml { model, .. } = &choice {
-        if !crate::tcpp_asr::installed(models_root, model) {
+    if let crate::models::AsrChoice::Ggml { build, model, .. } = &choice {
+        if !crate::tcpp_asr::installed(models_root, *build, model) {
             return Err(t!("listen-gguf-missing", engine = model.name));
         }
     }

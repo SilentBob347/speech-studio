@@ -1,18 +1,9 @@
 //! Recognition by transcribe.cpp (`dub_asr::tcpp`, shared with Dub Studio): Parakeet TDT v3 and Ultra, Nemotron 3.5.
 //! Whisper stays on whisper-faster: the transcribe.cpp port of Whisper gives no word times.
 
-pub use dub_asr::tcpp::{chosen, installed, knows, model, Model};
+pub use dub_asr::tcpp::{chosen, installed, knows, model, Build, Model};
 #[cfg(test)]
-pub use dub_asr::tcpp::{ENGINE, MODELS};
-
-/// The component of each model in the studio's manifest.
-pub fn component(m: &Model) -> &'static str {
-    match m.id {
-        "parakeet-v3" => "parakeet",
-        "parakeet-ultra" => "parakeet-ultra",
-        _ => m.dir,
-    }
-}
+pub use dub_asr::tcpp::MODELS;
 
 #[cfg(test)]
 mod tests {

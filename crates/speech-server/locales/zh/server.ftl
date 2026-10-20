@@ -855,6 +855,7 @@ setup-comp-drama3-purpose = Fish Audio Drama 3：第二个配音引擎，声音�
 drama-needs-voice = Drama 3 依据参考音频克隆声音：请为文本块或项目选择声音
 setup-comp-parakeet-ultra-purpose = 语音识别——微调版本，错误更少
 setup-comp-transcribe-engine-purpose = GPU 上的 transcribe.cpp 识别引擎；Parakeet 和 Nemotron 3.5 在它上面运行
+setup-comp-transcribe-engine-cpu-purpose = 处理器上的 transcribe.cpp 识别引擎，适用于没有 NVIDIA 显卡的电脑；Parakeet 和 Nemotron 3.5 在它上面运行，较慢
 setup-comp-asr-gguf-nemotron-purpose = transcribe.cpp 上的 Nemotron 3.5：28 种带标点的语言，包括俄语、中文和日语（NVIDIA）
 render-defect-clipping = 削波
 render-defect-click = 结尾咔嗒声

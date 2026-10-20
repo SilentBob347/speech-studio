@@ -7,17 +7,25 @@ use std::path::Path;
 
 /// Прочитать WAV -> (mono f32 сэмплы, sample_rate).
 pub fn read_mono_f32(path: &Path) -> Result<(Vec<f32>, u32), String> {
+    read_mono_f32_head(path, usize::MAX)
+}
+
+/// Первые `frames` кадров WAV -> (mono f32 сэмплы, sample_rate); остальное не читается.
+pub fn read_mono_f32_head(path: &Path, frames: usize) -> Result<(Vec<f32>, u32), String> {
     let mut r = WavReader::open(path).map_err(|e| format!("open {}: {e}", path.display()))?;
     let spec = r.spec();
     let ch = spec.channels.max(1) as usize;
+    let take = frames.saturating_mul(ch);
     let interleaved: Vec<f32> = match spec.sample_format {
         SampleFormat::Float => r
             .samples::<f32>()
+            .take(take)
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| format!("read f32: {e}"))?,
         SampleFormat::Int => {
             let max = (1i64 << (spec.bits_per_sample - 1)) as f32;
             r.samples::<i32>()
+                .take(take)
                 .map(|s| s.map(|v| v as f32 / max))
                 .collect::<Result<Vec<_>, _>>()
                 .map_err(|e| format!("read int: {e}"))?

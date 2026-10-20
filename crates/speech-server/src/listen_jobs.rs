@@ -65,8 +65,8 @@ fn engine_for(p: &ListenPaths, project: &ListenProject, lang: &str) -> Result<En
     match &choice {
         crate::models::AsrChoice::Whisper { .. } => Ok(Engine::Local(choice, "whisper")),
         _ if picked == "whisper" => Err(if for_lang { t!("listen-whisper-for-lang", lang = lang.to_string()) } else { t!("listen-whisper-missing") }),
-        crate::models::AsrChoice::Ggml { model, .. } => {
-            if !crate::tcpp_asr::installed(&p.models_root, model) {
+        crate::models::AsrChoice::Ggml { build, model, .. } => {
+            if !crate::tcpp_asr::installed(&p.models_root, *build, model) {
                 return Err(t!("listen-gguf-missing", engine = model.name));
             }
             if !crate::tcpp_asr::knows(model, lang) {
@@ -346,12 +346,12 @@ const OWN_LANGUAGES_MIN: f32 = 0.1;
 /// own language while those hold a noticeable share, else the likeliest of all 107 (the recording goes to a model that
 /// knows it). None for a recording under half a second, which the detector does not hear.
 fn spoken_language(models_root: &Path, wav: &Path, known: &[&str]) -> Result<Option<String>, String> {
-    let (pcm, _) = crate::wavio::read_mono_f32(wav)?;
+    let (pcm, _) = crate::wavio::read_mono_f32_head(wav, 30 * 16_000)?;
     if pcm.len() < dub_asr::tcpp::LANGID_MIN_SAMPLES {
         return Ok(None);
     }
-    let pcm = &pcm[..pcm.len().min(30 * 16_000)];
-    let engine = dub_asr::tcpp::engine_dir(models_root);
+    let pcm = pcm.as_slice();
+    let engine = dub_asr::tcpp::engine_dir(models_root, crate::models::tcpp_build(models_root));
     let model = dub_asr::tcpp::helper_path(models_root, &dub_asr::tcpp::LANGID);
     let own = dub_asr::tcpp::detect_language(&engine, &model, pcm, known)?;
     let guess = if own.allowed_mass >= OWN_LANGUAGES_MIN { own } else { dub_asr::tcpp::detect_language(&engine, &model, pcm, &[])? };
@@ -368,8 +368,8 @@ pub fn transcribe(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Resul
     let diar = s.speakers != 1;
     crate::ensure_job_components(&p.repo_root, &p.models_root, s.speakers > 1, diar, &|ev| progress(ev))?;
     let mut extra = Vec::new();
-    if matches!(engine, Engine::Local(crate::models::AsrChoice::Ggml { .. }, _)) {
-        extra.extend(["transcribe-engine", "silero-vad"]);
+    if let Engine::Local(crate::models::AsrChoice::Ggml { build, .. }, _) = &engine {
+        extra.extend([build.dir(), "silero-vad"]);
     }
     if s.denoise {
         extra.push("dpdfnet");
@@ -397,7 +397,7 @@ pub fn transcribe(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Resul
         _ => None,
     };
     if let Some(model) = studio_model {
-        crate::ensure_components(&p.repo_root, &["transcribe-engine", "langid"], &|ev| progress(ev))?;
+        crate::ensure_components(&p.repo_root, &[crate::models::tcpp_build(&p.models_root).dir(), "langid"], &|ev| progress(ev))?;
         if let Some(lang) = spoken_language(&p.models_root, &mix, model.languages)? {
             step(progress, t!("listen-step-langid", lang = lang.to_uppercase()), 7);
             engine = engine_for(p, &project, &lang)?;

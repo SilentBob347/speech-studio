@@ -1056,6 +1056,7 @@ setup-comp-drama3-purpose = Fish Audio Drama 3 : un second moteur vocal au clona
 drama-needs-voice = Drama 3 clone une voix à partir de sa référence : choisissez une voix pour le bloc ou le projet
 setup-comp-parakeet-ultra-purpose = Reconnaissance vocale : version affinée, moins d'erreurs
 setup-comp-transcribe-engine-purpose = Le moteur de reconnaissance transcribe.cpp sur la carte graphique ; Parakeet et Nemotron 3.5 tournent dessus
+setup-comp-transcribe-engine-cpu-purpose = Le moteur de reconnaissance transcribe.cpp sur le processeur, pour un ordinateur sans NVIDIA ; Parakeet et Nemotron 3.5 tournent dessus, plus lent
 setup-comp-asr-gguf-nemotron-purpose = Nemotron 3.5 sur transcribe.cpp : 28 langues avec ponctuation, dont le russe, le chinois et le japonais (NVIDIA)
 render-defect-clipping = écrêtage
 render-defect-click = un clic à la fin

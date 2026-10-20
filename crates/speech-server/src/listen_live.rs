@@ -151,12 +151,13 @@ pub(crate) fn to_16k(x: &[f32], sr: u32) -> Vec<f32> {
 fn listen(choice: crate::models::AsrChoice, models_root: &Path, lang: &str, from: Receiver<Vec<f32>>, stop: &AtomicBool, rate: &dyn Fn() -> u32) -> Result<(), String> {
     // Nemotron 3.5 is a streaming model: a phrase is recognised as it is spoken instead of again from its start
     let mut stream = match &choice {
-        crate::models::AsrChoice::Ggml { models_root, model } if model.id == "nemotron" => Some(
-            dub_asr::tcpp::TcppStream::new(&dub_asr::tcpp::engine_dir(models_root), &dub_asr::tcpp::model_path(models_root, model), lang)?,
+        crate::models::AsrChoice::Ggml { models_root, build, model } if model.id == "nemotron" => Some(
+            dub_asr::tcpp::TcppStream::new(&dub_asr::tcpp::engine_dir(models_root, *build), &dub_asr::tcpp::model_path(models_root, model), lang)?,
         ),
         _ => None,
     };
-    let mut fed = 0usize;
+    // samples of `audio` the stream already has
+    let mut streamed = 0usize;
     let mut asr = crate::models::build_engine(&choice, None);
     let work = tempfile::Builder::new().prefix("live-").tempdir().map_err(|e| e.to_string())?;
     let mut pending: Vec<f32> = Vec::new();
@@ -199,6 +200,7 @@ fn listen(choice: crate::models::AsrChoice, models_root: &Path, lang: &str, from
                 let drop = pending.len().saturating_sub(keep);
                 pending.drain(..drop);
                 offset += drop as f64 / sr as f64;
+                streamed = streamed.saturating_sub(drop * 16_000 / sr as usize);
             }
             continue;
         };
@@ -206,7 +208,8 @@ fn listen(choice: crate::models::AsrChoice, models_root: &Path, lang: &str, from
         let cut = if ended || secs - last >= PAUSE_SECS {
             Some((last + EDGE_SECS).min(secs))
         } else if last - first >= LONGEST_SECS {
-            Some(last)
+            // the stream has heard up to the end already: a cut before it would leave those words to the next phrase too
+            Some(if stream.is_some() { secs } else { last })
         } else {
             None
         };
@@ -215,8 +218,8 @@ fn listen(choice: crate::models::AsrChoice, models_root: &Path, lang: &str, from
         let Some(z) = cut else {
             // the phrase goes on: show what it says so far
             if let Some(s) = stream.as_mut() {
-                let so_far = s.feed(&audio[(from_a + fed).min(audio.len())..])?;
-                fed = audio.len().saturating_sub(from_a);
+                let so_far = s.feed(&audio[streamed.max(from_a).min(audio.len())..])?;
+                streamed = audio.len();
                 with(|l| l.partial = Some((offset + a, so_far)));
             } else if secs - interim_at >= INTERIM_SECS && last - first >= INTERIM_SECS {
                 interim_at = secs;
@@ -228,8 +231,8 @@ fn listen(choice: crate::models::AsrChoice, models_root: &Path, lang: &str, from
         let to_z = ((z * 16_000.0) as usize).min(audio.len());
         let text = match stream.as_mut() {
             Some(s) => {
-                s.feed(&audio[(from_a + fed).min(to_z)..to_z])?;
-                fed = 0;
+                s.feed(&audio[streamed.max(from_a).min(to_z)..to_z])?;
+                streamed = 0;
                 s.finish()?
             }
             None => hear(&audio[from_a..to_z])?,

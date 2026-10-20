@@ -1083,6 +1083,7 @@ setup-comp-drama3-purpose = Fish Audio Drama 3: второй движок озв
 drama-needs-voice = Drama 3 клонирует голос по рефу: выберите голос блоку или проекту
 setup-comp-parakeet-ultra-purpose = Распознавание речи — дообученная версия, меньше ошибок
 setup-comp-transcribe-engine-purpose = Движок распознавания transcribe.cpp на видеокарте; на нём работают Parakeet и Nemotron 3.5
+setup-comp-transcribe-engine-cpu-purpose = Движок распознавания transcribe.cpp на процессоре, для компьютера без NVIDIA; на нём работают Parakeet и Nemotron 3.5, медленнее
 setup-comp-asr-gguf-nemotron-purpose = Nemotron 3.5 на transcribe.cpp: 28 языков с пунктуацией, включая русский, китайский и японский (NVIDIA)
 render-defect-clipping = клиппинг
 render-defect-click = щелчок в конце
