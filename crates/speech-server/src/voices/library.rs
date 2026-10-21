@@ -8,6 +8,8 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+use crate::platform::fs::write_atomic;
+
 pub const AUDIO_EXTS: [&str; 5] = ["wav", "mp3", "flac", "m4a", "ogg"];
 pub const PHOTO_EXTS: [&str; 3] = ["jpg", "png", "webp"];
 const ORIGINALS: &str = ".originals";
@@ -143,12 +145,6 @@ pub fn read_card(dir: &Path, name: &str) -> Result<VoiceCard, String> {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(guess_card(name)),
         Err(e) => Err(format!("{}: {e}", p.display())),
     }
-}
-
-pub(crate) fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), String> {
-    let tmp = path.with_extension("tmp");
-    std::fs::write(&tmp, bytes).map_err(|e| format!("{}: {e}", tmp.display()))?;
-    std::fs::rename(&tmp, path).map_err(|e| format!("{}: {e}", path.display()))
 }
 
 pub fn write_card(dir: &Path, name: &str, card: &VoiceCard) -> Result<(), String> {

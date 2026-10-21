@@ -332,7 +332,7 @@ pub fn save(workspace: &Path, pid: &str, project: &ListenProject) -> Result<(), 
     let dir = dir(workspace, pid);
     std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let text = serde_json::to_string_pretty(project).map_err(|e| e.to_string())?;
-    crate::app::revisions::save_with_revision(&dir, || crate::voice_library::write_atomic(&dir.join("project.json"), text.as_bytes()))
+    crate::app::revisions::save_with_revision(&dir, || crate::platform::fs::write_atomic(&dir.join("project.json"), text.as_bytes()))
 }
 
 /// Новый проект вокруг файла, уже лежащего в его папке; длительность — по ffprobe. Субтитры площадки рядом

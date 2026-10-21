@@ -78,7 +78,7 @@ fn write_all(j: &Journal, lines: &[Line]) -> Result<(), String> {
         text.push_str(&serde_json::to_string(line).map_err(|e| e.to_string())?);
         text.push('\n');
     }
-    crate::voice_library::write_atomic(&j.path, text.as_bytes())
+    crate::platform::fs::write_atomic(&j.path, text.as_bytes())
 }
 
 /// Writes a line, keeping the latest ones, and tells the windows.

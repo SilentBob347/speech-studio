@@ -296,7 +296,7 @@ pub fn save_global(repo_root: &Path, entries: &[Entry]) -> Result<(), String> {
     let path = global_path(repo_root);
     std::fs::create_dir_all(path.parent().expect("a folder")).map_err(|e| e.to_string())?;
     let text = serde_json::to_string_pretty(&File { version: 1, entries: entries.to_vec() }).map_err(|e| e.to_string())?;
-    crate::voice_library::write_atomic(&path, text.as_bytes())
+    crate::platform::fs::write_atomic(&path, text.as_bytes())
 }
 
 /// Записи без пустого `find`, известного типа, с собирающимся шаблоном и уникальным id.

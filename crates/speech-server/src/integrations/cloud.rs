@@ -145,7 +145,7 @@ impl Cloud {
             Ok(entries) if !entries.is_empty() => {
                 let fresh = ProviderCatalog { entries, updated: Some(chrono::Utc::now().timestamp_millis()), refreshing: false, error: None };
                 if let Ok(text) = serde_json::to_string(&fresh) {
-                    let _ = crate::voice_library::write_atomic(&self.dir.join(format!("{}.json", provider.as_str())), text.as_bytes());
+                    let _ = crate::platform::fs::write_atomic(&self.dir.join(format!("{}.json", provider.as_str())), text.as_bytes());
                 }
                 self.set(provider, |c| *c = fresh);
             }
@@ -181,7 +181,7 @@ impl Cloud {
         match read {
             Ok(form) => {
                 if let Ok(text) = serde_json::to_string(&CachedForm { version: FORM_VERSION, form: form.clone() }) {
-                    let _ = crate::voice_library::write_atomic(&path, text.as_bytes());
+                    let _ = crate::platform::fs::write_atomic(&path, text.as_bytes());
                 }
                 Ok(form)
             }
@@ -389,7 +389,7 @@ fn run(cloud: &Cloud, provider: Provider, id: &str, form: &ModelForm, values: &M
                     if let Some(dir) = r.handle_file.parent() {
                         std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
                     }
-                    crate::voice_library::write_atomic(r.handle_file, handle.to_string().as_bytes())?;
+                    crate::platform::fs::write_atomic(r.handle_file, handle.to_string().as_bytes())?;
                     handle
                 }
             }

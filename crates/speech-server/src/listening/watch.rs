@@ -78,7 +78,7 @@ fn running() -> &'static AtomicBool {
 fn save(repo_root: &Path) -> Result<(), String> {
     let s = state().lock().unwrap_or_else(|p| p.into_inner()).clone();
     let text = serde_json::to_string_pretty(&s).map_err(|e| e.to_string())?;
-    crate::voice_library::write_atomic(&file(repo_root), text.as_bytes())
+    crate::platform::fs::write_atomic(&file(repo_root), text.as_bytes())
 }
 
 fn check(c: &WatchConfig) -> Result<(), String> {
@@ -335,7 +335,7 @@ async fn one(st: &AppState, config: &WatchConfig, path: &Path) -> Result<(String
     for format in &config.formats {
         let text = crate::transcript_out::render(&project, format, &o)?;
         let target = out.join(format!("{stem}.{format}"));
-        crate::voice_library::write_atomic(&target, text.as_bytes())?;
+        crate::platform::fs::write_atomic(&target, text.as_bytes())?;
         outputs.push(target.to_string_lossy().into_owned());
     }
     Ok((pid, outputs))

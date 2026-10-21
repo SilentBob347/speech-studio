@@ -4,6 +4,13 @@ What changed, newest first. Dates are release dates; the app is versioned by its
 build. Every change a user can see is written here in the commit that makes it, and the
 release notes on GitHub are taken from the release's section.
 
+## Unreleased
+
+### Fixed
+
+- **Reliable file saves.** Concurrent saves of a voice's card, transcript and image no longer share a temporary file.
+  Failed writes and blocked replacements preserve the previous file.
+
 ## 0.2.0 — 2026-10-20
 
 ### Live

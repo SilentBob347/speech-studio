@@ -346,7 +346,7 @@ pub async fn export(State(st): State<AppState>, AxPath(pid): AxPath<String>, Jso
         std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
         let base: String = project.name.chars().map(|c| if c.is_control() || "<>:\"/\\|?*".contains(c) { ' ' } else { c }).collect::<String>().trim().to_string();
         let file = format!("{}.{format}", if base.is_empty() { "transcript" } else { &base });
-        crate::voice_library::write_atomic(&dir.join(&file), text.as_bytes())?;
+        crate::platform::fs::write_atomic(&dir.join(&file), text.as_bytes())?;
         Ok(json!({ "file": file, "text": text, "too_fast": fast, "digits_unknown": o.digits.then_some(unknown) }))
     })
     .await);
