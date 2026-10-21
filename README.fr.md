@@ -148,6 +148,7 @@ Sur un même ordinateur : RTX 4090 (24 Go) sous Windows 11, Speech Studio tel qu
 | Parakeet TDT v3 | 96× (3,1 s) | 33× (9,2 s) | 25 | 0,7 Go | 1,2 Go |
 | Parakeet Ultra | 73× (4,1 s) | 33× (9,2 s) | 25 | 0,7 Go | 1,0 Go |
 | Nemotron 3.5 | 73× (4,1 s) | 29× (10,3 s) | 28 | 0,7 Go | 1,0 Go |
+| Whisper large-v3-turbo | 19× (15,4 s) | 2,2× (134 s) | 99 | 1,6 Go | 1,6 Go |
 
 **Live** — un tour de conversation.
 

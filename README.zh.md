@@ -148,6 +148,7 @@ Speech Studio 打开时，会在 `http://127.0.0.1:8797/mcp` 提供 MCP：Claude
 | Parakeet TDT v3 | 96× (3.1 秒) | 33× (9.2 秒) | 25 | 0.7 GB | 1.2 GB |
 | Parakeet Ultra | 73× (4.1 秒) | 33× (9.2 秒) | 25 | 0.7 GB | 1.0 GB |
 | Nemotron 3.5 | 73× (4.1 秒) | 29× (10.3 秒) | 28 | 0.7 GB | 1.0 GB |
+| Whisper large-v3-turbo | 19× (15.4 秒) | 2.2× (134 秒) | 99 | 1.6 GB | 1.6 GB |
 
 **Live**——对话中的一个来回。
 

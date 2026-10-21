@@ -18,6 +18,7 @@ export const ASR_BENCH = [
   { model: 'parakeet', name: 'Parakeet TDT v3', gpu: 96, cpu: 33, langs: 25, diskGB: 0.7, vramGB: 1.2 },
   { model: 'parakeet-ultra', name: 'Parakeet Ultra', gpu: 73, cpu: 33, langs: 25, diskGB: 0.7, vramGB: 1.0 },
   { model: 'nemotron', name: 'Nemotron 3.5', gpu: 73, cpu: 29, langs: 28, diskGB: 0.7, vramGB: 1.0 },
+  { model: 'whisper', name: 'Whisper large-v3-turbo', gpu: 19, cpu: 2.2, langs: 99, diskGB: 1.6, vramGB: 1.6 },
 ];
 
 // One turn of a Live conversation, ms: the phrase as text after the speech ends (Parakeet on the card, the pause that
