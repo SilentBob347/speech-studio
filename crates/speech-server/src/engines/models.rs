@@ -247,12 +247,7 @@ pub fn is_selection_value(key: &str, value: &str) -> bool {
         "voice_clean" => matches!(value, "0" | "1"),
         "drama_vram_gb" => value.parse::<u32>().is_ok_and(|gb| gb == 0 || (DRAMA_MIN_LIMIT_GB..=256).contains(&gb)),
         "cloud_daily_limit_usd" => value.parse::<f64>().is_ok_and(|v| (0.0..=10_000.0).contains(&v)),
-        "google_tts_model" => {
-            !value.is_empty()
-                && value
-                    .bytes()
-                    .all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b))
-        }
+        "google_tts_model" => crate::google_tts::is_model_id(value),
         _ => true,
     }
 }

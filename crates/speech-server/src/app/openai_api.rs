@@ -24,7 +24,13 @@ const LONGEST: Duration = Duration::from_secs(30 * 60);
 const LOGGED: usize = 300;
 
 /// Engine aliases: OpenAI's names map to the local engines.
-const SPEECH_MODELS: &[(&str, &str)] = &[("tts-1", "higgs"), ("tts-1-hd", "higgs"), ("gpt-4o-mini-tts", "higgs"), ("higgs", "higgs"), ("drama3", "drama3")];
+const SPEECH_MODELS: &[(&str, &str)] = &[
+    ("tts-1", "higgs"),
+    ("tts-1-hd", "higgs"),
+    ("gpt-4o-mini-tts", "higgs"),
+    ("higgs", "higgs"),
+    ("drama3", "drama3"),
+];
 const TRANSCRIBE_MODELS: &[&str] = &["whisper-1", "gpt-4o-transcribe", "gpt-4o-mini-transcribe", "parakeet"];
 
 /// A request the API answered, for the log.
@@ -59,15 +65,27 @@ struct Failure {
 }
 
 fn invalid(message: impl Into<String>) -> Failure {
-    Failure { status: StatusCode::BAD_REQUEST, kind: "invalid_request_error", message: message.into() }
+    Failure {
+        status: StatusCode::BAD_REQUEST,
+        kind: "invalid_request_error",
+        message: message.into(),
+    }
 }
 
 fn server(message: impl Into<String>) -> Failure {
-    Failure { status: StatusCode::INTERNAL_SERVER_ERROR, kind: "server_error", message: message.into() }
+    Failure {
+        status: StatusCode::INTERNAL_SERVER_ERROR,
+        kind: "server_error",
+        message: message.into(),
+    }
 }
 
 fn error_response(f: &Failure) -> Response {
-    (f.status, Json(json!({ "error": { "message": f.message, "type": f.kind, "param": Value::Null, "code": Value::Null } }))).into_response()
+    (
+        f.status,
+        Json(json!({ "error": { "message": f.message, "type": f.kind, "param": Value::Null, "code": Value::Null } })),
+    )
+        .into_response()
 }
 
 /// Answers a request and writes it into the log.
@@ -87,12 +105,25 @@ fn answered(mut row: Logged, started: Instant, result: Result<Response, Failure>
 }
 
 fn authorised(headers: &HeaderMap) -> Result<(), Failure> {
-    let Some((token, _)) = crate::credentials::api_token() else { return Ok(()) };
-    let given = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok()).and_then(|v| v.strip_prefix("Bearer ")).unwrap_or_default();
+    let token = crate::credentials::api_token();
+    authorised_token(headers, token.as_ref().map(|(token, _)| token.as_str()))
+}
+
+fn authorised_token(headers: &HeaderMap, token: Option<&str>) -> Result<(), Failure> {
+    let Some(token) = token else { return Ok(()) };
+    let given = headers
+        .get(header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "))
+        .unwrap_or_default();
     if bool::from(subtle::ConstantTimeEq::ct_eq(given.as_bytes(), token.as_bytes())) {
         Ok(())
     } else {
-        Err(Failure { status: StatusCode::UNAUTHORIZED, kind: "invalid_request_error", message: "Incorrect API key provided.".into() })
+        Err(Failure {
+            status: StatusCode::UNAUTHORIZED,
+            kind: "invalid_request_error",
+            message: "Incorrect API key provided.".into(),
+        })
     }
 }
 
@@ -103,7 +134,14 @@ pub async fn models(headers: HeaderMap) -> Response {
         let ids = SPEECH_MODELS.iter().map(|(id, _)| *id).chain(TRANSCRIBE_MODELS.iter().copied());
         Json(json!({ "object": "list", "data": ids.map(|id| json!({ "id": id, "object": "model", "created": 0, "owned_by": "speech-studio" })).collect::<Vec<_>>() })).into_response()
     });
-    answered(Logged { endpoint: "models", ..Default::default() }, started, result)
+    answered(
+        Logged {
+            endpoint: "models",
+            ..Default::default()
+        },
+        started,
+        result,
+    )
 }
 
 /// POST /v1/audio/speech {model, input, voice, response_format?, speed?, instructions?}
@@ -121,6 +159,17 @@ pub async fn speech(headers: HeaderMap, Json(body): Json<Value>) -> Response {
 }
 
 async fn speak(headers: &HeaderMap, body: &Value) -> Result<Response, Failure> {
+    speak_with(headers, body, |args| async move {
+        crate::app::tools::one_call("speak_text", &args, Instant::now() + LONGEST).await
+    })
+    .await
+}
+
+async fn speak_with<F, Fut>(headers: &HeaderMap, body: &Value, call: F) -> Result<Response, Failure>
+where
+    F: FnOnce(Value) -> Fut,
+    Fut: std::future::Future<Output = Result<Value, String>>,
+{
     authorised(headers)?;
     let input = body.get("input").and_then(Value::as_str).unwrap_or_default().trim().to_string();
     if input.is_empty() {
@@ -137,13 +186,21 @@ async fn speak(headers: &HeaderMap, body: &Value) -> Result<Response, Failure> {
         "flac" => ("flac", "audio/flac"),
         "aac" => ("m4a", "audio/aac"),
         "pcm" => ("wav", "audio/pcm"),
-        other => return Err(invalid(format!("response_format '{other}' is not supported here: mp3, wav, flac, aac or pcm."))),
+        other => {
+            return Err(invalid(format!(
+                "response_format '{other}' is not supported here: mp3, wav, flac, aac or pcm."
+            )))
+        }
     };
     let speed = body.get("speed").and_then(Value::as_f64).unwrap_or(1.0);
     if !(0.25..=4.0).contains(&speed) {
         return Err(invalid("speed is between 0.25 and 4.0."));
     }
-    let text = if (speed - 1.0).abs() > 1e-3 { format!("[rate:{speed:.2}] {input}") } else { input };
+    let text = if (speed - 1.0).abs() > 1e-3 {
+        format!("[rate:{speed:.2}] {input}")
+    } else {
+        input
+    };
     let mut args = json!({ "text": text, "engine": engine, "format": format });
     if let Some(voice) = body.get("voice").and_then(Value::as_str).filter(|v| !v.is_empty()) {
         args["voice"] = json!(voice);
@@ -151,9 +208,15 @@ async fn speak(headers: &HeaderMap, body: &Value) -> Result<Response, Failure> {
     if let Some(instructions) = body.get("instructions").and_then(Value::as_str).filter(|v| !v.trim().is_empty()) {
         args["direction"] = json!(instructions.trim());
     }
-    let done = match crate::app::tools::one_call("speak_text", &args, Instant::now() + LONGEST).await {
+    let done = match call(args).await {
         Ok(v) if v["done"] == true => v,
-        Ok(_) => return Err(Failure { status: StatusCode::GATEWAY_TIMEOUT, kind: "server_error", message: "The speech took longer than the request may wait.".into() }),
+        Ok(_) => {
+            return Err(Failure {
+                status: StatusCode::GATEWAY_TIMEOUT,
+                kind: "server_error",
+                message: "The speech took longer than the request may wait.".into(),
+            })
+        }
         Err(e) => return Err(invalid(e)),
     };
     let path = done["file"].as_str().ok_or_else(|| server("the studio named no file"))?;
@@ -178,14 +241,41 @@ fn pcm_of_wav(wav: &[u8]) -> Vec<u8> {
 /// POST /v1/audio/transcriptions (multipart: file, model, language?, response_format?)
 pub async fn transcriptions(State(st): State<AppState>, headers: HeaderMap, multipart: Multipart) -> Response {
     let started = Instant::now();
-    let mut row = Logged { endpoint: "transcriptions", model: "whisper-1".into(), ..Default::default() };
+    let mut row = Logged {
+        endpoint: "transcriptions",
+        model: "whisper-1".into(),
+        ..Default::default()
+    };
     let result = transcribe(&st, &headers, multipart, &mut row).await;
     answered(row, started, result)
 }
 
-async fn transcribe(st: &AppState, headers: &HeaderMap, mut multipart: Multipart, row: &mut Logged) -> Result<Response, Failure> {
+async fn transcribe(st: &AppState, headers: &HeaderMap, multipart: Multipart, row: &mut Logged) -> Result<Response, Failure> {
+    transcribe_with(st, headers, multipart, row, |args| async move {
+        crate::app::tools::one_call("transcribe_file", &args, Instant::now() + LONGEST).await
+    })
+    .await
+}
+
+async fn transcribe_with<F, Fut>(
+    st: &AppState,
+    headers: &HeaderMap,
+    mut multipart: Multipart,
+    row: &mut Logged,
+    call: F,
+) -> Result<Response, Failure>
+where
+    F: FnOnce(Value) -> Fut,
+    Fut: std::future::Future<Output = Result<Value, String>>,
+{
     authorised(headers)?;
-    let (mut bytes, mut name, mut model, mut language, mut format) = (Vec::new(), String::from("audio.wav"), String::from("whisper-1"), String::from("auto"), String::from("json"));
+    let (mut bytes, mut name, mut model, mut language, mut format) = (
+        Vec::new(),
+        String::from("audio.wav"),
+        String::from("whisper-1"),
+        String::from("auto"),
+        String::from("json"),
+    );
     loop {
         let field = match multipart.next_field().await {
             Ok(Some(field)) => field,
@@ -218,18 +308,36 @@ async fn transcribe(st: &AppState, headers: &HeaderMap, mut multipart: Multipart
         "json" | "text" | "verbose_json" => "json",
         "srt" => "srt",
         "vtt" => "vtt",
-        other => return Err(invalid(format!("response_format '{other}' is not supported: json, text, srt, verbose_json or vtt."))),
+        other => {
+            return Err(invalid(format!(
+                "response_format '{other}' is not supported: json, text, srt, verbose_json or vtt."
+            )))
+        }
     };
-    let ext = std::path::Path::new(&name).extension().and_then(|e| e.to_str()).filter(|e| e.chars().all(|c| c.is_ascii_alphanumeric())).unwrap_or("wav").to_ascii_lowercase();
+    let ext = std::path::Path::new(&name)
+        .extension()
+        .and_then(|e| e.to_str())
+        .filter(|e| e.chars().all(|c| c.is_ascii_alphanumeric()))
+        .unwrap_or("wav")
+        .to_ascii_lowercase();
     let dir = st.workspace.join(".uploads");
     let path = dir.join(format!("{}.{ext}", blake3::hash(&bytes).to_hex()));
     if !path.is_file() {
-        tokio::fs::create_dir_all(&dir).await.and(tokio::fs::write(&path, &bytes).await).map_err(|e| server(format!("{}: {e}", path.display())))?;
+        tokio::fs::create_dir_all(&dir)
+            .await
+            .and(tokio::fs::write(&path, &bytes).await)
+            .map_err(|e| server(format!("{}: {e}", path.display())))?;
     }
     let args = json!({ "path": path, "format": file_format, "lang": language });
-    let done = match crate::app::tools::one_call("transcribe_file", &args, Instant::now() + LONGEST).await {
+    let done = match call(args).await {
         Ok(v) if v["done"] == true => v,
-        Ok(_) => return Err(Failure { status: StatusCode::GATEWAY_TIMEOUT, kind: "server_error", message: "The recognition took longer than the request may wait.".into() }),
+        Ok(_) => {
+            return Err(Failure {
+                status: StatusCode::GATEWAY_TIMEOUT,
+                kind: "server_error",
+                message: "The recognition took longer than the request may wait.".into(),
+            })
+        }
         Err(e) => return Err(invalid(e)),
     };
     let body = done["transcript"].as_str().unwrap_or_default().to_string();
@@ -273,7 +381,11 @@ pub async fn new_key() -> Response {
     let token = format!("sk-speech-{}{}", uuid::Uuid::new_v4().simple(), uuid::Uuid::new_v4().simple());
     match crate::credentials::store_api_token(Some(&token)) {
         Ok(_) => Json(json!({ "key": token, "state": key_state() })).into_response(),
-        Err(e) => (StatusCode::CONFLICT, Json(json!({ "error": "key_not_stored", "detail": format!("{e:#}") }))).into_response(),
+        Err(e) => (
+            StatusCode::CONFLICT,
+            Json(json!({ "error": "key_not_stored", "detail": format!("{e:#}") })),
+        )
+            .into_response(),
     }
 }
 
@@ -281,7 +393,11 @@ pub async fn new_key() -> Response {
 pub async fn delete_key() -> Response {
     match crate::credentials::store_api_token(None) {
         Ok(_) => Json(key_state()).into_response(),
-        Err(e) => (StatusCode::CONFLICT, Json(json!({ "error": "key_not_removed", "detail": format!("{e:#}") }))).into_response(),
+        Err(e) => (
+            StatusCode::CONFLICT,
+            Json(json!({ "error": "key_not_removed", "detail": format!("{e:#}") })),
+        )
+            .into_response(),
     }
 }
 
@@ -298,6 +414,9 @@ pub async fn clear_requests() -> Response {
 }
 
 #[cfg(test)]
+mod boundary_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -309,7 +428,12 @@ mod tests {
     async fn models_list_in_openai_shape() {
         let listed = body_json(models(HeaderMap::new()).await).await;
         assert_eq!(listed["object"], "list");
-        let ids: Vec<&str> = listed["data"].as_array().unwrap().iter().map(|m| m["id"].as_str().unwrap()).collect();
+        let ids: Vec<&str> = listed["data"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|m| m["id"].as_str().unwrap())
+            .collect();
         assert!(ids.contains(&"tts-1") && ids.contains(&"whisper-1"));
         assert!(listed["data"].as_array().unwrap().iter().all(|m| m["object"] == "model"));
     }
@@ -324,7 +448,11 @@ mod tests {
         let response = speech(HeaderMap::new(), Json(json!({ "model": "nope", "input": "Привет" }))).await;
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
         let rows = LOG.lock().unwrap().clone();
-        assert!(rows.iter().any(|r| r.endpoint == "speech" && r.model == "nope" && r.status == 400 && r.size == 6 && r.error.as_deref().is_some_and(|e| e.contains("does not exist"))));
+        assert!(rows.iter().any(|r| r.endpoint == "speech"
+            && r.model == "nope"
+            && r.status == 400
+            && r.size == 6
+            && r.error.as_deref().is_some_and(|e| e.contains("does not exist"))));
     }
 
     #[test]

@@ -45,12 +45,11 @@ use engines::{
     asr_util, denoise, hw, models, presets, qwen_tts, stress, supertonic, tcpp_asr, tts_host, vad,
 };
 use integrations::{
-    cloud, cloud_tts, cloud_voices, google_speech, google_tts, llm_provider, music_studios,
-    openai_api, openrouter, ytdlp,
+    cloud_voices, google_tts, music_studios, openrouter, ytdlp,
 };
 use app::{
     endpoints, guard, hub, journal, localize, secrets_api, spa, studio_settings, text_api as dict_api, timings,
-    url_api, url_import, chat_api, tools,
+    url_api, url_import, chat_api, tools, cloud, cloud_api, cloud_tts, google_speech, llm_provider, openai_api,
 };
 use platform::credentials;
 use jobs::{
@@ -474,13 +473,13 @@ pub fn build_router(state: AppState) -> Router {
         .route("/text/stress", post(speech_api::stress))
         .route("/text/direct-speech", post(speech_api::direct_speech))
         .merge(dict_api::router())
-        .route("/cloud/catalog", get(cloud::catalog))
-        .route("/cloud/catalog/refresh", post(cloud::refresh))
-        .route("/cloud/form", get(cloud::form))
-        .route("/cloud/estimate", post(cloud::estimate))
-        .route("/cloud/keys", get(cloud::keys))
-        .route("/cloud/keys/{provider}", axum::routing::put(cloud::set_key).delete(cloud::delete_key))
-        .route("/cloud/spend", get(cloud::spend))
+        .route("/cloud/catalog", get(cloud_api::catalog))
+        .route("/cloud/catalog/refresh", post(cloud_api::refresh))
+        .route("/cloud/form", get(cloud_api::form))
+        .route("/cloud/estimate", post(cloud_api::estimate))
+        .route("/cloud/keys", get(cloud_api::keys))
+        .route("/cloud/keys/{provider}", axum::routing::put(cloud_api::set_key).delete(cloud_api::delete_key))
+        .route("/cloud/spend", get(cloud_api::spend))
         .route("/v1/models", get(openai_api::models))
         .route("/openai/settings", get(openai_api::settings))
         .route("/openai/key", post(openai_api::new_key).delete(openai_api::delete_key))

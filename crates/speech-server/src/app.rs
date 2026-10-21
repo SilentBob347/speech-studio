@@ -23,6 +23,13 @@ pub(crate) mod listening_to_speech;
 pub(crate) mod listening_voices;
 pub(crate) mod speaker_profiles;
 pub(crate) mod listening;
+pub(crate) mod cloud;
+pub(crate) mod cloud_api;
+pub(crate) mod spending;
+pub(crate) mod google_speech;
+pub(crate) mod llm_provider;
+pub(crate) mod openai_api;
+pub(crate) mod cloud_tts;
 
 #[cfg(test)]
 mod project_primitives_tests;

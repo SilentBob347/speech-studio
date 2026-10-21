@@ -106,22 +106,6 @@ pub fn describe(models_root: &Path, id: &str) -> Option<CatalogModel> {
     }
 }
 
-/// Потрачено ключом OpenRouter, USD (`usage` из `GET /key`). None — облако ни на одной стадии не выбрано,
-/// ключа нет или OpenRouter не ответил (причина в лог).
-pub fn total_usage_usd(models_root: &Path) -> Option<f64> {
-    if !crate::models::openrouter_any_on(models_root) {
-        return None;
-    }
-    let key = crate::models::openrouter_key()?;
-    let usage = OpenRouter::new(Some(key)).and_then(|client| client.key_usage_usd());
-    match usage {
-        Ok(usage) => Some(usage),
-        Err(e) => {
-            tracing::warn!("OpenRouter spending was not read: {e:#}");
-            None
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {

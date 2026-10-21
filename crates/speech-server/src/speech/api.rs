@@ -822,7 +822,7 @@ pub async fn tracks_music(State(st): State<AppState>, AxPath(pid): AxPath<String
     let job: crate::jobs::JobFn = Box::new(move |progress: crate::jobs::ProgressFn| {
         let step = |msg: String, pct: i64| progress(json!({ "type": "progress", "stage": "music", "msg": msg, "pct": pct }));
         step(t!("music-asking", studio = studio.name), 5);
-        let songs = crate::music_studios::make_song(studio, &body.values, &|said| step(t!("music-making", studio = studio.name, detail = said), 40))?;
+        let songs = crate::music_studios::make_song(studio, &body.values, &|said| step(t!("music-making", studio = studio.name, detail = said), 40), &jobs::check_cancelled)?;
         step(t!("music-placing"), 95);
         let files: Vec<std::path::PathBuf> = songs.iter().map(|(audio, _, _)| audio.clone()).collect();
         let mut clips = crate::tracks::clips_of(&p.workspace, &pid2, &files, body.at.unwrap_or(0.0))?;

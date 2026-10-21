@@ -111,7 +111,7 @@ fn samples_of(mime: &str, bytes: &[u8]) -> Result<Vec<f32>, String> {
 
 fn spend(repo_root: &Path, pid: &str, s: &Setup, usage: &Value, batch: bool) -> Option<f64> {
     let cost = crate::google_tts::estimate(&s.model, batch, usage).get("usd").and_then(Value::as_f64);
-    crate::cloud::record(repo_root, crate::cloud::Spent {
+    crate::app::spending::record(repo_root, crate::app::spending::Spent {
         at: chrono::Utc::now().timestamp_millis(),
         day: chrono::Local::now().format("%Y-%m-%d").to_string(),
         project: pid.to_string(),
@@ -225,7 +225,7 @@ pub fn phrase(repo_root: &Path, models_root: &Path, project_dir: &Path, pid: &st
     if let Some(error) = failed.get(&key) {
         return Err(t!("google-phrase-failed", error = explain(error)));
     }
-    crate::cloud::check_limit(repo_root, models_root, None)?;
+    crate::app::spending::check_limit(repo_root, models_root, None)?;
     let response = direct(&client()?, s, text, style).map_err(|e| explain(&e))?;
     let samples = keep(project_dir, &key, &response)?;
     let cost = spend(repo_root, pid, s, &response["usageMetadata"], false);
@@ -257,7 +257,7 @@ pub fn prefetch(repo_root: &Path, models_root: &Path, project_dir: &Path, pid: &
     }
     all.extend(failed.iter().map(|(k, e)| (k.clone(), e.clone())));
     std::fs::create_dir_all(cloud_dir(project_dir)).map_err(|e| e.to_string())?;
-    crate::google_tts::save(&path, &json!(all))?;
+    save(&path, &json!(all))?;
     let report = json!({
         "at": chrono::Utc::now().to_rfc3339(),
         "mode": if batch { "batch" } else { "standard" },
@@ -273,7 +273,7 @@ pub fn prefetch(repo_root: &Path, models_root: &Path, project_dir: &Path, pid: &
         "seconds": started.elapsed().as_secs_f64(),
         "batch": batch_name,
     });
-    crate::google_tts::save(&report_path(project_dir), &report)?;
+    save(&report_path(project_dir), &report)?;
     Ok(report)
 }
 
@@ -282,7 +282,7 @@ pub fn prefetch(repo_root: &Path, models_root: &Path, project_dir: &Path, pid: &
 fn direct_run(c: &crate::google_tts::Client, repo_root: &Path, models_root: &Path, project_dir: &Path, pid: &str, s: &Setup, keys: &[(String, &Want)], progress: &dyn Fn(Value)) -> Result<(HashMap<String, String>, Option<f64>, Option<String>), String> {
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Mutex;
-    crate::cloud::check_limit(repo_root, models_root, None)?;
+    crate::app::spending::check_limit(repo_root, models_root, None)?;
     let threads = crate::models::openrouter_concurrency(models_root).min(keys.len()).max(1);
     let (next, done) = (AtomicUsize::new(0), AtomicUsize::new(0));
     let failed: Mutex<HashMap<String, String>> = Mutex::new(HashMap::new());
@@ -362,11 +362,11 @@ fn batch_run(c: &crate::google_tts::Client, repo_root: &Path, models_root: &Path
         match retried("list", progress, || c.batch_find(&display))?.as_slice() {
             [one] => {
                 journal["name"] = one.clone().into();
-                crate::google_tts::save(&path, &journal)?;
+                save(&path, &journal)?;
             }
             [] if journal["submitted_at"].as_i64().is_some_and(|t| chrono::Utc::now().timestamp() - t >= UNLISTED_AFTER_SECS) => {
                 journal.as_object_mut().map(|o| o.remove("submitted"));
-                crate::google_tts::save(&path, &journal)?;
+                save(&path, &journal)?;
             }
             [] => return Err(t!("google-batch-unknown", name = display.clone(), journal = path.display().to_string())),
             many => return Err(t!("google-batch-many", name = display.clone(), n = many.len() as i64, journal = path.display().to_string())),
@@ -384,23 +384,23 @@ fn batch_run(c: &crate::google_tts::Client, repo_root: &Path, models_root: &Path
             let _ = std::fs::remove_file(&path);
             return Ok((HashMap::new(), None, None));
         }
-        crate::cloud::check_limit(repo_root, models_root, None)?;
+        crate::app::spending::check_limit(repo_root, models_root, None)?;
         if journal["input_file"].is_null() {
             progress(json!({ "type": "progress", "stage": "speech_synth", "msg": t!("google-batch-sending", n = rows.len() as i64) }));
             journal["input_file"] = c.upload_requests(&Value::Array(rows))?.into();
-            crate::google_tts::save(&path, &journal)?;
+            save(&path, &journal)?;
         }
         if cancelled() {
             return Err(crate::jobs::CANCELLED.to_string());
         }
         journal["submitted"] = true.into();
         journal["submitted_at"] = chrono::Utc::now().timestamp().into();
-        crate::google_tts::save(&path, &journal)?;
+        save(&path, &journal)?;
         match c.batch_create(&s.model, &display, journal["input_file"].as_str().unwrap_or_default())? {
             crate::google_tts::Created::Name(name) => {
                 journal["name"] = name.into();
                 journal["state"] = "BATCH_STATE_PENDING".into();
-                crate::google_tts::save(&path, &journal)?;
+                save(&path, &journal)?;
             }
             crate::google_tts::Created::Rejected(code, e) => {
                 journal.as_object_mut().map(|o| o.remove("submitted"));
@@ -409,7 +409,7 @@ fn batch_run(c: &crate::google_tts::Client, repo_root: &Path, models_root: &Path
                     journal.as_object_mut().map(|o| o.remove("input_file"));
                 }
                 journal["rejected"] = e.clone().into();
-                crate::google_tts::save(&path, &journal)?;
+                save(&path, &journal)?;
                 return Err(if code == 429 { t!("google-batch-queue-full", error = explain(&e)) } else { t!("google-batch-rejected", error = explain(&e)) });
             }
         }
@@ -425,7 +425,7 @@ fn batch_run(c: &crate::google_tts::Client, repo_root: &Path, models_root: &Path
         journal["stats"] = stats.clone();
         journal["google_create_time"] = op.pointer("/metadata/createTime").cloned().unwrap_or(Value::Null);
         journal["google_end_time"] = op.pointer("/metadata/endTime").cloned().unwrap_or(Value::Null);
-        crate::google_tts::save(&path, &journal)?;
+        save(&path, &journal)?;
         if op["done"] == true {
             break op;
         }
@@ -441,7 +441,7 @@ fn batch_run(c: &crate::google_tts::Client, repo_root: &Path, models_root: &Path
         // отправит те же фразы новой пачкой
         let state = journal["state"].as_str().unwrap_or("unknown").to_lowercase();
         journal["error"] = op.get("error").cloned().unwrap_or(Value::Null);
-        crate::google_tts::save(&history_dir(project_dir).join(format!("{stamp}-{state}.json")), &journal)?;
+        save(&history_dir(project_dir).join(format!("{stamp}-{state}.json")), &journal)?;
         let _ = std::fs::remove_file(&path);
         return Err(t!("google-batch-dead", name = name.clone(), state = state, error = op.get("error").map(Value::to_string).unwrap_or_default()));
     };
@@ -471,7 +471,7 @@ fn batch_run(c: &crate::google_tts::Client, repo_root: &Path, models_root: &Path
     journal["ok"] = (seen.len() - failed.len().min(seen.len())).into();
     journal["failed"] = failed.len().into();
     journal["cost_estimate_usd"] = json!(cost);
-    crate::google_tts::save(&history_dir(project_dir).join(format!("{stamp}-done.json")), &journal)?;
+    save(&history_dir(project_dir).join(format!("{stamp}-done.json")), &journal)?;
     let _ = std::fs::remove_file(&path);
     Ok((failed, cost, Some(name)))
 }
@@ -483,6 +483,9 @@ pub fn report(project_dir: &Path) -> Value {
     batches.sort_by(|a, b| b["created_at"].as_str().cmp(&a["created_at"].as_str()));
     json!({ "pending": read(&journal_path(project_dir)), "last": read(&report_path(project_dir)), "batches": batches })
 }
+
+#[cfg(test)]
+mod boundary_tests;
 
 #[cfg(test)]
 mod tests {
@@ -539,7 +542,7 @@ mod tests {
         let s = setup_with(Mode::Batch);
         let key = key_of(&s, "Привет", "", 1);
         std::fs::create_dir_all(cloud_dir(dir.path())).unwrap();
-        crate::google_tts::save(&failed_path(dir.path()), &json!({ key.clone(): "PROHIBITED_CONTENT" })).unwrap();
+        save(&failed_path(dir.path()), &json!({ key.clone(): "PROHIBITED_CONTENT" })).unwrap();
         let root = tempfile::tempdir().unwrap();
         let error = phrase(root.path(), root.path(), dir.path(), "p", &s, "Привет", "", 1).unwrap_err();
         assert!(error.contains(&explain("PROHIBITED_CONTENT")) && !error.contains("PROHIBITED_CONTENT"), "{error}");
@@ -549,12 +552,22 @@ mod tests {
     fn the_report_lists_the_pending_batch_the_last_job_and_the_history() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::create_dir_all(history_dir(dir.path())).unwrap();
-        crate::google_tts::save(&journal_path(dir.path()), &json!({ "name": "batches/a", "state": "BATCH_STATE_RUNNING" })).unwrap();
-        crate::google_tts::save(&report_path(dir.path()), &json!({ "mode": "batch", "ok": 3 })).unwrap();
-        crate::google_tts::save(&history_dir(dir.path()).join("1-done.json"), &json!({ "created_at": "2026-10-15", "state": "downloaded" })).unwrap();
+        save(&journal_path(dir.path()), &json!({ "name": "batches/a", "state": "BATCH_STATE_RUNNING" })).unwrap();
+        save(&report_path(dir.path()), &json!({ "mode": "batch", "ok": 3 })).unwrap();
+        save(&history_dir(dir.path()).join("1-done.json"), &json!({ "created_at": "2026-10-15", "state": "downloaded" })).unwrap();
         let r = report(dir.path());
         assert_eq!(r["pending"]["name"], "batches/a");
         assert_eq!(r["last"]["ok"], 3);
         assert_eq!(r["batches"][0]["state"], "downloaded");
     }
+}
+
+fn save(path: &Path, value: &Value) -> Result<(), String> {
+    dub_core::atomic::write(
+        path,
+        serde_json::to_vec_pretty(value)
+            .map_err(|e| e.to_string())?
+            .as_slice(),
+    )
+    .map_err(|e| e.to_string())
 }

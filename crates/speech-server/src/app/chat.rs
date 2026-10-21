@@ -72,9 +72,9 @@ pub(super) async fn conversation(paths: Paths, body: ChatBody, key: String, even
 
 fn record_cost(paths: &Paths, body: &ChatBody, cost: f64) {
     if cost > 0.0 {
-        crate::cloud::record(
+        crate::app::spending::record(
             &paths.repo_root,
-            crate::cloud::Spent {
+            crate::app::spending::Spent {
                 at: chrono::Utc::now().timestamp_millis(),
                 day: chrono::Local::now().format("%Y-%m-%d").to_string(),
                 project: body.project_id.clone().unwrap_or_default(),
@@ -153,7 +153,7 @@ async fn converse_with(client: &Client, paths: &Paths, body: &ChatBody, key: &st
         if events.is_closed() {
             return cost;
         }
-        if let Err(limit) = crate::cloud::check_limit_as("agent", &paths.repo_root, &paths.models_root, Some(cost)) {
+        if let Err(limit) = crate::app::spending::check_limit_as("agent", &paths.repo_root, &paths.models_root, Some(cost)) {
             send(events, json!({ "type": "error", "message": limit, "cost": cost })).await;
             return cost;
         }
@@ -303,7 +303,7 @@ mod tests {
         assert!(second["messages"][3]["content"].as_str().unwrap().contains("Expression tags"));
         assert_eq!(server.count(), 2);
         record_cost(&paths, &body, cost);
-        let spent = crate::cloud::spent(root.path());
+        let spent = crate::app::spending::spent(root.path());
         assert_eq!(spent.len(), 1);
         assert_eq!(spent[0].cost, Some(cost));
         assert_eq!(spent[0].project, "test-project");
