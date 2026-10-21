@@ -5,3 +5,6 @@ pub(crate) mod fx;
 pub(crate) mod profiles;
 pub(crate) mod ref_pick;
 pub(crate) mod record;
+mod reference;
+
+pub(crate) use reference::prepare_reference;

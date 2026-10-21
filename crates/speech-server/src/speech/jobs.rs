@@ -376,7 +376,7 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
     let reference = match (own_ref, continued, voice.as_deref().filter(|_| clones)) {
         (Some(r), _, _) => Some(own_reference(&p.workspace.join(pid), r, limit)?),
         (None, Some((src, take)), _) => Some(continuation_ref(&takes_dir(p, pid), take, &src.text)?),
-        (None, None, Some(v)) => Some(tts_host::prepare_ref(&p.voices_dir, v, limit, n)?),
+        (None, None, Some(v)) => Some(crate::voices::prepare_reference(&p.voices_dir, v, limit, n)?),
         (None, None, None) => None,
     };
     let lang = match project.lang_of(b) {
