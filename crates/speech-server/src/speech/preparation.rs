@@ -1,11 +1,82 @@
 use std::collections::BTreeMap;
+use std::path::Path;
 
 use serde::Serialize;
 
-use crate::engines::stress as stress_engine;
 use super::jobs::{self, SpeechPaths};
 use super::project::{self as sp, SpeechProject};
+use crate::engines::stress as stress_engine;
 use crate::text::{prep, pron_dict, stress};
+
+#[cfg(test)]
+mod compatibility_tests;
+
+pub(super) struct Opts<'a> {
+    pub lang: &'a str,
+    pub voice: Option<&'a str>,
+    pub engine: &'a str,
+    pub entries: &'a [pron_dict::Entry],
+    pub normalize: bool,
+    pub normalize_off: &'a [String],
+    pub stress: bool,
+    pub models_root: &'a Path,
+}
+
+impl<'a> Opts<'a> {
+    fn rules(&self) -> prep::Opts<'a> {
+        prep::Opts {
+            lang: self.lang,
+            voice: self.voice,
+            engine: self.engine,
+            entries: self.entries,
+            normalize: self.normalize,
+            normalize_off: self.normalize_off,
+        }
+    }
+}
+
+pub(super) fn opts<'a>(
+    p: &'a SpeechPaths,
+    project: &'a SpeechProject,
+    lang: &'a str,
+    engine: &'a str,
+    voice: Option<&'a str>,
+    entries: &'a [pron_dict::Entry],
+    stress: bool,
+) -> Opts<'a> {
+    Opts {
+        lang,
+        voice,
+        engine,
+        entries,
+        normalize: project.settings.normalize,
+        normalize_off: &project.settings.normalize_off,
+        stress,
+        models_root: &p.models_root,
+    }
+}
+
+pub(super) fn prepare(text: &str, o: &Opts) -> Result<prep::Prepared, String> {
+    prepare_with(text, o, |text| stress_engine::shared(o.models_root)?.annotate(text))
+}
+
+fn prepare_with(text: &str, o: &Opts, annotate: impl FnOnce(&str) -> Result<stress::Stressed, String>) -> Result<prep::Prepared, String> {
+    let mut draft = prep::prepare(text, &o.rules());
+    if draft.lang == "ru" && o.stress {
+        let stressed = annotate(&draft.prepared.text)?;
+        draft.apply_stress(stressed);
+    }
+    let manual_stress = draft.manual_stress;
+    let mut prepared = draft.finish(super::text::adapter(o.engine));
+    prepared.ignored.stress = manual_stress && !crate::engines::get(o.engine).is_some_and(|e| e.reads.stress);
+    Ok(prepared)
+}
+
+pub(super) fn fingerprint(text: &str, o: &Opts, compiled: &[(pron_dict::Entry, fancy_regex::Regex)]) -> String {
+    let model = (prep::block_lang(text, o.lang) == "ru" && o.stress && crate::engines::get(o.engine).is_some_and(|e| e.reads.stress))
+        .then(|| stress_engine::omograph_model(o.models_root));
+    prep::fingerprint(text, &o.rules(), compiled, model.as_deref())
+}
 
 pub(crate) struct PrepareText {
     pub text: String,
@@ -35,9 +106,9 @@ pub(crate) fn prepare_text(p: &SpeechPaths, request: PrepareText) -> Result<Text
     let russian = stress::is_russian(&request.text, &project.settings.lang);
     let stress = project.settings.auto_stress && russian && stress_engine::installed(&p.repo_root);
     let lang = block.map_or(project.settings.lang.as_str(), |b| project.lang_of(b));
-    let prepared = prep::prepare(
+    let prepared = prepare(
         &request.text,
-        &jobs::prep_opts(p, &project, lang, &project.settings.engine, voice.as_deref(), &entries, stress),
+        &opts(p, &project, lang, &project.settings.engine, voice.as_deref(), &entries, stress),
     )?;
     Ok(TextPreview {
         prepared,
@@ -77,9 +148,9 @@ pub(crate) fn unknown_words(p: &SpeechPaths, pid: &str) -> Result<UnknownWords, 
     let mut words: BTreeMap<String, (usize, &'static str)> = BTreeMap::new();
     for b in project.blocks().filter(|b| !b.hidden) {
         let voice = project.voice_of(b);
-        let prepared = prep::prepare(
+        let prepared = prepare(
             &b.text,
-            &jobs::prep_opts(
+            &opts(
                 p,
                 &project,
                 project.lang_of(b),

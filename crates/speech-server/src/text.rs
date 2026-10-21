@@ -8,3 +8,4 @@ pub(crate) mod itn;
 pub(crate) mod subimport;
 pub(crate) mod tts;
 pub(crate) mod markup;
+pub(crate) mod adapter;

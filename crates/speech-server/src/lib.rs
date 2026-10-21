@@ -39,8 +39,7 @@ use audio::{
     flags as audio_flags, loudness, media, qc, tagging, trim as tts_trim, wavio,
 };
 use text::{
-    direct_speech, itn, normalize_ru, prep, pron_dict, ssml, subimport,
-    tts as tts_text,
+    direct_speech, itn, normalize_ru, prep, pron_dict, subimport,
 };
 use engines::{
     asr_util, denoise, hw, models, presets, qwen_tts, stress, supertonic, tcpp_asr, tts_host, vad,

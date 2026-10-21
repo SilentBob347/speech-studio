@@ -11,6 +11,7 @@ use serde_json::{json, Value};
 use crate::speech_project::{self as sp, Block, SpeechProject, Take};
 use crate::speech_text::{self as stx, Piece};
 use crate::tts_host::{self, HiggsConfig};
+use super::preparation::{self, opts as prep_opts};
 
 pub const SR: u32 = 24_000;
 
@@ -99,7 +100,7 @@ pub fn keys(p: &SpeechPaths, project: &SpeechProject) -> BTreeMap<String, String
                     None => sp::voice_tag(&p.voices_dir, voice.as_deref()),
                 })
                 .clone();
-            let prep = crate::prep::fingerprint(&b.text, &prep_opts(p, project, project.lang_of(b), own, voice.as_deref(), &entries, project.settings.auto_stress), &compiled);
+            let prep = preparation::fingerprint(&b.text, &prep_opts(p, project, project.lang_of(b), own, voice.as_deref(), &entries, project.settings.auto_stress), &compiled);
             (b.id.clone(), sp::synth_key(project, b, &tag, &engine, limit, &prep))
         })
         .collect()
@@ -132,19 +133,6 @@ pub fn dictionary(p: &SpeechPaths, project: &SpeechProject) -> Vec<crate::pron_d
     let mut all = project.dictionary.clone();
     all.extend(crate::pron_dict::load_global(&p.repo_root));
     all
-}
-
-pub fn prep_opts<'a>(p: &'a SpeechPaths, project: &'a SpeechProject, lang: &'a str, engine: &'a str, voice: Option<&'a str>, entries: &'a [crate::pron_dict::Entry], stress: bool) -> crate::prep::Opts<'a> {
-    crate::prep::Opts {
-        lang,
-        voice,
-        engine,
-        entries,
-        normalize: project.settings.normalize,
-        normalize_off: &project.settings.normalize_off,
-        stress,
-        models_root: &p.models_root,
-    }
 }
 
 fn takes_dir(p: &SpeechPaths, pid: &str) -> PathBuf {
@@ -223,7 +211,7 @@ fn synth_block_cloud(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Bl
     };
     let entries = dictionary(p, project);
     let stress = project.settings.auto_stress && crate::stress::is_russian(&b.text, project.lang_of(b));
-    let prepared = crate::prep::prepare(&b.text, &prep_opts(p, project, project.lang_of(b), project.engine_of(b), Some(voice.as_str()), &entries, stress)).map_err(|e| t!("stress-failed", detail = e))?;
+    let prepared = preparation::prepare(&b.text, &prep_opts(p, project, project.lang_of(b), project.engine_of(b), Some(voice.as_str()), &entries, stress)).map_err(|e| t!("stress-failed", detail = e))?;
     let (mut out, mut rate, started) = (Vec::new(), 1.0f64, std::time::Instant::now());
     let (mut cost, mut estimate) = (None::<f64>, None::<f64>);
     let live = crate::live::Phrase::begin(pid, &b.id);
@@ -306,7 +294,7 @@ fn google_prefetch(p: &SpeechPaths, pid: &str, ids: &[String], force: bool, take
             continue;
         }
         let stress = project.settings.auto_stress && crate::stress::is_russian(&b.text, project.lang_of(b));
-        let prepared = crate::prep::prepare(&b.text, &prep_opts(p, &project, project.lang_of(b), project.engine_of(b), Some(g.voice.as_str()), &entries, stress)).map_err(|e| t!("stress-failed", detail = e))?;
+        let prepared = preparation::prepare(&b.text, &prep_opts(p, &project, project.lang_of(b), project.engine_of(b), Some(g.voice.as_str()), &entries, stress)).map_err(|e| t!("stress-failed", detail = e))?;
         let first = b.takes.iter().map(|t| t.n).max().unwrap_or(0) + 1;
         for piece in stx::pieces(&prepared.text) {
             if let Piece::Say(text) = piece {
@@ -392,7 +380,7 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
         params.seed = seed % tts_host::SEED_RANGE;
     }
     let stress = project.settings.auto_stress && crate::stress::is_russian(&b.text, project.lang_of(b));
-    let text = crate::prep::prepare(&b.text, &prep_opts(p, project, project.lang_of(b), own, voice.as_deref(), entries, stress)).map_err(|e| t!("stress-failed", detail = e))?.text;
+    let text = preparation::prepare(&b.text, &prep_opts(p, project, project.lang_of(b), own, voice.as_deref(), entries, stress)).map_err(|e| t!("stress-failed", detail = e))?.text;
     let max_chars = manifest.as_ref().map_or(usize::MAX, |m| m.max_chars.max(1));
     let speeds = manifest.as_ref().is_some_and(|m| m.params.iter().any(|s| s.key == "speed"));
     if let Some(ahead) = tempo_ahead(project, b).filter(|_| speeds) {
@@ -653,7 +641,7 @@ pub fn try_rule(p: &SpeechPaths, pid: &str, phrase: &str, rule: crate::pron_dict
     let mut out = json!({});
     for (name, entries) in [("before", Vec::new()), ("after", vec![rule])] {
         let stress = project.settings.auto_stress && crate::stress::is_russian(&b.text, project.lang_of(&b));
-        let read = crate::prep::prepare(&b.text, &prep_opts(p, &project, project.lang_of(&b), project.engine_of(&b), Some(voice_of.as_str()).filter(|v| !v.is_empty()), &entries, stress)).map_err(|e| t!("stress-failed", detail = e))?.text;
+        let read = preparation::prepare(&b.text, &prep_opts(p, &project, project.lang_of(&b), project.engine_of(&b), Some(voice_of.as_str()).filter(|v| !v.is_empty()), &entries, stress)).map_err(|e| t!("stress-failed", detail = e))?.text;
         let made_of = format!("{read}|{voice_of}|{}|{}|{}", project.engine_of(&b), higgs_config(p).quant, serde_json::to_string(project.params_of(&b)).unwrap_or_default());
         let file = format!("{}.flac", &blake3::hash(made_of.as_bytes()).to_hex()[..20]);
         let path = dir.join(&file);
@@ -913,7 +901,7 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, re
             let file = takes_dir(p, pid).join(&take.file);
             let mut check = if asr_on {
                 let heard = heard_all.remove(&file).ok_or_else(|| format!("{}: not recognised", file.display()))??;
-                let expected = crate::prep::prepare(&b.text, &prep_opts(p, &project, project.lang_of(&b), project.engine_of(&b), voice.as_deref(), &entries, false)).map_err(|e| t!("stress-failed", detail = e))?.text;
+                let expected = preparation::prepare(&b.text, &prep_opts(p, &project, project.lang_of(&b), project.engine_of(&b), voice.as_deref(), &entries, false)).map_err(|e| t!("stress-failed", detail = e))?.text;
                 let (expected, heard_said) = crate::qc::said_alike(&expected, &heard.text, &crate::prep::block_lang(&b.text, &lang))?;
                 let mut c = crate::qc::check(&expected, &heard_said, &strictness);
                 c.heard = heard.text.clone();
@@ -931,7 +919,7 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, re
                 crate::qc::Check { passed: true, ..Default::default() }
             };
             if !want.is_empty() {
-                let spoken = crate::prep::prepare(&take.text, &prep_opts(p, &project, project.lang_of(&b), project.engine_of(&b), voice.as_deref(), &entries, false)).map_err(|e| t!("stress-failed", detail = e))?.text;
+                let spoken = preparation::prepare(&take.text, &prep_opts(p, &project, project.lang_of(&b), project.engine_of(&b), voice.as_deref(), &entries, false)).map_err(|e| t!("stress-failed", detail = e))?.text;
                 let (features, raised) = sound_flags(take, &spoken, &lang, &file, &want, norm)?;
                 check.speech_secs = Some(features.trimmed_s);
                 check.syllables = Some(crate::audio_flags::syllables(&spoken));
@@ -1578,7 +1566,7 @@ pub fn lint(p: &SpeechPaths, project: &SpeechProject) -> Vec<Value> {
         if !b.direction.trim().is_empty() && !engine.direction {
             issue(&b.id, "warn", "direction_ignored", json!({ "engine": engine.name }));
         }
-        let prepared = match crate::prep::prepare(&b.text, &prep_opts(p, project, project.lang_of(b), engine_id, voice.as_deref(), &entries, false)) {
+        let prepared = match preparation::prepare(&b.text, &prep_opts(p, project, project.lang_of(b), engine_id, voice.as_deref(), &entries, false)) {
             Ok(x) => x,
             Err(e) => {
                 issue(&b.id, "error", "prepare", json!(e));
