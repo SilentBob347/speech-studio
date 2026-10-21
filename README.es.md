@@ -14,7 +14,7 @@
 
 [English](README.md) · [Русский](README.ru.md) · [中文](README.zh.md) · **Español** · [Português](README.pt.md) · [Français](README.fr.md)
 
-![Speech Studio: un diálogo con una voz para cada personaje](docs/shots/speech-ru.png)
+![Speech Studio: un diálogo con una voz para cada personaje](docs/screenshots/es-01-speech.webp)
 
 </div>
 
@@ -28,7 +28,7 @@ Es una **aplicación totalmente nativa**: sin Python embebido, sin torch, sin wh
 
 ## Para agentes de IA
 
-Mientras Speech Studio está abierto, sirve MCP en `http://127.0.0.1:8797/mcp`: un agente como Claude Code, Claude Desktop, Cursor o Codex hace todo lo que hace la ventana con el mismo código: pone voz a un texto en un archivo con una sola llamada, crea y edita proyectos bloque a bloque, asigna voces a personajes, diseña una voz a partir de una descripción, transcribe y comprueba grabaciones y exporta audiolibros con capítulos y subtítulos. En Ajustes, **Agente (MCP)** muestra si hay un agente conectado y qué pegar en el cliente.
+Mientras Speech Studio está abierto, sirve MCP en `http://127.0.0.1:8797/mcp`: un agente como Claude Code, Claude Desktop, Cursor o Codex hace todo lo que hace la ventana con el mismo código: pone voz a un texto en un archivo con una sola llamada, crea y edita proyectos bloque a bloque, asigna voces a personajes, diseña una voz a partir de una descripción, transcribe y comprueba grabaciones y exporta audiolibros con capítulos y subtítulos. En Ajustes, **Agente (MCP)** muestra si hay un agente conectado y qué pegar en el cliente. Lo único que un agente no puede hacer es encender el micrófono: Live, una grabación y la prueba del micrófono solo empiezan con tu propio clic o tecla.
 
 1. Instala el estudio desde la [última versión](https://github.com/timoncool/speech-studio/releases/latest) y ábrelo.
 2. Conéctate a su servidor MCP:
@@ -58,7 +58,7 @@ Ejemplos de todos los motores y voces, con los acentos rusos antes y después, e
 |------|--------------|
 | 🔊 **Speech** | Texto, diálogo, pódcast o libro → bloques locutados con tomas, revisados de oído y exportados en WAV, FLAC, MP3, OGG, M4A o M4B con capítulos, subtítulos y texto sincronizado |
 | 👂 **Listening** | Audio, vídeo o enlace → una transcripción con hablantes y tiempos por palabra, un reproductor karaoke, edición por texto, exportación a SRT, VTT, ASS, TXT o JSON y comparación con un texto de referencia |
-| 🎙️ **Live** | Una conversación por voz con un agente de IA: el agente conectado por MCP dice cada frase en cuanto la escribe, usted responde al micrófono y se reconoce frase a frase, hablar encima lo detiene; silencio con M o Ctrl+Mayús+Espacio, un widget sobre todas las ventanas |
+| 🎙️ **Live** | Una conversación por voz con un agente de IA: el agente conectado por MCP dice cada frase en cuanto la escribe, usted responde al micrófono y se reconoce frase a frase, una frase dicha encima lo detiene; solo usted enciende el micrófono, pausa con M o Ctrl+Mayús+Espacio, un widget sobre todas las ventanas |
 
 ## Funciones
 
@@ -112,10 +112,11 @@ Ejemplos de todos los motores y voces, con los acentos rusos antes y después, e
 
 **Live**
 
-- **Una conversación por voz** — el agente conectado por MCP dice cada frase en cuanto la escribe; respondes al micrófono y se te reconoce frase a frase; hablar encima del agente lo detiene; una línea escrita le llega como si la hubieras dicho.
-- **Cambios al vuelo** — la voz del agente, el reconocedor, el idioma y el micrófono se cambian en mitad de la conversación: el micrófono se reinicia con la nueva elección y, mientras carga el motor de la nueva voz, la ventana dice «Cargando la voz…».
+- **Una conversación por voz** — el agente conectado por MCP dice cada frase en cuanto la escribe; respondes al micrófono y se te reconoce frase a frase; una frase de dos palabras o más dicha encima del agente lo detiene, mientras que una tos, una risa o un «ajá» no; una línea escrita le llega como si la hubieras dicho.
+- **Cambios al vuelo** — la voz del agente, el reconocedor, el idioma y el micrófono se cambian en mitad de la conversación, por ti o por el agente cuando se lo pides: el reconocedor cambia sin reiniciar nada, un micrófono o un idioma nuevos reinician el micrófono y, mientras carga el motor de la nueva voz, la ventana dice «Cargando la voz…».
 - **Un ritmo natural** — una frase del agente se dice entera hasta 300 caracteres, una pausa que el motor deja dentro de una frase dura como mucho 0,6 s y cada frase suena una sola vez.
-- **Micrófono y sonido** — silenciar con M o Ctrl+Mayús+Espacio desde cualquier ventana (mantener para hablar), medidores de nivel, escucharte a ti mismo, prueba del altavoz y volumen del agente.
+- **Solo tú enciendes el micrófono** — Live, una grabación en Listening, una grabación de voz y la prueba del micrófono solo empiezan con tu propio clic o tecla; un agente no tiene ninguna herramienta que encienda el micrófono, y la ventana no acepta sus clics en esos botones. La barra superior muestra «Micrófono encendido», para qué y desde hace cuánto, con una cruz que lo apaga; si no hay ninguna ventana del estudio abierta durante cinco segundos, el micrófono se apaga solo.
+- **Micrófono y sonido** — pausa con M o Ctrl+Mayús+Espacio desde cualquier ventana (el agente calla y no te oye; mantener para hablar), la cruz termina la conversación y lo que el agente está diciendo, medidores de nivel, escucharte a ti mismo, prueba del altavoz y volumen del agente.
 - **Cinco aspectos y un widget** — aura, onda, barras, radial y matriz, y un pequeño widget sobre todas las ventanas; Ctrl+3 abre Live.
 - **Medido** — tu frase es texto 0,64–0,74 s después de que dejas de hablar (Parakeet en una RTX 4090), y el primer sonido de la respuesta llega entre 15 ms y 1 s después de que el agente la escribe, según el motor.
 
@@ -141,7 +142,7 @@ En un mismo ordenador: RTX 4090 (24 GB) con Windows 11, Speech Studio tal como s
 | Fish Audio Drama 3 | 7,0× | 326 ms | mientras habla | 21,4 GB | 21,9 GB |
 | Higgs Audio v3 | 2,3× | 1,0 s | mientras habla | 5,3 GB | 18,1 GB |
 
-**Reconocimiento** — Speech Studio 0.2.1, una grabación rusa de 5 minutos de una sola voz (299,7 s) en Listening sin separar hablantes, con la carga del modelo incluida; el modelo libera la memoria de vídeo al terminar.
+**Reconocimiento** — Speech Studio 0.2.1 (Whisper — 0.2.4), una grabación rusa de 5 minutos de una sola voz (299,7 s) en Listening sin separar hablantes, con la carga del modelo incluida; el modelo libera la memoria de vídeo al terminar.
 
 | Modelo | En la tarjeta | En el procesador | Idiomas | Descarga | Memoria de vídeo |
 |---|---|---|---|---|---|
@@ -162,11 +163,15 @@ En un mismo ordenador: RTX 4090 (24 GB) con Windows 11, Speech Studio tal como s
 
 La pantalla de inicio: un texto, un libro, subtítulos o un guion de pódcast se convierten en proyecto:
 
-![Pantalla de inicio de Speech Studio](docs/shots/home-en.png)
+![Pantalla de inicio de Speech Studio](docs/screenshots/es-08-home.webp)
 
 Listening: transcripción con hablantes y tiempos por palabra, reproductor karaoke, edición por texto y exportación:
 
-![Listening en Speech Studio](docs/shots/listening-en.png)
+![Listening en Speech Studio](docs/screenshots/es-06-listening.webp)
+
+Live: una conversación por voz con un agente de IA: lo que dijiste y lo que responde, cinco aspectos, pausa y fin de la conversación:
+
+![Live en Speech Studio](docs/screenshots/es-11-live.webp)
 
 ## Requisitos
 

@@ -14,7 +14,7 @@
 
 **English** · [Русский](README.ru.md) · [中文](README.zh.md) · [Español](README.es.md) · [Português](README.pt.md) · [Français](README.fr.md)
 
-![Speech Studio — a voiced dialog with a voice per character](docs/shots/speech-ru.png)
+![Speech Studio — a voiced dialog with a voice per character](docs/screenshots/en-01-speech.webp)
 
 </div>
 
@@ -28,7 +28,7 @@ It's a **fully native app**: no embeddable Python, no torch, no CUDA wheels. The
 
 ## For AI agents
 
-While Speech Studio is open it serves MCP at `http://127.0.0.1:8797/mcp`: an agent such as Claude Code, Claude Desktop, Cursor or Codex does everything the window does, through the same code — voices a text into a file in one call, makes and edits projects block by block, casts voices to characters, designs a voice from a description, transcribes and checks recordings, exports audiobooks with chapters and subtitles. Settings, **Agent (MCP)** shows whether an agent is connected and what to paste into the client.
+While Speech Studio is open it serves MCP at `http://127.0.0.1:8797/mcp`: an agent such as Claude Code, Claude Desktop, Cursor or Codex does everything the window does, through the same code — voices a text into a file in one call, makes and edits projects block by block, casts voices to characters, designs a voice from a description, transcribes and checks recordings, exports audiobooks with chapters and subtitles. Settings, **Agent (MCP)** shows whether an agent is connected and what to paste into the client. The one thing an agent cannot do is turn the microphone on: Live, a recording and the microphone test start only on your own click or key.
 
 1. Install the studio from the [latest release](https://github.com/timoncool/speech-studio/releases/latest) and start it.
 2. Connect to its MCP server:
@@ -58,7 +58,7 @@ Examples of every engine and voice, with Russian stress before and after, are on
 |------|--------------|
 | 🔊 **Speech** | Text, dialog, podcast or book → voiced blocks with takes, checked by ear, exported as WAV, FLAC, MP3, OGG, M4A or M4B with chapters, subtitles and synced text |
 | 👂 **Listening** | Audio, video or a link → a transcript with speakers and word times, a karaoke player, cut-by-text, export to SRT, VTT, ASS, TXT or JSON, a check against a reference text |
-| 🎙️ **Live** | A voice conversation with an AI agent: the agent connected over MCP speaks each phrase as it writes it, you answer into the microphone and are recognised phrase by phrase, speaking over it stops it; mute with M or Ctrl+Shift+Space, a widget over every window |
+| 🎙️ **Live** | A voice conversation with an AI agent: the agent connected over MCP speaks each phrase as it writes it, you answer into the microphone and are recognised phrase by phrase, a phrase said over it stops it; only you turn the microphone on, pause with M or Ctrl+Shift+Space, a widget over every window |
 
 ## Features
 
@@ -112,10 +112,11 @@ Examples of every engine and voice, with Russian stress before and after, are on
 
 **Live**
 
-- **A conversation by voice** — the agent connected over MCP says each phrase as soon as it writes it; you answer into the microphone and are recognised phrase by phrase; speaking over the agent stops it; a typed line reaches the agent like a spoken one.
-- **Changes on the fly** — the agent's voice, the recogniser, the language and the microphone can be changed in the middle of a conversation: the microphone restarts with the new choice, and the window says «Loading the voice…» while a new voice's engine loads.
+- **A conversation by voice** — the agent connected over MCP says each phrase as soon as it writes it; you answer into the microphone and are recognised phrase by phrase; a phrase of two words or more said over the agent stops it, while a cough, a laugh or an «uh-huh» does not; a typed line reaches the agent like a spoken one.
+- **Changes on the fly** — the agent's voice, the recogniser, the language and the microphone can be changed in the middle of a conversation, by you or by the agent at your request: the recogniser switches in place, a new microphone or language restarts the microphone, and the window says «Loading the voice…» while a new voice's engine loads.
 - **A natural pace** — an agent's sentence is said whole up to 300 characters, a pause an engine leaves inside a phrase is heard at most 0.6 s long, and each phrase is heard once.
-- **Microphone and sound** — mute with M or Ctrl+Shift+Space from any window (hold to talk), level meters, hearing yourself back, a speaker test and the agent's volume.
+- **Only you turn the microphone on** — Live, a Listening recording, a voice recording and the microphone test start only on your own click or key; an agent has no tool that turns the microphone on, and the window does not take its clicks on those buttons. The top bar shows «Microphone on», what it is on for and for how long, with a cross that turns it off; with no studio window open for five seconds the microphone turns off by itself.
+- **Microphone and sound** — pause with M or Ctrl+Shift+Space from any window (the agent falls silent and does not hear you; hold to talk), the cross ends the conversation and what the agent is saying, level meters, hearing yourself back, a speaker test and the agent's volume.
 - **Five looks and a widget** — aura, wave, bars, radial and matrix, and a small widget over every window; Ctrl+3 opens Live.
 - **Measured** — your phrase is text 0.64–0.74 s after you stop speaking (Parakeet on an RTX 4090), and the first sound of the answer comes 15 ms to 1 s after the agent writes it, by engine.
 
@@ -141,7 +142,7 @@ On one computer: RTX 4090 (24 GB) under Windows 11, Speech Studio as it installs
 | Fish Audio Drama 3 | 7.0× | 326 ms | as it speaks | 21.4 GB | 21.9 GB |
 | Higgs Audio v3 | 2.3× | 1.0 s | as it speaks | 5.3 GB | 18.1 GB |
 
-**Recognition** — Speech Studio 0.2.1, one 5-minute Russian recording of one speaker (299.7 s) in Listening without telling speakers apart, the model loading included; the model leaves video memory when the job ends.
+**Recognition** — Speech Studio 0.2.1 (Whisper — 0.2.4), one 5-minute Russian recording of one speaker (299.7 s) in Listening without telling speakers apart, the model loading included; the model leaves video memory when the job ends.
 
 | Model | On the card | On the processor | Languages | Download | Video memory |
 |---|---|---|---|---|---|
@@ -162,11 +163,15 @@ On one computer: RTX 4090 (24 GB) under Windows 11, Speech Studio as it installs
 
 The start screen — a text, a book, subtitles or a podcast script becomes a project:
 
-![Speech Studio start screen](docs/shots/home-en.png)
+![Speech Studio start screen](docs/screenshots/en-08-home.webp)
 
 Listening — a transcript with speakers and word times, a karaoke player, cut-by-text and export:
 
-![Speech Studio Listening](docs/shots/listening-en.png)
+![Speech Studio Listening](docs/screenshots/en-06-listening.webp)
+
+Live — a voice conversation with an AI agent: what you said and what it answers, five looks, pause and end the conversation:
+
+![Live in Speech Studio](docs/screenshots/en-11-live.webp)
 
 ## Requirements
 
