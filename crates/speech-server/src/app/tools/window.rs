@@ -209,27 +209,6 @@ pub(super) fn window(command: &'static str, args: &Value, seconds: u64) -> Resul
     Ok(Call { method: Method::GET, path: String::new(), payload: Payload::Window { command, args: args.clone(), seconds } })
 }
 
-/// The window's answer as a tool's: a picture it took as an image the agent sees, text as text,
-/// and anything else as structured content.
-pub(super) fn window_reply(id: Value, result: Value) -> Response {
-    let mut content = Vec::new();
-    if let Some(image) = result.get("image").and_then(Value::as_str) {
-        let mime = result.get("mime").and_then(Value::as_str).unwrap_or("image/png");
-        content.push(json!({ "type": "image", "data": image, "mimeType": mime }));
-    }
-    let text = match result.get("text").and_then(Value::as_str) {
-        Some(text) => text.to_string(),
-        None if result.is_null() || result.get("image").is_some() => "Done.".into(),
-        None => serde_json::to_string_pretty(&result).unwrap_or_default(),
-    };
-    content.push(json!({ "type": "text", "text": cut(text) }));
-    let mut answer = json!({ "content": content, "isError": false });
-    if result.get("image").is_none() && result.get("text").is_none() && (result.is_object() || result.is_array()) {
-        answer["structuredContent"] = result;
-    }
-    rpc(id, answer)
-}
-
 // ---------------------------------------------------------------- revisions and who changed what
 
 /// The request's author: a window of the page by its mark, an agent through the MCP tools, or
@@ -576,7 +555,7 @@ mod tests {
         let _turn = TURN.lock().await;
         let saved: Vec<u64> = std::mem::take(&mut *open_windows());
         let body = json!({ "jsonrpc": "2.0", "id": 9, "method": "tools/call", "params": { "name": "ui_click", "arguments": { "text": "Export" } } });
-        let response = handle(HeaderMap::new(), axum::body::Bytes::from(body.to_string())).await;
+        let response = crate::mcp::handle(HeaderMap::new(), axum::body::Bytes::from(body.to_string())).await;
         let reply: Value = serde_json::from_slice(&axum::body::to_bytes(response.into_body(), 1 << 20).await.unwrap()).unwrap();
         open_windows().extend(saved);
         assert_eq!(reply["result"]["isError"], true);

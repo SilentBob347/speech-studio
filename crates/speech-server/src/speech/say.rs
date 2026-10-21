@@ -194,7 +194,7 @@ pub async fn voice_set(State(st): State<AppState>, headers: HeaderMap, Json(chos
     }
     crate::live::voice_chosen();
     // the voice the person picks in the window is the one heard, whatever voice an agent opened its session with
-    if !crate::mcp::by_agent(&headers) {
+    if !crate::app::tools::by_agent(&headers) {
         for session in sessions().values_mut() {
             session.follows = true;
         }
@@ -377,7 +377,7 @@ async fn failed_job_marks_phrases(st: AppState, sid: String, job_id: String, ids
 
 /// DELETE /speech/say — every session stops speaking now, as when the person interrupts.
 pub async fn stop_all(State(st): State<AppState>, headers: HeaderMap) -> Json<Value> {
-    if !crate::mcp::by_agent(&headers) {
+    if !crate::app::tools::by_agent(&headers) {
         *HUSHED_AT.lock().unwrap_or_else(|p| p.into_inner()) = Some(heard_count());
     }
     Json(json!({ "stopped": interrupt(&st) }))
@@ -463,7 +463,7 @@ pub async fn listen_start(State(st): State<AppState>, headers: HeaderMap, body: 
         return Json(json!({ "pid": pid, "live": true, "joined": true, "asr": asr, "lang": lang })).into_response();
     }
     // the microphone is the person's: an agent listens to a conversation the person started and never turns it on
-    if crate::mcp::by_agent(&headers) {
+    if crate::app::tools::by_agent(&headers) {
         return refuse(StatusCode::CONFLICT, "mic_off", t!("say-mic-off"));
     }
     let started = crate::listen_api::record_start(State(st.clone()), HeaderMap::new(), Some(Json(json!({ "live": true, "lang": lang, "device": body.get("device"), "engine": body.get("engine") })))).await;
@@ -501,7 +501,7 @@ pub async fn listen_mute(headers: HeaderMap, Json(body): Json<Value>) -> Respons
         None if body.get("toggle").and_then(Value::as_bool) == Some(true) => !crate::listen_live::muted().unwrap_or(false),
         None => true,
     };
-    if !muted && crate::mcp::by_agent(&headers) {
+    if !muted && crate::app::tools::by_agent(&headers) {
         return refuse(StatusCode::FORBIDDEN, "mic_only_person", t!("mic-only-person"));
     }
     match crate::listen_live::mute(muted) {

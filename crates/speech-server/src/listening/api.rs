@@ -122,7 +122,7 @@ async fn live_parts(st: &AppState, engine: &str) -> Result<(), Response> {
 /// POST /listen/record/start {device?, live?, lang?, engine?} — запись с микрофона в новый проект; с `live` она распознаётся по
 /// фразам, пока идёт (`/listen/record/live`).
 pub async fn record_start(State(st): State<AppState>, headers: HeaderMap, body: Option<Json<Value>>) -> Response {
-    if crate::mcp::by_agent(&headers) {
+    if crate::app::tools::by_agent(&headers) {
         return refuse(StatusCode::FORBIDDEN, "mic_only_person", t!("mic-only-person"));
     }
     let body = body.map(|Json(v)| v).unwrap_or(Value::Null);

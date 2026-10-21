@@ -133,7 +133,7 @@ fn open_openrouter(o: &LlmOpen, mode: LlmMode) -> Result<LlmProvider, String> {
 }
 
 /// The agent connected over MCP: the studio's own chat client, pointed at this server's `/mcp/agent-llm`, which
-/// hands each request to the agent (`mcp::agent_llm`). One attempt: a repeat would ask the agent twice.
+/// hands each request to the application's agent broker. One attempt: a repeat would ask the agent twice.
 fn open_agent(mode: LlmMode) -> Result<LlmProvider, String> {
     if mode == LlmMode::Vision {
         return Err(t!("llm-agent-no-vision"));

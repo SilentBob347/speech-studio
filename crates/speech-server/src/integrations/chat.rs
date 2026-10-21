@@ -1,339 +1,322 @@
-//! The Assistant panel (VideoSOS `chat.rs`): an assistant on the person's OpenRouter key that works Speech Studio
-//! with the very tools an agent connected over MCP has, so its changes go into the journal, its paid runs count
-//! against the agents' daily limit and the window captions what it does. The server runs the model's loop (a turn, its
-//! tool calls, their answers, the next turn) and streams the panel what happens: the text as it comes, each tool call
-//! and how it ended, and what the conversation cost. With «Agent (MCP)» as the assistant, the person's message goes to
-//! the connected agent instead and nothing is paid.
+//! OpenRouter chat transport. Dialogue and tool policy are supplied by the application.
 
-use std::convert::Infallible;
-use std::path::PathBuf;
-
-use axum::extract::State;
-use axum::http::StatusCode;
-use axum::response::sse::{Event, KeepAlive, Sse};
-use axum::response::{IntoResponse, Response};
-use axum::Json;
-use futures_util::StreamExt;
-use serde::Deserialize;
-use serde_json::{json, Map, Value};
-use tokio::sync::mpsc;
-
-use crate::AppState;
+use futures_util::{Stream, StreamExt};
+use serde_json::{json, Value};
+use std::collections::BTreeMap;
+use std::future::Future;
 
 const API: &str = "https://openrouter.ai/api/v1/chat/completions";
-/// Turns one message may take before the assistant has to stop and say where it got to.
-const MAX_TURNS: usize = 60;
-/// Models offered first, best first; the person picks any other that works tools.
-const PREFERRED: &[&str] = &["anthropic/claude-haiku-5.5", "google/gemini-3.8-flash", "anthropic/claude-sonnet-5.5"];
+const MAX_TOOL_CALLS: u64 = 128;
+const MAX_EVENT_BYTES: usize = 8 * 1024 * 1024;
 
-#[derive(Deserialize)]
-struct ChatMessage {
-    role: String,
-    content: String,
+pub(crate) struct Client {
+    http: reqwest::Client,
+    endpoint: String,
 }
 
-#[derive(Deserialize)]
-pub struct ChatBody {
-    #[serde(default)]
-    model: String,
-    messages: Vec<ChatMessage>,
-    #[serde(default)]
-    project_id: Option<String>,
-    #[serde(default)]
-    language: Option<String>,
+#[derive(Debug, Default)]
+pub(crate) struct Turn {
+    pub text: String,
+    pub calls: Vec<(String, String, String)>,
+    pub cost: f64,
 }
 
-/// Who answers the Assistant panel: `openrouter` (a model on the person's key) or `agent` (the connected MCP agent).
-pub fn assistant(models_root: &std::path::Path) -> String {
-    match crate::models::load_selection(models_root).get("assistant").and_then(Value::as_str) {
-        Some("agent") => "agent".into(),
-        _ => "openrouter".into(),
+#[derive(Debug)]
+pub(crate) struct TurnError {
+    pub message: String,
+    // Provider usage can precede a failed stream or a closed panel.
+    pub cost: f64,
+}
+
+impl Client {
+    pub(crate) fn new() -> Result<Self, String> {
+        let http = dub_llm::net::async_builder()
+            .timeout(std::time::Duration::from_secs(600))
+            .build()
+            .map_err(|error| error.to_string())?;
+        Ok(Self {
+            http,
+            endpoint: API.into(),
+        })
     }
-}
 
-fn system_prompt(project: Option<&str>, language: Option<&str>) -> String {
-    let mut prompt = String::from(
-        "You are the assistant inside Speech Studio, a desktop studio that voices text (Speech: projects of blocks, \
-         voices, engines Higgs, Drama 3 and cloud ones) and recognises speech and checks a voicing (Listening). You work \
-         the program with its tools while the person watches the window: look before you change (project_get, \
-         ui_read_page), say what you are about to do when it costs money, and answer briefly. Cloud engines are paid by \
-         the person's keys: ask before voicing with one.\n\n",
-    );
-    if let Some(project) = project.filter(|project| !project.is_empty()) {
-        prompt.push_str(&format!("The project open in the window is {project}: pass it as pid where a tool takes one.\n"));
-    }
-    if let Some(language) = language.filter(|language| !language.is_empty()) {
-        prompt.push_str(&format!("The window's language is {language}: answer in the person's language.\n"));
-    }
-    prompt.push('\n');
-    prompt.push_str(crate::mcp::SKILL);
-    prompt
-}
-
-/// false once the panel is gone: the conversation stops there.
-async fn send(events: &mpsc::Sender<Value>, event: Value) -> bool {
-    events.send(event).await.is_ok()
-}
-
-/// One streamed turn of the model: its text, as it comes, and the tool calls it asks for.
-struct Turn {
-    text: String,
-    calls: Vec<(String, String, String)>,
-    cost: f64,
-}
-
-async fn turn(http: &reqwest::Client, key: &str, model: &str, messages: &[Value], events: &mpsc::Sender<Value>) -> Result<Turn, String> {
-    // the guide and the tools are the same every step: cached, they cost a tenth from the second step on (Claude);
-    // models that cache on their own ignore it
-    let body = json!({ "model": model, "messages": messages, "tools": crate::mcp::chat_tools(), "stream": true, "usage": { "include": true }, "cache_control": { "type": "ephemeral" } });
-    let response = http.post(API).bearer_auth(key).header("X-Title", "Speech Studio").json(&body).send().await.map_err(|e| e.to_string())?;
-    if !response.status().is_success() {
-        let status = response.status();
-        let text = response.text().await.unwrap_or_default();
-        let said = serde_json::from_str::<Value>(&text).ok().and_then(|v| v.pointer("/error/message").and_then(Value::as_str).map(str::to_string));
-        return Err(said.unwrap_or_else(|| format!("{status}: {text}")));
-    }
-    let mut stream = response.bytes_stream();
-    let mut buffer = String::new();
-    let mut turn = Turn { text: String::new(), calls: Vec::new(), cost: 0.0 };
-    // a tool call comes in pieces by its index: its id and name first, then its arguments bit by bit
-    let mut partial: Vec<(String, String, String)> = Vec::new();
-    while let Some(chunk) = stream.next().await {
-        buffer.push_str(&String::from_utf8_lossy(&chunk.map_err(|e| e.to_string())?));
-        while let Some(end) = buffer.find('\n') {
-            let line = buffer[..end].trim().to_string();
-            buffer.drain(..=end);
-            let Some(data) = line.strip_prefix("data:").map(str::trim) else { continue };
-            if data == "[DONE]" {
-                continue;
-            }
-            let event = match serde_json::from_str::<Value>(data) {
-                Ok(event) => event,
-                Err(e) => {
-                    tracing::warn!("OpenRouter sent a stream line that is not JSON ({e}): {data}");
-                    continue;
-                }
-            };
-            if let Some(error) = event.get("error") {
-                return Err(error.get("message").and_then(Value::as_str).unwrap_or("the model failed").to_string());
-            }
-            if let Some(cost) = event.pointer("/usage/cost").and_then(Value::as_f64) {
-                turn.cost += cost;
-            }
-            let Some(delta) = event.pointer("/choices/0/delta") else { continue };
-            if let Some(text) = delta.get("content").and_then(Value::as_str).filter(|text| !text.is_empty()) {
-                turn.text.push_str(text);
-                if !send(events, json!({ "type": "text", "text": text })).await {
-                    return Err("the panel left".into());
-                }
-            }
-            for call in delta.get("tool_calls").and_then(Value::as_array).into_iter().flatten() {
-                let index = call.get("index").and_then(Value::as_u64).unwrap_or(0) as usize;
-                while partial.len() <= index {
-                    partial.push((String::new(), String::new(), String::new()));
-                }
-                let slot = &mut partial[index];
-                if let Some(id) = call.get("id").and_then(Value::as_str) {
-                    slot.0.push_str(id);
-                }
-                if let Some(name) = call.pointer("/function/name").and_then(Value::as_str) {
-                    slot.1.push_str(name);
-                }
-                if let Some(arguments) = call.pointer("/function/arguments").and_then(Value::as_str) {
-                    slot.2.push_str(arguments);
-                }
-            }
+    #[cfg(test)]
+    pub(crate) fn for_test(endpoint: String) -> Self {
+        Self {
+            http: reqwest::Client::builder().no_proxy().build().unwrap(),
+            endpoint,
         }
     }
-    turn.calls = partial.into_iter().filter(|(_, name, _)| !name.is_empty()).collect();
-    Ok(turn)
-}
 
-struct Paths {
-    repo_root: PathBuf,
-    models_root: PathBuf,
-}
-
-async fn conversation(paths: Paths, body: ChatBody, key: String, events: mpsc::Sender<Value>) {
-    let cost = converse(&paths, &body, &key, &events).await;
-    // the conversation is paid like a cloud run: it goes into the spending and the agents' daily limit
-    if cost > 0.0 {
-        crate::cloud::record(&paths.repo_root, crate::cloud::Spent {
-            at: chrono::Utc::now().timestamp_millis(),
-            day: chrono::Local::now().format("%Y-%m-%d").to_string(),
-            project: body.project_id.clone().unwrap_or_default(),
-            provider: "openrouter".into(),
-            model: body.model.clone(),
-            task: "chat".into(),
-            estimate: None,
-            cost: Some(cost),
-            cost_source: "provider".into(),
-            origin: "agent".into(),
-        });
+    pub(crate) async fn turn<F, Fut>(
+        &self,
+        key: &str,
+        model: &str,
+        messages: &[Value],
+        tools: &[Value],
+        on_text: F,
+    ) -> Result<Turn, TurnError>
+    where
+        F: FnMut(String) -> Fut,
+        Fut: Future<Output = Result<(), String>>,
+    {
+        let body = json!({ "model": model, "messages": messages, "tools": tools, "stream": true,
+            "usage": { "include": true }, "cache_control": { "type": "ephemeral" } });
+        let response = self
+            .http
+            .post(&self.endpoint)
+            .bearer_auth(key)
+            .header("X-Title", "Speech Studio")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|error| TurnError {
+                message: error.to_string(),
+                cost: 0.0,
+            })?;
+        if !response.status().is_success() {
+            let status = response.status();
+            let text = response.text().await.map_err(|error| TurnError {
+                message: format!("{status}: failed to read the model's error: {error}"),
+                cost: 0.0,
+            })?;
+            let said = serde_json::from_str::<Value>(&text)
+                .ok()
+                .and_then(|value| value.pointer("/error/message").and_then(Value::as_str).map(str::to_string));
+            return Err(TurnError {
+                message: said.unwrap_or_else(|| format!("{status}: {text}")),
+                cost: 0.0,
+            });
+        }
+        read_turn(response.bytes_stream(), on_text).await
     }
 }
 
-/// The panel when the person made the connected agent the assistant: their message is a request for the agent, which
-/// does what it asks with the tools it already has and answers in words.
-async fn agent_conversation(body: ChatBody, events: mpsc::Sender<Value>) {
-    let history: Vec<String> = body.messages.iter().filter(|message| !message.content.trim().is_empty()).map(|message| format!("{}: {}", message.role, message.content.trim())).collect();
-    let asked = history.last().cloned().unwrap_or_default();
-    let question = json!({
-        "target": "chat",
-        "instructions": format!(
-            "The person writes to you in Speech Studio's Assistant panel{}. Do what they ask with the Speech Studio tools you have (the panel shows each call you make until you answer), then answer them in words, briefly, in the language with the code \"{}\". The conversation so far is in context.",
-            body.project_id.as_deref().map(|id| format!(" with the project {id} open")).unwrap_or_default(),
-            body.language.as_deref().unwrap_or("en"),
-        ),
-        "request": asked,
-        "context": history,
-        "project_id": body.project_id,
-    });
-    let following = crate::mcp::follow_agent_steps(events.clone());
-    let answered = crate::mcp::ask_agent(question).await;
-    drop(following);
-    match answered {
-        Ok(answer) => {
-            send(&events, json!({ "type": "text", "text": answer })).await;
-            send(&events, json!({ "type": "done", "cost": 0.0 })).await;
-        }
-        Err(error) => {
-            send(&events, json!({ "type": "error", "message": error, "cost": 0.0 })).await;
-        }
-    }
+#[derive(Default)]
+struct Decoder {
+    turn: Turn,
+    partial: BTreeMap<u64, (String, String, String)>,
+    data: String,
+    done: bool,
+    finished: bool,
 }
 
-/// Runs the conversation to its end and answers with what it cost.
-async fn converse(paths: &Paths, body: &ChatBody, key: &str, events: &mpsc::Sender<Value>) -> f64 {
-    let http = match dub_llm::net::async_builder().timeout(std::time::Duration::from_secs(600)).build() {
-        Ok(http) => http,
-        Err(e) => {
-            send(events, json!({ "type": "error", "message": e.to_string(), "cost": 0.0 })).await;
-            return 0.0;
+impl Decoder {
+    fn line(&mut self, line: &[u8]) -> Result<Option<String>, String> {
+        let line = std::str::from_utf8(line).map_err(|error| format!("OpenRouter sent invalid UTF-8: {error}"))?;
+        let line = line.trim_end_matches('\r');
+        if line.is_empty() {
+            return self.event();
         }
-    };
-    let mut messages = vec![json!({ "role": "system", "content": system_prompt(body.project_id.as_deref(), body.language.as_deref()) })];
-    for message in &body.messages {
-        if matches!(message.role.as_str(), "user" | "assistant") && !message.content.trim().is_empty() {
-            messages.push(json!({ "role": message.role, "content": message.content }));
-        }
-    }
-    let mut cost = 0.0;
-    for _ in 0..MAX_TURNS {
-        if let Err(limit) = crate::cloud::check_limit_as("agent", &paths.repo_root, &paths.models_root, Some(cost)) {
-            send(events, json!({ "type": "error", "message": limit, "cost": cost })).await;
-            return cost;
-        }
-        let turn = match turn(&http, key, &body.model, &messages, events).await {
-            Ok(turn) => turn,
-            Err(error) => {
-                send(events, json!({ "type": "error", "message": error, "cost": cost })).await;
-                return cost;
+        if let Some(data) = line.strip_prefix("data:") {
+            if !self.data.is_empty() {
+                self.data.push('\n');
             }
+            self.data.push_str(data.strip_prefix(' ').unwrap_or(data));
+            if self.data.len() > MAX_EVENT_BYTES {
+                return Err("OpenRouter stream event is too large".into());
+            }
+        }
+        Ok(None)
+    }
+
+    fn event(&mut self) -> Result<Option<String>, String> {
+        let data = std::mem::take(&mut self.data);
+        if self.done || data.is_empty() {
+            return Ok(None);
+        }
+        if data.trim() == "[DONE]" {
+            self.done = true;
+            return Ok(None);
+        }
+        let event: Value = serde_json::from_str(&data).map_err(|error| format!("OpenRouter sent invalid stream JSON: {error}"))?;
+        if let Some(cost) = event.pointer("/usage/cost").and_then(Value::as_f64) {
+            self.turn.cost += cost;
+        }
+        if let Some(error) = event.get("error") {
+            return Err(error
+                .get("message")
+                .and_then(Value::as_str)
+                .unwrap_or("the model failed")
+                .to_string());
+        }
+        if event.pointer("/choices/0/finish_reason").is_some_and(|reason| !reason.is_null()) {
+            self.finished = true;
+        }
+        let Some(delta) = event.pointer("/choices/0/delta") else {
+            return Ok(None);
         };
-        cost += turn.cost;
-        if turn.calls.is_empty() {
-            send(events, json!({ "type": "done", "cost": cost })).await;
-            return cost;
-        }
-        if !send(events, json!({ "type": "cost", "cost": cost })).await {
-            return cost;
-        }
-        let calls: Vec<Value> = turn.calls.iter().map(|(id, name, arguments)| json!({ "id": id, "type": "function", "function": { "name": name, "arguments": arguments } })).collect();
-        messages.push(json!({ "role": "assistant", "content": turn.text, "tool_calls": calls }));
-        let mut pictures = Vec::new();
-        for (id, name, arguments) in &turn.calls {
-            let parsed: Result<Value, String> = if arguments.trim().is_empty() {
-                Ok(Value::Object(Map::new()))
-            } else {
-                serde_json::from_str(arguments).map_err(|error| format!("the arguments of {name} are not JSON ({error}): call it again with a JSON object"))
-            };
-            let args = parsed.clone().unwrap_or(Value::Null);
-            if !send(events, json!({ "type": "tool", "id": id, "name": name, "args": args })).await {
-                return cost;
+        for call in delta.get("tool_calls").and_then(Value::as_array).into_iter().flatten() {
+            let index = call.get("index").and_then(Value::as_u64).unwrap_or(0);
+            if index >= MAX_TOOL_CALLS {
+                return Err(format!("OpenRouter tool-call index {index} exceeds the limit"));
             }
-            let answer = match parsed {
-                Ok(args) => crate::mcp::chat_call(name, &args).await,
-                Err(problem) => Err(problem),
-            };
-            let (ok, text) = match &answer {
-                Ok(answer) => (true, answer.text.clone()),
-                Err(problem) => (false, problem.clone()),
-            };
-            if let Ok(crate::mcp::ChatAnswer { image: Some(image), .. }) = &answer {
-                pictures.push(image.clone());
+            let slot = self.partial.entry(index).or_default();
+            if let Some(id) = call.get("id").and_then(Value::as_str) {
+                slot.0.push_str(id);
             }
-            send(events, json!({ "type": "tool_done", "id": id, "ok": ok, "summary": text.chars().take(240).collect::<String>() })).await;
-            messages.push(json!({ "role": "tool", "tool_call_id": id, "content": if ok { text } else { format!("Error: {text}") } }));
+            if let Some(name) = call.pointer("/function/name").and_then(Value::as_str) {
+                slot.1.push_str(name);
+            }
+            if let Some(arguments) = call.pointer("/function/arguments").and_then(Value::as_str) {
+                slot.2.push_str(arguments);
+            }
         }
-        // a tool's picture (the window's screenshot) reaches the model as a picture of the next message
-        if !pictures.is_empty() {
-            let mut content = vec![json!({ "type": "text", "text": "The pictures the tools above answered with." })];
-            content.extend(pictures.into_iter().map(|url| json!({ "type": "image_url", "image_url": { "url": url } })));
-            messages.push(json!({ "role": "user", "content": content }));
+        let text = delta
+            .get("content")
+            .and_then(Value::as_str)
+            .filter(|text| !text.is_empty())
+            .map(str::to_string);
+        if let Some(text) = &text {
+            self.turn.text.push_str(text);
         }
+        Ok(text)
     }
-    send(events, json!({ "type": "error", "message": t!("chat-too-many-turns", turns = MAX_TURNS as i64), "cost": cost })).await;
-    cost
+
+    fn finish(mut self) -> Result<Turn, TurnError> {
+        if !self.done && !self.finished {
+            return Err(TurnError {
+                message: "OpenRouter stream ended before the model finished".into(),
+                cost: self.turn.cost,
+            });
+        }
+        if self.partial.values().any(|(id, name, _)| id.is_empty() || name.is_empty()) {
+            return Err(TurnError {
+                message: "OpenRouter returned an incomplete tool call".into(),
+                cost: self.turn.cost,
+            });
+        }
+        self.turn.calls = self.partial.into_values().collect();
+        Ok(self.turn)
+    }
 }
 
-/// POST /chat: a message of the Assistant panel, answered as a stream of events.
-pub async fn chat(State(st): State<AppState>, Json(body): Json<ChatBody>) -> Response {
-    if body.messages.iter().all(|m| m.content.trim().is_empty()) {
-        return (StatusCode::BAD_REQUEST, Json(json!({ "error": "chat_empty", "detail": t!("chat-empty") }))).into_response();
-    }
-    let (events, received) = mpsc::channel::<Value>(256);
-    if assistant(&st.models_root) == "agent" {
-        tokio::spawn(agent_conversation(body, events));
-    } else {
-        let Some(key) = crate::models::openrouter_key() else {
-            return (StatusCode::PRECONDITION_FAILED, Json(json!({ "error": "no_key", "detail": t!("cloud-no-key", provider = "OpenRouter") }))).into_response();
-        };
-        if body.model.trim().is_empty() {
-            return (StatusCode::BAD_REQUEST, Json(json!({ "error": "no_model", "detail": t!("chat-no-model") }))).into_response();
+async fn read_turn<S, E, F, Fut>(stream: S, mut on_text: F) -> Result<Turn, TurnError>
+where
+    S: Stream<Item = Result<axum::body::Bytes, E>>,
+    E: std::fmt::Display,
+    F: FnMut(String) -> Fut,
+    Fut: Future<Output = Result<(), String>>,
+{
+    let mut decoder = Decoder::default();
+    let result: Result<(), String> = async {
+        futures_util::pin_mut!(stream);
+        let mut buffer = Vec::new();
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk.map_err(|error| error.to_string())?;
+            // Decode only complete lines: a network chunk can split a UTF-8 character.
+            for piece in chunk.split_inclusive(|byte| *byte == b'\n') {
+                buffer.extend_from_slice(piece);
+                if buffer.len() > MAX_EVENT_BYTES {
+                    return Err("OpenRouter stream line is too large".into());
+                }
+                if buffer.last() == Some(&b'\n') {
+                    if let Some(text) = decoder.line(&buffer[..buffer.len() - 1])? {
+                        on_text(text).await?;
+                    }
+                    buffer.clear();
+                }
+                if decoder.done {
+                    return Ok(());
+                }
+            }
         }
-        tokio::spawn(conversation(Paths { repo_root: st.repo_root.clone(), models_root: st.models_root.clone() }, body, key, events));
+        if !buffer.is_empty() {
+            if let Some(text) = decoder.line(&buffer)? {
+                on_text(text).await?;
+            }
+        }
+        if let Some(text) = decoder.event()? {
+            on_text(text).await?;
+        }
+        Ok(())
     }
-    let stream = tokio_stream::wrappers::ReceiverStream::new(received).map(|event| Ok::<Event, Infallible>(Event::default().data(event.to_string())));
-    Sse::new(stream).keep_alive(KeepAlive::default()).into_response()
-}
-
-/// GET /chat/models: the OpenRouter models that can work the tools, the one to start with, and who answers.
-pub async fn models(State(st): State<AppState>) -> Response {
-    let models_root = st.models_root.clone();
-    let listed = tokio::task::spawn_blocking(move || crate::openrouter::catalog(&models_root)).await;
-    let cached = match listed {
-        Ok(Ok(cached)) => cached,
-        Ok(Err(e)) => return (StatusCode::BAD_GATEWAY, Json(json!({ "error": "catalog", "detail": e }))).into_response(),
-        Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
-    };
-    let usable: Vec<_> = cached
-        .models
-        .iter()
-        .filter(|m| m.output_modalities.iter().any(|o| o == "text") && m.supported_parameters.iter().any(|p| p == "tools") && !m.id.ends_with(":batch"))
-        .collect();
-    let chosen = crate::models::load_selection(&st.models_root).get("assistant_model").and_then(Value::as_str).map(str::to_string).filter(|id| usable.iter().any(|m| &m.id == id));
-    let default = chosen.or_else(|| PREFERRED.iter().find(|id| usable.iter().any(|m| m.id == **id)).map(|id| id.to_string())).or_else(|| usable.first().map(|m| m.id.clone()));
-    let list: Vec<Value> = usable.iter().map(|m| json!({ "id": m.id, "name": m.name, "pricing": m.pricing })).collect();
-    Json(json!({ "models": list, "default": default, "assistant": assistant(&st.models_root), "has_key": crate::models::openrouter_key().is_some() })).into_response()
+    .await;
+    match result {
+        Ok(()) => decoder.finish(),
+        Err(message) => Err(TurnError {
+            message,
+            cost: decoder.turn.cost,
+        }),
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn the_prompt_names_the_project_and_the_language_and_carries_the_skill() {
-        let prompt = system_prompt(Some("abc123"), Some("ru"));
-        assert!(prompt.contains("abc123") && prompt.contains("ru"));
-        assert!(prompt.contains(crate::mcp::SKILL));
+    async fn decode(chunks: Vec<Result<axum::body::Bytes, &'static str>>) -> Result<Turn, TurnError> {
+        read_turn(futures_util::stream::iter(chunks), |_| async { Ok(()) }).await
     }
 
-    #[test]
-    fn every_tool_but_the_assistant_requests_is_offered_to_the_chat() {
-        let tools = crate::mcp::chat_tools();
-        assert!(tools.iter().all(|tool| tool["type"] == "function" && tool["function"]["parameters"]["type"] == "object"));
-        assert!(tools.iter().any(|tool| tool["function"]["name"] == "project_update"));
-        assert!(!tools.iter().any(|tool| tool["function"]["name"].as_str().is_some_and(|n| n.starts_with("assistant_"))));
+    #[tokio::test]
+    async fn split_unicode_tools_and_unterminated_last_event_survive_chunk_boundaries() {
+        let events = [
+            json!({"choices":[{"delta":{"content":"Привет 🌍"}}]}),
+            json!({"choices":[{"delta":{"tool_calls":[{"index":0,"id":"a","function":{"name":"studio_guide","arguments":"{\"topic\":"}}]}}]}),
+            json!({"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\"tags\"}"}}]}}]}),
+            json!({"choices":[{"delta":{},"finish_reason":"tool_calls"}]}),
+        ];
+        let mut data = String::from(": keepalive\r\n\r\n");
+        for event in events {
+            data.push_str(&format!("data: {event}\r\n\r\n"));
+        }
+        data.push_str("data: {\"usage\":{\"cost\":0.125}}");
+        for size in [1, 2, 7, data.len()] {
+            let chunks = data.as_bytes().chunks(size).map(|chunk| Ok(chunk.to_vec().into())).collect();
+            let turn = decode(chunks).await.unwrap();
+            assert_eq!(turn.text, "Привет 🌍");
+            assert_eq!(turn.calls, [("a".into(), "studio_guide".into(), "{\"topic\":\"tags\"}".into())]);
+            assert_eq!(turn.cost, 0.125);
+        }
+    }
+
+    #[tokio::test]
+    async fn malformed_events_and_transport_errors_keep_reported_cost() {
+        let usage = "data: {\"usage\":{\"cost\":0.25}}\n\n";
+        let failures: Vec<Vec<u8>> = vec![
+            b"data: broken\n\n".to_vec(),
+            b"data: {\"error\":{\"message\":\"quota exceeded\"}}\n\n".to_vec(),
+            b"data: \xff\n\n".to_vec(),
+        ];
+        for failure in failures {
+            let err = decode(vec![Ok(usage.into()), Ok(failure.into())]).await.unwrap_err();
+            assert_eq!(err.cost, 0.25);
+            assert!(!err.message.is_empty());
+        }
+        let err = decode(vec![Ok(usage.into()), Err("connection lost")]).await.unwrap_err();
+        assert_eq!(err.cost, 0.25);
+        assert_eq!(err.message, "connection lost");
+    }
+
+    #[tokio::test]
+    async fn invalid_tool_indices_and_incomplete_calls_are_errors() {
+        for call in [json!({"index":u64::MAX}), json!({"index":0,"id":"a"})] {
+            let data = format!("data: {}\n\n", json!({"choices":[{"delta":{"tool_calls":[call]}}]}));
+            assert!(decode(vec![Ok(data.into())]).await.is_err());
+        }
+    }
+
+    #[tokio::test]
+    async fn multiline_events_work_and_unfinished_responses_are_errors() {
+        let complete = "data: {\"choices\":[\ndata: {\"delta\":{\"content\":\"Hi\"},\"finish_reason\":\"stop\"}]}\n\n";
+        assert_eq!(decode(vec![Ok(complete.into())]).await.unwrap().text, "Hi");
+        let partial = "data: {\"usage\":{\"cost\":0.125},\"choices\":[{\"delta\":{\"content\":\"Partial\"}}]}\n\n";
+        let error = decode(vec![Ok(partial.into())]).await.unwrap_err();
+        assert_eq!(error.cost, 0.125);
+        assert!(error.message.contains("before the model finished"));
+    }
+
+    #[tokio::test]
+    async fn stopped_consumer_keeps_usage_and_done_ends_the_stream() {
+        let data = "data: {\"usage\":{\"cost\":0.5},\"choices\":[{\"delta\":{\"content\":\"Hi\"}}]}\n\n";
+        let err = read_turn(futures_util::stream::iter([Ok::<_, &str>(data.into())]), |_| async {
+            Err("closed".into())
+        })
+        .await
+        .unwrap_err();
+        assert_eq!(err.cost, 0.5);
+        let turn = decode(vec![Ok("data: [DONE]\n\n".into()), Err("must not be read")]).await.unwrap();
+        assert!(turn.text.is_empty());
     }
 }

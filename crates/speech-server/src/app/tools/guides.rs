@@ -5,9 +5,9 @@ use serde_json::{json, Value};
 
 use super::{composite, object, Tool, SKILL};
 
-pub(super) const GUIDE_URI: &str = "studio://guide/";
+pub(crate) const GUIDE_URI: &str = "studio://guide/";
 
-pub(super) const TOPICS: &[(&str, &str)] = &[
+pub(crate) const TOPICS: &[(&str, &str)] = &[
     ("tags", "the expression tags each engine reads, where they go in a sentence, and whether it reads a block's direction"),
     ("podcast", "a podcast script written the way the studio's director model writes one, and how it becomes a project"),
     ("audiobook", "a book split into the narrator and characters the way the studio's director model splits it, from the file to the export"),
@@ -34,7 +34,7 @@ fn engine_tags() -> String {
 }
 
 /// A guide by its topic.
-pub(super) fn guide(topic: &str) -> Option<String> {
+pub(crate) fn guide(topic: &str) -> Option<String> {
     Some(match topic {
         "tags" => format!("{}\n\nEach engine, as the studio has it (engine_tags gives one as data):{}", skill_tags(), engine_tags()),
         "podcast" => format!(
@@ -49,11 +49,11 @@ pub(super) fn guide(topic: &str) -> Option<String> {
     })
 }
 
-pub(super) fn resources() -> Vec<Value> {
+pub(crate) fn resources() -> Vec<Value> {
     TOPICS.iter().map(|(topic, about)| json!({ "uri": format!("{GUIDE_URI}{topic}"), "name": format!("guide: {topic}"), "title": format!("Guide: {topic}"), "description": about, "mimeType": "text/plain" })).collect()
 }
 
-pub(super) fn prompts() -> Vec<Value> {
+pub(crate) fn prompts() -> Vec<Value> {
     vec![
         json!({ "name": "write_podcast", "title": "Write a podcast", "description": "Write a podcast script for the studio and voice it.", "arguments": [{ "name": "topic", "description": "what the podcast is about", "required": true }, { "name": "speakers", "description": "who speaks and how, e.g. 'Anna - calm host; Oleg - excited guest'", "required": false }] }),
         json!({ "name": "make_audiobook", "title": "Make an audiobook", "description": "Turn a book file into a voiced audiobook with a narrator and characters.", "arguments": [{ "name": "path", "description": "the book file on this computer", "required": true }, { "name": "voice", "description": "the narrator's voice from voices_list", "required": false }] }),
@@ -61,7 +61,7 @@ pub(super) fn prompts() -> Vec<Value> {
 }
 
 /// A task prompt with its arguments.
-pub(super) fn prompt(name: &str, arguments: &Value) -> Option<String> {
+pub(crate) fn prompt(name: &str, arguments: &Value) -> Option<String> {
     let given = |key: &str| arguments.get(key).and_then(Value::as_str).map(str::trim).filter(|value| !value.is_empty());
     match name {
         "write_podcast" => {
@@ -76,7 +76,7 @@ pub(super) fn prompt(name: &str, arguments: &Value) -> Option<String> {
     }
 }
 
-pub(super) fn tools() -> Vec<Tool> {
+pub(crate) fn tools() -> Vec<Tool> {
     vec![Tool {
         name: "studio_guide",
         description: "A guide to read before writing for the studio: tags (the expression tags each engine reads and where they go), podcast (the rules the studio's director writes a podcast by, and how it becomes a project), audiobook (how it splits a book into the narrator and characters, from the file to the export). The same texts are the resources studio://guide/<topic>.",

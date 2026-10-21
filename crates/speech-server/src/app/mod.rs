@@ -16,3 +16,6 @@ pub(crate) mod timings;
 pub(crate) mod text_api;
 pub(crate) mod url_api;
 pub(crate) mod url_import;
+pub(crate) mod chat;
+pub(crate) mod chat_api;
+pub(crate) mod tools;

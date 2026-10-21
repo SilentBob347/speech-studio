@@ -46,12 +46,12 @@ use engines::{
     asr_util, denoise, hw, models, presets, qwen_tts, stress, supertonic, tcpp_asr, tts_host, vad,
 };
 use integrations::{
-    chat, cloud, cloud_tts, cloud_voices, google_speech, google_tts, llm_provider, music_studios,
+    cloud, cloud_tts, cloud_voices, google_speech, google_tts, llm_provider, music_studios,
     openai_api, openrouter, ytdlp,
 };
 use app::{
     endpoints, guard, hub, journal, localize, secrets_api, spa, studio_settings, text_api as dict_api, timings,
-    url_api, url_import,
+    url_api, url_import, chat_api, tools,
 };
 use platform::credentials;
 use jobs::{
@@ -566,8 +566,8 @@ pub fn build_router(state: AppState) -> Router {
         .route("/projects/{pid}/exports-to-folder", post(speech_api::exports_to_folder))
         .route("/projects/{pid}/exports/{file}/reveal", post(speech_api::export_reveal))
         .route("/projects/{pid}/exports/{file}/save-as", post(speech_api::export_save_as))
-        .route("/chat", post(chat::chat))
-        .route("/chat/models", get(chat::models))
+        .route("/chat", post(chat_api::chat))
+        .route("/chat/models", get(chat_api::models))
         .route("/diagnostics", get(diagnostics::get))
         .route("/diagnostics/report", post(diagnostics::make_report))
         .route("/diagnostics/report/reveal", post(diagnostics::reveal_report))
@@ -580,18 +580,18 @@ pub fn build_router(state: AppState) -> Router {
         .route("/jobs/{job_id}/events", get(job_events))
         .fallback(spa_fallback)
         .layer(axum::extract::DefaultBodyLimit::disable())
-        .layer(axum::middleware::from_fn(mcp::track))
+        .layer(axum::middleware::from_fn(tools::track))
         .merge(hub::router())
         .with_state(state);
     // counted before the MCP tools take the router, so an agent's calls count as the features they use
     let api = hub::track(api);
-    mcp::install(api.clone());
+    tools::install(api.clone());
     api.route("/mcp", post(mcp::handle))
-        .route("/mcp/status", get(mcp::status))
-        .route("/mcp/window", get(mcp::window_events))
-        .route("/mcp/window/result", post(mcp::window_result).layer(axum::extract::DefaultBodyLimit::max(64 * 1024 * 1024)))
-        .route("/mcp/window/focus", post(mcp::window_focus))
-        .route("/mcp/agent-llm/v1/chat/completions", post(mcp::agent_llm))
+        .route("/mcp/status", get(tools::status))
+        .route("/mcp/window", get(tools::window_events))
+        .route("/mcp/window/result", post(tools::window_result).layer(axum::extract::DefaultBodyLimit::max(64 * 1024 * 1024)))
+        .route("/mcp/window/focus", post(tools::window_focus))
+        .route("/mcp/agent-llm/v1/chat/completions", post(tools::agent_llm))
         .layer(guard::cors())
         .layer(axum::middleware::from_fn(guard::origin_guard))
 }
@@ -897,7 +897,7 @@ fn mic_test_path(st: &AppState) -> PathBuf {
 /// POST /record/test {device?} — a microphone test, as call apps have one: records until /record/test/stop while
 /// /record/level shows how loud it hears; the recording is then played back to the person.
 async fn record_test(State(st): State<AppState>, headers: HeaderMap, body: Option<Json<Value>>) -> Response {
-    if mcp::by_agent(&headers) {
+    if tools::by_agent(&headers) {
         return (StatusCode::FORBIDDEN, Json(json!({ "error": "mic_only_person", "detail": t!("mic-only-person") }))).into_response();
     }
     let device = body.as_ref().and_then(|Json(v)| v.get("device")).and_then(Value::as_str).filter(|d| !d.is_empty()).map(str::to_string);
@@ -943,7 +943,7 @@ async fn record_test_audio(State(st): State<AppState>, req: axum::http::Request<
 
 /// POST /record/start {name, device?} — начать запись голоса в новый файл voices/<имя>.wav (занятое имя получает номер).
 async fn record_start(State(st): State<AppState>, headers: HeaderMap, Json(body): Json<Value>) -> Json<Value> {
-    if mcp::by_agent(&headers) {
+    if tools::by_agent(&headers) {
         return Json(json!({ "ok": false, "error": t!("mic-only-person") }));
     }
     let base = voice_library::sanitize(body.get("name").and_then(|v| v.as_str()).unwrap_or(""));

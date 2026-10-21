@@ -151,7 +151,7 @@ async fn speak(headers: &HeaderMap, body: &Value) -> Result<Response, Failure> {
     if let Some(instructions) = body.get("instructions").and_then(Value::as_str).filter(|v| !v.trim().is_empty()) {
         args["direction"] = json!(instructions.trim());
     }
-    let done = match crate::mcp::one_call("speak_text", &args, Instant::now() + LONGEST).await {
+    let done = match crate::app::tools::one_call("speak_text", &args, Instant::now() + LONGEST).await {
         Ok(v) if v["done"] == true => v,
         Ok(_) => return Err(Failure { status: StatusCode::GATEWAY_TIMEOUT, kind: "server_error", message: "The speech took longer than the request may wait.".into() }),
         Err(e) => return Err(invalid(e)),
@@ -227,7 +227,7 @@ async fn transcribe(st: &AppState, headers: &HeaderMap, mut multipart: Multipart
         tokio::fs::create_dir_all(&dir).await.and(tokio::fs::write(&path, &bytes).await).map_err(|e| server(format!("{}: {e}", path.display())))?;
     }
     let args = json!({ "path": path, "format": file_format, "lang": language });
-    let done = match crate::mcp::one_call("transcribe_file", &args, Instant::now() + LONGEST).await {
+    let done = match crate::app::tools::one_call("transcribe_file", &args, Instant::now() + LONGEST).await {
         Ok(v) if v["done"] == true => v,
         Ok(_) => return Err(Failure { status: StatusCode::GATEWAY_TIMEOUT, kind: "server_error", message: "The recognition took longer than the request may wait.".into() }),
         Err(e) => return Err(invalid(e)),
