@@ -13,3 +13,4 @@ pub mod service;
 pub(crate) mod hub;
 pub(crate) mod journal;
 pub(crate) mod timings;
+pub(crate) mod text_api;

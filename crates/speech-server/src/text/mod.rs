@@ -2,7 +2,6 @@ pub(crate) mod normalize_ru;
 pub(crate) mod stress;
 pub(crate) mod pron_dict;
 pub(crate) mod prep;
-pub(crate) mod api;
 pub(crate) mod ssml;
 pub(crate) mod direct_speech;
 pub(crate) mod itn;

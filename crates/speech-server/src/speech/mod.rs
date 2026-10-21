@@ -15,3 +15,7 @@ pub(crate) mod book_rebuild;
 pub(crate) mod director;
 pub(crate) mod director_api;
 pub(crate) mod auto_cast;
+mod preparation;
+
+pub(crate) use preparation::{dictionary_counts, prepare_text, unknown_words, PrepareText};
+pub(crate) use jobs::SpeechPaths;

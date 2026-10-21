@@ -39,7 +39,7 @@ use audio::{
     flags as audio_flags, loudness, media, qc, tagging, trim as tts_trim, wavio,
 };
 use text::{
-    api as dict_api, direct_speech, itn, normalize_ru, prep, pron_dict, ssml, stress, subimport,
+    direct_speech, itn, normalize_ru, prep, pron_dict, ssml, stress, subimport,
     tts as tts_text,
 };
 use engines::{
@@ -50,7 +50,7 @@ use integrations::{
     openai_api, openrouter, url_import, ytdlp,
 };
 use app::{
-    endpoints, guard, hub, journal, localize, secrets_api, spa, studio_settings, timings,
+    endpoints, guard, hub, journal, localize, secrets_api, spa, studio_settings, text_api as dict_api, timings,
 };
 use platform::credentials;
 use jobs::{
@@ -473,11 +473,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/engines", get(speech_api::engines))
         .route("/text/stress", post(speech_api::stress))
         .route("/text/direct-speech", post(speech_api::direct_speech))
-        .route("/text/prepare", post(dict_api::prepare))
-        .route("/dictionary", get(dict_api::get_global).put(dict_api::put_global))
-        .route("/dictionary/import", post(dict_api::import))
-        .route("/projects/{pid}/dictionary-counts", get(dict_api::counts))
-        .route("/projects/{pid}/unknown-words", get(dict_api::unknown_words))
+        .merge(dict_api::router())
         .route("/cloud/catalog", get(cloud::catalog))
         .route("/cloud/catalog/refresh", post(cloud::refresh))
         .route("/cloud/form", get(cloud::form))

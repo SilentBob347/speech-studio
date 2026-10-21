@@ -1955,6 +1955,9 @@ mod tests {
     fn router_routes() -> Vec<(String, String)> {
         let source = include_str!("../lib.rs").replace("\r\n", "\n");
         let body = source.split("pub fn build_router(").nth(1).expect("build_router").split("\n}\n").next().unwrap();
+        let text_source = include_str!("../app/text_api.rs").replace("\r\n", "\n");
+        let text_routes = text_source.split("pub(crate) fn router(").nth(1).expect("text router").split("\n}\n").next().unwrap();
+        let body = body.replace(".merge(dict_api::router())", text_routes);
         let code: String = body.lines().map(|line| line.split("//").next().unwrap_or_default()).collect::<Vec<_>>().join("\n");
         let mut routes = Vec::new();
         for chunk in code.split(".route(").skip(1) {

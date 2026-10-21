@@ -8,6 +8,7 @@ release notes on GitHub are taken from the release's section.
 
 ### Fixed
 
+- **Dictionary import errors.** Malformed multipart uploads now report an error even when an earlier part contained a valid dictionary.
 - **Noise suppression errors.** Invalid DPDFNet metadata or output sizes now return an error instead of panicking during processing.
 - **DLL diagnostics.** Malformed import addresses and unsupported PE headers report an error instead of panicking or passing the check.
 - **Credential saves.** Failed key and proxy password replacements clean up their temporary files and preserve the previous value.
