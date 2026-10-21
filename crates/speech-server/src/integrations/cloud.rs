@@ -306,7 +306,7 @@ fn daily_limit(models_root: &Path) -> f64 {
 
 /// Отказ агенту или программе, если вызов выйдет за дневной лимит; вызов без оценки цены при лимите тоже отказ.
 pub fn check_limit(repo_root: &Path, models_root: &Path, estimate: Option<f64>) -> Result<(), String> {
-    check_limit_as(&crate::mcp::current_actor(), repo_root, models_root, estimate)
+    check_limit_as(&crate::app::context::current_actor(), repo_root, models_root, estimate)
 }
 
 /// The same refusal for a caller named outright: the Assistant panel's conversation is an agent's.
@@ -367,7 +367,7 @@ fn run(cloud: &Cloud, provider: Provider, id: &str, form: &ModelForm, values: &M
             estimate,
             cost,
             cost_source: if cost.is_some() { "provider" } else if estimate.is_some() { "estimate" } else { "unknown" }.into(),
-            origin: crate::mcp::current_actor(),
+            origin: crate::app::context::current_actor(),
         });
         Done { outputs, cost, estimate }
     };

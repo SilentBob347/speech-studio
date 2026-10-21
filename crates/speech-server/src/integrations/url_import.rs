@@ -538,7 +538,7 @@ impl Fetches {
             }
             self.save(&list);
         }
-        crate::mcp::tell_windows(json!({ "changed": "projects", "pid": made.pid, "by": "studio" }));
+        crate::app::events::publish(json!({ "changed": "projects", "pid": made.pid, "by": "studio" }));
         if let Err(e) = std::fs::remove_dir_all(&dir) {
             tracing::warn!("the download folder {} was not removed after moving into the project: {e}", dir.display());
         }

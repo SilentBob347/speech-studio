@@ -121,7 +121,7 @@ fn spend(repo_root: &Path, pid: &str, s: &Setup, usage: &Value, batch: bool) -> 
         estimate: cost,
         cost: None,
         cost_source: if cost.is_some() { "estimate" } else { "unknown" }.into(),
-        origin: crate::mcp::current_actor(),
+        origin: crate::app::context::current_actor(),
     });
     cost
 }

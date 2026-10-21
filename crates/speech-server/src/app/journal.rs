@@ -98,7 +98,7 @@ pub fn note(line: Line) -> Result<Line, String> {
         }
         line
     };
-    crate::mcp::tell_windows(json!({ "changed": "journal", "by": crate::mcp::current_actor() }));
+    crate::app::events::publish(json!({ "changed": "journal", "by": crate::app::context::current_actor() }));
     Ok(line)
 }
 
@@ -147,7 +147,7 @@ pub async fn clear() -> Response {
     });
     match result {
         Ok(()) => {
-            crate::mcp::tell_windows(json!({ "changed": "journal" }));
+            crate::app::events::publish(json!({ "changed": "journal" }));
             StatusCode::NO_CONTENT.into_response()
         }
         Err(e) => failed(e),
@@ -167,7 +167,7 @@ pub async fn remove(UrlPath(id): UrlPath<u64>) -> Response {
     });
     match result {
         Ok(true) => {
-            crate::mcp::tell_windows(json!({ "changed": "journal" }));
+            crate::app::events::publish(json!({ "changed": "journal" }));
             StatusCode::NO_CONTENT.into_response()
         }
         Ok(false) => (StatusCode::NOT_FOUND, "no such journal line").into_response(),

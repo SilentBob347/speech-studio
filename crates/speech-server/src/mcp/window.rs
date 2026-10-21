@@ -12,8 +12,6 @@
 //! meanwhile - even when the window's own later edit already carried that save to it.
 
 use std::collections::HashMap;
-use std::sync::atomic::AtomicBool;
-use std::sync::Arc;
 use std::convert::Infallible;
 
 use axum::http::HeaderValue;
@@ -21,9 +19,9 @@ use axum::middleware::Next;
 use axum::response::sse::{Event, KeepAlive, Sse};
 use tokio::sync::broadcast::error::RecvError;
 
-use crate::jobs::JobFn;
-
 use super::*;
+use crate::app::{context::RequestContext, events, revisions::{revision, PROJECT_CHANGED}};
+use events::publish as tell_windows;
 
 /// The header the page marks every request of its window with.
 const WINDOW_HEADER: &str = "x-speech-window";
@@ -32,8 +30,6 @@ pub(super) const AGENT_HEADER: &str = "x-speech-agent";
 /// The revision of the project an answer shows, and the one the state a whole-project PUT writes
 /// was taken at.
 pub(crate) const REV_HEADER: &str = "x-project-rev";
-/// The error code of a PUT whose state someone else's later save would be lost under.
-pub(crate) const PROJECT_CHANGED: &str = "project_changed";
 
 const NO_WINDOW: &str = "The studio's window is not open, so there is nothing on screen to work in. Open Speech Studio (or its address in a browser) and call the tool again; every tool that is not ui_* works without the window.";
 
@@ -41,7 +37,6 @@ const NO_WINDOW: &str = "The studio's window is not open, so there is nothing on
 const JOB_ROUTES: &[&str] = &["synth", "export", "resume", "cast", "enrich"];
 
 struct Bridge {
-    commands: tokio::sync::broadcast::Sender<String>,
     pending: Mutex<HashMap<String, (u64, tokio::sync::oneshot::Sender<Result<Value, String>>)>>,
     /// The open windows, the one the person turned to last at the end: a
     /// command goes to that one only, so a second window never runs it again.
@@ -52,7 +47,6 @@ struct Bridge {
 fn bridge() -> &'static Bridge {
     static BRIDGE: OnceLock<Bridge> = OnceLock::new();
     BRIDGE.get_or_init(|| Bridge {
-        commands: tokio::sync::broadcast::channel(256).0,
         pending: Mutex::new(HashMap::new()),
         windows: Mutex::new(Vec::new()),
         sequence: AtomicU64::new(0),
@@ -93,7 +87,7 @@ impl Drop for Listening {
 /// window, so the page knows the commands addressed to it. A window that fell behind the stream
 /// is told to read everything again instead of silently missing a notice.
 pub async fn window_events() -> Response {
-    let receiver = bridge().commands.subscribe();
+    let receiver = events::subscribe();
     let window = bridge().sequence.fetch_add(1, Ordering::Relaxed);
     open_windows().push(window);
     let hello = futures_util::stream::once(async move { Ok::<Event, Infallible>(Event::default().data(json!({ "window": window }).to_string())) });
@@ -154,7 +148,7 @@ fn focus_window(window: u64) -> bool {
 /// tells the windows for the seconds asked. The agent listens without becoming a window.
 pub(super) async fn watch(args: &Value) -> Value {
     let seconds = args.get("seconds").and_then(Value::as_u64).unwrap_or(10).clamp(1, 55);
-    let mut receiver = bridge().commands.subscribe();
+    let mut receiver = events::subscribe();
     let until = tokio::time::Instant::now() + Duration::from_secs(seconds);
     let mut told = Vec::new();
     loop {
@@ -188,11 +182,6 @@ pub(super) fn drop_command(args: &Value) -> Result<Value, String> {
     Ok(json!({ "dropped": id }))
 }
 
-/// An event for every open window.
-pub(crate) fn tell_windows(event: Value) {
-    let _ = bridge().commands.send(event.to_string());
-}
-
 /// Asks the window the person turned to last to run a command, and waits for its answer.
 pub(super) async fn ask_window(command: &str, args: Value, seconds: u64) -> Result<Value, String> {
     let Some(window) = open_windows().last().copied() else {
@@ -201,7 +190,7 @@ pub(super) async fn ask_window(command: &str, args: Value, seconds: u64) -> Resu
     let id = format!("w{}", bridge().sequence.fetch_add(1, Ordering::Relaxed));
     let (sender, receiver) = tokio::sync::oneshot::channel();
     pending().insert(id.clone(), (window, sender));
-    if bridge().commands.send(json!({ "id": id, "window": window, "command": command, "args": args }).to_string()).is_err() {
+    if !events::publish(json!({ "id": id, "window": window, "command": command, "args": args })) {
         pending().remove(&id);
         return Err(NO_WINDOW.into());
     }
@@ -243,116 +232,6 @@ pub(super) fn window_reply(id: Value, result: Value) -> Response {
 
 // ---------------------------------------------------------------- revisions and who changed what
 
-/// Who made the request being served, the revision the state its whole-project PUT writes was
-/// taken at, and what its save of the project did (0: no save), shared with the blocking work it
-/// hands on. A job runs in a scope of its own: its author's, marked `job`.
-#[derive(Clone)]
-struct Scope {
-    actor: String,
-    expected: Option<u64>,
-    job: bool,
-    saved: Arc<AtomicU64>,
-    conflict: Arc<AtomicBool>,
-}
-
-impl Scope {
-    fn new(actor: String, expected: Option<u64>) -> Self {
-        Scope { actor, expected, job: false, saved: Arc::new(AtomicU64::new(0)), conflict: Arc::new(AtomicBool::new(false)) }
-    }
-
-    fn of_job(actor: String) -> Self {
-        Scope { job: true, ..Scope::new(actor, None) }
-    }
-}
-
-tokio::task_local! {
-    static REQUEST: Scope;
-}
-
-/// A project's revision and who saved it: enough to tell whether everything saved after a given
-/// revision is one author's.
-#[derive(Default)]
-struct Saves {
-    rev: u64,
-    /// The author of the latest save.
-    last: String,
-    /// The latest revision saved by anyone but `last`; 0 when nobody else saved.
-    other: u64,
-}
-
-impl Saves {
-    fn record(&mut self, actor: &str) -> u64 {
-        if self.last != actor {
-            self.other = self.rev;
-            self.last = actor.to_string();
-        }
-        self.rev += 1;
-        self.rev
-    }
-
-    /// Whether `actor` alone saved the project after revision `base`: writing back a state taken at
-    /// `base` then loses nobody else's save. A revision the studio has not reached (one from before
-    /// it restarted) is nobody's.
-    fn only_by_since(&self, actor: &str, base: u64) -> bool {
-        let others = if self.last == actor { self.other } else { self.rev };
-        base <= self.rev && others <= base
-    }
-}
-
-fn revisions() -> std::sync::MutexGuard<'static, HashMap<String, Saves>> {
-    static REVISIONS: OnceLock<Mutex<HashMap<String, Saves>>> = OnceLock::new();
-    REVISIONS.get_or_init(|| Mutex::new(HashMap::new())).lock().unwrap_or_else(|poisoned| poisoned.into_inner())
-}
-
-fn revision(pid: &str) -> u64 {
-    revisions().get(pid).map(|saves| saves.rev).unwrap_or(0)
-}
-
-/// Work a request hands to a blocking thread, run in the request's scope there: a save it makes is
-/// the request's author's, not a job's.
-pub(crate) fn carry<T>(work: impl FnOnce() -> T + Send + 'static) -> impl FnOnce() -> T + Send + 'static {
-    let carried = REQUEST.try_with(Scope::clone).ok();
-    move || match carried {
-        Some(scope) => REQUEST.sync_scope(scope, work),
-        None => work(),
-    }
-}
-
-/// Who the current request or job is for: `window:<mark>`, `agent`, `api`, or `studio` outside both.
-pub(crate) fn current_actor() -> String {
-    REQUEST.try_with(|scope| scope.actor.clone()).unwrap_or_else(|_| "studio".into())
-}
-
-/// A job, taken when a request queues it and run as that request author's job: its saves are
-/// theirs, marked `job`, whoever queued the project's next job before it ran. JobQueue::enqueue
-/// wraps every job in it.
-pub(crate) fn carry_job(job: JobFn) -> JobFn {
-    let actor = REQUEST.try_with(|scope| scope.actor.clone()).unwrap_or_else(|_| "studio".into());
-    Box::new(move |progress| REQUEST.sync_scope(Scope::of_job(actor), move || job(progress)))
-}
-
-/// Writes a project through `write` as its next revision and tells the windows who saved it: the
-/// window or agent whose request or job is being served (`studio` outside both; a job's save marked
-/// `job`). A whole-project PUT whose state was taken before someone else's save is refused before
-/// anything is written.
-pub(crate) fn save_with_revision(dir: &Path, write: impl FnOnce() -> Result<(), String>) -> Result<(), String> {
-    let pid = dir.file_name().map(|name| name.to_string_lossy().into_owned()).unwrap_or_default();
-    let (actor, expected, job) = REQUEST.try_with(|scope| (scope.actor.clone(), scope.expected, scope.job)).unwrap_or_else(|_| ("studio".into(), None, false));
-    let rev = {
-        let mut revisions = revisions();
-        let saves = revisions.entry(pid.clone()).or_default();
-        if expected.is_some_and(|base| !saves.only_by_since(&actor, base)) {
-            let _ = REQUEST.try_with(|scope| scope.conflict.store(true, Ordering::Relaxed));
-            return Err(format!("{PROJECT_CHANGED}: project {pid} is at revision {}", saves.rev));
-        }
-        write()?;
-        saves.record(&actor)
-    };
-    let _ = REQUEST.try_with(|scope| scope.saved.store(rev, Ordering::Relaxed));
-    tell_windows(json!({ "changed": "project", "pid": pid, "rev": rev, "by": actor, "job": job }));
-    Ok(())
-}
-
 /// The request's author: a window of the page by its mark, an agent through the MCP tools, or
 /// another program calling the API.
 fn actor_of(headers: &HeaderMap) -> String {
@@ -390,15 +269,15 @@ pub(crate) async fn track(request: Request<Body>, next: Next) -> Response {
         _ => None,
     };
     let before = pid.as_deref().map(revision);
-    let scope = Scope::new(actor.clone(), expected);
-    let (saved, conflict) = (scope.saved.clone(), scope.conflict.clone());
-    let mut response = REQUEST.scope(scope, next.run(request)).await;
-    if conflict.load(Ordering::Relaxed) {
+    let context = RequestContext::new(actor.clone(), expected);
+    let outcome = context.outcome();
+    let mut response = context.run(next.run(request)).await;
+    if outcome.conflicted() {
         let detail = format!("the project was saved by someone else after the state this change was made on (it is at revision {}): read it again", pid.as_deref().map(revision).unwrap_or_default());
         return (StatusCode::CONFLICT, Json(json!({ "error": PROJECT_CHANGED, "detail": detail }))).into_response();
     }
     if whole_project && response.status().is_success() {
-        let shown = if method == Method::GET { before } else { Some(saved.load(Ordering::Relaxed)).filter(|rev| *rev > 0) };
+        let shown = if method == Method::GET { before } else { outcome.saved_revision() };
         if let Some(rev) = shown {
             response.headers_mut().insert(REV_HEADER, HeaderValue::from(rev));
         }
@@ -600,6 +479,9 @@ pub(super) fn tools() -> Vec<Tool> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::app::{context::carry, revisions::save_with_revision};
+    use crate::jobs::JobFn;
+    use std::sync::Arc;
 
     /// The bridge is one for the whole process: tests that open windows or wait for answers take turns.
     static TURN: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
@@ -623,7 +505,7 @@ mod tests {
     #[tokio::test]
     async fn a_command_reaches_the_window_and_its_answer_comes_back_by_id() {
         let _turn = TURN.lock().await;
-        let mut page = bridge().commands.subscribe();
+        let mut page = events::subscribe();
         let window = u64::MAX - 100;
         open_windows().push(window);
         let asked = tokio::spawn(ask_window("probe", json!({ "x": 1 }), 5));
@@ -662,7 +544,7 @@ mod tests {
         let none = ask_window("probe", json!({}), 30).await.unwrap_err();
         assert!(none.contains("window is not open") && started.elapsed() < Duration::from_secs(1), "{none}");
 
-        let _page = bridge().commands.subscribe();
+        let _page = events::subscribe();
         let window = u64::MAX - 101;
         open_windows().push(window);
         let silent = ask_window("probe", json!({}), 1).await.unwrap_err();
@@ -676,7 +558,7 @@ mod tests {
     #[tokio::test]
     async fn a_command_to_a_window_that_closed_fails_at_once() {
         let _turn = TURN.lock().await;
-        let _stream = bridge().commands.subscribe();
+        let _stream = events::subscribe();
         let window = bridge().sequence.fetch_add(1, Ordering::Relaxed);
         open_windows().push(window);
         let listening = Listening(window);
@@ -808,7 +690,7 @@ mod tests {
     async fn a_save_raises_the_revision_and_tells_the_windows_who_made_it() {
         let folder = tempfile::tempdir().unwrap();
         let router = tracked(folder.path().to_path_buf());
-        let mut page = bridge().commands.subscribe();
+        let mut page = events::subscribe();
         let pid = "revtest1";
 
         let read = send(&router, Method::GET, "/projects/revtest1", &[]).await;
@@ -862,26 +744,11 @@ mod tests {
         assert_eq!(status(other), (StatusCode::OK, Some("7".into())), "the other window undoes its own edit");
     }
 
-    #[test]
-    fn saves_tell_whether_one_author_alone_saved_after_a_revision() {
-        let mut saves = Saves::default();
-        assert!(saves.only_by_since("window:a", 0), "a project nobody saved");
-        saves.record("window:a");
-        saves.record("window:a");
-        assert!(saves.only_by_since("window:a", 0) && !saves.only_by_since("agent", 0) && saves.only_by_since("agent", 2));
-        saves.record("agent");
-        saves.record("window:a");
-        assert_eq!(saves.rev, 4);
-        assert!(!saves.only_by_since("window:a", 2) && saves.only_by_since("window:a", 3));
-        assert!(!saves.only_by_since("agent", 3) && saves.only_by_since("agent", 4));
-        assert!(!saves.only_by_since("window:a", 5));
-    }
-
     #[tokio::test]
     async fn a_job_and_a_list_change_reach_the_windows() {
         let folder = tempfile::tempdir().unwrap();
         let router = tracked(folder.path().to_path_buf());
-        let mut page = bridge().commands.subscribe();
+        let mut page = events::subscribe();
         let started = send(&router, Method::POST, "/projects/jobtest1/synth", &[(AGENT_HEADER, "1")]).await;
         let answer: Value = serde_json::from_slice(&axum::body::to_bytes(started.into_body(), 1 << 16).await.unwrap()).unwrap();
         assert_eq!(answer["job_id"], "j9", "the answer reaches the caller whole");
@@ -933,7 +800,7 @@ mod tests {
                 }),
             )
             .layer(axum::middleware::from_fn(track));
-        let mut page = bridge().commands.subscribe();
+        let mut page = events::subscribe();
         send(&router, Method::POST, "/projects/jobtest3/render", &[(AGENT_HEADER, "1")]).await;
         send(&router, Method::POST, "/projects/jobtest3/render", &[(WINDOW_HEADER, "tab-3")]).await;
         release.send(()).unwrap();
@@ -953,14 +820,12 @@ mod tests {
         let folder = tempfile::tempdir().unwrap();
         let dir = folder.path().join("carrytest1");
         std::fs::create_dir_all(&dir).unwrap();
-        let mut page = bridge().commands.subscribe();
-        let scope = Scope::new("window:tab-9".into(), None);
-        REQUEST
-            .scope(scope, async move {
-                let work = carry(move || save_with_revision(&dir, || Ok(())));
-                tokio::task::spawn_blocking(work).await.unwrap().unwrap();
-            })
-            .await;
+        let mut page = events::subscribe();
+        let scope = RequestContext::new("window:tab-9".into(), None);
+        scope.run(async move {
+            let work = carry(move || save_with_revision(&dir, || Ok(())));
+            tokio::task::spawn_blocking(work).await.unwrap().unwrap();
+        }).await;
         let saved = next_about(&mut page, "carrytest1").await;
         assert_eq!((saved["by"].as_str(), saved["job"].as_bool()), (Some("window:tab-9"), Some(false)));
     }

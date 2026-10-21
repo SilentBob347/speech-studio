@@ -1002,7 +1002,7 @@ async fn record_stop(State(st): State<AppState>, body: Option<Json<Value>>) -> R
         }
         None => None,
     };
-    mcp::tell_windows(json!({ "changed": "voices" }));
+    app::events::publish(json!({ "changed": "voices" }));
     let mut out = voice_api::listing(&st.voices_dir);
     out["name"] = json!(name);
     out["job_id"] = job.unwrap_or(Value::Null);
@@ -1049,7 +1049,7 @@ async fn voices_get(State(st): State<AppState>, Json(body): Json<Value>) -> Json
             if let Err(e) = voice_library::write_card(&st.voices_dir, &base, &card) {
                 return Json(json!({ "ok": false, "error": e }));
             }
-            mcp::tell_windows(json!({ "changed": "voices" }));
+            app::events::publish(json!({ "changed": "voices" }));
             Json(json!({ "ok": true, "voices": voice_api::listing(&st.voices_dir)["voices"] }))
         }
         Ok(Err(e)) => Json(json!({ "ok": false, "error": e })),

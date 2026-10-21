@@ -246,7 +246,7 @@ fn synth_block_cloud(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Bl
                 } else if provider == "openrouter" {
                     crate::cloud::check_limit(&p.repo_root, &p.models_root, None)?;
                     let samples = crate::cloud_tts::synth(&say, &model, &voice, b.direction.trim())?;
-                    crate::cloud::record(&p.repo_root, crate::cloud::Spent { at: chrono::Utc::now().timestamp_millis(), day: chrono::Local::now().format("%Y-%m-%d").to_string(), project: pid.to_string(), provider: "openrouter".into(), model: model.clone(), task: "speech".into(), cost_source: "unknown".into(), origin: crate::mcp::current_actor(), ..Default::default() });
+                    crate::cloud::record(&p.repo_root, crate::cloud::Spent { at: chrono::Utc::now().timestamp_millis(), day: chrono::Local::now().format("%Y-%m-%d").to_string(), project: pid.to_string(), provider: "openrouter".into(), model: model.clone(), task: "speech".into(), cost_source: "unknown".into(), origin: crate::app::context::current_actor(), ..Default::default() });
                     samples
                 } else {
                     let handle = p.workspace.join(pid).join("cloud").join(format!("{}-{n}-{k}.json", b.id));

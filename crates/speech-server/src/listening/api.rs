@@ -26,7 +26,7 @@ pub fn paths(st: &AppState) -> ListenPaths {
 fn saved(r: Result<Result<Value, String>, Response>, missing: StatusCode) -> Response {
     match r {
         Ok(Ok(v)) => Json(v).into_response(),
-        Ok(Err(e)) if e.starts_with(crate::mcp::PROJECT_CHANGED) => refuse(StatusCode::CONFLICT, crate::mcp::PROJECT_CHANGED, e),
+        Ok(Err(e)) if e.starts_with(crate::app::revisions::PROJECT_CHANGED) => refuse(StatusCode::CONFLICT, crate::app::revisions::PROJECT_CHANGED, e),
         Ok(Err(e)) => refuse(missing, "listen_failed", e),
         Err(r) => r,
     }
@@ -93,7 +93,7 @@ pub async fn upload(State(st): State<AppState>, mut multipart: axum::extract::Mu
     }
     let Some((original, source)) = got else { return refuse(StatusCode::BAD_REQUEST, "bad_request", "no file") };
     let ws = st.workspace.clone();
-    let res = joined(tokio::task::spawn_blocking(crate::mcp::carry(move || {
+    let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || {
         let made = make(&ws, &pid, &stem(&original), &source, &original);
         if made.is_err() {
             let _ = std::fs::remove_dir_all(lp::dir(&ws, &pid));
@@ -188,7 +188,7 @@ pub async fn record_stop(State(st): State<AppState>) -> Response {
         return refuse(StatusCode::CONFLICT, "not_recording", t!("listen-not-recording"));
     };
     let ws = st.workspace.clone();
-    let res = joined(tokio::task::spawn_blocking(crate::mcp::carry(move || {
+    let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || {
         crate::record::stop()?;
         let heard = crate::listen_live::finish();
         let made = make(&ws, &pid, &t!("listen-mic-name", time = chrono::Local::now().format("%d.%m %H:%M").to_string()), "source.wav", &t!("listen-mic-origin"))?;
@@ -253,7 +253,7 @@ pub async fn get(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Res
 /// PUT /listen/{pid} — сохранить правки транскрипта (тексты, спикеры, скрытие, пометки к вырезке, настройки).
 pub async fn put(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<Value>) -> Response {
     let ws = st.workspace.clone();
-    let res = joined(tokio::task::spawn_blocking(crate::mcp::carry(move || -> Result<Value, String> {
+    let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || -> Result<Value, String> {
         let mut project: ListenProject = serde_json::from_value(body).map_err(|e| e.to_string())?;
         let was = lp::load(&ws, &pid)?;
         project.kind = lp::KIND.into();
@@ -382,7 +382,7 @@ pub async fn check(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json
 /// POST /listen/{pid}/to-speech — проект Speech из транскрипта: реплики с теми же спикерами на таймкодах записи.
 pub async fn to_speech(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Response {
     let (ws, voices_dir) = (st.workspace.clone(), st.voices_dir.clone());
-    let res = joined(tokio::task::spawn_blocking(crate::mcp::carry(move || -> Result<Value, String> {
+    let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || -> Result<Value, String> {
         let project = lp::load(&ws, &pid)?;
         let cues: Vec<crate::subimport::Cue> =
             project.shown().map(|l| crate::subimport::Cue { start: l.start, end: l.end, text: l.text.clone(), speaker: Some(project.speaker_name(&l.speaker)) }).collect();
@@ -408,7 +408,7 @@ pub async fn to_speech(State(st): State<AppState>, AxPath(pid): AxPath<String>) 
 pub async fn voices(State(st): State<AppState>, AxPath(pid): AxPath<String>, body: Option<Json<Value>>) -> Response {
     let only = body.and_then(|Json(v)| v.get("speaker").and_then(Value::as_str).map(str::to_string));
     let (ws, voices_dir, models_root) = (st.workspace.clone(), st.voices_dir.clone(), st.models_root.clone());
-    let res = joined(tokio::task::spawn_blocking(crate::mcp::carry(move || voices_from_speakers(&ws, &voices_dir, &models_root, &pid, only.as_deref()))).await);
+    let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || voices_from_speakers(&ws, &voices_dir, &models_root, &pid, only.as_deref()))).await);
     saved(res, StatusCode::BAD_REQUEST)
 }
 
@@ -420,7 +420,7 @@ fn profile_paths(st: &AppState) -> crate::speaker_profiles::Paths {
 /// library voices, by the voice print.
 pub async fn speakers_match(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Response {
     let p = profile_paths(&st);
-    let res = joined(tokio::task::spawn_blocking(crate::mcp::carry(move || crate::speaker_profiles::matches(&p, &pid))).await);
+    let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || crate::speaker_profiles::matches(&p, &pid))).await);
     saved(res, StatusCode::BAD_REQUEST)
 }
 
@@ -428,7 +428,7 @@ pub async fn speakers_match(State(st): State<AppState>, AxPath(pid): AxPath<Stri
 pub async fn speaker_remember(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<Value>) -> Response {
     let speaker = body.get("speaker").and_then(Value::as_str).unwrap_or_default().to_string();
     let p = profile_paths(&st);
-    let res = joined(tokio::task::spawn_blocking(crate::mcp::carry(move || crate::speaker_profiles::remember(&p, &pid, &speaker))).await);
+    let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || crate::speaker_profiles::remember(&p, &pid, &speaker))).await);
     saved(res, StatusCode::BAD_REQUEST)
 }
 
@@ -553,7 +553,7 @@ pub(crate) fn project_of_file(ws: &Path, path: &Path) -> Result<(String, bool), 
 pub async fn from_path(State(st): State<AppState>, Json(body): Json<Value>) -> Response {
     let path = std::path::PathBuf::from(body.get("path").and_then(Value::as_str).unwrap_or_default());
     let ws = st.workspace.clone();
-    let res = joined(tokio::task::spawn_blocking(crate::mcp::carry(move || -> Result<Value, String> {
+    let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || -> Result<Value, String> {
         let (pid, existing) = project_of_file(&ws, &path)?;
         Ok(json!({ "pid": pid, "existing": existing }))
     }))

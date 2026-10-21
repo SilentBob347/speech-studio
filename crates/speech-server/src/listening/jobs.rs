@@ -327,7 +327,7 @@ fn recognise(p: &ListenPaths, engine: &Engine, wav: &Path, work: &Path, s: &lp::
             let client = dub_llm::openrouter::OpenRouter::new(Some(key)).map_err(|e| t!("cloud-asr-failed", error = format!("{e:#}")))?;
             let heard = client.transcribe(model, &audio, "mp3", lang).map_err(|e| t!("cloud-asr-failed", error = format!("{e:#}")))?;
             let pid = work.parent().and_then(|d| d.file_name()).map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-            crate::cloud::record(&p.repo_root, crate::cloud::Spent { at: chrono::Utc::now().timestamp_millis(), day: chrono::Local::now().format("%Y-%m-%d").to_string(), project: pid, provider: "openrouter".into(), model: model.clone(), task: "transcribe".into(), cost_source: "unknown".into(), origin: crate::mcp::current_actor(), ..Default::default() });
+            crate::cloud::record(&p.repo_root, crate::cloud::Spent { at: chrono::Utc::now().timestamp_millis(), day: chrono::Local::now().format("%Y-%m-%d").to_string(), project: pid, provider: "openrouter".into(), model: model.clone(), task: "transcribe".into(), cost_source: "unknown".into(), origin: crate::app::context::current_actor(), ..Default::default() });
             let mut segments: Vec<(f64, f64, String)> = heard.segments.into_iter().map(|s| (s.start, s.end, s.text)).collect();
             if segments.is_empty() {
                 if heard.text.trim().is_empty() {

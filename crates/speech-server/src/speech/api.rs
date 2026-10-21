@@ -119,7 +119,7 @@ pub async fn create(State(st): State<AppState>, Json(body): Json<Value>) -> Resp
         .and_then(Value::as_array)
         .map(|a| a.iter().filter_map(|f| Some((f.get("name")?.as_str()?.to_string(), f.get("text")?.as_str()?.to_string()))).collect())
         .unwrap_or_default();
-    let res = joined(tokio::task::spawn_blocking(crate::mcp::carry(move || -> Result<(String, Value), String> {
+    let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || -> Result<(String, Value), String> {
         let narrator = t!("speech-narrator");
         let mut project = if corpus.is_some() {
             crate::hard_corpus::project(&if named { name } else { t!("speech-corpus-name") }, &narrator)
@@ -193,7 +193,7 @@ pub async fn get(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Res
 /// PUT /projects/{pid} — проект Speech целиком (окно, undo, агент). Состояние, снятое до чужого сохранения, — 409.
 pub async fn put(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<Value>) -> Response {
     let p = paths(&st);
-    let res = joined(tokio::task::spawn_blocking(crate::mcp::carry(move || -> Result<Value, String> {
+    let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || -> Result<Value, String> {
         let mut project: SpeechProject = serde_json::from_value(body).map_err(|e| e.to_string())?;
         sp::load(&p.workspace, &pid)?;
         project.kind = sp::KIND.into();
@@ -203,7 +203,7 @@ pub async fn put(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(b
     .await);
     match res {
         Ok(Ok(v)) => Json(v).into_response(),
-        Ok(Err(e)) if e.starts_with(crate::mcp::PROJECT_CHANGED) => refuse(StatusCode::CONFLICT, crate::mcp::PROJECT_CHANGED, e),
+        Ok(Err(e)) if e.starts_with(crate::app::revisions::PROJECT_CHANGED) => refuse(StatusCode::CONFLICT, crate::app::revisions::PROJECT_CHANGED, e),
         Ok(Err(e)) => refuse(StatusCode::BAD_REQUEST, "bad_project", e),
         Err(r) => r,
     }
@@ -220,8 +220,8 @@ pub async fn delete(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> 
     }
     match joined(tokio::task::spawn_blocking(move || trash::delete(&dir).map_err(|e| e.to_string())).await) {
         Ok(Ok(())) => {
-            let by = crate::mcp::current_actor();
-            crate::mcp::tell_windows(json!({ "changed": "project", "pid": pid, "deleted": true, "by": by }));
+            let by = crate::app::context::current_actor();
+            crate::app::events::publish(json!({ "changed": "project", "pid": pid, "deleted": true, "by": by }));
             Json(json!({ "deleted": pid })).into_response()
         }
         Ok(Err(e)) => refuse(StatusCode::INTERNAL_SERVER_ERROR, "delete_failed", e),
@@ -250,8 +250,8 @@ pub async fn restore(State(st): State<AppState>, AxPath(pid): AxPath<String>) ->
     .await);
     match res {
         Ok(Ok(())) => {
-            let by = crate::mcp::current_actor();
-            crate::mcp::tell_windows(json!({ "changed": "project", "pid": pid, "restored": true, "by": by }));
+            let by = crate::app::context::current_actor();
+            crate::app::events::publish(json!({ "changed": "project", "pid": pid, "restored": true, "by": by }));
             Json(json!({ "restored": pid })).into_response()
         }
         Ok(Err(e)) => refuse(StatusCode::NOT_FOUND, "restore_failed", e),
@@ -498,7 +498,7 @@ pub async fn own_ref(State(st): State<AppState>, AxPath((pid, bid)): AxPath<(Str
         return refuse(StatusCode::BAD_REQUEST, "no_file", t!("speech-own-ref-no-file"));
     }
     let p = paths(&st);
-    let res = joined(tokio::task::spawn_blocking(crate::mcp::carry(move || -> Result<Value, String> {
+    let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || -> Result<Value, String> {
         let project = sp::load(&p.workspace, &pid)?;
         if !project.blocks().any(|b| b.id == bid) {
             return Err(t!("speech-no-block", id = bid.clone()));
@@ -527,7 +527,7 @@ pub async fn own_ref(State(st): State<AppState>, AxPath((pid, bid)): AxPath<(Str
     .await);
     match res {
         Ok(Ok(v)) => Json(v).into_response(),
-        Ok(Err(e)) if e.starts_with(crate::mcp::PROJECT_CHANGED) => refuse(StatusCode::CONFLICT, crate::mcp::PROJECT_CHANGED, e),
+        Ok(Err(e)) if e.starts_with(crate::app::revisions::PROJECT_CHANGED) => refuse(StatusCode::CONFLICT, crate::app::revisions::PROJECT_CHANGED, e),
         Ok(Err(e)) => refuse(StatusCode::BAD_REQUEST, "bad_ref", e),
         Err(r) => r,
     }
@@ -730,7 +730,7 @@ pub async fn tracks_import(State(st): State<AppState>, AxPath(pid): AxPath<Strin
         return refuse(StatusCode::BAD_REQUEST, "bad_request", pid);
     }
     let p = paths(&st);
-    let res = joined(tokio::task::spawn_blocking(crate::mcp::carry(move || -> Result<Value, String> {
+    let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || -> Result<Value, String> {
         let given: Vec<std::path::PathBuf> = body.paths.iter().map(std::path::PathBuf::from).collect();
         let files = crate::tracks::expand(&given)?;
         let name = body.name.clone().filter(|n| !n.trim().is_empty()).unwrap_or_else(|| given.first().and_then(|g| if g.is_dir() { g.file_name() } else { g.file_stem() }).map(|n| n.to_string_lossy().into_owned()).unwrap_or_default());
@@ -775,7 +775,7 @@ pub async fn tracks_upload(State(st): State<AppState>, AxPath(pid): AxPath<Strin
         return refuse(StatusCode::BAD_REQUEST, "no_file", t!("tracks-no-files"));
     }
     let p = paths(&st);
-    let res = joined(tokio::task::spawn_blocking(crate::mcp::carry(move || -> Result<Value, String> {
+    let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || -> Result<Value, String> {
         let _keep = tmp;
         let files = crate::tracks::expand(&files)?;
         let name = if name.trim().is_empty() { files.first().and_then(|f| f.file_stem()).map(|n| n.to_string_lossy().into_owned()).unwrap_or_default() } else { name };
@@ -850,7 +850,7 @@ fn place_files(p: &SpeechPaths, pid: &str, files: &[std::path::PathBuf], track: 
 fn project_answer(res: Result<Result<Value, String>, Response>) -> Response {
     match res {
         Ok(Ok(v)) => Json(v).into_response(),
-        Ok(Err(e)) if e.starts_with(crate::mcp::PROJECT_CHANGED) => refuse(StatusCode::CONFLICT, crate::mcp::PROJECT_CHANGED, e),
+        Ok(Err(e)) if e.starts_with(crate::app::revisions::PROJECT_CHANGED) => refuse(StatusCode::CONFLICT, crate::app::revisions::PROJECT_CHANGED, e),
         Ok(Err(e)) => refuse(StatusCode::BAD_REQUEST, "bad_tracks", e),
         Err(r) => r,
     }

@@ -126,7 +126,7 @@ pub async fn design_keep(State(st): State<AppState>, Json(body): Json<Value>) ->
     let name = if name.trim().is_empty() { t!("voice-design-name") } else { name };
     match joined(tokio::task::spawn_blocking(move || voice_jobs::design_keep(&p, &id, k, &name, &description, &sample, if lang.is_empty() { "auto" } else { &lang }).and_then(|made| lib::get(&dir, &made))).await) {
         Ok(Ok(v)) => {
-            crate::mcp::tell_windows(json!({ "changed": "voices" }));
+            crate::app::events::publish(json!({ "changed": "voices" }));
             Json(json!({ "voice": v })).into_response()
         }
         Ok(Err(e)) => bad(e),
@@ -171,7 +171,7 @@ pub async fn set_photo(State(st): State<AppState>, mut multipart: Multipart) -> 
     let n = name.clone();
     match joined(tokio::task::spawn_blocking(move || lib::set_photo(&dir, &n, &bytes, &ext).and_then(|_| lib::get(&dir, &n))).await) {
         Ok(Ok(v)) => {
-            crate::mcp::tell_windows(json!({ "changed": "voices" }));
+            crate::app::events::publish(json!({ "changed": "voices" }));
             Json(json!({ "voice": v })).into_response()
         }
         Ok(Err(e)) => bad(e),
@@ -238,7 +238,7 @@ pub(crate) async fn enqueue(st: &AppState, kind: jobs::JobKind, name: String, th
             }),
             _ => voice_jobs::transcribe(&p, &name, &cb),
         };
-        crate::mcp::tell_windows(json!({ "changed": "voices" }));
+        crate::app::events::publish(json!({ "changed": "voices" }));
         res
     });
     match st.jobs.enqueue(jobs::JobMeta::new(kind, Some(&key)), job).await {
@@ -270,7 +270,7 @@ pub async fn denoise(State(st): State<AppState>, Json(body): Json<Value>) -> Res
     let job: jobs::JobFn = Box::new(move |progress: jobs::ProgressFn| {
         let cb = |ev: Value| progress(ev);
         let res = voice_jobs::denoise(&p, &name, limit, &cb);
-        crate::mcp::tell_windows(json!({ "changed": "voices" }));
+        crate::app::events::publish(json!({ "changed": "voices" }));
         res
     });
     match st.jobs.enqueue(jobs::JobMeta::new(jobs::JobKind::VoiceClean, Some(&key)), job).await {
@@ -365,7 +365,7 @@ pub async fn import(State(st): State<AppState>, mut multipart: Multipart) -> Res
         Ok(Err(e)) => return bad(e),
         Err(r) => return r,
     };
-    crate::mcp::tell_windows(json!({ "changed": "voices" }));
+    crate::app::events::publish(json!({ "changed": "voices" }));
     let mut jobs_started = Vec::new();
     for n in &names {
         if want_clean {
@@ -503,7 +503,7 @@ pub async fn import_zip_route(State(st): State<AppState>, mut multipart: Multipa
     let dir = st.voices_dir.clone();
     match joined(tokio::task::spawn_blocking(move || import_zip(&dir, &bytes)).await) {
         Ok(Ok((added, same))) => {
-            crate::mcp::tell_windows(json!({ "changed": "voices" }));
+            crate::app::events::publish(json!({ "changed": "voices" }));
             Json(json!({ "added": added, "already": same })).into_response()
         }
         Ok(Err(e)) => bad(e),
@@ -565,7 +565,7 @@ pub async fn ref_apply(State(st): State<AppState>, Json(body): Json<Value>) -> R
     let dir = st.voices_dir.clone();
     match joined(tokio::task::spawn_blocking(move || lib::apply_ref(&dir, &name, start, end).and_then(|_| lib::get(&dir, &name))).await) {
         Ok(Ok(v)) => {
-            crate::mcp::tell_windows(json!({ "changed": "voices" }));
+            crate::app::events::publish(json!({ "changed": "voices" }));
             Json(json!({ "voice": v })).into_response()
         }
         Ok(Err(e)) => bad(e),

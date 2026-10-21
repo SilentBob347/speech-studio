@@ -1,3 +1,6 @@
+pub(crate) mod context;
+pub(crate) mod events;
+pub(crate) mod revisions;
 pub(crate) mod endpoints;
 pub(crate) mod guard;
 pub(crate) mod spa;
