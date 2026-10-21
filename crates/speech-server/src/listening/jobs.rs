@@ -267,7 +267,7 @@ fn recognise_by_pauses(p: &ListenPaths, choice: &crate::models::AsrChoice, wav: 
     if windows.is_empty() {
         return Err(t!("listen-no-speech", threshold = format!("{:.2}", vad.threshold)));
     }
-    let mut asr = crate::models::build_engine(choice, prompt);
+    let mut asr = crate::engines::asr::build_engine(choice, prompt);
     let mut all = Vec::new();
     for (k, &(a, b)) in windows.iter().enumerate() {
         step(progress, t!("listen-step-asr-piece", n = (k + 1) as i64, total = windows.len() as i64), 45 + (k * 40 / windows.len().max(1)) as i64);
@@ -295,7 +295,7 @@ fn recognise(p: &ListenPaths, engine: &Engine, wav: &Path, work: &Path, s: &lp::
             std::env::set_var("DUB_ASR_BACKEND", crate::models::stage_backend(&p.models_root, "asr_backend"));
             // Whisper windows a long recording itself; the others get it in pieces cut at pauses
             let segments = match choice {
-                crate::models::AsrChoice::Whisper { .. } => crate::models::build_engine(choice, prompt).transcribe(wav, lang).map_err(|e| e.localize())?,
+                crate::models::AsrChoice::Whisper { .. } => crate::engines::asr::build_engine(choice, prompt).transcribe(wav, lang).map_err(|e| e.localize())?,
                 crate::models::AsrChoice::Ggml { .. } => recognise_by_pauses(p, choice, wav, work, lang, &s.vad, prompt, progress)?,
             };
             dub_asr::split_at_speaker_turns(segments, turns)

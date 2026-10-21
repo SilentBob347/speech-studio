@@ -93,7 +93,7 @@ fn recent_log() -> Vec<String> {
 fn report(root: &Path) -> Value {
     let gpu = crate::hw::gpu_report();
     let hw = crate::hw::snapshot();
-    let setup = crate::setup::setup_status(root);
+    let setup = super::engine_setup::setup_status(root);
     let components: Vec<Value> = setup.components.iter().map(|c| json!({ "id": c.id, "installed": c.installed, "size": c.size, "on_disk": c.bytes_on_disk })).collect();
     #[cfg(windows)]
     // ffmpeg found on PATH counts as installed (setup's rule), so its own files are not checked

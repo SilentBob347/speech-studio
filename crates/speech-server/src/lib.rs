@@ -42,7 +42,7 @@ use text::{
     direct_speech, itn, normalize_ru, prep, pron_dict, subimport,
 };
 use engines::{
-    asr_util, denoise, hw, models, presets, qwen_tts, stress, supertonic, tcpp_asr, tts_host, vad,
+    denoise, hw, models, presets, qwen_tts, stress, supertonic, tcpp_asr, tts_host, vad,
 };
 use integrations::{
     cloud_voices, google_tts, music_studios, openrouter, ytdlp,
@@ -55,7 +55,8 @@ use platform::credentials;
 use jobs::{
     limiter, store as job_store,
 };
-use setup::downloads;
+use app::{asr as asr_util, downloads};
+pub(crate) use app::engine_setup::{ensure_components, ensure_llm_components, ensure_job_components};
 pub use app::{diagnostics, service};
 pub use platform::process_group;
 pub use hub::flush_on_exit as flush_hub_on_exit;
@@ -666,7 +667,7 @@ fn body_ids(body: &Value) -> Vec<String> {
 /// Ошибка — текст для ответа 500 (internal_error).
 async fn full_setup_status(st: &AppState) -> Result<Value, String> {
     let root = st.repo_root.clone();
-    let mut status = tokio::task::spawn_blocking(move || setup::setup_status(&root))
+    let mut status = tokio::task::spawn_blocking(move || app::engine_setup::setup_status(&root))
         .await
         .map_err(|e| e.to_string())?;
     status.active = st.downloads.active();
@@ -716,7 +717,7 @@ async fn setup_remove(State(st): State<AppState>, Json(body): Json<Value>) -> Re
     let root = st.repo_root.clone();
     let dl = st.downloads.clone();
     let res = tokio::task::spawn_blocking(move || {
-        let mut report = setup::remove_components(&root, &ids)?;
+        let mut report = app::engine_setup::remove_components(&root, &ids)?;
         dl.forget_covering(&ids);
         if ids.iter().any(|id| id == ytdlp::COMPONENT) {
             report.errors.extend(ytdlp::remove_updates(&root));
@@ -755,118 +756,6 @@ async fn setup_open_models(State(st): State<AppState>) -> Response {
             .into_response();
     }
     Json(json!({ "path": dir.to_string_lossy() })).into_response()
-}
-
-/// Перед задачей догружаются компоненты, нужные именно ей, если их нет на диске (прогресс — в тот же SSE):
-/// проверка похожести голоса — WeSpeaker, GPU-стадия без CUDA-стека — cuFFT, onnxruntime-GPU, cuDNN.
-/// Докачать в задаче недостающие компоненты из списка (отмена задачи прерывает закачку).
-pub(crate) fn ensure_components(repo_root: &Path, ids: &[&str], progress: &setup::ProgressCb) -> Result<(), String> {
-    let manifest = setup::manifest();
-    let need: Vec<String> = ids
-        .iter()
-        .filter(|id| manifest.iter().find(|c| c.id == **id).is_some_and(|c| !setup::component_status(repo_root, c).installed))
-        .map(|id| id.to_string())
-        .collect();
-    if need.is_empty() {
-        return Ok(());
-    }
-    progress(json!({ "stage": "download", "msg": t!("setup-fetching-missing") }));
-    let ctl = jobs::current();
-    let cancel = move || ctl.as_ref().is_some_and(|c| c.is_cancelled());
-    setup::download_components(repo_root, &need, &cancel, progress).map(|_| ()).map_err(|e| e.detail)
-}
-
-/// Для своей Gemma: llama-server и модель «Первого запуска», если их нет; сервер пользователя и OpenRouter ничего
-/// не скачивают.
-pub(crate) fn ensure_llm_components(repo_root: &Path, models_root: &Path, progress: &setup::ProgressCb) -> Result<(), String> {
-    if models::llm_backend(models_root, "llm") != models::LlmBackend::Local {
-        return Ok(());
-    }
-    let manifest = setup::manifest();
-    let missing = |id: &str| manifest.iter().find(|c| c.id == id).is_some_and(|c| !setup::component_status(repo_root, c).installed);
-    let (model, _) = models::resolve_mt(models_root, &models::load_selection(models_root));
-    let mut need: Vec<String> = Vec::new();
-    if missing("llama") {
-        need.push("llama".to_string());
-    }
-    if !model.is_file() && missing("gemma") {
-        need.push("gemma".to_string());
-    }
-    if need.is_empty() {
-        return Ok(());
-    }
-    progress(json!({ "stage": "download", "msg": t!("setup-fetching-missing") }));
-    let ctl = jobs::current();
-    let cancel = move || ctl.as_ref().is_some_and(|c| c.is_cancelled());
-    setup::download_components(repo_root, &need, &cancel, progress).map_err(|e| e.detail)?;
-    augment_path_for_tools(repo_root);
-    Ok(())
-}
-
-pub(crate) fn ensure_job_components(
-    repo_root: &Path,
-    models_root: &Path,
-    similarity: bool,
-    diarization: bool,
-    progress: &setup::ProgressCb,
-) -> Result<(), String> {
-    let manifest = setup::manifest();
-    let missing = |id: &str| -> bool {
-        manifest
-            .iter()
-            .find(|c| c.id == id)
-            .map(|c| !setup::component_status(repo_root, c).installed)
-            .unwrap_or(false)
-    };
-    let mut need: Vec<String> = Vec::new();
-    if similarity && missing("wespeaker") {
-        need.push("wespeaker".to_string());
-    }
-    // Любая локальная стадия на GPU → полный CUDA-стек: диаризация/ASR грузят onnxruntime-GPU + cuDNN,
-    // ggml-движки (сепарация/Higgs) — cuda-runtime (cudart/cublas/cuFFT). Без cuFFT CUDA-EP не поднимется.
-    let gpu = ["sep_backend", "diar_backend", "asr_backend"]
-        .iter()
-        .any(|k| models::stage_backend(models_root, k) == "gpu");
-    if gpu {
-        for id in ["cuda-runtime", "onnxruntime-gpu", "cudnn", "bsroformer-engine",
-        ] {
-            if missing(id) {
-                need.push(id.to_string());
-            }
-        }
-    }
-    // Whisper на GPU: CTranslate2 требует cuBLAS12 + cuDNN8 РЯДОМ с whisper-faster.exe (наш ONNX-стек
-    // выше — CUDA 13, whisper'у не подходит). Без них whisper молча идёт на CPU. Тянем их только когда
-    // движок ASR = Whisper И стадия ASR на GPU.
-    let asr_whisper = models::load_selection(models_root)
-        .get("asr_engine")
-        .and_then(|v| v.as_str())
-        == Some("whisper");
-    if asr_whisper && models::stage_backend(models_root, "asr_backend") == "gpu" && missing("whisper-cuda") {
-        need.push("whisper-cuda".to_string());
-    }
-    // Диаризация (дубляж/транскрипт) → модель Nemotron 3 Diarization. Её сбой закачки не валит джобу:
-    // анализ штатно деградирует в single-speaker и пишет об этом в журнал (см. analyze::run).
-    let need_diar = diarization && missing("sortformer");
-    if need.is_empty() && !need_diar {
-        return Ok(());
-    }
-    progress(json!({ "stage": "download", "msg": t!("setup-fetching-missing") }),
-    );
-    let ctl = jobs::current();
-    let cancel = move || ctl.as_ref().is_some_and(|c| c.is_cancelled());
-    if !need.is_empty() {
-        setup::download_components(repo_root, &need, &cancel, progress).map_err(|e| e.detail)?;
-    }
-    if need_diar {
-        if let Err(e) = setup::download_components(repo_root, &["sortformer".to_string()], &cancel, progress) {
-            progress(json!({
-                "stage": "download",
-                "msg": t!("setup-diarization-missing", error = e.detail.clone()),
-            }));
-        }
-    }
-    Ok(())
 }
 
 /// GET /hw/snapshot — снимок GPU/VRAM/темп/мощность + RAM для монитора ресурсов.

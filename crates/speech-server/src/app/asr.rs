@@ -16,10 +16,17 @@ pub struct Heard {
 /// Many files at once, each with its language and what it is (named when no recogniser knows the language): a language's
 /// files go to its recogniser in one batch (transcribe.cpp runs them in one pass, Whisper in one process). Every file gets
 /// its own answer.
-pub fn transcribe_many(repo_root: &Path, models_root: &Path, files: &[(std::path::PathBuf, String, String)]) -> Result<std::collections::HashMap<std::path::PathBuf, Result<Heard, String>>, String> {
+pub fn transcribe_many(
+    repo_root: &Path,
+    models_root: &Path,
+    files: &[(std::path::PathBuf, String, String)],
+) -> Result<std::collections::HashMap<std::path::PathBuf, Result<Heard, String>>, String> {
     let mut by_lang: std::collections::BTreeMap<&str, Vec<(&std::path::PathBuf, &str)>> = Default::default();
     for (file, lang, what) in files {
-        by_lang.entry(if lang == "auto" { "" } else { lang.as_str() }).or_default().push((file, what.as_str()));
+        by_lang
+            .entry(if lang == "auto" { "" } else { lang.as_str() })
+            .or_default()
+            .push((file, what.as_str()));
     }
     let work = tempfile::Builder::new().prefix("asr-many-").tempdir().map_err(|e| e.to_string())?;
     std::env::set_var("DUB_ASR_BACKEND", crate::models::stage_backend(models_root, "asr_backend"));
@@ -48,11 +55,24 @@ pub fn transcribe_many(repo_root: &Path, models_root: &Path, files: &[(std::path
                 }
             }
         }
-        let heard = crate::models::build_engine(&choice, None).transcribe_many_words(&wavs, if lang.is_empty() { "auto" } else { lang });
+        let heard =
+            crate::engines::asr::build_engine(&choice, None).transcribe_many_words(&wavs, if lang.is_empty() { "auto" } else { lang });
         for (file, words) in ready.into_iter().zip(heard) {
             let heard = words.map_err(|e| e.localize()).map(|words| Heard {
-                text: words.iter().map(|w| w.word.trim()).filter(|w| !w.is_empty()).collect::<Vec<_>>().join(" "),
-                words: words.iter().map(|w| Word { word: w.word.clone(), start: w.start, end: w.end }).collect(),
+                text: words
+                    .iter()
+                    .map(|w| w.word.trim())
+                    .filter(|w| !w.is_empty())
+                    .collect::<Vec<_>>()
+                    .join(" "),
+                words: words
+                    .iter()
+                    .map(|w| Word {
+                        word: w.word.clone(),
+                        start: w.start,
+                        end: w.end,
+                    })
+                    .collect(),
             });
             out.insert(file.clone(), heard);
         }
@@ -80,7 +100,11 @@ pub fn choice_of(repo_root: &Path, models_root: &Path, lang: &str, what: &str, e
             obj.insert("asr_engine".into(), json!(engine));
         }
     }
-    let asked = sel.get("asr_engine").and_then(serde_json::Value::as_str).unwrap_or_default().to_string();
+    let asked = sel
+        .get("asr_engine")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or_default()
+        .to_string();
     let choice = crate::models::resolve_asr_choice(repo_root, models_root, &sel);
     if asked == "whisper" && !matches!(choice, crate::models::AsrChoice::Whisper { .. }) {
         return Err(t!("listen-whisper-missing"));
@@ -123,7 +147,10 @@ pub fn missing_parts(repo_root: &Path, models_root: &Path, engine: &str) -> Vec<
     let gpu = crate::models::stage_backend(models_root, "asr_backend") == "gpu";
     let mut ids: Vec<String> = Vec::new();
     if sel.get("asr_engine").and_then(serde_json::Value::as_str) == Some("whisper") {
-        let model = sel.get("whisper_model").and_then(serde_json::Value::as_str).unwrap_or("large-v3-turbo");
+        let model = sel
+            .get("whisper_model")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or("large-v3-turbo");
         ids.extend(["whisper-engine".to_string(), format!("whisper-{model}")]);
         if gpu {
             ids.push("whisper-cuda".to_string());
@@ -135,7 +162,12 @@ pub fn missing_parts(repo_root: &Path, models_root: &Path, engine: &str) -> Vec<
         }
     }
     let manifest = crate::setup::manifest();
-    ids.retain(|id| manifest.iter().find(|c| c.id == id.as_str()).is_some_and(|c| !crate::setup::component_status(repo_root, c).installed));
+    ids.retain(|id| {
+        manifest
+            .iter()
+            .find(|c| c.id == id.as_str())
+            .is_some_and(|c| !crate::setup::component_status(repo_root, c).installed)
+    });
     ids
 }
 
@@ -143,7 +175,7 @@ pub fn missing_parts(repo_root: &Path, models_root: &Path, engine: &str) -> Vec<
 pub fn ensure(repo_root: &Path, models_root: &Path, engine: &str, progress: &crate::setup::ProgressCb) -> Result<(), String> {
     let ids = missing_parts(repo_root, models_root, engine);
     let ids: Vec<&str> = ids.iter().map(String::as_str).collect();
-    crate::ensure_components(repo_root, &ids, progress)
+    super::engine_setup::ensure_components(repo_root, &ids, progress)
 }
 
 /// Whisper when `transcribe` runs Parakeet or Nemotron, Parakeet when it runs Whisper, if that one is on this computer
@@ -169,24 +201,27 @@ fn run(choice: &crate::models::AsrChoice, models_root: &Path, audio: &Path, lang
     let wav = work.path().join("in-16k.wav");
     crate::media::to_16k_mono(audio, &wav)?;
     std::env::set_var("DUB_ASR_BACKEND", crate::models::stage_backend(models_root, "asr_backend"));
-    let mut asr = crate::models::build_engine(choice, None);
-    let segments = asr.transcribe(&wav, if lang.is_empty() { "auto" } else { lang }).map_err(|e| e.localize())?;
-    let text = segments.iter().map(|s| s.text.trim()).filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" ");
-    let words = segments.iter().flat_map(|s| s.words.iter()).map(|w| Word { word: w.word.clone(), start: w.start, end: w.end }).collect();
+    let mut asr = crate::engines::asr::build_engine(choice, None);
+    let segments = asr
+        .transcribe(&wav, if lang.is_empty() { "auto" } else { lang })
+        .map_err(|e| e.localize())?;
+    let text = segments
+        .iter()
+        .map(|s| s.text.trim())
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ");
+    let words = segments
+        .iter()
+        .flat_map(|s| s.words.iter())
+        .map(|w| Word {
+            word: w.word.clone(),
+            start: w.start,
+            end: w.end,
+        })
+        .collect();
     Ok(Heard { text, words })
 }
 
 #[cfg(test)]
-mod tests {
-    #[test]
-    fn missing_parts_name_the_chosen_recogniser() {
-        let root = tempfile::tempdir().unwrap();
-        let models = root.path().join("models");
-        let whisper = super::missing_parts(root.path(), &models, "whisper");
-        assert!(whisper.iter().any(|id| id == "whisper-engine"), "{whisper:?}");
-        assert!(whisper.iter().any(|id| id == "whisper-large-v3-turbo"), "{whisper:?}");
-        let nemotron = super::missing_parts(root.path(), &models, "nemotron");
-        assert!(nemotron.iter().any(|id| id == "asr-gguf-nemotron"), "{nemotron:?}");
-        assert!(!nemotron.iter().any(|id| id.starts_with("whisper")), "{nemotron:?}");
-    }
-}
+mod tests;

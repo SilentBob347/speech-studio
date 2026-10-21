@@ -33,3 +33,6 @@ pub(crate) mod cloud_tts;
 
 #[cfg(test)]
 mod project_primitives_tests;
+pub(crate) mod asr;
+pub(crate) mod downloads;
+pub(crate) mod engine_setup;

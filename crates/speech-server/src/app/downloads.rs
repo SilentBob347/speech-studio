@@ -205,7 +205,7 @@ impl Downloads {
         let on_progress = |ev: Value| self.apply_progress(id, &ev);
         // what another program has is taken first, by copy too when it sits on another drive: still faster than the network
         setup::import_from_neighbors(&self.inner.repo_root, &crate::hub::neighbors(), true);
-        let res = setup::download_components(&self.inner.repo_root, &ids, &stop, &on_progress);
+        let res = super::engine_setup::download_components(&self.inner.repo_root, &ids, &stop, &on_progress);
         let mut state = lock(&self.inner.state);
         // Закачку уже сменила следующая — итог этой никому не нужен.
         if let Some(job) = state.active.as_mut().filter(|j| j.id == id) {

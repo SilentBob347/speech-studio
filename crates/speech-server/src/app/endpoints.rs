@@ -281,7 +281,7 @@ pub async fn select_model(State(st): State<AppState>, Json(body): Json<Value>) -
     // Форма 2: {"id":"whisper-small"} — id компонента манифеста -> набор слотов (активация при скачивании
     // и переключение варианта). Пустой набор -> неизвестный компонент.
     let id = body.get("id").and_then(Value::as_str).unwrap_or("");
-    let pairs = crate::models::component_selection(id);
+    let pairs = crate::setup::component_selection(id);
     if pairs.is_empty() {
         return (StatusCode::BAD_REQUEST, format!("unknown model component: {id:?}")).into_response();
     }

@@ -27,7 +27,11 @@
 //! Сайдкары, движок Higgs и CUDA-библиотеки у каждой платформы свои (модуль `platform`): на Linux это tar-сборки
 //! тех же релизов, колёса manylinux и redist NVIDIA linux-x86_64, а VC++ runtime не нужен.
 
-pub(crate) mod downloads;
+mod installed;
+mod selection;
+pub use installed::component_status;
+pub use selection::component_selection;
+use installed::{archive_installed, file_installed};
 #[cfg(windows)]
 pub(crate) mod dll_imports;
 
@@ -160,7 +164,7 @@ pub struct Parts {
 }
 
 // Сборка llama.cpp одна на обе платформы (стабильный релиз v0.5.0 = билд b11146).
-const GH_LLAMA_BUILD: &str = "b11146";
+pub(crate) const GH_LLAMA_BUILD: &str = "b11146";
 
 /// Windows x64: zip-релизы, PyPI-колёса win_amd64, redist NVIDIA windows-x86_64.
 #[cfg(windows)]
@@ -1573,24 +1577,6 @@ fn read_record(repo_root: &Path, f: &FileSpec) -> Option<ArchiveRecord> {
     }
 }
 
-/// Архив установлен, когда его запись называет закреплённый sha256 и всё, что он положил, на месте того же
-/// размера. Так видна и замена версии при тех же именах файлов: cudart64_13.dll из CUDA 13.3 и 13.4 одного
-/// размера, различает их только sha256 архива.
-fn archive_installed(repo_root: &Path, f: &FileSpec) -> bool {
-    read_record(repo_root, f).is_some_and(|r| {
-        r.sha256 == f.sha256
-            && !r.files.is_empty()
-            && r.files.iter().all(|x| file_ok(&repo_root.join(&x.path), x.size))
-    })
-}
-
-fn file_installed(repo_root: &Path, f: &FileSpec) -> bool {
-    match f.extract {
-        Extract::None => file_ok(&repo_root.join(f.dest_rel), f.size),
-        _ => archive_installed(repo_root, f),
-    }
-}
-
 fn write_record(repo_root: &Path, f: &FileSpec, written: &[PathBuf]) -> Result<(), DlError> {
     let files = written
         .iter()
@@ -1625,74 +1611,6 @@ fn file_space_needed(repo_root: &Path, f: &FileSpec) -> u64 {
     }
     let rest = f.size - file_len(&part_path(repo_root, f)).min(f.size);
     if f.extract == Extract::None { rest } else { rest + 2 * f.size }
-}
-
-/// Статус компонента на диске.
-pub fn component_status(repo_root: &Path, c: &Component) -> ComponentStatus {
-    let system = if FOUND_IN_SYSTEM_DIR.contains(&c.id) { system_dir() } else { None };
-    status_with_system_dir(repo_root, c, system.as_deref())
-}
-
-/// `system` — системный каталог, где засчитываются маркеры компонентов FOUND_IN_SYSTEM_DIR.
-fn status_with_system_dir(repo_root: &Path, c: &Component, system: Option<&Path>,
-) -> ComponentStatus {
-    let mut missing: Vec<String> = Vec::new();
-    let mut bytes_on_disk = 0u64;
-    let mut space_needed = 0u64;
-    for f in c.files {
-        if file_installed(repo_root, f) {
-            bytes_on_disk += f.size;
-        } else {
-            missing.push(f.dest_rel.to_string());
-            bytes_on_disk += resumed_bytes(&part_path(repo_root, f), f.size);
-            space_needed += file_space_needed(repo_root, f);
-        }
-    }
-    let mut from_system = false;
-    for m in c.markers {
-        if marker_ok(repo_root, m) || missing.iter().any(|x| x == m.rel) {
-            continue;
-        }
-        if system.is_some_and(|dir| in_system_dir(dir, m)) {
-            from_system = true;
-        } else {
-            missing.push(m.rel.to_string());
-        }
-    }
-    if c.delivery == Delivery::Bundled {
-        bytes_on_disk = c.markers.iter().map(|m| file_len(&repo_root.join(m.rel))).sum();
-    }
-    let (installed, detail) = match c.delivery {
-        Delivery::External => {
-            let gpu = crate::hw::gpu_report();
-            (gpu.cuda13_ok, gpu.summary())
-        }
-        _ if c.id == "ffmpeg" && !missing.is_empty() && ffmpeg_on_path() => {
-            // ffmpeg из PATH годится пайплайну (Command::new("ffmpeg") его найдёт) — закачку не навязываем.
-            missing.clear();
-            space_needed = 0;
-            (true, Some("PATH".to_string()))
-        }
-        _ => (missing.is_empty(), from_system.then(|| "system".to_string()),
-        ),
-    };
-    ComponentStatus {
-        id: c.id.to_string(),
-        name: c.name.to_string(),
-        purpose: c.purpose.to_string(),
-        requirement: c.requirement,
-        delivery: c.delivery,
-        size: c.size,
-        installed,
-        bytes_on_disk,
-        space_needed,
-        missing,
-        detail,
-        external_url: c.external_url.map(|s| s.to_string()),
-        vram: vram_estimate(c.id),
-        fits_vram: None,
-        taken_from: lock(taken()).get(c.id).cloned(),
-    }
 }
 
 // ── Импорт готовых моделей из выбранной папки ────────────────────────────────
@@ -1919,158 +1837,6 @@ fn pick_import_source<'a>(
         .map(|(p, _)| p)
 }
 
-// ── Полный статус (для GET /setup/status) ────────────────────────────────────
-
-#[derive(Clone, Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SetupStatus {
-    pub components: Vec<ComponentStatus>,
-    /// Всё ли обязательное на месте (тогда фронт показывает обычный hero, а не «первый запуск»).
-    pub ready: bool,
-    /// Совокупный размер того, что ещё надо скачать (обязательное+рекомендованное, что missing и Download).
-    pub download_pending: u64,
-    /// Драйвер NVIDIA найден (nvcuda.dll грузится); годится ли он под CUDA 13 — в gpu.
-    pub driver_ok: bool,
-    /// build-строки для диагностики (llama-билд и т.п.).
-    pub llama_build: String,
-    /// Папка моделей (куда кладёт «Первый запуск»).
-    pub models_dir: String,
-    /// Свободно на томе моделей, байт; None — ОС не ответила, место не проверяется.
-    pub free_bytes: Option<u64>,
-    /// Видеокарта и драйвер против требований CUDA 13.
-    pub gpu: crate::hw::GpuReport,
-    /// Фоновая закачка (идёт, на паузе, прервана перезапуском, упала или завершилась). Заполняет обработчик.
-    pub active: Option<crate::downloads::DownloadJob>,
-}
-
-/// Запас видеопамяти под рабочий стол и окна поверх оценки модели.
-const VRAM_HEADROOM: u64 = 512 * 1024 * 1024;
-
-/// Модели по видеопамяти карты (`total`, байт; 0 — неизвестна): каждой отмечено, влезет ли она, а в группе
-/// квантов одной модели (`higgs`, `higgs-q6_k`, ...) обязательным становится самый большой влезающий вариант.
-/// Группа, где не влезает ничего, готовность не держит: эта стадия идёт на сервере или в облаке. Группу, где
-/// вариант уже скачан, не трогает: выбор сделан.
-fn fit_to_vram(comps: &mut [ComponentStatus], total: u64) {
-    if total == 0 {
-        return;
-    }
-    let group = |id: &str| id.split('-').next().unwrap_or(id).to_string();
-    for c in comps.iter_mut().filter(|c| c.vram > 0) {
-        c.fits_vram = Some(c.vram + VRAM_HEADROOM <= total);
-    }
-    let groups: std::collections::BTreeSet<String> = comps
-        .iter()
-        .filter(|c| c.vram > 0 && c.requirement == Requirement::Required && c.fits_vram == Some(false))
-        .map(|c| group(&c.id))
-        .filter(|g| !comps.iter().any(|c| c.vram > 0 && c.installed && group(&c.id) == *g))
-        .collect();
-    for g in groups {
-        let best = comps
-            .iter()
-            .filter(|c| c.vram > 0 && group(&c.id) == g && c.fits_vram == Some(true))
-            .max_by_key(|c| c.vram)
-            .map(|c| c.id.clone());
-        for c in comps.iter_mut().filter(|c| c.vram > 0 && group(&c.id) == g) {
-            if Some(&c.id) == best.as_ref() {
-                c.requirement = Requirement::Required;
-            } else if c.requirement == Requirement::Required {
-                c.requirement = Requirement::Optional;
-            }
-        }
-    }
-}
-
-/// Варианты одной модели (`parakeet`, `parakeet-ultra`, ...) взаимозаменяемы: скачанный вариант закрывает
-/// группу, и обязательный по умолчанию больше не держит готовность — иначе выбор юзера на первом запуске
-/// упирается в докачку варианта, который он не выбирал.
-fn installed_variant_covers_group(comps: &mut [ComponentStatus]) {
-    let group = |id: &str| id.split('-').next().unwrap_or(id).to_string();
-    let covered: std::collections::BTreeSet<String> =
-        comps.iter().filter(|c| c.vram > 0 && c.installed).map(|c| group(&c.id)).collect();
-    for c in comps.iter_mut() {
-        if c.vram > 0 && !c.installed && c.requirement == Requirement::Required && covered.contains(&group(&c.id)) {
-            c.requirement = Requirement::Optional;
-        }
-    }
-}
-
-pub fn setup_status(repo_root: &Path) -> SetupStatus {
-    let mut comps: Vec<ComponentStatus> = manifest()
-        .iter()
-        .map(|c| component_status(repo_root, c))
-        .collect();
-    // Облачный пресет (OpenRouter) снимает ОБЯЗАТЕЛЬНОСТЬ тяжёлых локальных движков: если стадия перевода/
-    // TTS идёт через облако (флаг + ключ), её локальную модель качать НЕ обязательно — не гейтит ready и не
-    // преселектится на первом запуске (юзер выбрал облако -> не тянет ненужные гигабайты Gemma/Higgs).
-    let mroot = repo_root.join("models");
-    let cloud_llm = !crate::models::local_gemma_needed(&mroot);
-    let cloud_tts = crate::models::cloud_tts_on(&mroot);
-    let cloud_asr = crate::models::openrouter_asr_on(&mroot);
-    for c in comps.iter_mut() {
-        if c.requirement != Requirement::Required {
-            continue;
-        }
-        let is_gemma = c.id.starts_with("gemma") || c.id == "llama";
-        let is_higgs = c.id.starts_with("higgs");
-        let is_asr = c.id.starts_with("parakeet") || c.id.starts_with("whisper") || c.id.starts_with("transcribe-engine") || c.id == "langid";
-        if (cloud_llm && is_gemma) || (cloud_tts && is_higgs) || (cloud_asr && is_asr) {
-            c.requirement = Requirement::Optional;
-        }
-    }
-    // Backend локальных стадий: в CPU-режиме (без NVIDIA) CUDA-компоненты не нужны — сепарация идёт
-    // CPU-сборкой, тяжёлое в облаке. CPU-движок сепарации становится рекомендованным (преселект на
-    // первом запуске), а CUDA-движок + CUDA-рантайм — необязательными (не тянем лишние гигабайты).
-    // В GPU-режиме наоборот: CPU-движок не нужен.
-    let backend = crate::models::local_backend(&mroot);
-    let asr_cpu = crate::models::tcpp_build(&mroot) == dub_asr::tcpp::Build::Cpu;
-    for c in comps.iter_mut() {
-        if !cloud_asr && c.id == "transcribe-engine" {
-            c.requirement = if asr_cpu { Requirement::Optional } else { Requirement::Required };
-        } else if !cloud_asr && c.id == "transcribe-engine-cpu" {
-            c.requirement = if asr_cpu { Requirement::Required } else { Requirement::Optional };
-        }
-        if backend == "cpu" {
-            if c.id == "bsroformer-engine-cpu" {
-                c.requirement = Requirement::Recommended;
-            } else if c.id == "bsroformer-engine" || c.id == "cuda-runtime" || c.id == "onnxruntime-gpu" || c.id == "cudnn" {
-                c.requirement = Requirement::Optional;
-            }
-        } else if c.id == "bsroformer-engine-cpu" {
-            c.requirement = Requirement::Optional;
-        } else if c.id == "onnxruntime-gpu" || c.id == "cudnn" {
-            // the process keeps the first ONNX Runtime it loads: on a GPU the CUDA build must be here before any session
-            c.requirement = Requirement::Required;
-        }
-    }
-    if backend == "gpu" {
-        fit_to_vram(&mut comps, crate::hw::total_vram());
-    }
-    installed_variant_covers_group(&mut comps);
-    // ready = всё СКАЧИВАЕМОЕ/бандл-обязательное на месте. External (драйвер NVIDIA) НЕ гейтит: без NVIDIA
-    // приложение работает на CPU/в облаке, а старый драйвер — предупреждение на экране, а не запертый вход.
-    let ready = comps
-        .iter()
-        .filter(|c| c.requirement == Requirement::Required && c.delivery != Delivery::External)
-        .all(|c| c.installed);
-    let download_pending = comps
-        .iter()
-        .filter(|c| c.delivery == Delivery::Download && !c.installed)
-        .map(|c| c.size.saturating_sub(c.bytes_on_disk))
-        .sum();
-    let gpu = crate::hw::gpu_report();
-    SetupStatus {
-        components: comps,
-        ready,
-        download_pending,
-        driver_ok: gpu.nvidia,
-        llama_build: GH_LLAMA_BUILD.to_string(),
-        models_dir: mroot.to_string_lossy().to_string(),
-        free_bytes: free_bytes(&mroot),
-        gpu,
-        active: None,
-    }
-}
-
 // ── Удаление компонентов ─────────────────────────────────────────────────────
 
 #[derive(Clone, Debug, Default, Serialize)]
@@ -2084,9 +1850,9 @@ pub struct RemovalReport {
 
 /// Удалить скачанные компоненты и освободить место: прямые файлы, всё, что положили их архивы (по записи об
 /// установке — в общих каталогах вроде models/higgs-engine снимается ровно своё), недокачанные .part/.done и
-/// маркеры старой установки без записи. Выбор варианта в active.json, указывающий на удалённый квант,
-/// снимается — резолв возьмёт установленный. Идущую закачку этих компонентов не трогаем (отказ «busy»).
-pub fn remove_components(repo_root: &Path, ids: &[String]) -> Result<RemovalReport, DlError> {
+/// маркеры старой установки без записи. `after_remove` выполняется под тем же claim для каждого компонента,
+/// даже если его файлов уже нет. Идущую закачку этих компонентов не трогаем (отказ «busy»).
+pub(crate) fn remove_files(repo_root: &Path, ids: &[String], after_remove: impl Fn(&str) -> Vec<String>) -> Result<RemovalReport, DlError> {
     let all = manifest();
     let mut targets: Vec<&Component> = Vec::new();
     for id in ids {
@@ -2106,7 +1872,6 @@ pub fn remove_components(repo_root: &Path, ids: &[String]) -> Result<RemovalRepo
         ));
     };
     let mut report = RemovalReport::default();
-    let mroot = crate::models_root(repo_root);
     for c in targets {
         let before = report.freed_bytes;
         let mut touched: Vec<PathBuf> = Vec::new();
@@ -2146,14 +1911,7 @@ pub fn remove_components(repo_root: &Path, ids: &[String]) -> Result<RemovalRepo
         if report.freed_bytes > before {
             report.removed.push(c.id.to_string());
         }
-        for (engine, variant) in crate::models::component_selection(c.id) {
-            if engine == "asr_engine" {
-                continue;
-            }
-            if let Err(e) = crate::models::clear_selection_if(&mroot, engine, &variant) {
-                report.errors.push(format!("active.json ({engine}): {e}"));
-            }
-        }
+        report.errors.extend(after_remove(c.id));
     }
     Ok(report)
 }
@@ -2790,48 +2548,14 @@ fn publish(repo_root: &Path, f: &FileSpec, part: &Path, cancel: &dyn Fn() -> boo
     Ok(())
 }
 
-/// Итог закачки: статус каждого компонента; скачанный вариант модели становится активным (models/active.json),
-/// иначе резолв взял бы дефолт и альт-квант бы не применился.
-fn finish(repo_root: &Path, selected: &[&Component]) -> Value {
-    let mroot = crate::models_root(repo_root);
-    let mut results = Vec::new();
-    for c in selected {
-        let st = component_status(repo_root, c);
-        if st.installed {
-            for (engine, variant) in crate::models::component_selection(c.id) {
-                if let Err(e) = crate::models::set_selection(&mroot, engine, &variant) {
-                    tracing::warn!("active.json: the choice {engine}={variant} was not written: {e}");
-                }
-            }
-        }
-        results.push(json!({ "id": c.id, "installed": st.installed, "missing": st.missing }));
-    }
-    let overall = setup_status(repo_root);
-    json!({ "components": results, "ready": overall.ready })
-}
-
-/// Скачать набор компонентов по id (идемпотентно: целые файлы закреплённой версии пропускаются, уже лежащий
-/// файл перед пропуском сверяется по SHA-256). Тело синхронное: зовут фоновый поток менеджера или джоба.
-/// cancel — пауза: скачанное остаётся в .part с манифестом чанков и докачивается следующим запуском.
-pub fn download_components(
+/// `completed` runs after verification while the selected components are still claimed.
+pub(crate) fn fetch_components<T>(
     repo_root: &Path,
     ids: &[String],
     cancel: &dyn Fn() -> bool,
     progress: &ProgressCb,
-) -> Result<Value, DlError> {
-    let done = fetch_components(repo_root, ids, cancel, progress)?;
-    if ids.iter().any(|id| id.starts_with("onnxruntime")) {
-        crate::point_ort(repo_root);
-    }
-    Ok(done)
-}
-
-fn fetch_components(
-    repo_root: &Path,
-    ids: &[String],
-    cancel: &dyn Fn() -> bool,
-    progress: &ProgressCb,
-) -> Result<Value, DlError> {
+    completed: impl FnOnce(&[&Component]) -> T,
+) -> Result<T, DlError> {
     let all = manifest();
     let selected: Vec<&Component> = all
         .iter()
@@ -2892,7 +2616,7 @@ fn fetch_components(
         }
     }
     if planned.is_empty() {
-        return Ok(finish(repo_root, &selected));
+        return Ok(completed(&selected));
     }
     let need: u64 = planned.iter().map(|p| file_space_needed(repo_root, p.f)).sum();
     ensure_space(repo_root, need)?;
@@ -3089,7 +2813,7 @@ fn fetch_components(
     if let Some(e) = first_err {
         return Err(e);
     }
-    Ok(finish(repo_root, &selected))
+    Ok(completed(&selected))
 }
 
 // ── Распаковка архивов (возвращают список положенных файлов для записи об установке) ──
@@ -3316,6 +3040,46 @@ pub fn remove_retired(models_root: &Path) {
 mod tests {
 
     #[test]
+    fn completion_and_removal_hooks_keep_the_component_claimed() {
+        let root = tempfile::tempdir().unwrap();
+        let c = manifest().into_iter().find(|c| c.id == "onnxruntime").unwrap();
+        let ids = vec![c.id.to_string()];
+        assert!(c.files.iter().all(|f| f.extract != Extract::None));
+        for marker in c.markers {
+            sized(&root.path().join(marker.rel), marker.expect.max(1));
+        }
+        let paths: Vec<_> = c.markers.iter().map(|m| root.path().join(m.rel)).collect();
+        for f in c.files {
+            write_record(root.path(), f, &paths).unwrap();
+        }
+        let result = fetch_components(root.path(), &ids, &|| false, &|_| {}, |selected| {
+            assert_eq!(selected.iter().map(|c| c.id).collect::<Vec<_>>(), [c.id]);
+            assert!(component_status(root.path(), selected[0]).installed);
+            assert!(try_claim(&ids).is_none(), "activation is still protected");
+            37
+        }).unwrap();
+        assert_eq!(result, 37);
+        assert!(try_claim(&ids).is_some(), "completion releases its claim");
+        let report = remove_files(root.path(), &ids, |id| {
+            assert_eq!(id, c.id);
+            assert!(try_claim(&ids).is_none(), "selection cleanup is still protected");
+            assert!(!component_status(root.path(), &c).installed);
+            vec!["selection cleanup error".into()]
+        }).unwrap();
+        assert_eq!(report.removed, ids);
+        assert_eq!(report.errors, ["selection cleanup error"]);
+        assert!(try_claim(&ids).is_some());
+    }
+
+    #[test]
+    fn cancelled_preparation_does_not_publish_completion_or_activate_a_model() {
+        let root = tempfile::tempdir().unwrap();
+        let result = fetch_components(root.path(), &["parakeet-ultra".into()], &|| true, &|_| {}, |_| panic!("cancelled"));
+        assert_eq!(result.unwrap_err().code, CANCELLED);
+        assert!(!root.path().join("models/active.json").exists());
+    }
+
+    #[test]
     fn retired_models_go_and_current_ones_stay() {
         let root = tempfile::tempdir().unwrap();
         for rel in RETIRED {
@@ -3337,6 +3101,8 @@ mod tests {
         remove_retired(root.path());
     }
     use super::*;
+    use super::installed::status_with_system_dir;
+    use crate::app::engine_setup::{setup_status, remove_components};
 
     /// A file a neighbouring program has is taken (copied here) only when its SHA-256 is the pinned one.
     #[test]
@@ -3368,99 +3134,6 @@ mod tests {
 
     fn download_proxy(address: &str, kind: dub_llm::net::ProxyKind) -> Result<ureq::Proxy, String> {
         dl_proxy(&dub_llm::net::normalize(address, kind).map_err(|e| format!("{e:#}"))?)
-    }
-
-    fn model(id: &str, gb: f64, requirement: Requirement) -> ComponentStatus {
-        ComponentStatus {
-            id: id.into(),
-            name: id.into(),
-            purpose: String::new(),
-            requirement,
-            delivery: Delivery::Download,
-            size: 0,
-            installed: false,
-            bytes_on_disk: 0,
-            space_needed: 0,
-            missing: vec![],
-            detail: None,
-            external_url: None,
-            vram: (gb * 1024.0 * 1024.0 * 1024.0) as u64,
-            fits_vram: None,
-            taken_from: None,
-        }
-    }
-
-    fn models() -> Vec<ComponentStatus> {
-        vec![
-            model("higgs", 5.6, Requirement::Required),
-            model("higgs-q6_k", 5.1, Requirement::Optional),
-            model("higgs-q4_k_m", 4.2, Requirement::Optional),
-            model("gemma", 8.5, Requirement::Required),
-            model("gemma-q8_0", 14.0, Requirement::Optional),
-            model("higgs-engine", 0.0, Requirement::Required),
-        ]
-    }
-
-    fn required(comps: &[ComponentStatus]) -> Vec<&str> {
-        comps.iter().filter(|c| c.requirement == Requirement::Required).map(|c| c.id.as_str()).collect()
-    }
-
-    #[test]
-    fn a_downloaded_variant_stands_for_its_model_on_the_first_run() {
-        let mut comps = vec![
-            model("parakeet", 1.1, Requirement::Required),
-            model("parakeet-ultra", 0.7, Requirement::Optional),
-            model("gemma", 8.5, Requirement::Required),
-            model("higgs-engine", 0.0, Requirement::Required),
-        ];
-        comps[1].installed = true;
-        installed_variant_covers_group(&mut comps);
-        assert_eq!(required(&comps), ["gemma", "higgs-engine"], "ultra was picked, the int8 default is no longer owed");
-
-        let mut comps = models();
-        installed_variant_covers_group(&mut comps);
-        assert_eq!(required(&comps), ["higgs", "gemma", "higgs-engine"], "nothing downloaded keeps every default");
-    }
-
-    #[test]
-    fn a_small_card_gets_the_largest_quant_that_fits_and_no_model_it_cannot_hold() {
-        let mut comps = models();
-        fit_to_vram(&mut comps, 6 * 1024 * 1024 * 1024);
-        assert_eq!(required(&comps), ["higgs-q6_k", "higgs-engine"]);
-        assert_eq!(comps[0].fits_vram, Some(false));
-        assert_eq!(comps[1].fits_vram, Some(true));
-        assert_eq!(comps[3].fits_vram, Some(false));
-        assert_eq!(comps[5].fits_vram, None);
-
-        let mut comps = models();
-        fit_to_vram(&mut comps, 24 * 1024 * 1024 * 1024);
-        assert_eq!(required(&comps), ["higgs", "gemma", "higgs-engine"]);
-        assert!(comps.iter().filter(|c| c.vram > 0).all(|c| c.fits_vram == Some(true)));
-
-        let mut comps = models();
-        comps[0].installed = true;
-        fit_to_vram(&mut comps, 6 * 1024 * 1024 * 1024);
-        assert_eq!(required(&comps), ["higgs", "higgs-engine"]);
-
-        let mut comps = models();
-        fit_to_vram(&mut comps, 0);
-        assert_eq!(required(&comps), ["higgs", "gemma", "higgs-engine"]);
-        assert!(comps.iter().all(|c| c.fits_vram.is_none()));
-    }
-
-    #[test]
-    fn drama_downloads_on_a_6_gb_card_and_not_on_a_4_gb_one() {
-        let drama = || {
-            let mut comps = vec![model("drama3", 0.0, Requirement::Optional)];
-            comps[0].vram = vram_estimate("drama3");
-            comps
-        };
-        let mut comps = drama();
-        fit_to_vram(&mut comps, 6 * 1024 * 1024 * 1024);
-        assert_eq!(comps[0].fits_vram, Some(true), "its experts live in RAM, the card keeps a cache");
-        let mut comps = drama();
-        fit_to_vram(&mut comps, 4 * 1024 * 1024 * 1024);
-        assert_eq!(comps[0].fits_vram, Some(false));
     }
 
     #[test]

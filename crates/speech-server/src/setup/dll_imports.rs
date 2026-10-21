@@ -191,7 +191,7 @@ mod tests {
                 }
             }
         };
-        setup::download_components(&root, &ids, &|| false, &progress).unwrap_or_else(|e| panic!("закачка: {} ({})", e.detail, e.code));
+        crate::app::engine_setup::download_components(&root, &ids, &|| false, &progress).unwrap_or_else(|e| panic!("закачка: {} ({})", e.detail, e.code));
         let problems = check_root(&root, &mut |entry, (name, path)| {
             if Path::new(entry).parent() != path.strip_prefix(&root).ok().and_then(Path::parent) {
                 eprintln!("{entry} -> {name} ({})", path.strip_prefix(&root).unwrap_or(path).display());

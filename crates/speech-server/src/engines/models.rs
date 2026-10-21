@@ -9,6 +9,8 @@
 //! active.json = {"tts":"q6_k","asr":"ultra-int8","mt":"q8_0","sep":"Q5_0"} — токен варианта на движок.
 //! Пишется при завершении скачки компонента (setup) и при смене в дропдауне (POST /engine/select).
 
+pub use super::asr::AsrChoice;
+
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 
@@ -129,45 +131,6 @@ pub fn clear_selection_if(mroot: &Path, engine: &str, variant: &str) -> std::io:
 
 fn pick<'a>(sel: &'a Value, engine: &str) -> Option<&'a str> {
     sel.get(engine).and_then(Value::as_str).map(str::trim).filter(|s| !s.is_empty())
-}
-
-/// Отобразить id компонента манифеста -> список (slot, значение) для записи выбора при скачивании.
-/// Пусто — компонент не является переключаемым вариантом модели (движок/рантайм/OCR и т.п.).
-/// ASR-варианты пишут ДВА слота: движок (asr_engine) + вариант этого движка (asr-квант / whisper-модель),
-/// чтобы скачивание Whisper-модели сразу делало Whisper активным движком (и наоборот для Parakeet).
-pub fn component_selection(id: &str) -> Vec<(&'static str, String)> {
-    match id {
-        "higgs" => vec![("tts", "q8_0".into())],
-        "higgs-q6_k" => vec![("tts", "q6_k".into())],
-        "higgs-q4_k_m" => vec![("tts", "q4_k_m".into())],
-        "qwen3-tts" => vec![("qwen_tts_quant", "Q4_K_M".into())],
-        "qwen3-tts-q8_0" => vec![("qwen_tts_quant", "Q8_0".into())],
-        "parakeet" => vec![("asr_engine", "parakeet".into()), ("asr", "int8".into())],
-        "parakeet-ultra" => vec![("asr_engine", "parakeet".into()), ("asr", "ultra-int8".into())],
-        "asr-gguf-nemotron" => vec![("asr_engine", "nemotron".into())],
-        "whisper-tiny" => vec![("asr_engine", "whisper".into()), ("whisper_model", "tiny".into()),
-        ],
-        "whisper-base" => vec![("asr_engine", "whisper".into()), ("whisper_model", "base".into()),
-        ],
-        "whisper-small" => vec![("asr_engine", "whisper".into()), ("whisper_model", "small".into()),
-        ],
-        "whisper-medium" => vec![("asr_engine", "whisper".into()), ("whisper_model", "medium".into()),
-        ],
-        "whisper-large-v3" => vec![("asr_engine", "whisper".into()), ("whisper_model", "large-v3".into()),
-        ],
-        "whisper-large-v3-turbo" => {
-            vec![("asr_engine", "whisper".into()), ("whisper_model", "large-v3-turbo".into()),
-            ]
-        }
-        "gemma" => vec![("mt", "q4_0".into())],
-        "gemma-q5_0" => vec![("mt", "q5_0".into())],
-        "gemma-q6_k" => vec![("mt", "q6_k".into())],
-        "gemma-q8_0" => vec![("mt", "q8_0".into())],
-        "roformer" => vec![("sep", "Q8_0".into())],
-        "roformer-q5" => vec![("sep", "Q5_0".into())],
-        "roformer-q4" => vec![("sep", "Q4_0".into())],
-        _ => vec![],
-    }
 }
 
 /// Очищать ли новый голос Roformer перед клоном (настройка `voice_clean`, по умолчанию да).
@@ -574,57 +537,6 @@ pub fn higgs_ref_secs(mroot: &Path) -> f64 {
     sel_num(mroot, "higgs_ref_secs").filter(|s| *s > 0.0 && *s <= 60.0).unwrap_or(12.0)
 }
 
-/// Выбор ASR-движка для одной джобы: модель transcribe.cpp (Parakeet, Nemotron) либо Whisper (бинарь + модель + квант + девайс).
-#[derive(Debug, Clone)]
-pub enum AsrChoice {
-    /// A GGUF model run by transcribe.cpp on the GPU.
-    Ggml { models_root: PathBuf, build: crate::tcpp_asr::Build, model: &'static crate::tcpp_asr::Model },
-    Whisper { bin: PathBuf, model_dir: PathBuf, model: String, compute: String, device: String,
-    },
-}
-
-impl AsrChoice {
-    /// Строка для лога `[models]` — видно, каким движком реально пойдёт транскрипция.
-    /// ВАЖНО: участвует в param_hash ASR-стадии (analyze.rs) — только СТАБИЛЬНЫЕ токены (вариант
-    /// каталога, не абсолютный путь), иначе кэш/чекпоинты инвалидируются от переноса репо между
-    /// машинами/папками (ревью-находка).
-    /// What the window names as the recogniser: the model, its quantization and the transcribe.cpp build, or Whisper's
-    /// model and compute.
-    pub fn label(&self) -> String {
-        match self {
-            AsrChoice::Ggml { model, build, .. } => {
-                let quant = model.file.trim_end_matches(".gguf").rsplit('-').next().unwrap_or(model.file);
-                let on = match build {
-                    crate::tcpp_asr::Build::Cuda => "CUDA",
-                    crate::tcpp_asr::Build::Vulkan => "Vulkan",
-                    crate::tcpp_asr::Build::Cpu => "CPU",
-                };
-                format!("{} {quant} ({on})", model.name)
-            }
-            AsrChoice::Whisper { model, compute, .. } => format!("Whisper {model} {compute}"),
-        }
-    }
-
-    pub fn describe(&self) -> String {
-        match self {
-            AsrChoice::Ggml { model, .. } => format!("transcribe.cpp ({})", model.file),
-            AsrChoice::Whisper { model, compute, device, .. } => {
-                format!("Whisper {model} (compute={compute}, device={device})")
-            }
-        }
-    }
-
-    /// Whether it transcribes `lang` (`""` or `auto` is any).
-    pub fn knows(&self, lang: &str) -> bool {
-        lang.is_empty()
-            || lang == "auto"
-            || match self {
-                AsrChoice::Ggml { model, .. } => crate::tcpp_asr::knows(model, lang),
-                AsrChoice::Whisper { .. } => true,
-            }
-    }
-}
-
 /// Путь к бинарю Whisper: env SPEECH_STUDIO_WHISPER_BIN, иначе приоритетом XXL-сборка
 /// (<repo>/tools/whisper/Faster-Whisper-XXL/faster-whisper-xxl.exe — свежий движок, CUDA-DLL в
 /// комплекте (_xxl_data), умеет --batched), фолбэк — старый onefile whisper-faster.exe (CPU).
@@ -733,38 +645,6 @@ fn whisper_cuda_libs_present(bin: &std::path::Path) -> bool {
 
 /// Построить ASR-движок из выбора (boxed trait-object): analyze не знает деталей резолва. `prompt` — подсказка
 /// распознавателю; её понимает только Whisper, Parakeet подсказок не принимает.
-/// A transcribe.cpp recogniser that unloads the process's model when its holder lets it go: a Listening job or a take
-/// check at its end, Live when it is switched off (it holds one recogniser for the whole conversation).
-struct Unloading(dub_asr::tcpp::TcppEngine);
-
-impl Drop for Unloading {
-    fn drop(&mut self) {
-        dub_asr::tcpp::unload();
-    }
-}
-
-impl dub_asr::AsrEngine for Unloading {
-    fn transcribe(&mut self, wav: &Path, lang: &str) -> Result<Vec<dub_asr::Segment>, dub_asr::AsrError> {
-        self.0.transcribe(wav, lang)
-    }
-    fn transcribe_turns(&mut self, wav: &Path, turns: &[dub_asr::Turn], lang: &str) -> Result<Vec<dub_asr::SpeakerSegment>, dub_asr::AsrError> {
-        self.0.transcribe_turns(wav, turns, lang)
-    }
-    fn transcribe_many(&mut self, files: &[PathBuf], lang: &str) -> Vec<Result<String, dub_asr::AsrError>> {
-        self.0.transcribe_many(files, lang)
-    }
-    fn transcribe_many_words(&mut self, files: &[PathBuf], lang: &str) -> Vec<Result<Vec<dub_asr::Word>, dub_asr::AsrError>> {
-        self.0.transcribe_many_words(files, lang)
-    }
-}
-
-pub fn build_engine(choice: &AsrChoice, prompt: Option<String>) -> Box<dyn dub_asr::AsrEngine> {
-    match choice {
-        AsrChoice::Ggml { models_root, build, model } => Box::new(Unloading(dub_asr::tcpp::TcppEngine::new(models_root, *build, model))),
-        AsrChoice::Whisper { bin, model_dir, model, compute, device } => Box::new(dub_asr::WhisperAsr::new(bin, model_dir, model, compute, device).with_prompt(prompt)),
-    }
-}
-
 /// Higgs TTS: папки higgs-{q8_0,q6_k,q4_k_m}, внутри файл {q}.gguf. Возврат (каталог, квант-строка
 /// для audiocpp load_model). Env SPEECH_STUDIO_HIGGS_MODEL (портатив) имеет приоритет.
 pub fn resolve_tts(mroot: &Path, sel: &Value) -> (PathBuf, String) {
@@ -921,14 +801,6 @@ pub fn resolve_mt(mroot: &Path, sel: &Value) -> (PathBuf, PathBuf) {
 mod asr_variant_tests {
     use super::*;
 
-    #[test]
-    fn parakeet_components_map_to_their_asr_slot() {
-        for (id, variant) in [("parakeet", "int8"), ("parakeet-ultra", "ultra-int8")] {
-            let sel = component_selection(id);
-            assert_eq!(sel, vec![("asr_engine", "parakeet".to_string()), ("asr", variant.to_string())], "{id}");
-        }
-        assert_eq!(component_selection("asr-gguf-nemotron"), vec![("asr_engine", "nemotron".to_string())]);
-    }
 
     fn file_of(sel: Value) -> &'static str {
         match resolve_asr_choice(Path::new("."), Path::new("no-models"), &sel) {
