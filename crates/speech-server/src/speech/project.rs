@@ -4,7 +4,6 @@
 //! дубля — совпал `ready`, нет `stale`, дублей нет `pending`, последняя ошибка на этом ключе `failed`.
 
 use std::collections::BTreeMap;
-use std::path::Path;
 use std::sync::LazyLock;
 
 use regex::Regex;
@@ -15,11 +14,14 @@ use crate::tts_host::Params;
 
 pub(crate) use crate::platform::ids::new_id;
 pub(crate) use crate::platform::time::unix_seconds as now;
-pub(crate) use crate::platform::workspace::{is_pid, project_file as path};
+pub(crate) use crate::platform::workspace::is_pid;
 
 pub const KIND: &str = "speech";
 /// Поднимать при смене правил текста или синтеза, меняющей звучание уже озвученного.
 const KEY_VERSION: &str = "speech-key-v1";
+
+#[cfg(test)]
+mod boundary_tests;
 /// Длиннее этого блок режется по предложениям: длинный текст Higgs читает хуже и дольше ждать ошибку.
 pub const BLOCK_CHARS: usize = 400;
 
@@ -411,6 +413,17 @@ pub fn from_cues(name: &str, cues: &[crate::subimport::Cue], narrator: &str) -> 
     project
 }
 
+pub struct EngineRule<'a> {
+    pub id: &'a str,
+    pub cloud: bool,
+}
+
+pub struct ValidationRules<'a> {
+    pub engines: &'a [EngineRule<'a>],
+    pub genders: &'a [&'a str],
+    pub ages: &'a [&'a str],
+}
+
 impl SpeechProject {
     pub fn blocks(&self) -> impl Iterator<Item = &Block> {
         self.chapters.iter().flat_map(|c| c.blocks.iter())
@@ -464,7 +477,7 @@ impl SpeechProject {
     }
 
     /// Ид блоков и глав уникальны, у каждого блока есть ид, пустые главы допустимы, ссылки на дубли верны.
-    pub fn validate(&self) -> Result<(), String> {
+    pub fn validate(&self, rules: &ValidationRules) -> Result<(), String> {
         if self.kind != KIND {
             return Err(format!("this is a {} project, not a speech one", self.kind));
         }
@@ -480,7 +493,7 @@ impl SpeechProject {
             for clip in &track.clips {
                 let [a, z] = clip.kept();
                 let mix_ok = Mix::GAIN_DB.contains(&clip.mix.gain_db) && clip.mix.fade_in >= 0.0 && clip.mix.fade_out >= 0.0;
-                if clip.id.is_empty() || !seen_tracks.insert(clip.id.as_str()) || !crate::speech_api::safe_file(&clip.file) || !(clip.start >= 0.0) || !(a >= 0.0 && z > a && z <= clip.duration + 1e-3) || !mix_ok {
+                if clip.id.is_empty() || !seen_tracks.insert(clip.id.as_str()) || !super::naming::safe_file(&clip.file) || !(clip.start >= 0.0) || !(a >= 0.0 && z > a && z <= clip.duration + 1e-3) || !mix_ok {
                     return Err(format!("track {}: clip {:?} ({}) needs its own id, a file of media/, a start not below 0, a cut inside its {} s and a gain {}..{} dB", track.name, clip.id, clip.file, clip.duration, Mix::GAIN_DB.start(), Mix::GAIN_DB.end()));
                 }
             }
@@ -488,8 +501,8 @@ impl SpeechProject {
         if let Some(b) = self.blocks().find(|b| !Mix::GAIN_DB.contains(&b.mix.gain_db) || !(b.mix.fade_in >= 0.0 && b.mix.fade_out >= 0.0 && b.mix.fade_in.is_finite() && b.mix.fade_out.is_finite())) {
             return Err(format!("block {}: gain {} dB must be {}..{} and fades {} s, {} s not below 0", b.id, b.mix.gain_db, Mix::GAIN_DB.start(), Mix::GAIN_DB.end(), b.mix.fade_in, b.mix.fade_out));
         }
-        crate::speech_jobs::name_keys(&self.settings.export_name, &crate::speech_jobs::EXPORT_NAME_KEYS)?;
-        crate::speech_jobs::name_keys(&self.settings.clip_name, &crate::speech_jobs::CLIP_NAME_KEYS)?;
+        super::naming::name_keys(&self.settings.export_name, &super::naming::EXPORT_NAME_KEYS)?;
+        super::naming::name_keys(&self.settings.clip_name, &super::naming::CLIP_NAME_KEYS)?;
         for (speaker, params) in &self.cast_params {
             params.checked().map_err(|e| format!("speaker {speaker}: {e}"))?;
         }
@@ -500,8 +513,8 @@ impl SpeechProject {
             return Err(format!("block {}: voice effect {} is not one of {:?} or none", b.id, b.fx, crate::voice_fx::KINDS));
         }
         for (name, c) in &self.characters {
-            if !crate::voice_library::GENDERS.contains(&c.gender.as_str()) || !crate::voice_library::AGES.contains(&c.age.as_str()) {
-                return Err(format!("character {name}: gender is one of {:?} and age one of {:?}", crate::voice_library::GENDERS, crate::voice_library::AGES));
+            if !rules.genders.contains(&c.gender.as_str()) || !rules.ages.contains(&c.age.as_str()) {
+                return Err(format!("character {name}: gender is one of {:?} and age one of {:?}", rules.genders, rules.ages));
             }
         }
         if let Some(g) = self.settings.normalize_off.iter().find(|g| !crate::normalize_ru::GROUPS.contains(&g.as_str())) {
@@ -549,7 +562,7 @@ impl SpeechProject {
                     return Err(format!("block {} word note {:?}: a quote and a marker of {MARKERS:?} or none", b.id, w.quote));
                 }
                 if let Some(e) = b.engine.as_deref().filter(|e| !e.is_empty()) {
-                    own_engine_ok(e, &self.settings.engine).map_err(|why| format!("block {}: {why}", b.id))?;
+                    own_engine_ok(e, &self.settings.engine, rules).map_err(|why| format!("block {}: {why}", b.id))?;
                 }
                 if let Some(p) = b.pause_ms {
                     if !(-2000..=10_000).contains(&p) {
@@ -559,7 +572,7 @@ impl SpeechProject {
             }
         }
         for (speaker, e) in self.cast_engines.iter().filter(|(_, e)| !e.is_empty()) {
-            own_engine_ok(e, &self.settings.engine).map_err(|why| format!("speaker {speaker}: {why}"))?;
+            own_engine_ok(e, &self.settings.engine, rules).map_err(|why| format!("speaker {speaker}: {why}"))?;
         }
         for p in [self.settings.pause_same_ms, self.settings.pause_switch_ms] {
             if !(-2000..=10_000).contains(&p) {
@@ -587,46 +600,6 @@ pub fn visible_snippet(text: &str) -> String {
         out.push('…');
     }
     out
-}
-
-pub fn load(workspace: &Path, pid: &str) -> Result<SpeechProject, String> {
-    if !is_pid(pid) {
-        return Err(format!("bad project id {pid}"));
-    }
-    let p = path(workspace, pid);
-    let text = std::fs::read_to_string(&p).map_err(|e| {
-        if e.kind() == std::io::ErrorKind::NotFound { t!("project-missing", pid = pid.to_string()) } else { format!("{}: {e}", p.display()) }
-    })?;
-    let v: Value = serde_json::from_str(&text).map_err(|e| format!("{}: {e}", p.display()))?;
-    if v.get("kind").and_then(Value::as_str) != Some(KIND) {
-        return Err(format!("project {pid} is not a speech project"));
-    }
-    serde_json::from_value(v).map_err(|e| format!("{}: {e}", p.display()))
-}
-
-/// Записать проект через ревизии (кто сохранил — окно, агент, задача — узнают все окна).
-pub fn save(workspace: &Path, pid: &str, project: &SpeechProject) -> Result<(), String> {
-    project.validate()?;
-    let dir = workspace.join(pid);
-    std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-    let text = serde_json::to_string_pretty(project).map_err(|e| e.to_string())?;
-    crate::app::revisions::save_with_revision(&dir, || {
-        let tmp = dir.join("project.json.tmp");
-        std::fs::write(&tmp, text.as_bytes()).map_err(|e| format!("{}: {e}", tmp.display()))?;
-        std::fs::rename(&tmp, dir.join("project.json")).map_err(|e| format!("{}: {e}", dir.display()))
-    })
-}
-
-/// Read, change and write the project as one step: two writers of the same project (a job keeping its take, the
-/// Live session adding its phrases) take turns, so neither writes over what the other has just saved.
-pub fn edit<R>(workspace: &Path, pid: &str, change: impl FnOnce(&mut SpeechProject) -> R) -> Result<R, String> {
-    static WRITERS: LazyLock<std::sync::Mutex<std::collections::HashMap<String, std::sync::Arc<std::sync::Mutex<()>>>>> = LazyLock::new(Default::default);
-    let lock = WRITERS.lock().unwrap_or_else(|p| p.into_inner()).entry(pid.to_string()).or_default().clone();
-    let _turn = lock.lock().unwrap_or_else(|p| p.into_inner());
-    let mut project = load(workspace, pid)?;
-    let out = change(&mut project);
-    save(workspace, pid, &project)?;
-    Ok(out)
 }
 
 static DIALOG: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^\s*(?:\[([^\[\]\n]{1,40})\]\s+|([\p{L}][\p{L}\p{N} ._'-]{0,30}?)\s*(?::\s+|：\s*))(\S.*)$").expect("dialog"));
@@ -773,16 +746,6 @@ pub fn continuation_source<'a>(project: &'a SpeechProject, b: &Block) -> Option<
         .and_then(|x| x.active.and_then(|n| x.takes.iter().find(|t| t.n == n)).map(|t| (*x, t)))
 }
 
-/// Отпечаток голоса для ключа: имя, размер и время звука, текст рефа.
-pub fn voice_tag(voices: &Path, name: Option<&str>) -> String {
-    let Some(name) = name else { return "base".into() };
-    let Some(audio) = crate::voice_library::audio_path(voices, name) else { return format!("missing:{name}") };
-    let meta = std::fs::metadata(&audio).ok();
-    let stamp = meta.as_ref().and_then(|m| m.modified().ok()).and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map(|d| d.as_secs()).unwrap_or(0);
-    let transcript = crate::voice_library::read_transcript(voices, name).unwrap_or_default();
-    format!("{name}|{}|{stamp}|{}", meta.map(|m| m.len()).unwrap_or(0), blake3::hash(transcript.as_bytes()).to_hex())
-}
-
 /// Ключ синтеза блока: всё, от чего зависит звук. `engine` — движок и его модель с квантом.
 pub fn synth_key(project: &SpeechProject, b: &Block, voice_tag: &str, engine: &str, ref_limit: f64, prep: &str) -> String {
     let p = project.params_of(b);
@@ -800,7 +763,7 @@ pub fn synth_key(project: &SpeechProject, b: &Block, voice_tag: &str, engine: &s
         h.update(part.as_bytes());
         h.update(b"\x1f");
     }
-    if project.settings.auto_stress && crate::stress::is_russian(&b.text, &project.settings.lang) {
+    if project.settings.auto_stress && crate::text::stress::is_russian(&b.text, &project.settings.lang) {
         h.update(b"auto-stress\x1f");
     }
     if let Some(r) = &b.own_ref {
@@ -837,10 +800,10 @@ pub fn status(b: &Block, key: &str) -> &'static str {
 
 /// Проект для окна: сам проект и по каждому блоку его ключ и статус.
 /// Движок блока или персонажа: известный и локальный — облачный только тот, что выбран у проекта.
-fn own_engine_ok(engine: &str, project_engine: &str) -> Result<(), String> {
-    match crate::engines::get(engine) {
+fn own_engine_ok(engine: &str, project_engine: &str, rules: &ValidationRules) -> Result<(), String> {
+    match rules.engines.iter().find(|e| e.id == engine) {
         None => Err(format!("engine {engine:?} is not one of the studio's engines")),
-        Some(_) if crate::engines::is_cloud(engine) && engine != project_engine => Err(format!("cloud engine {engine:?} is set up for the whole project only")),
+        Some(e) if e.cloud && engine != project_engine => Err(format!("cloud engine {engine:?} is set up for the whole project only")),
         Some(_) => Ok(()),
     }
 }
@@ -853,7 +816,7 @@ pub fn fit_forecast(project: &SpeechProject, b: &Block) -> Option<&'static str> 
     let next = timed.iter().position(|x| x.id == b.id).and_then(|i| timed.get(i + 1)).and_then(|x| x.start).unwrap_or(end + 3600.0);
     let rules = dub_core::fit::FitRules { speech_rate_on: false, qc_duration: true, max_stretch: project.settings.max_stretch, lead_into_silence: false };
     let slot = dub_core::fit::slot(start, end, start, next, &rules);
-    let lang = if project.settings.lang == "auto" { if crate::stress::is_russian(&b.text, "auto") { "ru" } else { "en" } } else { project.settings.lang.as_str() };
+    let lang = if project.settings.lang == "auto" { if crate::text::stress::is_russian(&b.text, "auto") { "ru" } else { "en" } } else { project.settings.lang.as_str() };
     let est = dub_core::fit::estimate(&crate::speech_text::visible(&b.text), dub_core::fit::table_cps(lang));
     Some(match dub_core::fit::verdict(est, &slot, &rules) {
         dub_core::fit::Verdict::Fits => "fits",
@@ -1029,23 +992,23 @@ mod tests {
         p.chapters[0].blocks[2].engine = Some(crate::qwen_tts::ENGINE.into());
         let b = &p.chapters[0].blocks;
         assert_eq!((p.engine_of(&b[0]), p.engine_of(&b[1]), p.engine_of(&b[2])), ("higgs", crate::supertonic::ENGINE, crate::qwen_tts::ENGINE));
-        assert!(p.validate().is_ok());
+        assert!(crate::speech::validate(&p).is_ok());
         p.chapters[0].blocks[0].engine = Some("openrouter".into());
-        assert!(p.validate().is_err(), "a cloud engine is set up for the whole project only");
+        assert!(crate::speech::validate(&p).is_err(), "a cloud engine is set up for the whole project only");
         p.chapters[0].blocks[0].engine = Some("nope".into());
-        assert!(p.validate().is_err());
+        assert!(crate::speech::validate(&p).is_err());
     }
 
     #[test]
     fn validation_refuses_repeated_ids_and_dangling_takes() {
         let mut p = from_text("t", "Раз.\n\nДва.", "Р");
-        assert!(p.validate().is_ok());
+        assert!(crate::speech::validate(&p).is_ok());
         let id = p.chapters[0].blocks[0].id.clone();
         p.chapters[0].blocks[1].id = id;
-        assert!(p.validate().is_err());
+        assert!(crate::speech::validate(&p).is_err());
         let mut p = from_text("t", "Раз.", "Р");
         p.chapters[0].blocks[0].active = Some(3);
-        assert!(p.validate().unwrap_err().contains("take 3"));
+        assert!(crate::speech::validate(&p).unwrap_err().contains("take 3"));
     }
 
     #[test]
@@ -1063,6 +1026,6 @@ mod tests {
         assert!(flat.iter().all(|v| *v == 0.5));
         let mut p = SpeechProject::default();
         p.chapters.push(Chapter { id: "c".into(), title: String::new(), blocks: vec![Block { id: "b".into(), text: "Да.".into(), mix: Mix { gain_db: 30.0, ..Mix::default() }, ..Default::default() }] });
-        assert!(p.validate().unwrap_err().contains("gain"));
+        assert!(crate::speech::validate(&p).unwrap_err().contains("gain"));
     }
 }

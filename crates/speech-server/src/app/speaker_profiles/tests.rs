@@ -3,7 +3,7 @@ use std::fs;
 use serde_json::json;
 
 use super::*;
-use crate::listening::project::{self as lp, Line, ListenProject};
+use crate::listening::project::{Line, ListenProject};
 
 fn fixture() -> (tempfile::TempDir, Paths, String) {
     let root = tempfile::tempdir().unwrap();
@@ -34,7 +34,7 @@ fn fixture() -> (tempfile::TempDir, Paths, String) {
             ..Default::default()
         },
     ];
-    lp::save(&p.workspace, &pid, &project).unwrap();
+    crate::listening::save(&p.workspace, &pid, &project).unwrap();
     let work = p.workspace.join(&pid).join("work");
     fs::create_dir(&work).unwrap();
     crate::wavio::write_mono_f32(&work.join("audio16.wav"), &vec![0.25; 48_000], 16_000).unwrap();

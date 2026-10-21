@@ -57,7 +57,7 @@ fn audio(config: &WatchConfig, name: &str) -> PathBuf {
 }
 
 fn transcribe(paths: &ListenPaths, pid: &str) -> Result<Value, String> {
-    let mut project = lp::load(&paths.workspace, pid)?;
+    let mut project = crate::listening::load(&paths.workspace, pid)?;
     project.speakers.insert("a".into(), "Alice".into());
     project.lines = vec![lp::Line {
         id: "line".into(),
@@ -67,7 +67,7 @@ fn transcribe(paths: &ListenPaths, pid: &str) -> Result<Value, String> {
         end: 0.25,
         ..Default::default()
     }];
-    lp::save(&paths.workspace, pid, &project)?;
+    crate::listening::save(&paths.workspace, pid, &project)?;
     Ok(json!({"pid":pid}))
 }
 
@@ -136,7 +136,7 @@ async fn empty_recordings_get_the_requested_settings_and_use_the_supplied_queue_
             assert_eq!(paths.repo_root, expected.repo_root);
             assert_eq!(paths.models_root, expected.models_root);
             assert_eq!(paths.sortformer_onnx, expected.sortformer_onnx);
-            let project = lp::load(&paths.workspace, &pid)?;
+            let project = crate::listening::load(&paths.workspace, &pid)?;
             assert_eq!(project.settings.engine, "whisper");
             assert_eq!(project.settings.lang, "auto");
             progress(json!({"stage":"test"}));
@@ -366,7 +366,7 @@ async fn keep_picks_up_new_files_and_restart_retries_an_import_error() {
     let pid = crate::platform::ids::new_id();
     let mut project = lp::ListenProject::new("Recovered", "source.wav", "broken.mkv");
     project.key = crate::listening::file_key(&broken, "listen").unwrap();
-    lp::save(&deps.paths.workspace, &pid, &project).unwrap();
+    crate::listening::save(&deps.paths.workspace, &pid, &project).unwrap();
     transcribe(&deps.paths, &pid).unwrap();
     config.keep = true;
     start(deps.clone(), config.clone()).unwrap();

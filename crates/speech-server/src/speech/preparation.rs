@@ -4,12 +4,16 @@ use std::path::Path;
 use serde::Serialize;
 
 use super::jobs::{self, SpeechPaths};
-use super::project::{self as sp, SpeechProject};
+use super::project::SpeechProject;
+#[cfg(test)]
+use super::project as sp;
 use crate::engines::stress as stress_engine;
 use crate::text::{prep, pron_dict, stress};
 
 #[cfg(test)]
 mod compatibility_tests;
+#[cfg(test)]
+mod voice_tag_tests;
 
 pub(super) struct Opts<'a> {
     pub lang: &'a str,
@@ -94,7 +98,7 @@ pub(crate) struct TextPreview {
 
 pub(crate) fn prepare_text(p: &SpeechPaths, request: PrepareText) -> Result<TextPreview, String> {
     let mut project = match &request.pid {
-        Some(pid) => sp::load(&p.workspace, pid)?,
+        Some(pid) => crate::speech::load(&p.workspace, pid)?,
         None => SpeechProject::default(),
     };
     if let Some(lang) = &request.lang {
@@ -118,7 +122,7 @@ pub(crate) fn prepare_text(p: &SpeechPaths, request: PrepareText) -> Result<Text
 }
 
 pub(crate) fn dictionary_counts(p: &SpeechPaths, pid: &str) -> Result<BTreeMap<String, usize>, String> {
-    let project = sp::load(&p.workspace, pid)?;
+    let project = crate::speech::load(&p.workspace, pid)?;
     let entries = jobs::dictionary(p, &project);
     let text = project.blocks().map(|b| b.text.as_str()).collect::<Vec<_>>().join("\n");
     Ok(pron_dict::counts(&text, &entries).into_iter().collect())
@@ -138,7 +142,7 @@ pub(crate) struct UnknownWords {
 }
 
 pub(crate) fn unknown_words(p: &SpeechPaths, pid: &str) -> Result<UnknownWords, String> {
-    let project = sp::load(&p.workspace, pid)?;
+    let project = crate::speech::load(&p.workspace, pid)?;
     let entries = jobs::dictionary(p, &project);
     let stresser = if stress_engine::installed(&p.repo_root) {
         Some(stress_engine::shared(&p.models_root)?)
@@ -204,7 +208,7 @@ mod tests {
 
     fn save_fixture(p: &SpeechPaths, project: &SpeechProject) -> String {
         let pid = sp::new_id();
-        let path = sp::path(&p.workspace, &pid);
+        let path = crate::speech::project_path(&p.workspace, &pid);
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         fs::write(path, serde_json::to_vec(project).unwrap()).unwrap();
         pid
@@ -260,7 +264,7 @@ mod tests {
         });
         pron_dict::save_global(&p.repo_root, &[rule("global", "NASA", "global")]).unwrap();
         let pid = save_fixture(&p, &project);
-        let before = fs::read(sp::path(&p.workspace, &pid)).unwrap();
+        let before = fs::read(crate::speech::project_path(&p.workspace, &pid)).unwrap();
         let preview = prepare_text(
             &p,
             PrepareText {
@@ -285,7 +289,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(preview.prepared.text, "global");
-        assert_eq!(fs::read(sp::path(&p.workspace, &pid)).unwrap(), before);
+        assert_eq!(fs::read(crate::speech::project_path(&p.workspace, &pid)).unwrap(), before);
     }
 
     #[test]
@@ -321,11 +325,21 @@ mod tests {
             ..rule("scoped", "Scoped", "слово")
         });
         let pid = save_fixture(&p, &project);
-        let before = fs::read(sp::path(&p.workspace, &pid)).unwrap();
+        let before = fs::read(crate::speech::project_path(&p.workspace, &pid)).unwrap();
         let report = unknown_words(&p, &pid).unwrap();
         assert!(!report.stress_checked);
         let words: Vec<_> = report.words.iter().map(|w| (w.word.as_str(), w.count, w.why)).collect();
         assert_eq!(words, [("iPhone", 2, "unread"), ("Apple", 1, "unread"), ("Zebra", 1, "unread")]);
-        assert_eq!(fs::read(sp::path(&p.workspace, &pid)).unwrap(), before);
+        assert_eq!(fs::read(crate::speech::project_path(&p.workspace, &pid)).unwrap(), before);
     }
+}
+
+/// Отпечаток голоса для ключа: имя, размер и время звука, текст рефа.
+pub fn voice_tag(voices: &Path, name: Option<&str>) -> String {
+    let Some(name) = name else { return "base".into() };
+    let Some(audio) = crate::voice_library::audio_path(voices, name) else { return format!("missing:{name}") };
+    let meta = std::fs::metadata(&audio).ok();
+    let stamp = meta.as_ref().and_then(|m| m.modified().ok()).and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map(|d| d.as_secs()).unwrap_or(0);
+    let transcript = crate::voice_library::read_transcript(voices, name).unwrap_or_default();
+    format!("{name}|{}|{stamp}|{}", meta.map(|m| m.len()).unwrap_or(0), blake3::hash(transcript.as_bytes()).to_hex())
 }

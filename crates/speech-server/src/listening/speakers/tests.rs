@@ -18,7 +18,7 @@ fn line(speaker: &str, start: f64, end: f64, hidden: bool) -> Line {
 fn fixture(root: &Path, lines: Vec<Line>) -> (String, std::path::PathBuf) {
     let pid = crate::platform::ids::new_id();
     let project = ListenProject {
-        kind: lp::KIND.into(),
+        kind: crate::listening::project::KIND.into(),
         speakers: [
             ("a".into(), "Alice".into()),
             ("b".into(), "Bob".into()),
@@ -29,7 +29,7 @@ fn fixture(root: &Path, lines: Vec<Line>) -> (String, std::path::PathBuf) {
         lines,
         ..Default::default()
     };
-    lp::save(root, &pid, &project).unwrap();
+    crate::listening::save(root, &pid, &project).unwrap();
     let work = root.join(&pid).join("work");
     fs::create_dir(&work).unwrap();
     (pid, work)

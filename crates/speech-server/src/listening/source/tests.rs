@@ -14,6 +14,63 @@ fn audio(path: &Path) {
     crate::wavio::write_mono_f32(path, &[0.25; 4_000], 16_000).unwrap();
 }
 
+#[test]
+fn creation_uses_media_metadata_and_adjacent_subtitles_before_saving() {
+    let _language = crate::i18n::test_language("ru");
+    let root = tempfile::tempdir().unwrap();
+    let id = crate::platform::ids::new_id();
+    let dir = root.path().join(&id);
+    fs::create_dir(&dir).unwrap();
+    audio(&dir.join("source.wav"));
+    fs::write(dir.join("import_subs.srt"), "1\n00:00:00,000 --> 00:00:00,200\nПривет мир\n").unwrap();
+    let project = create_from_source(root.path(), &id, "Запись", "source.wav", "original.wav").unwrap();
+    assert!((project.duration - 0.25).abs() < 1e-6);
+    assert_eq!(project.source, "source.wav");
+    assert_eq!(project.origin, "original.wav");
+    assert_eq!(project.lines.len(), 1);
+    assert_eq!(project.lines[0].id, "l0");
+    assert!(project.lines[0].approx);
+    assert_eq!(project.lines[0].words.len(), 2);
+    assert_eq!(project.lines[0].text, "Привет мир");
+    assert_eq!(project.made.as_ref().unwrap().by, "subs");
+    assert_eq!(project, crate::listening::load(root.path(), &id).unwrap());
+    assert_eq!(revisions::revision(&id), 1);
+    assert!(!dir.join("work/play.m4a").exists());
+}
+
+#[test]
+fn creation_keeps_zero_duration_and_no_transcript_when_probe_or_subtitles_are_unavailable() {
+    let root = tempfile::tempdir().unwrap();
+    for subtitles in [None, Some(b"\xff".as_slice()), Some(b"not subtitles".as_slice())] {
+        let id = crate::platform::ids::new_id();
+        let dir = root.path().join(&id);
+        fs::create_dir(&dir).unwrap();
+        fs::write(dir.join("source.wav"), b"not audio").unwrap();
+        if let Some(bytes) = subtitles { fs::write(dir.join("import_subs.srt"), bytes).unwrap(); }
+        let project = create_from_source(root.path(), &id, "legacy behavior", "source.wav", "input").unwrap();
+        assert_eq!(project.duration, 0.0);
+        assert!(project.lines.is_empty());
+        assert!(project.made.is_none());
+        assert_eq!(revisions::revision(&id), 1);
+    }
+}
+
+#[test]
+fn creation_save_errors_do_not_advance_revision_or_remove_the_existing_source() {
+    let root = tempfile::tempdir().unwrap();
+    let id = crate::platform::ids::new_id();
+    let dir = root.path().join(&id);
+    fs::create_dir(&dir).unwrap();
+    audio(&dir.join("source.wav"));
+    let before = fs::read(dir.join("source.wav")).unwrap();
+    fs::create_dir(dir.join("project.json")).unwrap();
+    assert!(create_from_source(root.path(), &id, "fails", "source.wav", "input").is_err());
+    assert_eq!(fs::read(dir.join("source.wav")).unwrap(), before);
+    assert_eq!(revisions::revision(&id), 0);
+    assert!(dir.join("project.json").is_dir());
+    assert_eq!(fs::read_dir(dir).unwrap().count(), 2);
+}
+
 fn modified(path: &Path, seconds: u64) {
     fs::File::options()
         .write(true)
@@ -59,7 +116,7 @@ fn importing_and_reusing_a_recording_preserves_sources_edits_keys_and_revisions(
     let (pid, existing) = project_of_file(&ws, &source).unwrap();
     assert!(!existing);
     assert_eq!(pid.len(), 10);
-    let mut project = lp::load(&ws, &pid).unwrap();
+    let mut project = crate::listening::load(&ws, &pid).unwrap();
     assert_eq!(project.source, "source.wav");
     assert_eq!(project.name, "Моя запись");
     assert_eq!(project.origin, source.to_string_lossy());
@@ -72,7 +129,7 @@ fn importing_and_reusing_a_recording_preserves_sources_edits_keys_and_revisions(
         text: "Keep me".into(),
         ..Default::default()
     });
-    lp::save(&ws, &pid, &project).unwrap();
+    crate::listening::save(&ws, &pid, &project).unwrap();
     let path = ws.join(&pid).join("project.json");
     let before = fs::read(&path).unwrap();
     let revision = revisions::revision(&pid);
@@ -83,7 +140,7 @@ fn importing_and_reusing_a_recording_preserves_sources_edits_keys_and_revisions(
     let (changed, existing) = project_of_file(&ws, &source).unwrap();
     assert!(!existing);
     assert_ne!(changed, pid);
-    assert_eq!(lp::load(&ws, &pid).unwrap().name, "Edited");
+    assert_eq!(crate::listening::load(&ws, &pid).unwrap().name, "Edited");
 }
 
 #[test]
@@ -94,7 +151,7 @@ fn non_webview_media_prepares_the_same_aac_preview_before_creating_the_project()
     let source = root.path().join("record.wma");
     audio(&source);
     let (pid, _) = project_of_file(&ws, &source).unwrap();
-    assert_eq!(lp::load(&ws, &pid).unwrap().source, "source.wma");
+    assert_eq!(crate::listening::load(&ws, &pid).unwrap().source, "source.wma");
     let preview = ws.join(&pid).join("work/play.m4a");
     assert!(preview.is_file());
     assert!(crate::media::probe(&preview).unwrap().duration > 0.0);
@@ -165,7 +222,7 @@ async fn http_import_keeps_the_response_error_and_blocking_request_context() {
             assert_eq!(outcome.saved_revision(), Some(2));
         }
     }
-    assert_eq!(lp::load(&ws, &target).unwrap().name, "record");
+    assert_eq!(crate::listening::load(&ws, &target).unwrap().name, "record");
     let missing = root.path().join("missing.wav");
     let response = router
         .oneshot(

@@ -1,6 +1,8 @@
 //! Маршруты проектов: создать (Speech из текста), список, проект со статусами блоков, запись целиком (ревизии Dub:
 //! 409 на чужую правку), удаление в корзину системы, синтез и экспорт задачами, звук дублей и файлов экспорта.
 
+pub(crate) use super::naming::safe_file;
+
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -86,7 +88,7 @@ pub async fn list(State(st): State<AppState>) -> Response {
 fn keyed_project(workspace: &Path, key: &str) -> Option<(String, SpeechProject)> {
     std::fs::read_dir(workspace).ok()?.flatten().find_map(|e| {
         let pid = e.file_name().to_string_lossy().into_owned();
-        let project = sp::load(workspace, &pid).ok()?;
+        let project = crate::speech::load(workspace, &pid).ok()?;
         (project.key == key).then_some((pid, project))
     })
 }
@@ -155,7 +157,7 @@ pub async fn create(State(st): State<AppState>, Json(body): Json<Value>) -> Resp
             }
         }
         let pid = sp::new_id();
-        sp::save(&p.workspace, &pid, &project)?;
+        crate::speech::save(&p.workspace, &pid, &project)?;
         Ok((pid, shown(&p, &project)))
     }))
     .await);
@@ -173,7 +175,7 @@ pub async fn get(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Res
         if !sp::is_pid(&pid) {
             return Err((StatusCode::BAD_REQUEST, format!("bad project id {pid}")));
         }
-        let file = sp::path(&p.workspace, &pid);
+        let file = crate::speech::project_path(&p.workspace, &pid);
         let text = std::fs::read_to_string(&file).map_err(|_| (StatusCode::NOT_FOUND, t!("speech-no-project", pid = pid.clone())))?;
         let v: Value = serde_json::from_str(&text).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("{}: {e}", file.display())))?;
         if v.get("kind").and_then(Value::as_str) == Some(sp::KIND) {
@@ -195,9 +197,9 @@ pub async fn put(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(b
     let p = paths(&st);
     let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || -> Result<Value, String> {
         let mut project: SpeechProject = serde_json::from_value(body).map_err(|e| e.to_string())?;
-        sp::load(&p.workspace, &pid)?;
+        crate::speech::load(&p.workspace, &pid)?;
         project.kind = sp::KIND.into();
-        sp::save(&p.workspace, &pid, &project)?;
+        crate::speech::save(&p.workspace, &pid, &project)?;
         Ok(shown(&p, &project))
     }))
     .await);
@@ -261,7 +263,7 @@ pub async fn restore(State(st): State<AppState>, AxPath(pid): AxPath<String>) ->
 
 /// POST /projects/{pid}/synth {ids?, from?, force?} — озвучить блоки задачей.
 pub async fn synth(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<Value>) -> Response {
-    if let Err(e) = sp::load(&st.workspace, &pid) {
+    if let Err(e) = crate::speech::load(&st.workspace, &pid) {
         return refuse(StatusCode::NOT_FOUND, "no_project", e);
     }
     let scope = Scope {
@@ -331,7 +333,7 @@ pub async fn history(State(st): State<AppState>, axum::extract::Query(q): axum::
                 None => std::fs::read_dir(&ws).map(|rd| rd.flatten().filter_map(|e| e.file_name().to_str().map(str::to_string)).filter(|n| sp::is_pid(n)).collect()).unwrap_or_default(),
             };
             for pid in dirs {
-                let Ok(project) = sp::load(&ws, &pid) else { continue };
+                let Ok(project) = crate::speech::load(&ws, &pid) else { continue };
                 for b in project.blocks() {
                     for t in &b.takes {
                         rows.push(json!({
@@ -359,7 +361,7 @@ pub async fn history(State(st): State<AppState>, axum::extract::Query(q): axum::
 /// GET /projects/{pid}/timeline — блоки проекта на общей шкале экспорта с перекрытиями.
 pub async fn timeline(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Response {
     let ws = st.workspace.clone();
-    match joined(tokio::task::spawn_blocking(move || sp::load(&ws, &pid).map(|project| speech_jobs::timeline(&project))).await) {
+    match joined(tokio::task::spawn_blocking(move || crate::speech::load(&ws, &pid).map(|project| speech_jobs::timeline(&project))).await) {
         Ok(Ok(rows)) => Json(json!({ "blocks": rows })).into_response(),
         Ok(Err(e)) => refuse(StatusCode::NOT_FOUND, "no_project", e),
         Err(r) => r,
@@ -369,7 +371,7 @@ pub async fn timeline(State(st): State<AppState>, AxPath(pid): AxPath<String>) -
 /// GET /projects/{pid}/export-check — что мешает экспорту.
 pub async fn quality(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Response {
     let p = paths(&st);
-    match joined(tokio::task::spawn_blocking(move || sp::load(&p.workspace, &pid).map(|project| speech_jobs::quality(&p, &project))).await) {
+    match joined(tokio::task::spawn_blocking(move || crate::speech::load(&p.workspace, &pid).map(|project| speech_jobs::quality(&p, &project))).await) {
         Ok(Ok(report)) => Json(report).into_response(),
         Ok(Err(e)) => refuse(StatusCode::NOT_FOUND, "no_project", e),
         Err(r) => r,
@@ -378,7 +380,7 @@ pub async fn quality(State(st): State<AppState>, AxPath(pid): AxPath<String>) ->
 
 /// A failed take mended where it went wrong, or the block voiced again when it cannot be.
 pub async fn fix(State(st): State<AppState>, AxPath((pid, bid)): AxPath<(String, String)>) -> Response {
-    if let Err(e) = sp::load(&st.workspace, &pid) {
+    if let Err(e) = crate::speech::load(&st.workspace, &pid) {
         return refuse(StatusCode::NOT_FOUND, "no_project", e);
     }
     let p = paths(&st);
@@ -395,7 +397,7 @@ pub async fn fix(State(st): State<AppState>, AxPath((pid, bid)): AxPath<(String,
 
 /// A blind comparison: a take of the block by each of two engines (and voices), for the window to play unnamed.
 pub async fn ab(State(st): State<AppState>, AxPath((pid, bid)): AxPath<(String, String)>, Json(body): Json<Value>) -> Response {
-    if let Err(e) = sp::load(&st.workspace, &pid) {
+    if let Err(e) = crate::speech::load(&st.workspace, &pid) {
         return refuse(StatusCode::NOT_FOUND, "no_project", e);
     }
     let sides: Vec<sp::AbSide> = match serde_json::from_value(body.get("sides").cloned().unwrap_or(Value::Null)) {
@@ -416,7 +418,7 @@ pub async fn ab(State(st): State<AppState>, AxPath((pid, bid)): AxPath<(String, 
 
 /// The ready takes checked by recognition now: `ids`, or all not checked yet.
 pub async fn check(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<Value>) -> Response {
-    if let Err(e) = sp::load(&st.workspace, &pid) {
+    if let Err(e) = crate::speech::load(&st.workspace, &pid) {
         return refuse(StatusCode::NOT_FOUND, "no_project", e);
     }
     let ids: Option<Vec<String>> = body.get("ids").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).map(str::to_string).collect());
@@ -434,7 +436,7 @@ pub async fn check(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json
 
 pub async fn export_check(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Response {
     let p = paths(&st);
-    let res = joined(tokio::task::spawn_blocking(move || sp::load(&p.workspace, &pid).map(|project| speech_jobs::export_check(&p, &pid, &project))).await);
+    let res = joined(tokio::task::spawn_blocking(move || crate::speech::load(&p.workspace, &pid).map(|project| speech_jobs::export_check(&p, &pid, &project))).await);
     match res {
         Ok(Ok(problems)) => Json(json!({ "problems": problems })).into_response(),
         Ok(Err(e)) => refuse(StatusCode::NOT_FOUND, "no_project", e),
@@ -445,7 +447,7 @@ pub async fn export_check(State(st): State<AppState>, AxPath(pid): AxPath<String
 /// GET /projects/{pid}/lint — what would go wrong voicing the project, block by block, before voicing it.
 pub async fn lint(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Response {
     let p = paths(&st);
-    let res = joined(tokio::task::spawn_blocking(move || sp::load(&p.workspace, &pid).map(|project| speech_jobs::lint(&p, &project))).await);
+    let res = joined(tokio::task::spawn_blocking(move || crate::speech::load(&p.workspace, &pid).map(|project| speech_jobs::lint(&p, &project))).await);
     match res {
         Ok(Ok(issues)) => Json(json!({ "issues": issues })).into_response(),
         Ok(Err(e)) => refuse(StatusCode::NOT_FOUND, "no_project", e),
@@ -459,7 +461,7 @@ pub async fn auto_cast(State(st): State<AppState>, AxPath(pid): AxPath<String>) 
     let p = paths(&st);
     let res = joined(
         tokio::task::spawn_blocking(move || {
-            sp::load(&p.workspace, &pid).map(|project| {
+            crate::speech::load(&p.workspace, &pid).map(|project| {
                 let (library, _) = crate::voice_library::list(&p.voices_dir);
                 crate::auto_cast::propose(&project, &library, &t!("speech-narrator"))
             })
@@ -499,7 +501,7 @@ pub async fn own_ref(State(st): State<AppState>, AxPath((pid, bid)): AxPath<(Str
     }
     let p = paths(&st);
     let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || -> Result<Value, String> {
-        let project = sp::load(&p.workspace, &pid)?;
+        let project = crate::speech::load(&p.workspace, &pid)?;
         if !project.blocks().any(|b| b.id == bid) {
             return Err(t!("speech-no-block", id = bid.clone()));
         }
@@ -514,7 +516,7 @@ pub async fn own_ref(State(st): State<AppState>, AxPath((pid, bid)): AxPath<(Str
         let _ = std::fs::remove_file(&raw);
         made?;
         let text = if text.trim().is_empty() { crate::asr_util::transcribe(&p.repo_root, &p.models_root, &wav, &project.settings.lang, &name)?.text } else { text.trim().to_string() };
-        let project = sp::edit(&p.workspace, &pid, |project| {
+        let project = crate::speech::edit(&p.workspace, &pid, |project| {
             for c in project.chapters.iter_mut() {
                 for b in c.blocks.iter_mut().filter(|b| b.id == bid) {
                     b.own_ref = Some(sp::OwnRef { file: file.clone(), text: text.clone(), whole });
@@ -536,7 +538,7 @@ pub async fn own_ref(State(st): State<AppState>, AxPath((pid, bid)): AxPath<(Str
 /// POST /projects/{pid}/export {format, chapter?, per_block?, part_minutes?, per_chapter?, stems?, allow_duration?, sample_rate?, bits?, kbps?} —
 /// файл экспорта задачей.
 pub async fn export(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<Value>) -> Response {
-    if let Err(e) = sp::load(&st.workspace, &pid) {
+    if let Err(e) = crate::speech::load(&st.workspace, &pid) {
         return refuse(StatusCode::NOT_FOUND, "no_project", e);
     }
     let opts = ExportOpts {
@@ -569,10 +571,6 @@ pub async fn export(State(st): State<AppState>, AxPath(pid): AxPath<String>, Jso
         Ok(job_id) => Json(json!({ "job_id": job_id })).into_response(),
         Err(e) => crate::enqueue_error(e),
     }
-}
-
-pub(crate) fn safe_file(name: &str) -> bool {
-    !name.is_empty() && !name.contains(['/', '\\']) && !name.contains("..")
 }
 
 pub async fn take_file(State(st): State<AppState>, AxPath((pid, file)): AxPath<(String, String)>, axum::extract::Query(q): axum::extract::Query<std::collections::HashMap<String, String>>, req: axum::http::Request<axum::body::Body>) -> Response {
@@ -811,7 +809,7 @@ pub struct TrackMusic {
 /// studio (the form of its song from /music/studios) as a job: the song stays in the studio's library, its audio comes
 /// into the project's media as a clip on the track `track` or a new one, at `at` (by default after its last clip).
 pub async fn tracks_music(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<TrackMusic>) -> Response {
-    if let Err(e) = sp::load(&st.workspace, &pid) {
+    if let Err(e) = crate::speech::load(&st.workspace, &pid) {
         return refuse(StatusCode::NOT_FOUND, "no_project", e);
     }
     let Some(studio) = crate::music_studios::studio(&body.studio) else {
@@ -831,7 +829,7 @@ pub async fn tracks_music(State(st): State<AppState>, AxPath(pid): AxPath<String
             clip.source = Some(json!({ "studio": studio.id, "song": song, "values": body.values }));
         }
         let name = body.name.clone().filter(|n| !n.trim().is_empty()).unwrap_or_else(|| t!("music-track"));
-        let track = sp::edit(&p.workspace, &pid2, |project| crate::tracks::place(project, body.track.as_deref(), &name, clips, body.at))??;
+        let track = crate::speech::edit(&p.workspace, &pid2, |project| crate::tracks::place(project, body.track.as_deref(), &name, clips, body.at))??;
         Ok(json!({ "track": track, "songs": songs.iter().map(|(_, song, title)| json!({ "song": song, "title": title })).collect::<Vec<_>>() }))
     });
     match st.jobs.enqueue(crate::jobs::JobMeta::new(crate::jobs::JobKind::Music, Some(&pid)), job).await {
@@ -841,9 +839,9 @@ pub async fn tracks_music(State(st): State<AppState>, AxPath(pid): AxPath<String
 }
 
 fn place_files(p: &SpeechPaths, pid: &str, files: &[std::path::PathBuf], track: Option<&str>, name: &str, at: Option<f64>) -> Result<Value, String> {
-    sp::load(&p.workspace, pid)?;
+    crate::speech::load(&p.workspace, pid)?;
     let clips = crate::tracks::clips_of(&p.workspace, pid, files, at.unwrap_or(0.0))?;
-    let project = sp::edit(&p.workspace, pid, |project| crate::tracks::place(project, track, name, clips, at).map(|_| project.clone()))??;
+    let project = crate::speech::edit(&p.workspace, pid, |project| crate::tracks::place(project, track, name, clips, at).map(|_| project.clone()))??;
     Ok(shown(p, &project))
 }
 
@@ -859,7 +857,7 @@ fn project_answer(res: Result<Result<Value, String>, Response>) -> Response {
 /// POST /projects/{pid}/dictionary/try {phrase, rule, voice?} — правило словаря на слух: фраза как написана и с этим
 /// правилом, движком проекта; задача озвучки отвечает файлами и тем, что движок прочтёт.
 pub async fn try_rule(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<Value>) -> Response {
-    if let Err(e) = sp::load(&st.workspace, &pid) {
+    if let Err(e) = crate::speech::load(&st.workspace, &pid) {
         return refuse(StatusCode::NOT_FOUND, "no_project", e);
     }
     let phrase = body.get("phrase").and_then(Value::as_str).unwrap_or_default().to_string();
@@ -1041,7 +1039,7 @@ pub async fn from_subtitles(State(st): State<AppState>, mut multipart: axum::ext
         tokio::task::spawn_blocking(move || -> Result<(String, Value), String> {
             let project = sp::from_cues(&title, &cues, &t!("speech-narrator"));
             let pid = sp::new_id();
-            sp::save(&p.workspace, &pid, &project)?;
+            crate::speech::save(&p.workspace, &pid, &project)?;
             Ok((pid, shown(&p, &project)))
         })
         .await,
@@ -1162,7 +1160,7 @@ pub async fn from_book(State(st): State<AppState>, Json(req): Json<FromBook>) ->
             let narrator = t!("speech-narrator");
             let lines = t!("speech-lines");
             if let Some(pid) = &req.into {
-                let old = sp::load(&p.workspace, pid)?;
+                let old = crate::speech::load(&p.workspace, pid)?;
                 let chapters: Vec<crate::book_rebuild::NewChapter> = req
                     .chapters
                     .iter()
@@ -1184,7 +1182,7 @@ pub async fn from_book(State(st): State<AppState>, Json(req): Json<FromBook>) ->
                         project.dictionary.push(crate::pron_dict::Entry { id: crate::pron_dict::new_id(), find: name.to_string(), say: name.to_string(), note: t!("book-name-note"), source: "book".into(), ..Default::default() });
                     }
                 }
-                sp::save(&p.workspace, pid, &project)?;
+                crate::speech::save(&p.workspace, pid, &project)?;
                 let _ = std::fs::remove_dir_all(&src);
                 return Ok((pid.clone(), json!({ "stats": stats, "backup": backup.to_string_lossy(), "project": shown(&p, &project) })));
             }
@@ -1214,7 +1212,7 @@ pub async fn from_book(State(st): State<AppState>, Json(req): Json<FromBook>) ->
             for name in req.names.iter().map(|n| n.trim()).filter(|n| !n.is_empty()) {
                 project.dictionary.push(crate::pron_dict::Entry { id: crate::pron_dict::new_id(), find: name.to_string(), say: name.to_string(), note: t!("book-name-note"), source: "book".into(), ..Default::default() });
             }
-            sp::save(&p.workspace, &pid, &project)?;
+            crate::speech::save(&p.workspace, &pid, &project)?;
             let _ = std::fs::remove_dir_all(&src);
             Ok((pid, shown(&p, &project)))
         })
@@ -1276,7 +1274,7 @@ pub async fn renders(State(st): State<AppState>) -> Response {
                 #[serde(default)]
                 name: String,
             }
-            let Some(project) = std::fs::read(sp::path(&workspace, &pid)).ok().and_then(|b| serde_json::from_slice::<Head>(&b).ok()).filter(|h| h.kind == sp::KIND) else { continue };
+            let Some(project) = std::fs::read(crate::speech::project_path(&workspace, &pid)).ok().and_then(|b| serde_json::from_slice::<Head>(&b).ok()).filter(|h| h.kind == sp::KIND) else { continue };
             for file in listing.flatten() {
                 let path = file.path();
                 let Some(ext) = path.extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase) else { continue };

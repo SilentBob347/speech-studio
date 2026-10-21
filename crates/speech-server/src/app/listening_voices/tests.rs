@@ -24,8 +24,8 @@ fn fixture(root: &Path) -> (String, std::path::PathBuf) {
         }],
         ..Default::default()
     }];
-    lp::save(&workspace, &pid, &project).unwrap();
-    let dir = lp::dir(&workspace, &pid);
+    crate::listening::save(&workspace, &pid, &project).unwrap();
+    let dir = crate::listening::project_dir(&workspace, &pid);
     fs::create_dir(dir.join("work")).unwrap();
     let samples: Vec<f32> = (0..96_000).map(|i| 0.2 * (i as f32 * 0.05).sin()).collect();
     crate::wavio::write_mono_f32(&dir.join("source.wav"), &samples, 16_000).unwrap();

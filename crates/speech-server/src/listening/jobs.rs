@@ -373,8 +373,8 @@ fn spoken_language(models_root: &Path, wav: &Path, known: &[&str]) -> Result<Opt
 /// Распознать запись проекта заново (прежний транскрипт заменяется; имена спикеров по ключам сохраняются).
 pub fn transcribe(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Result<Value, String> {
     crate::tts_host::make_room();
-    let mut project = lp::load(&p.workspace, pid)?;
-    let src = lp::source_path(&p.workspace, pid, &project)?;
+    let mut project = crate::listening::load(&p.workspace, pid)?;
+    let src = crate::listening::source_path(&p.workspace, pid, &project)?;
     let mut s = project.settings.clone();
     let mut engine = ready_engine(p, &project, &s.lang, progress)?;
     let diar = s.speakers != 1;
@@ -390,7 +390,7 @@ pub fn transcribe(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Resul
     if diar && !p.sortformer_onnx.is_file() {
         return Err(t!("listen-diar-missing"));
     }
-    let work = lp::dir(&p.workspace, pid).join("work");
+    let work = crate::listening::project_dir(&p.workspace, pid).join("work");
     std::fs::create_dir_all(&work).map_err(|e| format!("{}: {e}", work.display()))?;
     step(progress, t!("listen-step-audio"), 2);
     let src = if s.denoise {
@@ -470,7 +470,7 @@ pub fn transcribe(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Resul
     project.made = Some(Made { by, at: crate::platform::time::unix_seconds(), lang: s.lang.clone(), separated: clean.is_some(), hidden });
     let count = lines.len();
     project.lines = lines;
-    lp::save(&p.workspace, pid, &project)?;
+    crate::listening::save(&p.workspace, pid, &project)?;
     step(progress, t!("listen-step-done", lines = count as i64), 100);
     Ok(json!({ "pid": pid, "lines": count, "speakers": project.speakers.len(), "hidden": hidden }))
 }
@@ -478,14 +478,14 @@ pub fn transcribe(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Resul
 /// Монтаж по тексту: запись без отмеченных слов — новый проект Listening с FLAC-записью и теми же строками на
 /// сдвинутых таймкодах. Исходный проект и его запись не меняются.
 pub fn cut(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Result<Value, String> {
-    let project = lp::load(&p.workspace, pid)?;
-    let src = lp::source_path(&p.workspace, pid, &project)?;
+    let project = crate::listening::load(&p.workspace, pid)?;
+    let src = crate::listening::source_path(&p.workspace, pid, &project)?;
     let cuts = project.cut_ranges();
     if cuts.is_empty() {
         return Err(t!("listen-nothing-marked"));
     }
     step(progress, t!("listen-step-cut", n = cuts.len() as i64), 10);
-    let work = lp::dir(&p.workspace, pid).join("work");
+    let work = crate::listening::project_dir(&p.workspace, pid).join("work");
     std::fs::create_dir_all(&work).map_err(|e| format!("{}: {e}", work.display()))?;
     let wav = work.join("audio16.wav");
     if !wav.is_file() {
@@ -500,7 +500,7 @@ pub fn cut(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Result<Value
         return Err(t!("listen-cut-everything"));
     }
     let new_pid = crate::platform::ids::new_id();
-    let dir = lp::dir(&p.workspace, &new_pid);
+    let dir = crate::listening::project_dir(&p.workspace, &new_pid);
     std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let out = dir.join("source.flac");
     if let Err(e) = crate::media::keep_audio_ranges(&src, &out, &keep) {
@@ -525,7 +525,7 @@ pub fn cut(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Result<Value
         let text = if words.len() == l.words.len() { l.text.clone() } else { join_words(&words) };
         edited.lines.push(Line { id: format!("l{}", edited.lines.len()), start, end, text, words, ..l.clone() });
     }
-    lp::save(&p.workspace, &new_pid, &edited)?;
+    crate::listening::save(&p.workspace, &new_pid, &edited)?;
     step(progress, t!("listen-step-cut-done"), 100);
     Ok(json!({ "pid": new_pid, "removed": cuts.iter().map(|(a, b)| b - a).sum::<f64>() }))
 }

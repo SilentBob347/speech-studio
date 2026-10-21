@@ -36,7 +36,7 @@ fn make(workspace: &Path, pid: &str, name: &str, source: &str, origin: &str) -> 
 /// POST /listen/upload (multipart, поле file) — новый проект из файла записи; файл пишется на диск по частям.
 pub async fn upload(State(st): State<AppState>, mut multipart: axum::extract::Multipart) -> Response {
     let pid = crate::platform::ids::new_id();
-    let dir = lp::dir(&st.workspace, &pid);
+    let dir = crate::listening::project_dir(&st.workspace, &pid);
     let mut got: Option<(String, String)> = None;
     if let Ok(Some(mut field)) = multipart.next_field().await {
         let original = field.file_name().unwrap_or("record.wav").to_string();
@@ -75,7 +75,7 @@ pub async fn upload(State(st): State<AppState>, mut multipart: axum::extract::Mu
     let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || {
         let made = make(&ws, &pid, &super::stem(&original), &source, &original);
         if made.is_err() {
-            let _ = std::fs::remove_dir_all(lp::dir(&ws, &pid));
+            let _ = std::fs::remove_dir_all(crate::listening::project_dir(&ws, &pid));
         }
         made
     }))
@@ -134,7 +134,7 @@ pub async fn record_start(State(st): State<AppState>, headers: HeaderMap, body: 
         }
     }
     let pid = crate::platform::ids::new_id();
-    let dir = lp::dir(&st.workspace, &pid);
+    let dir = crate::listening::project_dir(&st.workspace, &pid);
     if let Err(e) = std::fs::create_dir_all(&dir) {
         return refuse(StatusCode::INTERNAL_SERVER_ERROR, "io", format!("{}: {e}", dir.display()));
     }
@@ -176,14 +176,14 @@ pub async fn record_stop(State(st): State<AppState>) -> Response {
             return Ok(made);
         }
         // the phrases heard live are the recording's first transcript, in one speaker's voice
-        let mut project = lp::load(&ws, &pid)?;
+        let mut project = crate::listening::load(&ws, &pid)?;
         project.speakers.insert("0".into(), t!("listen-speaker-n", n = 1));
         project.lines = heard
             .iter()
             .enumerate()
             .map(|(i, (start, end, text))| lp::Line { id: format!("live{i}"), start: *start, end: *end, speaker: "0".into(), words: lp::spread_words(text, *start, *end), text: text.clone(), approx: true, ..Default::default() })
             .collect();
-        lp::save(&ws, &pid, &project)?;
+        crate::listening::save(&ws, &pid, &project)?;
         Ok(json!({ "pid": pid, "project": project }))
     }))
     .await);
@@ -223,7 +223,7 @@ pub async fn record_live() -> Json<Value> {
 
 /// GET /listen/{pid} — проект.
 pub async fn get(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Response {
-    match lp::load(&st.workspace, &pid) {
+    match crate::listening::load(&st.workspace, &pid) {
         Ok(p) => Json(json!(p)).into_response(),
         Err(e) => refuse(StatusCode::NOT_FOUND, "no_project", e),
     }
@@ -234,10 +234,10 @@ pub async fn put(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(b
     let ws = st.workspace.clone();
     let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || -> Result<Value, String> {
         let mut project: ListenProject = serde_json::from_value(body).map_err(|e| e.to_string())?;
-        let was = lp::load(&ws, &pid)?;
+        let was = crate::listening::load(&ws, &pid)?;
         project.kind = lp::KIND.into();
         project.source = was.source;
-        lp::save(&ws, &pid, &project)?;
+        crate::listening::save(&ws, &pid, &project)?;
         Ok(json!(project))
     }))
     .await);
@@ -246,11 +246,11 @@ pub async fn put(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(b
 
 /// GET /listen/{pid}/audio — запись (или её AAC-копия для формата, который webview не играет) с Range.
 pub async fn audio(State(st): State<AppState>, AxPath(pid): AxPath<String>, req: axum::http::Request<axum::body::Body>) -> Response {
-    let project = match lp::load(&st.workspace, &pid) {
+    let project = match crate::listening::load(&st.workspace, &pid) {
         Ok(p) => p,
         Err(e) => return refuse(StatusCode::NOT_FOUND, "no_project", e),
     };
-    let dir = lp::dir(&st.workspace, &pid);
+    let dir = crate::listening::project_dir(&st.workspace, &pid);
     let copy = dir.join("work").join("play.m4a");
     let path = if copy.is_file() { copy } else { dir.join(&project.source) };
     if !path.is_file() {
@@ -263,7 +263,7 @@ fn enqueue_job(st: &AppState, pid: &str, kind: jobs::JobKind, run: fn(&ListenPat
     let p = paths(st);
     let (jobs, pid) = (st.jobs.clone(), pid.to_string());
     async move {
-        if let Err(e) = lp::load(&p.workspace, &pid) {
+        if let Err(e) = crate::listening::load(&p.workspace, &pid) {
             return refuse(StatusCode::NOT_FOUND, "no_project", e);
         }
         let pid2 = pid.clone();
@@ -287,7 +287,7 @@ pub async fn cut(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Res
 
 /// GET /listen/{pid}/stats — who speaks how much: talk time, share, lines, words, pace and longest stretch per speaker.
 pub async fn stats(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Response {
-    match lp::load(&st.workspace, &pid) {
+    match crate::listening::load(&st.workspace, &pid) {
         Ok(p) => Json(p.speaker_stats()).into_response(),
         Err(e) => refuse(StatusCode::NOT_FOUND, "no_project", e),
     }
@@ -317,11 +317,11 @@ pub async fn export(State(st): State<AppState>, AxPath(pid): AxPath<String>, Jso
     };
     let ws = st.workspace.clone();
     let res = joined(tokio::task::spawn_blocking(move || -> Result<Value, String> {
-        let project = lp::load(&ws, &pid)?;
+        let project = crate::listening::load(&ws, &pid)?;
         let text = crate::transcript_out::render(&project, &format, &o)?;
         let (rows, unknown) = if o.digits { crate::transcript_out::with_digits(crate::transcript_out::shown_rows(&project), &project.settings.lang)? } else { (crate::transcript_out::shown_rows(&project), 0) };
         let fast = o.rules.filter(|_| matches!(format.as_str(), "srt" | "vtt" | "ass")).map(|rules| crate::transcript_out::by_rules(&rows, rules, &project.settings.lang).1);
-        let dir = lp::dir(&ws, &pid).join("exports");
+        let dir = crate::listening::project_dir(&ws, &pid).join("exports");
         std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
         let base: String = project.name.chars().map(|c| if c.is_control() || "<>:\"/\\|?*".contains(c) { ' ' } else { c }).collect::<String>().trim().to_string();
         let file = format!("{}.{format}", if base.is_empty() { "transcript" } else { &base });
@@ -339,7 +339,7 @@ pub async fn aligned(State(st): State<AppState>, AxPath(pid): AxPath<String>, Js
     if reference.trim().is_empty() {
         return refuse(StatusCode::BAD_REQUEST, "no_reference", t!("listen-align-no-text"));
     }
-    match lp::load(&st.workspace, &pid) {
+    match crate::listening::load(&st.workspace, &pid) {
         Ok(p) if p.lines.is_empty() => refuse(StatusCode::CONFLICT, "not_transcribed", t!("listen-transcribe-first")),
         Ok(p) => Json(json!({ "lines": listen_jobs::align_to_text(&p, &reference) })).into_response(),
         Err(e) => refuse(StatusCode::NOT_FOUND, "no_project", e),
@@ -349,7 +349,7 @@ pub async fn aligned(State(st): State<AppState>, AxPath(pid): AxPath<String>, Js
 /// POST /listen/{pid}/check {reference} — распознанное против эталонного текста по словам.
 pub async fn check(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<Value>) -> Response {
     let reference = body.get("reference").and_then(Value::as_str).unwrap_or_default();
-    match lp::load(&st.workspace, &pid) {
+    match crate::listening::load(&st.workspace, &pid) {
         Ok(p) => match listen_jobs::check_reference(&p, reference) {
             Ok(report) => Json(report).into_response(),
             Err(e) => refuse(StatusCode::BAD_REQUEST, "check_failed", e),

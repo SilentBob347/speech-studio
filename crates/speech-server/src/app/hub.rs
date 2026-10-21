@@ -167,7 +167,7 @@ fn record_job(hub: Option<&studio_hub_client::Hub>, completion: &JobCompletion) 
 /// The engines a project's blocks are voiced by, each as `tts:<engine>`: a project, a character and a block each pick
 /// their own, so the studio's own choice of Higgs says nothing of them.
 fn voiced_by(pid: &str) -> Option<Vec<String>> {
-    let project = crate::speech_project::load(WORKSPACE.get()?, pid).ok()?;
+    let project = crate::speech::load(WORKSPACE.get()?, pid).ok()?;
     let engines: std::collections::BTreeSet<String> = project.blocks().map(|b| format!("tts:{}", project.engine_of(b))).collect();
     (!engines.is_empty()).then(|| engines.into_iter().collect())
 }

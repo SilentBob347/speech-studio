@@ -11,3 +11,6 @@ mod speakers;
 pub(crate) use source::{create_from_source, file_key, project_of_file, stem};
 pub(crate) use transcript::export_transcript;
 pub(crate) use speakers::speakers_audio;
+
+mod storage;
+pub(crate) use storage::{load, save, project_dir, source_path};

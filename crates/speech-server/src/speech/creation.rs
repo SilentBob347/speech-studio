@@ -20,7 +20,7 @@ impl TranscriptProject {
 
     pub(crate) fn create(self, workspace: &Path) -> Result<String, String> {
         let pid = crate::platform::ids::new_id();
-        project::save(workspace, &pid, &self.project)?;
+        super::save(workspace, &pid, &self.project)?;
         Ok(pid)
     }
 }

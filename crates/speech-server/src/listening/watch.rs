@@ -340,17 +340,17 @@ async fn one(
     let (engine, lang) = (config.engine.clone(), config.lang.clone());
     let pid = tokio::task::spawn_blocking(move || -> Result<String, String> {
         let (pid, _) = super::project_of_file(&ws, &owned)?;
-        let mut project = lp::load(&ws, &pid)?;
+        let mut project = crate::listening::load(&ws, &pid)?;
         if project.lines.is_empty() && (project.settings.engine != engine || project.settings.lang != lang) {
             project.settings.engine = engine;
             project.settings.lang = if lang.is_empty() { "auto".into() } else { lang };
-            lp::save(&ws, &pid, &project)?;
+            crate::listening::save(&ws, &pid, &project)?;
         }
         Ok(pid)
     })
     .await
     .map_err(|_| t!("watch-broke"))??;
-    let transcribed = !lp::load(&deps.paths.workspace, &pid)?.lines.is_empty();
+    let transcribed = !crate::listening::load(&deps.paths.workspace, &pid)?.lines.is_empty();
     if !transcribed {
         let job = make_job(deps.paths.clone(), pid.clone());
         let (_, done) = deps
@@ -363,7 +363,7 @@ async fn one(
             })?;
         done.await.map_err(|_| t!("watch-broke"))??;
     }
-    let project = lp::load(&deps.paths.workspace, &pid)?;
+    let project = crate::listening::load(&deps.paths.workspace, &pid)?;
     let out = if config.out.is_empty() {
         PathBuf::from(&config.folder)
     } else {

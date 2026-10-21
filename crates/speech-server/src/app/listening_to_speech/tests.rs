@@ -8,8 +8,7 @@ use tower::ServiceExt;
 
 use super::*;
 use crate::app::context::RequestContext;
-use crate::listening::project::{self as lp, Line, ListenProject};
-use crate::speech::project as sp;
+use crate::listening::project::{Line, ListenProject};
 use crate::AppState;
 
 fn fixture(workspace: &Path, lines: Vec<Line>) -> String {
@@ -22,7 +21,7 @@ fn fixture(workspace: &Path, lines: Vec<Line>) -> String {
     ]
     .into();
     project.lines = lines;
-    lp::save(workspace, &pid, &project).unwrap();
+    crate::listening::save(workspace, &pid, &project).unwrap();
     pid
 }
 
@@ -61,7 +60,7 @@ fn conversion_keeps_verbatim_text_order_speaker_names_times_and_existing_voice_m
     let revision = crate::app::revisions::revision(&pid);
     let new_pid = convert(&workspace, &voices, &pid).unwrap();
     assert_ne!(new_pid, pid);
-    let project = sp::load(&workspace, &new_pid).unwrap();
+    let project = crate::speech::load(&workspace, &new_pid).unwrap();
     assert_eq!(project.name, "Запись");
     assert!(project.settings.timeline);
     let blocks: Vec<_> = project.blocks().collect();
@@ -152,7 +151,7 @@ async fn http_conversion_keeps_the_pid_envelope_errors_and_request_context() {
     assert_eq!(target.len(), 10);
     assert_eq!(outcome.saved_revision(), Some(1));
     assert!(!outcome.conflicted());
-    assert_eq!(sp::load(&workspace, target).unwrap().blocks().count(), 1);
+    assert_eq!(crate::speech::load(&workspace, target).unwrap().blocks().count(), 1);
     for (source, detail) in [
         (empty.as_str(), t!("listen-empty")),
         ("Missing", t!("project-missing", pid = "Missing".to_string())),

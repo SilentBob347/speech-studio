@@ -2,11 +2,10 @@ use std::path::Path;
 
 use serde_json::{json, Value};
 
-use crate::listening::project as lp;
 
 pub(crate) fn extract(ws: &Path, voices_dir: &Path, models_root: &Path, pid: &str, only: Option<&str>) -> Result<Value, String> {
-    let project = lp::load(ws, pid)?;
-    let dir = lp::dir(ws, pid);
+    let project = crate::listening::load(ws, pid)?;
+    let dir = crate::listening::project_dir(ws, pid);
     let clean = dir.join("work").join("vocals16.wav");
     let pick_wav = if clean.is_file() {
         clean
@@ -16,7 +15,7 @@ pub(crate) fn extract(ws: &Path, voices_dir: &Path, models_root: &Path, pid: &st
     if !pick_wav.is_file() {
         return Err(t!("listen-transcribe-first"));
     }
-    let src = lp::source_path(ws, pid, &project)?;
+    let src = crate::listening::source_path(ws, pid, &project)?;
     let stems_vocals = dir.join("work").join("stems").join("vocals.wav");
     let cut_from = if stems_vocals.is_file() { stems_vocals } else { src };
     let (samples, sr) = crate::wavio::read_mono_f32(&pick_wav)?;

@@ -2,10 +2,9 @@
 //! с таймкодами и пометкой «вырезать». Тот же `project.json` и те же ревизии, что у проекта Speech; вид — `listening`.
 
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 pub const KIND: &str = "listening";
 pub const MAX_SPEAKERS: u8 = 8;
@@ -308,50 +307,6 @@ pub fn is_media(name: &str) -> bool {
     Path::new(name).extension().and_then(|e| e.to_str()).is_some_and(|e| MEDIA.contains(&e.to_ascii_lowercase().as_str()))
 }
 
-pub fn dir(workspace: &Path, pid: &str) -> PathBuf {
-    workspace.join(pid)
-}
-
-pub fn load(workspace: &Path, pid: &str) -> Result<ListenProject, String> {
-    if !crate::platform::workspace::is_pid(pid) {
-        return Err(format!("bad project id {pid}"));
-    }
-    let p = crate::platform::workspace::project_file(workspace, pid);
-    let text = std::fs::read_to_string(&p).map_err(|e| {
-        if e.kind() == std::io::ErrorKind::NotFound { t!("project-missing", pid = pid.to_string()) } else { format!("{}: {e}", p.display()) }
-    })?;
-    let v: Value = serde_json::from_str(&text).map_err(|e| format!("{}: {e}", p.display()))?;
-    if v.get("kind").and_then(Value::as_str) != Some(KIND) {
-        return Err(format!("project {pid} is not a listening project"));
-    }
-    serde_json::from_value(v).map_err(|e| format!("{}: {e}", p.display()))
-}
-
-pub fn save(workspace: &Path, pid: &str, project: &ListenProject) -> Result<(), String> {
-    project.validate()?;
-    let dir = dir(workspace, pid);
-    std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-    let text = serde_json::to_string_pretty(project).map_err(|e| e.to_string())?;
-    crate::app::revisions::save_with_revision(&dir, || crate::platform::fs::write_atomic(&dir.join("project.json"), text.as_bytes()))
-}
-
-/// Новый проект вокруг файла, уже лежащего в его папке; длительность — по ffprobe. Субтитры площадки рядом
-/// (`import_subs.srt`) сразу становятся транскриптом с приблизительными словами.
-pub fn create_in(workspace: &Path, pid: &str, name: &str, source: &str, origin: &str) -> Result<ListenProject, String> {
-    let d = dir(workspace, pid);
-    let mut project = ListenProject::new(name, source, origin);
-    project.duration = crate::media::probe(&d.join(source)).map(|m| m.duration).unwrap_or(0.0);
-    if let Ok(text) = std::fs::read_to_string(d.join("import_subs.srt")) {
-        let cues = crate::subimport::parse(&text, "srt");
-        if !cues.is_empty() {
-            project.lines = from_cues(&cues, &mut project.speakers);
-            project.made = Some(Made { by: "subs".into(), at: crate::platform::time::unix_seconds(), ..Default::default() });
-        }
-    }
-    save(workspace, pid, &project)?;
-    Ok(project)
-}
-
 /// Строки из субтитров: спикеры из меток субтитров, иначе один; слова — по длине внутри реплики.
 pub fn from_cues(cues: &[crate::subimport::Cue], speakers: &mut BTreeMap<String, String>) -> Vec<Line> {
     cues.iter()
@@ -388,15 +343,6 @@ pub fn spread_words(text: &str, start: f64, end: f64) -> Vec<Word> {
             word
         })
         .collect()
-}
-
-/// Файл записи проекта.
-pub fn source_path(workspace: &Path, pid: &str, project: &ListenProject) -> Result<PathBuf, String> {
-    let p = dir(workspace, pid).join(&project.source);
-    if project.source.is_empty() || !p.is_file() {
-        return Err(t!("listen-no-source"));
-    }
-    Ok(p)
 }
 
 #[cfg(test)]

@@ -90,7 +90,7 @@ pub fn interrupt(st: &AppState) -> bool {
     let now = std::time::Instant::now();
     INTERRUPTED.lock().unwrap_or_else(|p| p.into_inner()).retain(|_, at| at.elapsed().as_secs() < INTERRUPTED_SECS);
     for sid in open.iter() {
-        if let Ok(project) = sp::load(&st.workspace, sid) {
+        if let Ok(project) = crate::speech::load(&st.workspace, sid) {
             INTERRUPTED.lock().unwrap_or_else(|p| p.into_inner()).extend(project.blocks().filter(|b| b.takes.is_empty()).map(|b| (b.id.clone(), now)));
         }
         crate::speech_jobs::unqueue(sid, None);
@@ -244,7 +244,7 @@ pub async fn start(State(st): State<AppState>, Json(body): Json<Value>) -> Respo
     // a phrase said aloud is heard as it is made: no check after it, no second take of it
     project.settings.qc.heuristics = Vec::new();
     let pid = sp::new_id();
-    if let Err(e) = sp::save(&st.workspace, &pid, &project) {
+    if let Err(e) = crate::speech::save(&st.workspace, &pid, &project) {
         return refuse(StatusCode::INTERNAL_SERVER_ERROR, "save_failed", e);
     }
     let follows = own_engine.is_none() && field("voice").is_none();
@@ -312,7 +312,7 @@ async fn voice(st: AppState, sid: String, phrases: Vec<String>, direction: Strin
     let chosen = follows.then(|| talk_voice(&st)).filter(|c| !c.engine.is_empty());
     let manifest = chosen.as_ref().and_then(|c| crate::engines::get(&c.engine));
     let speaker = t!("speech-narrator");
-    let added = sp::edit(&st.workspace, &sid, |project| {
+    let added = crate::speech::edit(&st.workspace, &sid, |project| {
         if let (Some(c), Some(m)) = (&chosen, &manifest) {
             let s = &mut project.settings;
             if s.engine != c.engine || s.voice != c.voice {
@@ -363,7 +363,7 @@ async fn failed_job_marks_phrases(st: AppState, sid: String, job_id: String, ids
         }
     };
     let Some(error) = end.filter(|s| s["status"] == "error").and_then(|s| s["error"].as_str().map(str::to_string)) else { return };
-    let marked = sp::edit(&st.workspace, &sid, |project| {
+    let marked = crate::speech::edit(&st.workspace, &sid, |project| {
         for id in &ids {
             if let Some(b) = project.block_mut(id).filter(|b| b.takes.is_empty() && b.error.is_none()) {
                 b.error = Some(sp::BlockError { key: String::new(), text: error.clone() });
@@ -398,7 +398,7 @@ pub async fn stop(State(st): State<AppState>, AxPath(sid): AxPath<String>) -> Re
 /// GET /speech/say/{session}[?last=N] — what was said and how soon each phrase was heard, what waits, whether it is
 /// open; with `last`, only the last N phrases.
 pub async fn state(State(st): State<AppState>, AxPath(sid): AxPath<String>, axum::extract::Query(q): axum::extract::Query<HashMap<String, String>>) -> Response {
-    let project = match sp::load(&st.workspace, &sid) {
+    let project = match crate::speech::load(&st.workspace, &sid) {
         Ok(p) => p,
         Err(e) => return refuse(StatusCode::NOT_FOUND, "no_project", e),
     };

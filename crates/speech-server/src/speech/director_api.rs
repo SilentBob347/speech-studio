@@ -79,7 +79,7 @@ pub async fn podcast(State(st): State<AppState>, Json(req): Json<PodcastReq>) ->
         let blocks = lines.into_iter().map(|l| Block { id: sp::new_id(), speaker: l.speaker, text: l.text.trim().to_string(), direction: l.direction.trim().to_string(), ..Default::default() }).collect();
         project.chapters.push(sp::Chapter { id: sp::new_id(), title: String::new(), blocks });
         let pid = sp::new_id();
-        sp::save(&p.workspace, &pid, &project)?;
+        crate::speech::save(&p.workspace, &pid, &project)?;
         step(&cb, t!("director-done"), 100);
         Ok(json!({ "project_id": pid }))
     });
@@ -96,7 +96,7 @@ pub struct CastReq {
 
 /// POST /projects/{pid}/cast {chapter} — разметить главу на рассказчика и персонажей задачей; блоки главы заменяются.
 pub async fn cast(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(req): Json<CastReq>) -> Response {
-    let project = match sp::load(&st.workspace, &pid) {
+    let project = match crate::speech::load(&st.workspace, &pid) {
         Ok(p) => p,
         Err(e) => return refuse(StatusCode::NOT_FOUND, "no_project", e),
     };
@@ -107,7 +107,7 @@ pub async fn cast(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(
     let pid2 = pid.clone();
     let job: jobs::JobFn = Box::new(move |progress: jobs::ProgressFn| {
         let cb = |ev: Value| progress(ev);
-        let project = sp::load(&p.workspace, &pid2)?;
+        let project = crate::speech::load(&p.workspace, &pid2)?;
         let chapter = project.chapters.iter().find(|c| c.id == req.chapter).ok_or_else(|| req.chapter.clone())?;
         let text = chapter.blocks.iter().filter(|b| !b.hidden).map(|b| b.text.trim()).filter(|t| !t.is_empty()).collect::<Vec<_>>().join("\n\n");
         let narrator = t!("speech-narrator");
@@ -125,7 +125,7 @@ pub async fn cast(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(
             step(&cb, t!("director-casting", n = n as i64, total = of as i64), (5 + n * 90 / of.max(1)) as i64);
         })?;
         let made = lines.len();
-        sp::edit(&p.workspace, &pid2, |fresh| {
+        crate::speech::edit(&p.workspace, &pid2, |fresh| {
             if let Some(ch) = fresh.chapters.iter_mut().find(|c| c.id == req.chapter) {
                 ch.blocks = lines.into_iter().map(|l| Block { id: sp::new_id(), speaker: l.speaker, text: l.text.trim().to_string(), direction: l.direction.trim().to_string(), ..Default::default() }).collect();
             }
@@ -160,14 +160,14 @@ pub struct EnrichReq {
 /// POST /projects/{pid}/enrich {ids?} — режиссёр предлагает теги экспрессии по смыслу (только теги движка блока,
 /// слова не меняются) задачей; проект не меняется, ответ — что было и что станет: применяет окно или агент.
 pub async fn enrich(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(req): Json<EnrichReq>) -> Response {
-    if let Err(e) = sp::load(&st.workspace, &pid) {
+    if let Err(e) = crate::speech::load(&st.workspace, &pid) {
         return refuse(StatusCode::NOT_FOUND, "no_project", e);
     }
     let p = paths(&st);
     let pid2 = pid.clone();
     let job: jobs::JobFn = Box::new(move |progress: jobs::ProgressFn| {
         let cb = |ev: Value| progress(ev);
-        let project = sp::load(&p.workspace, &pid2)?;
+        let project = crate::speech::load(&p.workspace, &pid2)?;
         let wanted = |b: &&Block| !b.hidden && !b.text.trim().is_empty() && req.ids.as_ref().is_none_or(|ids| ids.contains(&b.id));
         if req.mode.as_deref() == Some("punctuation") {
             let blocks: Vec<(String, String, String)> = project.blocks().filter(wanted).map(|b| (b.id.clone(), b.speaker.clone(), b.text.clone())).collect();

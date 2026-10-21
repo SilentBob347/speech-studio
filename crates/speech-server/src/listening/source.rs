@@ -21,9 +21,26 @@ fn play_copy(dir: &Path, source: &str) -> Result<(), String> {
 
 /// Проект вокруг файла, уже лежащего в папке `pid`.
 pub(crate) fn create_from_source(workspace: &Path, pid: &str, name: &str, source: &str, origin: &str) -> Result<lp::ListenProject, String> {
-    let dir = lp::dir(workspace, pid);
+    let dir = crate::listening::project_dir(workspace, pid);
     play_copy(&dir, source)?;
-    lp::create_in(workspace, pid, name, source, origin)
+    create_in(workspace, pid, name, source, origin)
+}
+
+/// Новый проект вокруг файла, уже лежащего в его папке; длительность — по ffprobe. Субтитры площадки рядом
+/// (`import_subs.srt`) сразу становятся транскриптом с приблизительными словами.
+fn create_in(workspace: &Path, pid: &str, name: &str, source: &str, origin: &str) -> Result<lp::ListenProject, String> {
+    let d = super::project_dir(workspace, pid);
+    let mut project = lp::ListenProject::new(name, source, origin);
+    project.duration = crate::media::probe(&d.join(source)).map(|m| m.duration).unwrap_or(0.0);
+    if let Ok(text) = std::fs::read_to_string(d.join("import_subs.srt")) {
+        let cues = crate::subimport::parse(&text, "srt");
+        if !cues.is_empty() {
+            project.lines = lp::from_cues(&cues, &mut project.speakers);
+            project.made = Some(lp::Made { by: "subs".into(), at: crate::platform::time::unix_seconds(), ..Default::default() });
+        }
+    }
+    super::save(workspace, pid, &project)?;
+    Ok(project)
 }
 
 pub(crate) fn stem(file: &str) -> String {
@@ -48,13 +65,13 @@ pub(crate) fn project_of_file(ws: &Path, path: &Path) -> Result<(String, bool), 
     let key = file_key(path, "listen")?;
     let found = std::fs::read_dir(ws).map_err(|e| e.to_string())?.flatten().find_map(|e| {
         let pid = e.file_name().to_string_lossy().into_owned();
-        lp::load(ws, &pid).ok().filter(|p| p.key == key).map(|_| pid)
+        crate::listening::load(ws, &pid).ok().filter(|p| p.key == key).map(|_| pid)
     });
     if let Some(pid) = found {
         return Ok((pid, true));
     }
     let pid = crate::platform::ids::new_id();
-    let dir = lp::dir(ws, &pid);
+    let dir = crate::listening::project_dir(ws, &pid);
     std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("wav").to_ascii_lowercase();
     let source = format!("source.{ext}");
@@ -67,9 +84,9 @@ pub(crate) fn project_of_file(ws: &Path, path: &Path) -> Result<(String, bool), 
         let _ = std::fs::remove_dir_all(&dir);
     }
     made?;
-    let mut project = lp::load(ws, &pid)?;
+    let mut project = crate::listening::load(ws, &pid)?;
     project.key = key;
-    lp::save(ws, &pid, &project)?;
+    crate::listening::save(ws, &pid, &project)?;
     Ok((pid, false))
 }
 

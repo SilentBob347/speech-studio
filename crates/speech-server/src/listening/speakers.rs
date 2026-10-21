@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use super::project as lp;
 
 const SR: u32 = 16_000;
 
@@ -12,8 +11,8 @@ pub(crate) struct SpeakersAudio {
 
 /// Whole lines are appended until `max_secs` is reached; the last line is not cut. Hidden lines are excluded.
 pub(crate) fn speakers_audio(workspace: &Path, pid: &str, min_secs: f64, max_secs: f64) -> Result<SpeakersAudio, String> {
-    let project = lp::load(workspace, pid)?;
-    let dir = lp::dir(workspace, pid);
+    let project = crate::listening::load(workspace, pid)?;
+    let dir = crate::listening::project_dir(workspace, pid);
     let clean = dir.join("work").join("vocals16.wav");
     let wav = if clean.is_file() {
         clean

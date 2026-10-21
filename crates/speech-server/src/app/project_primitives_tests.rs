@@ -44,13 +44,13 @@ fn old_projects_accept_short_uppercase_and_long_ids_without_rewriting_files() {
         let listening_root = root.path().join("listening");
         let speech_path = fixture(&speech_root, pid, SPEECH);
         let listening_path = fixture(&listening_root, pid, LISTENING);
-        let spoken = speech::load(&speech_root, pid).unwrap();
+        let spoken = crate::speech::load(&speech_root, pid).unwrap();
         assert_eq!(spoken.created, 1_700_000_123);
         assert_eq!(spoken.chapters[0].id, "chapter-old");
         assert_eq!(spoken.blocks().next().unwrap().takes[0].created, 1_700_000_456);
         assert_eq!(spoken.dictionary[0].id, "old-rule:ё");
         assert_eq!(spoken.settings.engine, "higgs");
-        let heard = listening::load(&listening_root, pid).unwrap();
+        let heard = crate::listening::load(&listening_root, pid).unwrap();
         assert_eq!(heard.created, 1_700_000_123);
         assert_eq!(heard.made.as_ref().unwrap().at, 1_700_000_456);
         assert_eq!(heard.lines[0].id, "line-old");
@@ -68,16 +68,16 @@ fn saving_old_projects_keeps_the_layout_timestamps_and_revisions() {
     let heard_pid = format!("LegacyListen{}", ids::new_id());
     let speech_path = fixture(root.path(), &spoken_pid, SPEECH);
     let listening_path = fixture(root.path(), &heard_pid, LISTENING);
-    let mut spoken = speech::load(root.path(), &spoken_pid).unwrap();
-    let mut heard = listening::load(root.path(), &heard_pid).unwrap();
+    let mut spoken = crate::speech::load(root.path(), &spoken_pid).unwrap();
+    let mut heard = crate::listening::load(root.path(), &heard_pid).unwrap();
     spoken.name = "Озвучка после правки".into();
     heard.name = "Запись после правки".into();
     let spoken_rev = super::revisions::revision(&spoken_pid);
     let heard_rev = super::revisions::revision(&heard_pid);
-    speech::save(root.path(), &spoken_pid, &spoken).unwrap();
-    listening::save(root.path(), &heard_pid, &heard).unwrap();
-    assert_eq!(speech::load(root.path(), &spoken_pid).unwrap(), spoken);
-    assert_eq!(listening::load(root.path(), &heard_pid).unwrap(), heard);
+    crate::speech::save(root.path(), &spoken_pid, &spoken).unwrap();
+    crate::listening::save(root.path(), &heard_pid, &heard).unwrap();
+    assert_eq!(crate::speech::load(root.path(), &spoken_pid).unwrap(), spoken);
+    assert_eq!(crate::listening::load(root.path(), &heard_pid).unwrap(), heard);
     assert_eq!(super::revisions::revision(&spoken_pid), spoken_rev + 1);
     assert_eq!(super::revisions::revision(&heard_pid), heard_rev + 1);
     for path in [speech_path, listening_path] {
@@ -116,8 +116,8 @@ fn invalid_project_ids_are_rejected_before_reading_outside_the_workspace() {
         "a\0b",
     ] {
         let expected = format!("bad project id {pid}");
-        assert_eq!(speech::load(&workspace, pid).unwrap_err(), expected);
-        assert_eq!(listening::load(&workspace, pid).unwrap_err(), expected);
+        assert_eq!(crate::speech::load(&workspace, pid).unwrap_err(), expected);
+        assert_eq!(crate::listening::load(&workspace, pid).unwrap_err(), expected);
     }
     assert_eq!(fs::read_to_string(outside_speech).unwrap(), SPEECH);
     assert_eq!(fs::read_to_string(outside_listening).unwrap(), LISTENING);
@@ -129,23 +129,23 @@ fn valid_ids_keep_missing_wrong_kind_and_invalid_json_errors() {
     let _language = crate::i18n::test_language("ru");
     let root = tempfile::tempdir().unwrap();
     let missing = t!("project-missing", pid = "Missing123".to_string());
-    assert_eq!(speech::load(root.path(), "Missing123").unwrap_err(), missing);
-    assert_eq!(listening::load(root.path(), "Missing123").unwrap_err(), missing);
+    assert_eq!(crate::speech::load(root.path(), "Missing123").unwrap_err(), missing);
+    assert_eq!(crate::listening::load(root.path(), "Missing123").unwrap_err(), missing);
     fixture(root.path(), "WrongForSpeech", LISTENING);
     fixture(root.path(), "WrongForListen", SPEECH);
     assert_eq!(
-        speech::load(root.path(), "WrongForSpeech").unwrap_err(),
+        crate::speech::load(root.path(), "WrongForSpeech").unwrap_err(),
         "project WrongForSpeech is not a speech project"
     );
     assert_eq!(
-        listening::load(root.path(), "WrongForListen").unwrap_err(),
+        crate::listening::load(root.path(), "WrongForListen").unwrap_err(),
         "project WrongForListen is not a listening project"
     );
     let broken = fixture(root.path(), "BrokenJSON", "{");
-    assert!(speech::load(root.path(), "BrokenJSON")
+    assert!(crate::speech::load(root.path(), "BrokenJSON")
         .unwrap_err()
         .starts_with(&format!("{}:", broken.display())));
-    assert!(listening::load(root.path(), "BrokenJSON")
+    assert!(crate::listening::load(root.path(), "BrokenJSON")
         .unwrap_err()
         .starts_with(&format!("{}:", broken.display())));
 }

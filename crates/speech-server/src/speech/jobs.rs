@@ -3,6 +3,8 @@
 //! FLAC в `takes/`. Экспорт склеивает выбранные дубли с паузами (отрицательная — перекрытие), ставит громкость
 //! пресета в два прохода и кодирует в нужный формат; блоки без звука или устаревшие экспорт не пропускает.
 
+use super::naming::{name_keys, EXPORT_NAME_KEYS};
+
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
@@ -97,7 +99,7 @@ pub fn keys(p: &SpeechPaths, project: &SpeechProject) -> BTreeMap<String, String
                 .entry((own.to_string(), voice.clone()))
                 .or_insert_with(|| match preset_of(own, voice.as_deref()) {
                     Some(preset) => format!("preset:{preset}"),
-                    None => sp::voice_tag(&p.voices_dir, voice.as_deref()),
+                    None => crate::speech::voice_tag(&p.voices_dir, voice.as_deref()),
                 })
                 .clone();
             let prep = preparation::fingerprint(&b.text, &prep_opts(p, project, project.lang_of(b), own, voice.as_deref(), &entries, project.settings.auto_stress), &compiled);
@@ -283,7 +285,7 @@ fn synth_block_cloud(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Bl
 /// или пачкой, по режиму; синтез блоков берёт звук оттуда. Фразы собираются тем же разбором, что и в
 /// `synth_block_cloud`, с номерами дублей, которые получат блоки (`takes` на блок при нескольких дублях).
 fn google_prefetch(p: &SpeechPaths, pid: &str, ids: &[String], force: bool, takes: u32, progress: &dyn Fn(Value)) -> Result<(), String> {
-    let project = sp::load(&p.workspace, pid)?;
+    let project = crate::speech::load(&p.workspace, pid)?;
     let g = crate::google_speech::setup(&p.models_root, &project.settings.cloud_model, &project.settings.cloud_voice)?;
     let entries = dictionary(p, &project);
     let mut keys = keys(p, &project);
@@ -627,7 +629,7 @@ fn take_params(base: &tts_host::Params, n: u32) -> tts_host::Params {
 /// A dictionary rule tried by ear: the phrase as written (no dictionaries) and with this one rule, in the voice asked or
 /// the project's, by the project's local engine. The audio is kept in the project's `tries/` by what it was made of.
 pub fn try_rule(p: &SpeechPaths, pid: &str, phrase: &str, rule: crate::pron_dict::Entry, voice: Option<String>, progress: &dyn Fn(Value)) -> Result<Value, String> {
-    let project = sp::load(&p.workspace, pid)?;
+    let project = crate::speech::load(&p.workspace, pid)?;
     let b = Block { id: "try".into(), voice: voice.filter(|v| !v.trim().is_empty()), text: phrase.trim().to_string(), ..Default::default() };
     if crate::engines::is_cloud(project.engine_of(&b)) {
         return Err(t!("dict-try-local-only"));
@@ -721,7 +723,7 @@ fn voice_block(p: &SpeechPaths, pid: &str, id: &str, count: u32, source: &str, p
         if crate::jobs::current().is_some_and(|c| c.is_cancelled()) {
             return Err(crate::jobs::CANCELLED.to_string());
         }
-        let project = sp::load(&p.workspace, pid)?;
+        let project = crate::speech::load(&p.workspace, pid)?;
         let Some(b) = project.blocks().find(|b| b.id == id).cloned() else { return Ok(made) };
         let key = keys(p, &project).remove(id).unwrap_or_default();
         let n = b.takes.iter().map(|t| t.n).max().unwrap_or(0) + 1;
@@ -735,7 +737,7 @@ fn voice_block(p: &SpeechPaths, pid: &str, id: &str, count: u32, source: &str, p
             take.source = source.into();
             Ok((take, ignored))
         });
-        let kept = sp::edit(&p.workspace, pid, |fresh| {
+        let kept = crate::speech::edit(&p.workspace, pid, |fresh| {
             let block = fresh.block_mut(id)?;
             Some(match result {
                 Ok((take, ignored)) => {
@@ -843,7 +845,7 @@ fn sound_flags(take: &Take, spoken: &str, lang: &str, file: &Path, want: &[Strin
 /// `recognise` checks the text by recognition whatever the project's settings say.
 fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, recognise: bool, progress: &dyn Fn(Value)) -> Result<Vec<String>, String> {
     tts_host::make_room();
-    let settings = sp::load(&p.workspace, pid)?.settings;
+    let settings = crate::speech::load(&p.workspace, pid)?.settings;
     let asr_on = recognise || settings.qc.asr_check || settings.qc.takes > 1;
     let sim_on = settings.qc.similarity;
     let want = settings.qc.heuristics.clone();
@@ -860,7 +862,7 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, re
     let threshold = dub_faces::voice_cos_threshold() as f64;
     // every new take recognised up front, a language's takes in one batch, instead of one after another below
     let mut heard_all = if asr_on {
-        let project = sp::load(&p.workspace, pid)?;
+        let project = crate::speech::load(&p.workspace, pid)?;
         let mut files = Vec::new();
         for (id, takes) in made {
             let Some(b) = project.blocks().find(|b| &b.id == id) else { continue };
@@ -876,7 +878,7 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, re
     let mut failed = Vec::new();
     for (i, (id, takes)) in made.iter().enumerate() {
         progress(json!({ "type": "progress", "stage": "speech_qc", "msg": t!("speech-qc-block", n = (i + 1) as i64, total = made.len() as i64), "pct": (i * 100 / made.len().max(1)) as i64 }));
-        let project = sp::load(&p.workspace, pid)?;
+        let project = crate::speech::load(&p.workspace, pid)?;
         let Some(b) = project.blocks().find(|b| &b.id == id).cloned() else { continue };
         let lang = project.lang_of(&b).to_string();
         let strictness = project.settings.qc.strictness.clone();
@@ -961,7 +963,7 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, re
             checks.push((*n, check));
         }
         let rank = |c: &crate::qc::Check| (!c.ok(), c.wer, -c.similarity.unwrap_or(0.0));
-        let bad = sp::edit(&p.workspace, pid, |fresh| {
+        let bad = crate::speech::edit(&p.workspace, pid, |fresh| {
             let block = fresh.block_mut(id)?;
             for (n, c) in &checks {
                 if let Some(t) = block.takes.iter_mut().find(|t| t.n == *n) {
@@ -1024,7 +1026,7 @@ pub fn synth(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Value)
 
 fn synth_scope(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Value)) -> Result<Value, String> {
     REPEAT_SEED.with(|s| s.set(scope.seed));
-    let project = sp::load(&p.workspace, pid)?;
+    let project = crate::speech::load(&p.workspace, pid)?;
     let qc = project.settings.qc.clone();
     let random_seed = project.settings.params.seed_mode != "fixed";
     let order: Vec<String> = project.blocks().map(|b| b.id.clone()).collect();
@@ -1056,7 +1058,7 @@ fn synth_scope(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Valu
     let mut made: BTreeMap<String, Vec<u32>> = BTreeMap::new();
     let total = wanted.len();
     for (i, id) in wanted.iter().enumerate() {
-        let project = sp::load(&p.workspace, pid)?;
+        let project = crate::speech::load(&p.workspace, pid)?;
         let Some(b) = project.blocks().find(|b| &b.id == id).cloned() else { continue };
         let key = keys(p, &project).remove(id).unwrap_or_default();
         let state = sp::status(&b, &key);
@@ -1352,13 +1354,13 @@ fn voiced<'a>(b: &'a sp::Block, state: &str, key: &str) -> Option<&'a sp::Take> 
 /// a tail or a gap cut, or the block voiced again whole when nothing can be mended in place. The new take is checked by
 /// recognition and becomes the active one when it does better than the old.
 pub fn fix_take(p: &SpeechPaths, pid: &str, id: &str, progress: &dyn Fn(Value)) -> Result<Value, String> {
-    let project = sp::load(&p.workspace, pid)?;
+    let project = crate::speech::load(&p.workspace, pid)?;
     let b = project.blocks().find(|b| b.id == id).cloned().ok_or_else(|| t!("speech-no-block", id = id.to_string()))?;
     let old = b.active.and_then(|n| b.takes.iter().find(|t| t.n == n)).cloned().ok_or_else(|| t!("speech-fix-no-take"))?;
     if !old.qc.as_ref().is_some_and(|c| c.text_checked) {
         check_takes(p, pid, &BTreeMap::from([(id.to_string(), vec![old.n])]), true, progress)?;
     }
-    let project = sp::load(&p.workspace, pid)?;
+    let project = crate::speech::load(&p.workspace, pid)?;
     let b = project.blocks().find(|b| b.id == id).cloned().ok_or_else(|| t!("speech-no-block", id = id.to_string()))?;
     let old = b.takes.iter().find(|t| t.n == old.n).cloned().ok_or_else(|| t!("speech-fix-no-take"))?;
     let qc = old.qc.clone().unwrap_or_default();
@@ -1388,7 +1390,7 @@ pub fn fix_take(p: &SpeechPaths, pid: &str, id: &str, progress: &dyn Fn(Value)) 
         crate::media::extract_audio(&takes_dir(p, pid).join(&old.file), &wav, SR, 1)?;
         let (x, sr) = crate::wavio::read_mono_f32(&wav)?;
         let out = crate::take_fix::splice(&x, sr, &plan.edits, &pieces);
-        sp::edit(&p.workspace, pid, |fresh| -> Result<u32, String> {
+        crate::speech::edit(&p.workspace, pid, |fresh| -> Result<u32, String> {
             let key = keys(p, fresh).remove(id).unwrap_or_default();
             let block = fresh.block_mut(id).ok_or_else(|| t!("speech-no-block", id = id.to_string()))?;
             let n = block.takes.iter().map(|t| t.n).max().unwrap_or(0) + 1;
@@ -1416,7 +1418,7 @@ pub fn fix_take(p: &SpeechPaths, pid: &str, id: &str, progress: &dyn Fn(Value)) 
     };
     let failed = check_takes(p, pid, &BTreeMap::from([(id.to_string(), vec![n])]), true, progress)?;
     let rank = |c: &crate::qc::Check| (!c.ok(), c.wer, c.issues.len());
-    let kept = sp::edit(&p.workspace, pid, |fresh| {
+    let kept = crate::speech::edit(&p.workspace, pid, |fresh| {
         let block = fresh.block_mut(id)?;
         let new = block.takes.iter().find(|t| t.n == n).and_then(|t| t.qc.clone()).unwrap_or_default();
         if block.pinned.is_none() && rank(&new) > rank(&qc) {
@@ -1450,7 +1452,7 @@ pub fn ab_takes(p: &SpeechPaths, pid: &str, id: &str, sides: &[sp::AbSide], prog
             return Err(crate::jobs::CANCELLED.to_string());
         }
         progress(json!({ "type": "progress", "stage": "speech_ab", "msg": t!("speech-ab-side", n = (i + 1) as i64), "pct": (i * 50) as i64 }));
-        let mut project = sp::load(&p.workspace, pid)?;
+        let mut project = crate::speech::load(&p.workspace, pid)?;
         let block = project.block_mut(id).ok_or_else(|| t!("speech-no-block", id = id.to_string()))?;
         block.engine = Some(side.engine.clone());
         if side.voice.is_some() {
@@ -1467,7 +1469,7 @@ pub fn ab_takes(p: &SpeechPaths, pid: &str, id: &str, sides: &[sp::AbSide], prog
         take.file = file;
         take.key = key;
         take.source = "ab".into();
-        sp::edit(&p.workspace, pid, |fresh| match fresh.block_mut(id) {
+        crate::speech::edit(&p.workspace, pid, |fresh| match fresh.block_mut(id) {
             Some(block) => {
                 block.takes.push(take);
                 Ok(())
@@ -1480,7 +1482,7 @@ pub fn ab_takes(p: &SpeechPaths, pid: &str, id: &str, sides: &[sp::AbSide], prog
 }
 
 fn mark_checked(p: &SpeechPaths, pid: &str, checked: &[String], failed: &[String]) -> Result<(), String> {
-    sp::edit(&p.workspace, pid, |fresh| {
+    crate::speech::edit(&p.workspace, pid, |fresh| {
         let keys = keys(p, fresh);
         for id in checked {
             let key = keys.get(id).cloned().unwrap_or_default();
@@ -1506,7 +1508,7 @@ fn mark_checked(p: &SpeechPaths, pid: &str, checked: &[String], failed: &[String
 
 /// The ready blocks' takes checked by recognition after the fact: those of `ids`, or every one not checked yet.
 pub fn check_ready(p: &SpeechPaths, pid: &str, ids: Option<&[String]>, progress: &dyn Fn(Value)) -> Result<Value, String> {
-    let project = sp::load(&p.workspace, pid)?;
+    let project = crate::speech::load(&p.workspace, pid)?;
     let keys = keys(p, &project);
     let made: BTreeMap<String, Vec<u32>> = project
         .blocks()
@@ -1612,7 +1614,7 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
     if !crate::media::EXPORT_FORMATS.contains(&opts.format.as_str()) {
         return Err(t!("media-bad-format", format = opts.format.clone()));
     }
-    let project = sp::load(&p.workspace, pid)?;
+    let project = crate::speech::load(&p.workspace, pid)?;
     let problems: Vec<Value> = export_check(p, pid, &project).into_iter().filter(|x| !(opts.allow_duration && x["state"] == "duration")).collect();
     if !problems.is_empty() {
         return Err(t!("speech-export-not-ready", count = problems.len() as i64));
@@ -2095,28 +2097,6 @@ fn srt(cues: &[(f64, f64, String, String)]) -> String {
 /// предыдущей подрезается до начала следующей, чтобы плеер не показывал две строки.
 const SUBTITLE_OVERLAP_TRIM: f64 = 0.5;
 
-/// What a file name template of the export may name: `{project}`, `{chapter}`, `{n}` (the file's number), `{date}`.
-pub const EXPORT_NAME_KEYS: [&str; 4] = ["project", "chapter", "n", "date"];
-/// What a file name template of the per-block export may name besides those: `{speaker}`, `{text}` (its start or
-/// note), `{block}` (its id).
-pub const CLIP_NAME_KEYS: [&str; 7] = ["project", "chapter", "n", "date", "speaker", "text", "block"];
-
-/// The `{key}`s of a file name template; a key outside `allowed` or a brace left open is refused.
-pub fn name_keys<'a>(template: &'a str, allowed: &[&str]) -> Result<Vec<&'a str>, String> {
-    let mut keys = Vec::new();
-    let mut rest = template;
-    while let Some(open) = rest.find('{') {
-        let close = rest[open..].find('}').ok_or_else(|| format!("{template}: a {{ is not closed"))? + open;
-        let key = &rest[open + 1..close];
-        if !allowed.contains(&key) {
-            return Err(format!("{template}: no {{{key}}}; a name may use {}", allowed.iter().map(|k| format!("{{{k}}}")).collect::<Vec<_>>().join(", ")));
-        }
-        keys.push(key);
-        rest = &rest[close + 1..];
-    }
-    Ok(keys)
-}
-
 /// A file name by a template: each `{key}` takes its value, the result made safe for file systems as `file_stem`.
 pub fn fill_name(template: &str, values: &[(&str, &str)]) -> String {
     let filled = values.iter().fold(template.to_string(), |name, (key, value)| name.replace(&format!("{{{key}}}"), value));
@@ -2211,7 +2191,7 @@ mod tests {
         assert_eq!(name_keys("{n} {project} - {chapter}", &EXPORT_NAME_KEYS).unwrap(), vec!["n", "project", "chapter"]);
         assert!(name_keys("{speaker}", &EXPORT_NAME_KEYS).unwrap_err().contains("{speaker}"));
         assert!(name_keys("{n", &EXPORT_NAME_KEYS).is_err());
-        assert!(name_keys("{speaker}_{n}", &CLIP_NAME_KEYS).is_ok());
+        assert!(name_keys("{speaker}_{n}", &crate::speech::naming::CLIP_NAME_KEYS).is_ok());
         assert_eq!(fill_name("{n}. {project}: {chapter}", &[("n", "02"), ("project", "Книга"), ("chapter", "Глава/2?")]), "02. Книга Глава 2");
     }
 

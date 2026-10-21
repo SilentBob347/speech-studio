@@ -21,3 +21,11 @@ mod creation;
 pub(crate) use preparation::{dictionary_counts, prepare_text, unknown_words, PrepareText};
 pub(crate) use jobs::SpeechPaths;
 pub(crate) use creation::from_transcript;
+
+mod storage;
+mod validation;
+mod naming;
+pub(crate) use storage::{load, save, edit};
+pub(crate) use validation::validate;
+pub(crate) use crate::platform::workspace::project_file as project_path;
+pub(crate) use preparation::voice_tag;

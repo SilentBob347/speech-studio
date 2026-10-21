@@ -15,6 +15,9 @@ use crate::speech_project::{self as sp, SpeechProject};
 pub const FORMAT: &str = "speechproj";
 pub const VERSION: u32 = 1;
 
+#[cfg(test)]
+mod boundary_tests;
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct EngineNeed {
     pub id: String,
@@ -78,7 +81,7 @@ pub fn voices_of(project: &SpeechProject) -> Vec<String> {
 
 /// Собрать `.speechproj` проекта в его папку экспорта; ответ — имя файла и размер.
 pub fn pack(p: &SpeechPaths, pid: &str, with_audio: bool) -> Result<(String, u64), String> {
-    let mut project = sp::load(&p.workspace, pid)?;
+    let mut project = crate::speech::load(&p.workspace, pid)?;
     let voices: Vec<String> = voices_of(&project).into_iter().filter(|v| crate::voice_library::audio_path(&p.voices_dir, v).is_some()).collect();
     let mut files: Vec<(String, Vec<u8>)> = Vec::new();
     if !voices.is_empty() {
@@ -177,7 +180,7 @@ pub fn unpack(p: &SpeechPaths, bytes: &[u8]) -> Result<(String, Vec<String>), St
     }
     let mut project: SpeechProject = serde_json::from_slice(entries.get("project.json").ok_or_else(|| t!("speechproj-asset-missing", path = "project.json".to_string()))?)
         .map_err(|e| t!("speechproj-bad-manifest", detail = e.to_string()))?;
-    project.validate()?;
+    super::validate(&project)?;
     let mut added = Vec::new();
     if let Some(zip) = entries.get("voices.zip") {
         let (mapped, _same) = crate::voice_api::import_zip_mapped(&p.voices_dir, zip)?;
@@ -210,7 +213,7 @@ pub fn unpack(p: &SpeechPaths, bytes: &[u8]) -> Result<(String, Vec<String>), St
         std::fs::create_dir_all(&takes).map_err(|e| format!("{}: {e}", takes.display()))?;
         std::fs::write(takes.join(file), data).map_err(|e| format!("{file}: {e}"))?;
     }
-    sp::save(&p.workspace, &pid, &project)?;
+    crate::speech::save(&p.workspace, &pid, &project)?;
     Ok((pid, added))
 }
 
@@ -237,7 +240,7 @@ mod tests {
         crate::wavio::write_mono_f32(&pa.voices_dir.join("Anna.wav"), &[0.1; 2400], 24_000).unwrap();
         let mut project = sp::from_text("Тест", "Привет.\n\nПока.", "Рассказчик");
         project.settings.voice = Some("Anna".into());
-        sp::save(&pa.workspace, "p1", &project).unwrap();
+        crate::speech::save(&pa.workspace, "p1", &project).unwrap();
         let (file, _) = pack(&pa, "p1", false).unwrap();
         let bytes = std::fs::read(pa.workspace.join("p1").join("exports").join(&file)).unwrap();
 
@@ -246,7 +249,7 @@ mod tests {
         std::fs::create_dir_all(&pb.voices_dir).unwrap();
         crate::wavio::write_mono_f32(&pb.voices_dir.join("Anna.wav"), &[0.5; 2400], 24_000).unwrap();
         let (pid, added) = unpack(&pb, &bytes).unwrap();
-        let back = sp::load(&pb.workspace, &pid).unwrap();
+        let back = crate::speech::load(&pb.workspace, &pid).unwrap();
         assert_eq!(back.blocks().count(), 2);
         assert_eq!(added, vec!["Anna 2".to_string()]);
         assert_eq!(back.settings.voice.as_deref(), Some("Anna 2"));

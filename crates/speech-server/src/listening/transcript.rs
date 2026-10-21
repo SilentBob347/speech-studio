@@ -1,6 +1,5 @@
 use std::path::Path;
 
-use super::project;
 use crate::text::subimport::Cue;
 
 pub(crate) struct TranscriptExport {
@@ -10,7 +9,7 @@ pub(crate) struct TranscriptExport {
 }
 
 pub(crate) fn export_transcript(workspace: &Path, pid: &str) -> Result<TranscriptExport, String> {
-    let project = project::load(workspace, pid)?;
+    let project = super::load(workspace, pid)?;
     let cues = project
         .shown()
         .map(|line| Cue {
