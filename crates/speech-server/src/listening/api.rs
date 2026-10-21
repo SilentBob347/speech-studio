@@ -40,7 +40,7 @@ fn stem(file: &str) -> String {
 
 /// POST /listen/upload (multipart, поле file) — новый проект из файла записи; файл пишется на диск по частям.
 pub async fn upload(State(st): State<AppState>, mut multipart: axum::extract::Multipart) -> Response {
-    let pid = sp::new_id();
+    let pid = crate::platform::ids::new_id();
     let dir = lp::dir(&st.workspace, &pid);
     let mut got: Option<(String, String)> = None;
     if let Ok(Some(mut field)) = multipart.next_field().await {
@@ -138,7 +138,7 @@ pub async fn record_start(State(st): State<AppState>, headers: HeaderMap, body: 
             return r;
         }
     }
-    let pid = sp::new_id();
+    let pid = crate::platform::ids::new_id();
     let dir = lp::dir(&st.workspace, &pid);
     if let Err(e) = std::fs::create_dir_all(&dir) {
         return refuse(StatusCode::INTERNAL_SERVER_ERROR, "io", format!("{}: {e}", dir.display()));
@@ -379,7 +379,7 @@ pub async fn to_speech(State(st): State<AppState>, AxPath(pid): AxPath<String>) 
                 speech.cast.insert(name.clone(), name.clone());
             }
         }
-        let new_pid = sp::new_id();
+        let new_pid = crate::platform::ids::new_id();
         sp::save(&ws, &new_pid, &speech)?;
         Ok(json!({ "pid": new_pid }))
     }))
@@ -512,7 +512,7 @@ pub(crate) fn project_of_file(ws: &Path, path: &Path) -> Result<(String, bool), 
     if let Some(pid) = found {
         return Ok((pid, true));
     }
-    let pid = sp::new_id();
+    let pid = crate::platform::ids::new_id();
     let dir = lp::dir(ws, &pid);
     std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("wav").to_ascii_lowercase();

@@ -321,7 +321,7 @@ pub fn validate(entries: &[Entry]) -> Result<(), String> {
 }
 
 pub fn new_id() -> String {
-    crate::speech_project::new_id()
+    crate::platform::ids::new_id()
 }
 
 /// Импорт словаря Balabolka по расширению: `.dic` (шаблоны), `.rex` (регулярные выражения), `.bxd` (оба вида).

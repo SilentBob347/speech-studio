@@ -466,7 +466,7 @@ pub fn transcribe(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Resul
     };
     project.duration = crate::media::duration(&mix).unwrap_or(project.duration);
     project.speakers = speakers;
-    project.made = Some(Made { by, at: crate::speech_project::now(), lang: s.lang.clone(), separated: clean.is_some(), hidden });
+    project.made = Some(Made { by, at: crate::platform::time::unix_seconds(), lang: s.lang.clone(), separated: clean.is_some(), hidden });
     let count = lines.len();
     project.lines = lines;
     lp::save(&p.workspace, pid, &project)?;
@@ -498,7 +498,7 @@ pub fn cut(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Result<Value
     if keep.is_empty() {
         return Err(t!("listen-cut-everything"));
     }
-    let new_pid = crate::speech_project::new_id();
+    let new_pid = crate::platform::ids::new_id();
     let dir = lp::dir(&p.workspace, &new_pid);
     std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let out = dir.join("source.flac");

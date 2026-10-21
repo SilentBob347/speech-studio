@@ -139,7 +139,7 @@ pub struct ListenProject {
 
 impl ListenProject {
     pub fn new(name: &str, source: &str, origin: &str) -> Self {
-        ListenProject { kind: KIND.into(), version: 1, name: name.to_string(), created: crate::speech_project::now(), source: source.to_string(), origin: origin.to_string(), ..Default::default() }
+        ListenProject { kind: KIND.into(), version: 1, name: name.to_string(), created: crate::platform::time::unix_seconds(), source: source.to_string(), origin: origin.to_string(), ..Default::default() }
     }
 
     pub fn validate(&self) -> Result<(), String> {
@@ -313,10 +313,10 @@ pub fn dir(workspace: &Path, pid: &str) -> PathBuf {
 }
 
 pub fn load(workspace: &Path, pid: &str) -> Result<ListenProject, String> {
-    if !crate::speech_project::is_pid(pid) {
+    if !crate::platform::workspace::is_pid(pid) {
         return Err(format!("bad project id {pid}"));
     }
-    let p = crate::speech_project::path(workspace, pid);
+    let p = crate::platform::workspace::project_file(workspace, pid);
     let text = std::fs::read_to_string(&p).map_err(|e| {
         if e.kind() == std::io::ErrorKind::NotFound { t!("project-missing", pid = pid.to_string()) } else { format!("{}: {e}", p.display()) }
     })?;
@@ -345,7 +345,7 @@ pub fn create_in(workspace: &Path, pid: &str, name: &str, source: &str, origin: 
         let cues = crate::subimport::parse(&text, "srt");
         if !cues.is_empty() {
             project.lines = from_cues(&cues, &mut project.speakers);
-            project.made = Some(Made { by: "subs".into(), at: crate::speech_project::now(), ..Default::default() });
+            project.made = Some(Made { by: "subs".into(), at: crate::platform::time::unix_seconds(), ..Default::default() });
         }
     }
     save(workspace, pid, &project)?;

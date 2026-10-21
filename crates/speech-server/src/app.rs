@@ -19,3 +19,6 @@ pub(crate) mod url_import;
 pub(crate) mod chat;
 pub(crate) mod chat_api;
 pub(crate) mod tools;
+
+#[cfg(test)]
+mod project_primitives_tests;

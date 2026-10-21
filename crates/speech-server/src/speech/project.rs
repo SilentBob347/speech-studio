@@ -4,7 +4,7 @@
 //! дубля — совпал `ready`, нет `stale`, дублей нет `pending`, последняя ошибка на этом ключе `failed`.
 
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::LazyLock;
 
 use regex::Regex;
@@ -12,6 +12,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use crate::tts_host::Params;
+
+pub(crate) use crate::platform::ids::new_id;
+pub(crate) use crate::platform::time::unix_seconds as now;
+pub(crate) use crate::platform::workspace::{is_pid, project_file as path};
 
 pub const KIND: &str = "speech";
 /// Поднимать при смене правил текста или синтеза, меняющей звучание уже озвученного.
@@ -407,16 +411,6 @@ pub fn from_cues(name: &str, cues: &[crate::subimport::Cue], narrator: &str) -> 
     project
 }
 
-pub fn now() -> u64 {
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
-}
-
-pub fn new_id() -> String {
-    let mut id = uuid::Uuid::new_v4().simple().to_string();
-    id.truncate(10);
-    id
-}
-
 impl SpeechProject {
     pub fn blocks(&self) -> impl Iterator<Item = &Block> {
         self.chapters.iter().flat_map(|c| c.blocks.iter())
@@ -593,14 +587,6 @@ pub fn visible_snippet(text: &str) -> String {
         out.push('…');
     }
     out
-}
-
-pub fn path(workspace: &Path, pid: &str) -> PathBuf {
-    workspace.join(pid).join("project.json")
-}
-
-pub fn is_pid(pid: &str) -> bool {
-    !pid.is_empty() && pid.len() <= 40 && pid.chars().all(|c| c.is_ascii_alphanumeric())
 }
 
 pub fn load(workspace: &Path, pid: &str) -> Result<SpeechProject, String> {

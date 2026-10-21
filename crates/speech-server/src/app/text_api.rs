@@ -251,8 +251,8 @@ mod tests {
         let state = AppState::new(root.path());
         let mut project = crate::speech_project::from_text("Report", "iPhone iPhone", "Narrator");
         project.settings.lang = "ru".into();
-        let pid = crate::speech_project::new_id();
-        let path = crate::speech_project::path(&state.workspace, &pid);
+        let pid = crate::platform::ids::new_id();
+        let path = crate::platform::workspace::project_file(&state.workspace, &pid);
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(&path, serde_json::to_vec(&project).unwrap()).unwrap();
         let app = router().with_state(state);
