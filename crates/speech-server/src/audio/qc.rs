@@ -59,7 +59,7 @@ impl Check {
 }
 
 pub fn normalize(text: &str) -> Vec<String> {
-    let visible = crate::speech_text::visible(text).to_lowercase().replace('ё', "е");
+    let visible = crate::text::markup::visible(text).to_lowercase().replace('ё', "е");
     let mut words = Vec::new();
     let mut word = String::new();
     for c in visible.chars() {
@@ -300,6 +300,15 @@ mod tests {
         assert!(non_speech(&loud, &[0.1; 20], 512), "loud and not speech");
         assert!(!non_speech(&loud, &[0.9; 20], 512));
         assert!(!non_speech(&loud[..512 * 5], &[0.1; 5], 512), "too short to judge");
+    }
+
+    #[test]
+    fn markup_is_not_counted_as_words_in_recognition_checks() {
+        let text = "М+ама [rate:0,8] **мыла** sil<[200]> [[раму]] <|emotion:awe|> [pause 300ms]";
+        let checked = check(text, "Мама мыла раму", "strict");
+        assert_eq!(normalize(text), ["мама", "мыла", "раму"]);
+        assert!(checked.passed);
+        assert_eq!((checked.wer, checked.inserted, checked.deleted, checked.substituted), (0.0, 0, 0, 0));
     }
 
     #[test]

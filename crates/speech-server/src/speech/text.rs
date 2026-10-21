@@ -9,6 +9,9 @@ use std::sync::LazyLock;
 use regex::Regex;
 use serde::Serialize;
 
+pub use crate::text::markup::visible;
+use crate::text::markup::{ACCENT, ACCENT_MARK, ANGLE, PAUSE, PHONEMES, STRESS};
+
 /// Пауза из разметки — не длиннее 10 с; SpeechKit ограничивает `sil` 7 с, наш тег — 10.
 pub const MAX_PAUSE_MS: u32 = 10_000;
 
@@ -23,13 +26,6 @@ pub enum Piece {
 /// Темп `[rate:x]` — от четверти до учетверённого.
 pub const RATE_RANGE: (f64, f64) = (0.25, 4.0);
 
-static PAUSE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)\[\s*pause\s+(\d+(?:[.,]\d+)?)\s*(ms|s)?\s*\]|sil\s*<\[\s*(\d+)\s*\]>|<\[\s*(tiny|small|medium|large|huge)\s*\]>|\[\s*rate\s*:\s*(\d+(?:[.,]\d+)?)\s*\]").expect("pause")
-});
-static ACCENT: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\*\*([^*\n]{1,80})\*\*").expect("accent"));
-static ACCENT_MARK: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"<\[\s*accented\s*\]>").expect("accented"));
-static PHONEMES: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\[\[([^\[\]]{1,120})\]\]").expect("phonemes"));
-static ANGLE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"<[^<>\n]{1,48}>").expect("angle"));
 static HIGGS_TAG: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^<\|(\w+):(\w+)\|>$").expect("higgs tag"));
 
 /// Теги экспрессии Higgs: категория → значения (белый список HiggsAudio-Studio `director_worker.py`).
@@ -49,8 +45,6 @@ pub const SUPERTONIC_TAGS: [(&str, &[&str]); 1] = [("event", &["laugh", "breath"
 fn higgs_tag_known(cat: &str, value: &str) -> bool {
     HIGGS_TAGS.iter().any(|(c, values)| *c == cat && values.contains(&value))
 }
-
-static STRESS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\+([АаЕеЁёИиОоУуЫыЭэЮюЯяAaEeIiOoUuYy])").expect("stress"));
 
 fn context_pause(word: &str) -> u32 {
     match word.to_ascii_lowercase().as_str() {
@@ -369,17 +363,6 @@ pub(crate) fn sentences(text: &str) -> Vec<&str> {
         out.push(&text[start..]);
     }
     out
-}
-
-/// Видимый текст без разметки синтеза: для субтитров, глав и поиска.
-pub fn visible(text: &str) -> String {
-    let t = PAUSE.replace_all(text, " ");
-    let t = ACCENT.replace_all(&t, "$1");
-    let t = ACCENT_MARK.replace_all(&t, "");
-    let t = PHONEMES.replace_all(&t, "$1");
-    let t = STRESS.replace_all(&t, "$1");
-    let t = ANGLE.replace_all(&t, " ");
-    t.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 static COMMAND: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)\[\s*(pause|rate)\b[^\]\n]{0,40}\]").expect("command"));

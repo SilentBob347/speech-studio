@@ -591,7 +591,7 @@ pub fn is_russian(text: &str, lang: &str) -> bool {
     match lang {
         "ru" => true,
         "auto" | "" => {
-            let visible = crate::speech_text::visible(text);
+            let visible = super::markup::visible(text);
             let letters = visible.chars().filter(|c| c.is_alphabetic()).count();
             let cyr = visible.chars().filter(|c| is_cyr(*c)).count();
             letters > 0 && cyr * 2 > letters

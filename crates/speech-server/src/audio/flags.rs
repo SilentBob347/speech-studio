@@ -203,7 +203,7 @@ fn mel_bank(sr: f64, nfft: usize, bands: usize) -> Vec<Vec<(usize, f64)>> {
 
 pub fn syllables(text: &str) -> usize {
     const VOWELS: &str = "aeiouyàáâãäåèéêëìíîïòóôõöùúûüýæœаеёиоуыэюяіїє";
-    crate::speech_text::visible(text).to_lowercase().chars().filter(|&c| VOWELS.contains(c) || is_cjk(c)).count()
+    crate::text::markup::visible(text).to_lowercase().chars().filter(|&c| VOWELS.contains(c) || is_cjk(c)).count()
 }
 
 /// A Chinese or Japanese character or a Korean syllable block: each is a syllable said, and a word of its own when
@@ -213,7 +213,7 @@ pub fn is_cjk(c: char) -> bool {
 }
 
 fn text_repeats(text: &str) -> bool {
-    let words: Vec<String> = crate::speech_text::visible(text)
+    let words: Vec<String> = crate::text::markup::visible(text)
         .to_lowercase()
         .replace('ё', "е")
         .split(|c: char| !c.is_alphabetic())
@@ -380,6 +380,29 @@ mod tests {
         assert_eq!(syllables("coração"), 4);
         assert_eq!(syllables("床前明月光"), 5);
         assert_eq!(syllables("Мама мыла раму"), 6);
+    }
+
+    #[test]
+    fn synthesis_markup_does_not_add_syllables() {
+        for (text, count) in [
+            ("М+ама [pause 300ms] **мыла** sil<[200]> [[раму]] [rate:0,8] <|emotion:awe|>", 6),
+            ("床前<[medium]>明月光 <|style:singing|>", 5),
+            ("<whisper>está</whisper> [PAUSE 1,5s] c+afé", 4),
+        ] {
+            assert_eq!(syllables(text), count, "{text}");
+        }
+    }
+
+    #[test]
+    fn length_and_repeat_flags_use_words_outside_markup() {
+        let features = Features { trimmed_s: 3.0, rep_s: 0.3, ..Default::default() };
+        let norm = Norm { secs_per_syllable: Some(0.2), ..Default::default() };
+        let want = ["length".into(), "audio_repeat".into()];
+        assert_eq!(
+            flags(&features, &want, "М+ама <|speaker:мама|> **мыла** [[раму]] [pause 300ms] [rate:0,8]", norm),
+            ["too_long", "audio_repeat"]
+        );
+        assert_eq!(flags(&features, &want, "Мама [pause 300ms] **мама** [[раму]]", norm), ["too_long"]);
     }
 
     fn tone(secs: f64, amp: f32) -> Vec<f32> {
