@@ -14,3 +14,5 @@ pub(crate) mod hub;
 pub(crate) mod journal;
 pub(crate) mod timings;
 pub(crate) mod text_api;
+pub(crate) mod url_api;
+pub(crate) mod url_import;

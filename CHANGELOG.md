@@ -8,6 +8,7 @@ release notes on GitHub are taken from the release's section.
 
 ### Fixed
 
+- **Link import retries.** A failed Listening-project import preserves the downloaded media for retry and cleans up the unfinished project directory.
 - **Stress model errors.** Missing, malformed or non-finite RUAccent outputs now report an error instead of panicking or silently skipping stress marks.
 - **Dictionary import errors.** Malformed multipart uploads now report an error even when an earlier part contained a valid dictionary.
 - **Noise suppression errors.** Invalid DPDFNet metadata or output sizes now return an error instead of panicking during processing.

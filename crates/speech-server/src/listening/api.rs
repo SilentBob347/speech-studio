@@ -16,9 +16,6 @@ use crate::speech_api::{joined, refuse};
 use crate::speech_project as sp;
 use crate::{jobs, AppState};
 
-/// Форматы, которые webview играет сам; остальное (mkv, avi, wma…) слушается через AAC-копию `work/play.m4a`.
-const PLAYABLE: &[&str] = &["wav", "flac", "mp3", "m4a", "aac", "ogg", "opus", "mp4", "webm", "mov", "m4v"];
-
 pub fn paths(st: &AppState) -> ListenPaths {
     ListenPaths { repo_root: st.repo_root.clone(), workspace: st.workspace.clone(), models_root: st.models_root.clone(), sortformer_onnx: st.sortformer_onnx.clone() }
 }
@@ -32,21 +29,8 @@ fn saved(r: Result<Result<Value, String>, Response>, missing: StatusCode) -> Res
     }
 }
 
-fn play_copy(dir: &Path, source: &str) -> Result<(), String> {
-    let ext = Path::new(source).extension().and_then(|e| e.to_str()).unwrap_or("").to_ascii_lowercase();
-    if PLAYABLE.contains(&ext.as_str()) {
-        return Ok(());
-    }
-    let work = dir.join("work");
-    std::fs::create_dir_all(&work).map_err(|e| format!("{}: {e}", work.display()))?;
-    crate::media::encode_preview_aac(&dir.join(source), &work.join("play.m4a"))
-}
-
-/// Проект вокруг файла, уже лежащего в папке `pid`.
-pub(crate) fn make(workspace: &Path, pid: &str, name: &str, source: &str, origin: &str) -> Result<Value, String> {
-    let dir = lp::dir(workspace, pid);
-    play_copy(&dir, source)?;
-    let project = lp::create_in(workspace, pid, name, source, origin)?;
+fn make(workspace: &Path, pid: &str, name: &str, source: &str, origin: &str) -> Result<Value, String> {
+    let project = super::create_from_source(workspace, pid, name, source, origin)?;
     Ok(json!({ "pid": pid, "project": project }))
 }
 

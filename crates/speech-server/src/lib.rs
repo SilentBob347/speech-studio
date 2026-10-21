@@ -47,10 +47,11 @@ use engines::{
 };
 use integrations::{
     chat, cloud, cloud_tts, cloud_voices, google_speech, google_tts, llm_provider, music_studios,
-    openai_api, openrouter, url_import, ytdlp,
+    openai_api, openrouter, ytdlp,
 };
 use app::{
     endpoints, guard, hub, journal, localize, secrets_api, spa, studio_settings, text_api as dict_api, timings,
+    url_api, url_import,
 };
 use platform::credentials;
 use jobs::{
@@ -462,13 +463,13 @@ pub fn build_router(state: AppState) -> Router {
         .route("/voices/delete", post(voice_api::delete))
         .route("/settings/ui-lang", axum::routing::put(set_ui_lang))
         .route("/app/paths", get(studio_settings::app_paths))
-        .route("/url/probe", get(url_import::probe_get).post(url_import::probe_post))
-        .route("/url/fetches", get(url_import::fetches_list))
-        .route("/url/fetches/{id}", get(url_import::fetch_get).delete(url_import::fetch_forget))
-        .route("/url/fetches/{id}/cancel", post(url_import::fetch_cancel))
-        .route("/url/fetches/{id}/resume", post(url_import::fetch_resume))
-        .route("/url/tool", get(url_import::tool_status))
-        .route("/url/tool/update", post(url_import::tool_update))
+        .route("/url/probe", get(url_api::probe_get).post(url_api::probe_post))
+        .route("/url/fetches", get(url_api::fetches_list))
+        .route("/url/fetches/{id}", get(url_api::fetch_get).delete(url_api::fetch_forget))
+        .route("/url/fetches/{id}/cancel", post(url_api::fetch_cancel))
+        .route("/url/fetches/{id}/resume", post(url_api::fetch_resume))
+        .route("/url/tool", get(url_api::tool_status))
+        .route("/url/tool/update", post(url_api::tool_update))
         .route("/engine/tags", get(speech_api::tags))
         .route("/engines", get(speech_api::engines))
         .route("/text/stress", post(speech_api::stress))
@@ -510,7 +511,7 @@ pub fn build_router(state: AppState) -> Router {
         .route("/listen/{pid}/speakers/remember", post(listen_api::speaker_remember))
         .route("/speaker-profiles", get(listen_api::speaker_profiles))
         .route("/speaker-profiles/{name}", axum::routing::delete(listen_api::speaker_forget))
-        .route("/projects/from_url", post(url_import::create_from_url))
+        .route("/projects/from_url", post(url_api::create_from_url))
         .route("/projects/podcast", post(director_api::podcast))
         .route("/projects/{pid}/cast", post(director_api::cast))
         .route("/projects", get(speech_api::list).post(speech_api::create))
