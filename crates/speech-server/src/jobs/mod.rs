@@ -9,6 +9,9 @@
 //! Отмена выполняемой джобы кооперативная: тело проверяет флаг (`check_cancelled`) между стадиями и
 //! сегментами, а дочерние процессы джобы (учтённые через `dub_core::proc`) убиваются сразу.
 
+pub(crate) mod store;
+pub(crate) mod limiter;
+
 use serde_json::{json, Value};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet, VecDeque};

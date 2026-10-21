@@ -4,7 +4,7 @@
 //! quality report how an engine says them.
 
 /// kind, phrase, how it is read (normalised and stress-marked).
-const CORPUS: &str = include_str!("../data/ru_hard_corpus.tsv");
+const CORPUS: &str = include_str!("../../data/ru_hard_corpus.tsv");
 
 pub const KINDS: [&str; 6] = ["homograph", "yo", "stress", "number", "abbr", "mixed"];
 

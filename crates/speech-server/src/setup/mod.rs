@@ -27,6 +27,8 @@
 //! Сайдкары, движок Higgs и CUDA-библиотеки у каждой платформы свои (модуль `platform`): на Linux это tar-сборки
 //! тех же релизов, колёса manylinux и redist NVIDIA linux-x86_64, а VC++ runtime не нужен.
 
+pub(crate) mod downloads;
+
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};

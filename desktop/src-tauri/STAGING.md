@@ -35,7 +35,7 @@ scripts\build-release.ps1 -ReleaseNotes "..." -ModelsSource "F:\AI\Speech Studio
 
 `models/higgs-engine` в git не лежит (gitignore): источник задаётся `-ModelsSource` (по умолчанию
 корень репозитория). Модели, движки, CUDA и ffmpeg в бандл не входят, их качает «Первый запуск»
-(`crates/speech-server/src/setup.rs`, `delivery: Download`).
+(`crates/speech-server/src/setup/mod.rs`, `delivery: Download`).
 
 ## Раскладка и данные
 

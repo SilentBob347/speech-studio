@@ -172,7 +172,7 @@ struct Units {
 static UNITS: LazyLock<Units> = LazyLock::new(|| {
     let mut rows: Vec<(String, bool, String, Unit)> = Vec::new();
     let mut minors: HashMap<String, String> = HashMap::new();
-    for line in include_str!("../data/ru_units.tsv").lines().filter(|l| !l.starts_with('#') && !l.is_empty()) {
+    for line in include_str!("../../data/ru_units.tsv").lines().filter(|l| !l.starts_with('#') && !l.is_empty()) {
         let f: Vec<&str> = line.split('\t').collect();
         if f.len() < 19 {
             continue;
@@ -1078,7 +1078,7 @@ mod tests {
 
     #[test]
     fn the_core_reads_like_ru_normalizr() {
-        let golden = include_str!("../data/ru_norm_golden.tsv");
+        let golden = include_str!("../../data/ru_norm_golden.tsv");
         let mut wrong = Vec::new();
         for line in golden.lines().filter(|l| !l.is_empty()) {
             let (src, want) = line.split_once('\t').expect("tab");

@@ -1,6 +1,6 @@
 # Checks that every DLL the engines import is shipped, provided by Windows, or installed by First Run:
 # downloads the pinned archives with the app's own downloader into an empty root, then walks the import
-# tables (crates/speech-server/src/dll_imports.rs). Run it after changing any engine/CUDA pin in setup.rs.
+# tables (crates/speech-server/src/platform/dll_imports.rs). Run it after changing any engine/CUDA pin in setup/mod.rs.
 param(
     [Parameter(Mandatory = $true)][string]$StagingRoot
 )

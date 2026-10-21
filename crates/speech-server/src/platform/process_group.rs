@@ -267,7 +267,7 @@ mod tests {
     fn terminate_kills_members_but_not_the_owner() {
         let exe = std::env::current_exe().expect("путь тестового exe");
         let out = Command::new(exe)
-            .args(["process_group::tests::terminating_owner", "--exact", "--ignored", "--nocapture"])
+            .args(["platform::process_group::tests::terminating_owner", "--exact", "--ignored", "--nocapture"])
             .env(TERMINATOR_ENV, "1")
             .stderr(Stdio::null())
             .output()
@@ -297,7 +297,7 @@ mod tests {
     fn a_killed_owner_takes_its_children_down() {
         let exe = std::env::current_exe().expect("путь тестового exe");
         let mut owner = Command::new(exe)
-            .args(["process_group::tests::group_owner", "--exact", "--ignored", "--nocapture"])
+            .args(["platform::process_group::tests::group_owner", "--exact", "--ignored", "--nocapture"])
             .env(OWNER_ENV, "1")
             .stdout(Stdio::piped())
             .stderr(Stdio::null())

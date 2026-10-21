@@ -8,100 +8,61 @@
 
 #[macro_use]
 pub mod i18n;
-mod asr_util;
-mod audio_flags;
-mod bench;
-mod credentials;
-mod denoise;
-mod direct_speech;
-pub mod diagnostics;
+mod speech;
+mod listening;
+mod voices;
+mod audio;
+mod text;
+mod engines;
+mod integrations;
+mod app;
+mod platform;
+mod jobs;
+mod setup;
+mod mcp;
+
+// Existing crate paths remain available to the desktop shell and internal callers.
+use speech::{
+    acx, api as speech_api, auto_cast, book_import, book_rebuild, corpus as hard_corpus, director,
+    director_api, jobs as speech_jobs, live, package as speechproj, project as speech_project,
+    read_along, say as say_api, take_fix, text as speech_text, tracks,
+};
+use listening::{
+    api as listen_api, export as transcript_out, jobs as listen_jobs, live as listen_live,
+    project as listen_project, watch as listen_watch,
+};
+use voices::{
+    api as voice_api, fx as voice_fx, jobs as voice_jobs, library as voice_library,
+    profiles as speaker_profiles, record, ref_pick,
+};
+use audio::{
+    denoise, flags as audio_flags, loudness, media, qc, tagging, trim as tts_trim, wavio,
+};
+use text::{
+    api as dict_api, direct_speech, itn, normalize_ru, prep, pron_dict, ssml, stress, subimport,
+    tts as tts_text,
+};
+use engines::{
+    asr_util, hw, models, presets, qwen_tts, supertonic, tcpp_asr, tts_host, vad,
+};
+use integrations::{
+    chat, cloud, cloud_tts, cloud_voices, google_speech, google_tts, llm_provider, music_studios,
+    openai_api, openrouter, url_import, ytdlp,
+};
+use app::{
+    endpoints, guard, hub, journal, localize, secrets_api, spa, studio_settings, timings,
+};
+use platform::credentials;
 #[cfg(windows)]
-mod dll_imports;
-mod cloud_voices;
-mod downloads;
-mod endpoints;
-mod guard;
-mod hub;
+use platform::dll_imports;
+use jobs::{
+    limiter, store as job_store,
+};
+use setup::downloads;
+pub use app::{diagnostics, service};
+pub use platform::process_group;
 pub use hub::flush_on_exit as flush_hub_on_exit;
 pub use models::apply_faces_backend;
-mod hw;
-mod job_store;
-mod jobs;
-mod limiter;
-mod llm_provider;
-mod localize;
-mod loudness;
-mod media;
-mod chat;
-mod google_speech;
-mod journal;
-mod google_tts;
-mod subimport;
-mod mcp;
-mod models;
-mod openrouter;
-mod presets;
-mod qc;
-mod read_along;
-pub mod process_group;
-mod record;
-mod ref_pick;
-mod secrets_api;
-pub mod service;
-mod setup;
-mod spa;
-mod studio_settings;
-mod live;
-mod supertonic;
-mod qwen_tts;
-mod tcpp_asr;
-mod tagging;
-mod timings;
-mod tts_text;
-mod tts_trim;
-mod speaker_profiles;
-mod ssml;
-mod say_api;
-mod speech_api;
-mod speech_jobs;
-mod speech_project;
-mod speech_text;
-mod stress;
-mod normalize_ru;
-mod pron_dict;
-mod prep;
-mod dict_api;
-mod engines;
-mod cloud_tts;
-mod speechproj;
-mod book_import;
-mod book_rebuild;
-mod acx;
-mod auto_cast;
-mod cloud;
-mod openai_api;
-mod director;
-mod director_api;
-mod listen_api;
-mod listen_jobs;
-mod listen_project;
-mod transcript_out;
-mod tts_host;
-mod url_import;
-mod vad;
-mod voice_api;
-mod voice_fx;
-mod tracks;
-mod listen_watch;
-mod hard_corpus;
-mod take_fix;
-mod listen_live;
-mod itn;
-mod music_studios;
-mod voice_jobs;
-mod voice_library;
-mod wavio;
-mod ytdlp;
 
 use axum::extract::{Path as AxPath, Query, State};
 use axum::http::{HeaderMap, StatusCode};

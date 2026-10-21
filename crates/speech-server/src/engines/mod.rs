@@ -2,6 +2,17 @@
 //! запуска: языки (из карточки модели), параметры с типом, диапазоном и умолчанием, режимы сида, теги экспрессии,
 //! вид клона, продолжение, стриминг, что из разметки текста движок читает.
 
+pub(crate) mod asr_util;
+pub(crate) mod bench;
+pub(crate) mod hw;
+pub(crate) mod models;
+pub(crate) mod presets;
+pub(crate) mod qwen_tts;
+pub(crate) mod supertonic;
+pub(crate) mod tcpp_asr;
+pub(crate) mod tts_host;
+pub(crate) mod vad;
+
 use serde::Serialize;
 
 #[derive(Serialize, Clone, Debug)]

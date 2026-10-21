@@ -45,7 +45,7 @@ const STUDIO: &str = "Speech Studio";
 /// The name clients register the server under.
 const SERVER_NAME: &str = "speech-studio";
 /// The skill an agent reads, served as a resource and a prompt.
-pub(crate) const SKILL: &str = include_str!("../../../docs/mcp-skill.md");
+pub(crate) const SKILL: &str = include_str!("../../../../docs/mcp-skill.md");
 const SKILL_URI: &str = "studio://skill";
 const LANGUAGES_URI: &str = "studio://languages";
 /// Answers longer than this are cut: a transcript of hundreds of lines is more
@@ -126,7 +126,7 @@ async fn fetch(path: &str) -> Result<Value, String> {
 fn app_version() -> &'static str {
     static VERSION: OnceLock<String> = OnceLock::new();
     VERSION.get_or_init(|| {
-        let conf: Value = serde_json::from_str(include_str!("../../../desktop/src-tauri/tauri.conf.json")).expect("tauri.conf.json is JSON");
+        let conf: Value = serde_json::from_str(include_str!("../../../../desktop/src-tauri/tauri.conf.json")).expect("tauri.conf.json is JSON");
         conf["version"].as_str().expect("tauri.conf.json names the app's version").to_string()
     })
 }
@@ -1953,7 +1953,7 @@ mod tests {
 
     /// The routes of build_router: (METHOD, path pattern).
     fn router_routes() -> Vec<(String, String)> {
-        let source = include_str!("lib.rs").replace("\r\n", "\n");
+        let source = include_str!("../lib.rs").replace("\r\n", "\n");
         let body = source.split("pub fn build_router(").nth(1).expect("build_router").split("\n}\n").next().unwrap();
         let code: String = body.lines().map(|line| line.split("//").next().unwrap_or_default()).collect::<Vec<_>>().join("\n");
         let mut routes = Vec::new();
@@ -2092,7 +2092,7 @@ mod tests {
 
     #[test]
     fn the_window_has_words_for_every_journaled_change() {
-        let en: Value = serde_json::from_str(include_str!("../../../frontend/src/locales/en.json")).unwrap();
+        let en: Value = serde_json::from_str(include_str!("../../../../frontend/src/locales/en.json")).unwrap();
         for (tool, verb, kind) in JOURNAL {
             assert!(en["journal"]["verb"][verb].is_string(), "{tool}: no words for the verb {verb}");
             assert!(en["journal"]["kind"][kind].is_string(), "{tool}: no words for the kind {kind}");

@@ -52,8 +52,8 @@ struct CachedForm {
 
 fn shipped(provider: Provider) -> &'static str {
     match provider {
-        Provider::Fal => include_str!("../catalog/fal.json"),
-        Provider::Runware => include_str!("../catalog/runware.json"),
+        Provider::Fal => include_str!("../../catalog/fal.json"),
+        Provider::Runware => include_str!("../../catalog/runware.json"),
         _ => "{}",
     }
 }

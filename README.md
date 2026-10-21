@@ -189,7 +189,7 @@ What changed and when is in [CHANGELOG.md](CHANGELOG.md), and the sparkles butto
 
 ## Everything the app downloads
 
-The first-run panel fetches all of this with a button. Behind a proxy, or where Hugging Face is blocked, set the proxy in Settings → **Network**. You can also download the direct files yourself, put them where the last column says, counted from the app folder, and press **Import from folder**; archive components the app downloads itself. Every file is checked against its pinned SHA-256 before it is used. Sizes and hashes come from the app's manifest, `crates/speech-server/src/setup.rs`, and this table is checked against it.
+The first-run panel fetches all of this with a button. Behind a proxy, or where Hugging Face is blocked, set the proxy in Settings → **Network**. You can also download the direct files yourself, put them where the last column says, counted from the app folder, and press **Import from folder**; archive components the app downloads itself. Every file is checked against its pinned SHA-256 before it is used. Sizes and hashes come from the app's manifest, `crates/speech-server/src/setup/mod.rs`, and this table is checked against it.
 
 <!-- downloads:start -->
 | Component | Need | Files (direct links) | Size | Put it in |
