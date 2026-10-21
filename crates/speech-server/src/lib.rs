@@ -53,8 +53,6 @@ use app::{
     endpoints, guard, hub, journal, localize, secrets_api, spa, studio_settings, timings,
 };
 use platform::credentials;
-#[cfg(windows)]
-use platform::dll_imports;
 use jobs::{
     limiter, store as job_store,
 };

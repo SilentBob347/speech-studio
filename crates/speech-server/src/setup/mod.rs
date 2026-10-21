@@ -28,6 +28,8 @@
 //! тех же релизов, колёса manylinux и redist NVIDIA linux-x86_64, а VC++ runtime не нужен.
 
 pub(crate) mod downloads;
+#[cfg(windows)]
+pub(crate) mod dll_imports;
 
 use std::fs::File;
 use std::io::Read;

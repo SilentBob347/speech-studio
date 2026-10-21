@@ -8,6 +8,7 @@ release notes on GitHub are taken from the release's section.
 
 ### Fixed
 
+- **DLL diagnostics.** Malformed import addresses and unsupported PE headers report an error instead of panicking or passing the check.
 - **Credential saves.** Failed key and proxy password replacements clean up their temporary files and preserve the previous value.
 - **Reliable file saves.** Concurrent saves of a voice's card, transcript and image no longer share a temporary file.
   Failed writes and blocked replacements preserve the previous file.

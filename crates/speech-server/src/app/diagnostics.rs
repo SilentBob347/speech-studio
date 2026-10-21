@@ -99,7 +99,7 @@ fn report(root: &Path) -> Value {
     // ffmpeg found on PATH counts as installed (setup's rule), so its own files are not checked
     let installed: Vec<&str> = setup.components.iter().filter(|c| c.installed && !(c.id == "ffmpeg" && crate::setup::ffmpeg_on_path() && c.bytes_on_disk == 0)).map(|c| c.id.as_str()).collect();
     #[cfg(windows)]
-    let dll = match crate::dll_imports::check_components(root, &|id| installed.contains(&id), &mut |_, _| {}) {
+    let dll = match crate::setup::dll_imports::check_components(root, &|id| installed.contains(&id), &mut |_, _| {}) {
         Ok(missing) => json!(missing),
         Err(e) => json!([format!("the check failed: {e}")]),
     };
