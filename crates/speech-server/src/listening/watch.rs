@@ -12,8 +12,14 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
+use super::jobs::ListenPaths;
 use crate::listen_project as lp;
-use crate::AppState;
+
+#[derive(Clone)]
+pub(crate) struct Dependencies {
+    pub paths: ListenPaths,
+    pub jobs: crate::jobs::JobQueue,
+}
 
 /// The formats a folder's recordings are written in.
 pub const FORMATS: [&str; 5] = ["srt", "vtt", "ass", "txt", "json"];
@@ -92,13 +98,17 @@ fn check(c: &WatchConfig) -> Result<(), String> {
         return Err(t!("watch-bad-format", format = f.clone(), known = FORMATS.join(", ")));
     }
     if !c.rules.is_empty() && dub_captions::RulesProfile::by_name(&c.rules).is_none() {
-        return Err(t!("listen-export-rules", rules = c.rules.clone(), known = dub_captions::PROFILES.iter().map(|p| p.name).collect::<Vec<_>>().join(", ")));
+        return Err(t!(
+            "listen-export-rules",
+            rules = c.rules.clone(),
+            known = dub_captions::PROFILES.iter().map(|p| p.name).collect::<Vec<_>>().join(", ")
+        ));
     }
     Ok(())
 }
 
 /// Goes through `config.folder` in the background (and keeps watching it with `keep`).
-pub fn start(st: &AppState, config: WatchConfig) -> Result<Value, String> {
+pub fn start(deps: Dependencies, config: WatchConfig) -> Result<Value, String> {
     check(&config)?;
     {
         let mut s = state().lock().unwrap_or_else(|p| p.into_inner());
@@ -110,10 +120,9 @@ pub fn start(st: &AppState, config: WatchConfig) -> Result<Value, String> {
         s.config = config;
         s.on = true;
     }
-    save(&st.repo_root)?;
+    save(&deps.paths.repo_root)?;
     if !running().swap(true, Ordering::SeqCst) {
-        let st = st.clone();
-        tokio::spawn(async move { work(st).await });
+        tokio::spawn(async move { work(deps).await });
     }
     Ok(status())
 }
@@ -135,27 +144,26 @@ pub fn status() -> Value {
 }
 
 /// At the studio's start: the folder's work that was under way goes on.
-pub fn resume(st: &AppState) {
-    let text = match std::fs::read_to_string(file(&st.repo_root)) {
+pub fn resume(deps: Dependencies) {
+    let text = match std::fs::read_to_string(file(&deps.paths.repo_root)) {
         Ok(t) => t,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return,
         Err(e) => {
-            tracing::error!("[ERROR] {}: {e}", file(&st.repo_root).display());
+            tracing::error!("[ERROR] {}: {e}", file(&deps.paths.repo_root).display());
             return;
         }
     };
     let saved: Saved = match serde_json::from_str(&text) {
         Ok(s) => s,
         Err(e) => {
-            tracing::error!("[ERROR] {}: {e}", file(&st.repo_root).display());
+            tracing::error!("[ERROR] {}: {e}", file(&deps.paths.repo_root).display());
             return;
         }
     };
     let on = saved.on;
     *state().lock().unwrap_or_else(|p| p.into_inner()) = saved;
     if on && !running().swap(true, Ordering::SeqCst) {
-        let st = st.clone();
-        tokio::spawn(async move { work(st).await });
+        tokio::spawn(async move { work(deps).await });
     }
 }
 
@@ -182,10 +190,15 @@ fn list_queued(files: Vec<PathBuf>) -> Vec<PathBuf> {
     let mut s = state().lock().unwrap_or_else(|p| p.into_inner());
     for path in &files {
         let name = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-        let Ok(key) = crate::listen_api::file_key(path, "listen") else { continue };
+        let Ok(key) = super::file_key(path, "listen") else { continue };
         if !s.items.iter().any(|i| i.key == key) {
             s.items.retain(|i| i.file != name);
-            s.items.push(Item { file: name, key, state: "queued".into(), ..Default::default() });
+            s.items.push(Item {
+                file: name,
+                key,
+                state: "queued".into(),
+                ..Default::default()
+            });
         }
     }
     files
@@ -207,7 +220,15 @@ async fn settled(path: &Path) -> bool {
     }
 }
 
-async fn work(st: AppState) {
+fn transcription_job(paths: ListenPaths, pid: String) -> crate::jobs::JobFn {
+    Box::new(move |progress| super::jobs::transcribe(&paths, &pid, &|ev| progress(ev)))
+}
+
+async fn work(deps: Dependencies) {
+    work_with(deps, transcription_job).await;
+}
+
+async fn work_with(deps: Dependencies, make_job: impl Fn(ListenPaths, String) -> crate::jobs::JobFn + Send + Sync) {
     loop {
         let (config, on) = {
             let s = state().lock().unwrap_or_else(|p| p.into_inner());
@@ -238,12 +259,18 @@ async fn work(st: AppState) {
             if !settled(&path).await {
                 continue;
             }
-            let key = match crate::listen_api::file_key(&path, "listen") {
+            let key = match super::file_key(&path, "listen") {
                 Ok(k) => k,
                 Err(e) => {
                     let mut s = state().lock().unwrap_or_else(|p| p.into_inner());
                     s.items.retain(|i| i.file != name);
-                    s.items.push(Item { file: name.clone(), key: format!("unreadable:{name}"), state: "error".into(), error: Some(e), ..Default::default() });
+                    s.items.push(Item {
+                        file: name.clone(),
+                        key: format!("unreadable:{name}"),
+                        state: "error".into(),
+                        error: Some(e),
+                        ..Default::default()
+                    });
                     continue;
                 }
             };
@@ -254,14 +281,19 @@ async fn work(st: AppState) {
                 }
                 if !s.items.iter().any(|i| i.key == key) {
                     s.items.retain(|i| i.file != name);
-                    s.items.push(Item { file: name.clone(), key: key.clone(), state: "queued".into(), ..Default::default() });
+                    s.items.push(Item {
+                        file: name.clone(),
+                        key: key.clone(),
+                        state: "queued".into(),
+                        ..Default::default()
+                    });
                 }
             }
             update(&key, |i| i.state = "working".into());
-            if let Err(e) = save(&st.repo_root) {
+            if let Err(e) = save(&deps.paths.repo_root) {
                 tracing::error!("[ERROR] watched folder state: {e}");
             }
-            let done = one(&st, &config, &path).await;
+            let done = one(&deps, &config, &path, &make_job).await;
             update(&key, |i| match done {
                 Ok((pid, outputs)) => {
                     i.pid = Some(pid);
@@ -274,7 +306,7 @@ async fn work(st: AppState) {
                     i.error = Some(e);
                 }
             });
-            if let Err(e) = save(&st.repo_root) {
+            if let Err(e) = save(&deps.paths.repo_root) {
                 tracing::error!("[ERROR] watched folder state: {e}");
             }
         }
@@ -291,46 +323,63 @@ async fn work(st: AppState) {
         tokio::time::sleep(LOOK_AGAIN).await;
     }
     running().store(false, Ordering::SeqCst);
-    if let Err(e) = save(&st.repo_root) {
+    if let Err(e) = save(&deps.paths.repo_root) {
         tracing::error!("[ERROR] watched folder state: {e}");
     }
 }
 
 /// One file: its recording (the one made before, when there is), recognised unless it is already, and written out.
-async fn one(st: &AppState, config: &WatchConfig, path: &Path) -> Result<(String, Vec<String>), String> {
-    let ws = st.workspace.clone();
+async fn one(
+    deps: &Dependencies,
+    config: &WatchConfig,
+    path: &Path,
+    make_job: &impl Fn(ListenPaths, String) -> crate::jobs::JobFn,
+) -> Result<(String, Vec<String>), String> {
+    let ws = deps.paths.workspace.clone();
     let owned = path.to_path_buf();
     let (engine, lang) = (config.engine.clone(), config.lang.clone());
-    let pid = crate::speech_api::joined(
-        tokio::task::spawn_blocking(move || -> Result<String, String> {
-            let (pid, _) = crate::listen_api::project_of_file(&ws, &owned)?;
-            let mut project = lp::load(&ws, &pid)?;
-            if project.lines.is_empty() && (project.settings.engine != engine || project.settings.lang != lang) {
-                project.settings.engine = engine;
-                project.settings.lang = if lang.is_empty() { "auto".into() } else { lang };
-                lp::save(&ws, &pid, &project)?;
-            }
-            Ok(pid)
-        })
-        .await,
-    )
+    let pid = tokio::task::spawn_blocking(move || -> Result<String, String> {
+        let (pid, _) = super::project_of_file(&ws, &owned)?;
+        let mut project = lp::load(&ws, &pid)?;
+        if project.lines.is_empty() && (project.settings.engine != engine || project.settings.lang != lang) {
+            project.settings.engine = engine;
+            project.settings.lang = if lang.is_empty() { "auto".into() } else { lang };
+            lp::save(&ws, &pid, &project)?;
+        }
+        Ok(pid)
+    })
+    .await
     .map_err(|_| t!("watch-broke"))??;
-    let transcribed = !lp::load(&st.workspace, &pid)?.lines.is_empty();
+    let transcribed = !lp::load(&deps.paths.workspace, &pid)?.lines.is_empty();
     if !transcribed {
-        let p = crate::listen_api::paths(st);
-        let pid2 = pid.clone();
-        let job: crate::jobs::JobFn = Box::new(move |progress: crate::jobs::ProgressFn| crate::listen_jobs::transcribe(&p, &pid2, &|ev| progress(ev)));
-        let (_, done) = st.jobs.enqueue_awaitable(crate::jobs::JobMeta::new(crate::jobs::JobKind::Analyze, Some(&pid)), job).await.map_err(|e| match e {
-            crate::jobs::EnqueueError::Conflict { kind, .. } => t!("watch-busy", kind = kind.as_str()),
-            crate::jobs::EnqueueError::Store(e) => format!("job.json: {e}"),
-        })?;
+        let job = make_job(deps.paths.clone(), pid.clone());
+        let (_, done) = deps
+            .jobs
+            .enqueue_awaitable(crate::jobs::JobMeta::new(crate::jobs::JobKind::Analyze, Some(&pid)), job)
+            .await
+            .map_err(|e| match e {
+                crate::jobs::EnqueueError::Conflict { kind, .. } => t!("watch-busy", kind = kind.as_str()),
+                crate::jobs::EnqueueError::Store(e) => format!("job.json: {e}"),
+            })?;
         done.await.map_err(|_| t!("watch-broke"))??;
     }
-    let project = lp::load(&st.workspace, &pid)?;
-    let out = if config.out.is_empty() { PathBuf::from(&config.folder) } else { PathBuf::from(&config.out) };
+    let project = lp::load(&deps.paths.workspace, &pid)?;
+    let out = if config.out.is_empty() {
+        PathBuf::from(&config.folder)
+    } else {
+        PathBuf::from(&config.out)
+    };
     std::fs::create_dir_all(&out).map_err(|e| format!("{}: {e}", out.display()))?;
-    let o = crate::transcript_out::Opts { speakers: true, times: true, rules: dub_captions::RulesProfile::by_name(&config.rules), digits: config.digits };
-    let stem = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| pid.clone());
+    let o = crate::transcript_out::Opts {
+        speakers: true,
+        times: true,
+        rules: dub_captions::RulesProfile::by_name(&config.rules),
+        digits: config.digits,
+    };
+    let stem = path
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| pid.clone());
     let mut outputs = Vec::new();
     for format in &config.formats {
         let text = crate::transcript_out::render(&project, format, &o)?;
@@ -342,22 +391,49 @@ async fn one(st: &AppState, config: &WatchConfig, path: &Path) -> Result<(String
 }
 
 #[cfg(test)]
+mod workflow_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn a_folder_needs_to_exist_and_known_formats_and_rules() {
         let dir = tempfile::tempdir().unwrap();
-        let ok = WatchConfig { folder: dir.path().to_string_lossy().into_owned(), formats: vec!["srt".into(), "txt".into()], ..Default::default() };
+        let ok = WatchConfig {
+            folder: dir.path().to_string_lossy().into_owned(),
+            formats: vec!["srt".into(), "txt".into()],
+            ..Default::default()
+        };
         assert!(check(&ok).is_ok());
-        assert!(check(&WatchConfig { folder: dir.path().join("none").to_string_lossy().into_owned(), ..ok.clone() }).is_err());
-        assert!(check(&WatchConfig { formats: vec![], ..ok.clone() }).is_err());
-        assert!(check(&WatchConfig { formats: vec!["doc".into()], ..ok.clone() }).is_err());
-        assert!(check(&WatchConfig { rules: "Nobody".into(), ..ok.clone() }).is_err());
+        assert!(check(&WatchConfig {
+            folder: dir.path().join("none").to_string_lossy().into_owned(),
+            ..ok.clone()
+        })
+        .is_err());
+        assert!(check(&WatchConfig {
+            formats: vec![],
+            ..ok.clone()
+        })
+        .is_err());
+        assert!(check(&WatchConfig {
+            formats: vec!["doc".into()],
+            ..ok.clone()
+        })
+        .is_err());
+        assert!(check(&WatchConfig {
+            rules: "Nobody".into(),
+            ..ok.clone()
+        })
+        .is_err());
         for name in ["b.mp3", "A.wav", "notes.txt", "c.mkv"] {
             std::fs::write(dir.path().join(name), b"x").unwrap();
         }
-        let names: Vec<String> = media_in(dir.path()).unwrap().iter().map(|p| p.file_name().unwrap().to_string_lossy().into_owned()).collect();
+        let names: Vec<String> = media_in(dir.path())
+            .unwrap()
+            .iter()
+            .map(|p| p.file_name().unwrap().to_string_lossy().into_owned())
+            .collect();
         assert_eq!(names, ["A.wav", "b.mp3", "c.mkv"]);
     }
 }

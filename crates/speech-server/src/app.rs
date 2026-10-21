@@ -22,6 +22,7 @@ pub(crate) mod tools;
 pub(crate) mod listening_to_speech;
 pub(crate) mod listening_voices;
 pub(crate) mod speaker_profiles;
+pub(crate) mod listening;
 
 #[cfg(test)]
 mod project_primitives_tests;

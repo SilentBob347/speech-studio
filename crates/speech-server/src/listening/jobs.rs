@@ -13,6 +13,7 @@ use serde_json::{json, Value};
 use crate::listen_project::{self as lp, Fix, Line, ListenProject, Made, Word};
 use crate::localize::Localize;
 
+#[derive(Clone)]
 pub struct ListenPaths {
     pub repo_root: PathBuf,
     pub workspace: PathBuf,
