@@ -1,49 +1,11 @@
-//! Шумоподавление DPDFNet (`dpdfnet2_48khz_hr`, 48 кГц): порт `dpdfnet.enhance` (пакет `dpdfnet`, Ceva-IP) — STFT как
-//! у librosa (`center`, `reflect`), модель по кадру с состоянием, предел подавления в дБ, обратное STFT.
+//! DPDFNet spectral processing: centered reflect padding, Vorbis-window STFT, attenuation and inverse STFT.
 
-use std::path::{Path, PathBuf};
-use std::sync::{LazyLock, Mutex};
-
-use ort::session::Session;
-use ort::value::TensorRef;
 use realfft::num_complex::Complex32;
 use realfft::RealFftPlanner;
 
 pub const SR: u32 = 48_000;
-/// Сдвиг выхода модели относительно входа в кадрах: предел подавления смешивает с ним сдвинутый исходник.
+/// The attenuation reference follows the model's four-frame output delay.
 const NOISY_FRAME_OFFSET: usize = 4;
-
-pub fn model_path(models_root: &Path) -> PathBuf {
-    models_root.join("dpdfnet").join("dpdfnet2_48khz_hr.onnx")
-}
-
-struct Model {
-    session: Session,
-    init_state: Vec<f32>,
-    win: usize,
-}
-
-static MODEL: LazyLock<Mutex<Option<(PathBuf, Model)>>> = LazyLock::new(|| Mutex::new(None));
-
-fn load(path: &Path) -> Result<Model, String> {
-    let err = |e: &dyn std::fmt::Display| format!("{}: {e}", path.display());
-    let session = Session::builder().map_err(|e| err(&e))?.with_intra_threads(1).map_err(|e| err(&e))?.commit_from_file(path).map_err(|e| err(&e))?;
-    let meta = session.metadata().map_err(|e| err(&e))?;
-    let get = |k: &str| meta.custom(k).ok_or_else(|| format!("{}: no {k} in the model metadata", path.display()));
-    let size = |k: &str| get(k)?.trim().parse::<usize>().map_err(|e| format!("{}: {k}: {e}", path.display()));
-    let floats = |k: &str| -> Result<Vec<f32>, String> { get(k)?.split(',').map(|x| x.trim().parse::<f32>().map_err(|e| format!("{}: {k}: {e}", path.display()))).collect() };
-    let (state, erb, spec) = (size("state_size")?, size("erb_norm_state_size")?, size("spec_norm_state_size")?);
-    let mut init_state = vec![0f32; state];
-    let (erb_init, spec_init) = (floats("erb_norm_init")?, floats("spec_norm_init")?);
-    if erb_init.len() != erb || spec_init.len() != spec || erb + spec > state {
-        return Err(format!("{}: the normalisation states do not match the metadata", path.display()));
-    }
-    init_state[..erb].copy_from_slice(&erb_init);
-    init_state[erb..erb + spec].copy_from_slice(&spec_init);
-    let win = (size("freq_bins")? - 1) * 2;
-    drop(meta);
-    Ok(Model { session, init_state, win })
-}
 
 fn vorbis(n: usize) -> Vec<f32> {
     let h = n as f64 / 2.0;
@@ -55,15 +17,18 @@ fn vorbis(n: usize) -> Vec<f32> {
         .collect()
 }
 
-/// Очистить 48-килогерцовый моно-сигнал. `limit_db` — насколько сильнее исходника можно приглушить шум
-/// (`attn_limit_db`); `None` — без предела. `progress` получает долю готового.
-pub fn denoise(model: &Path, input: &[f32], limit_db: Option<f32>, progress: &dyn Fn(f32)) -> Result<Vec<f32>, String> {
-    let mut slot = MODEL.lock().map_err(|_| "dpdfnet lock".to_string())?;
-    if slot.as_ref().is_none_or(|(p, _)| p != model) {
-        *slot = Some((model.to_path_buf(), load(model)?));
+/// `infer` replaces one interleaved real/imaginary spectrum in place.
+pub(crate) fn process(
+    input: &[f32],
+    win: usize,
+    limit_db: Option<f32>,
+    progress: &dyn Fn(f32),
+    mut infer: impl FnMut(&mut [f32]) -> Result<(), String>,
+) -> Result<Vec<f32>, String> {
+    if win < 2 || win % 2 != 0 {
+        return Err(format!("denoise: invalid FFT window {win}"));
     }
-    let (_, m) = slot.as_mut().expect("dpdfnet model");
-    let (win, hop) = (m.win, m.win / 2);
+    let hop = win / 2;
     let bins = win / 2 + 1;
     let window = vorbis(win);
     let mut x: Vec<f32> = input.to_vec();
@@ -87,7 +52,6 @@ pub fn denoise(model: &Path, input: &[f32], limit_db: Option<f32>, progress: &dy
     let mut out = vec![0f32; total];
     let mut norm = vec![0f32; total];
     let mut time = inv.make_output_vec();
-    let mut state = m.init_state.clone();
     let mut frame_ri = vec![0f32; bins * 2];
     let mut cleaned = inv.make_input_vec();
     for t in 0..frames {
@@ -103,21 +67,10 @@ pub fn denoise(model: &Path, input: &[f32], limit_db: Option<f32>, progress: &dy
         if recent.len() > NOISY_FRAME_OFFSET + 1 {
             recent.pop_front();
         }
-        let out_m = m
-            .session
-            .run(ort::inputs![
-                "spec" => TensorRef::from_array_view((vec![1i64, 1, bins as i64, 2], frame_ri.as_slice())).map_err(|e| e.to_string())?,
-                "state_in" => TensorRef::from_array_view((vec![state.len() as i64], state.as_slice())).map_err(|e| e.to_string())?,
-            ])
-            .map_err(|e| format!("dpdfnet: {e}"))?;
-        let (_, e) = out_m["spec_e"].try_extract_tensor::<f32>().map_err(|e| format!("dpdfnet: {e}"))?;
+        infer(&mut frame_ri)?;
         for (k, c) in cleaned.iter_mut().enumerate() {
-            *c = Complex32::new(e[2 * k], e[2 * k + 1]);
+            *c = Complex32::new(frame_ri[2 * k], frame_ri[2 * k + 1]);
         }
-        let (_, s) = out_m["state_out"].try_extract_tensor::<f32>().map_err(|e| format!("dpdfnet: {e}"))?;
-        let len = state.len();
-        state.copy_from_slice(&s[..len]);
-        drop(out_m);
         if let Some(alpha) = alpha {
             let reference = (recent.len() == NOISY_FRAME_OFFSET + 1).then(|| &recent[0]);
             for (k, c) in cleaned.iter_mut().enumerate() {
@@ -136,7 +89,9 @@ pub fn denoise(model: &Path, input: &[f32], limit_db: Option<f32>, progress: &dy
             progress(t as f32 / frames as f32);
         }
     }
-    let wave: Vec<f32> = (pad..total - pad).map(|i| if norm[i] > f32::MIN_POSITIVE { out[i] / norm[i] } else { out[i] }).collect();
+    let wave: Vec<f32> = (pad..total - pad)
+        .map(|i| if norm[i] > f32::MIN_POSITIVE { out[i] / norm[i] } else { out[i] })
+        .collect();
     let wave = &wave[..((frames - 1) * hop).min(wave.len())];
     let mut result: Vec<f32> = wave.get(2 * win..).unwrap_or(&[]).to_vec();
     result.resize(input.len(), 0.0);
@@ -144,32 +99,80 @@ pub fn denoise(model: &Path, input: &[f32], limit_db: Option<f32>, progress: &dy
     Ok(result)
 }
 
-/// Голос или запись без шума: файл в 48 кГц моно через ffmpeg, DPDFNet, запись WAV рядом в `dst`.
-pub fn denoise_file(models_root: &Path, src: &Path, dst: &Path, limit_db: Option<f32>, progress: &dyn Fn(f32)) -> Result<(), String> {
-    let model = model_path(models_root);
-    if !model.is_file() {
-        return Err(t!("denoise-missing"));
-    }
-    let tmp = tempfile::Builder::new().prefix("denoise-").tempdir().map_err(|e| e.to_string())?;
-    let wav = tmp.path().join("in48.wav");
-    crate::media::extract_audio(src, &wav, SR, 1)?;
-    let (samples, _) = crate::wavio::read_mono_f32(&wav)?;
-    let clean = denoise(&model, &samples, limit_db, progress)?;
-    crate::wavio::write_mono_f32(dst, &clean, SR)
-}
-
 #[cfg(test)]
 mod tests {
+    use std::cell::{Cell, RefCell};
+
     use super::*;
 
     #[test]
-    #[ignore = "needs the DPDFNet model and a 48 kHz mono WAV: SPEECH_DENOISE_MODEL, SPEECH_DENOISE_IN, SPEECH_DENOISE_OUT"]
-    fn denoise_a_file_for_comparison_with_the_python_package() {
-        let var = |k: &str| PathBuf::from(std::env::var(k).unwrap());
-        let (x, sr) = crate::wavio::read_mono_f32(&var("SPEECH_DENOISE_IN")).unwrap();
-        assert_eq!(sr, SR);
-        let limit = std::env::var("SPEECH_DENOISE_DB").ok().map(|v| v.parse::<f32>().unwrap());
-        let y = denoise(&var("SPEECH_DENOISE_MODEL"), &x, limit, &|_| {}).unwrap();
-        crate::wavio::write_mono_f32(&var("SPEECH_DENOISE_OUT"), &y, SR).unwrap();
+    fn silent_and_short_signals_keep_their_length_and_finish_progress() {
+        for len in [0, 1, 3, 47, 64] {
+            let progress = RefCell::new(Vec::new());
+            let output = process(&vec![0.0; len], 8, None, &|value| progress.borrow_mut().push(value), |frame| {
+                assert_eq!(frame.len(), 10);
+                assert!(frame.iter().all(|value| value.is_finite()));
+                frame.fill(0.0);
+                Ok(())
+            })
+            .unwrap();
+            assert_eq!(output, vec![0.0; len]);
+            let progress = progress.into_inner();
+            assert_eq!(progress.last(), Some(&1.0));
+            assert!(progress.iter().all(|value| (0.0..=1.0).contains(value)));
+            assert!(progress.windows(2).all(|pair| pair[0] <= pair[1]));
+        }
+    }
+
+    #[test]
+    fn an_inference_failure_stops_without_retry_or_success_progress() {
+        let calls = Cell::new(0);
+        let progress = RefCell::new(Vec::new());
+        let error = process(&[0.5; 64], 8, None, &|value| progress.borrow_mut().push(value), |_| {
+            calls.set(calls.get() + 1);
+            Err("injected inference failure".into())
+        })
+        .unwrap_err();
+        assert_eq!(error, "injected inference failure");
+        assert_eq!(calls.get(), 1);
+        assert!(!progress.borrow().contains(&1.0));
+    }
+
+    #[test]
+    fn invalid_windows_fail_before_the_frame_processor_runs() {
+        for win in [0, 1, 3] {
+            let called = Cell::new(false);
+            assert!(process(&[0.0; 8], win, None, &|_| {}, |_| {
+                called.set(true);
+                Ok(())
+            })
+            .is_err());
+            assert!(!called.get());
+        }
+    }
+
+    #[test]
+    fn attenuation_limits_blend_the_aligned_noisy_reference() {
+        let input = (0..64)
+            .map(|i| (i as f32 * 0.27).sin() * 0.5 + (i as f32 * 0.13).cos() * 0.2)
+            .collect::<Vec<_>>();
+        let run = |limit| {
+            process(&input, 8, limit, &|_| {}, |frame| {
+                frame.fill(0.0);
+                Ok(())
+            })
+            .unwrap()
+        };
+        let suppressed = run(None);
+        let reference = run(Some(0.0));
+        let limited = run(Some(20.0));
+        assert!(suppressed.iter().all(|value| *value == 0.0));
+        for (actual, expected) in reference.iter().zip(&input).take(16) {
+            assert!((actual - expected).abs() < 1e-5, "{actual} != {expected}");
+        }
+        for (actual, expected) in limited.iter().zip(reference) {
+            assert!((actual - expected * 0.1).abs() < 1e-5);
+        }
+        assert_eq!(limited.len(), input.len());
     }
 }

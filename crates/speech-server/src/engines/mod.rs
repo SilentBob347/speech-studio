@@ -3,6 +3,7 @@
 //! вид клона, продолжение, стриминг, что из разметки текста движок читает.
 
 pub(crate) mod asr_util;
+pub(crate) mod denoise;
 pub(crate) mod bench;
 pub(crate) mod hw;
 pub(crate) mod models;
