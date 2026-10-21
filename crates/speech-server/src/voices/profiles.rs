@@ -6,14 +6,12 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::listen_project as lp;
-
 /// The profile store, in the data root.
 const FILE: &str = "speaker-profiles.json";
 /// How much of a speaker's speech goes into one embedding.
-const MAX_SECS: f64 = 30.0;
+pub(crate) const MAX_SECS: f64 = 30.0;
 /// Less speech than this tells too little of the voice to match it.
-const MIN_SECS: f64 = 2.0;
+pub(crate) const MIN_SECS: f64 = 2.0;
 const SR: u32 = 16_000;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -29,9 +27,14 @@ pub struct Profile {
 
 pub struct Paths {
     pub repo_root: PathBuf,
-    pub workspace: PathBuf,
     pub voices_dir: PathBuf,
     pub models_root: PathBuf,
+}
+
+pub(crate) struct Speaker<'a> {
+    pub key: &'a str,
+    pub name: Option<&'a str>,
+    pub audio: &'a [f32],
 }
 
 pub fn load(repo_root: &Path) -> Result<Vec<Profile>, String> {
@@ -74,42 +77,15 @@ fn embedder(p: &Paths) -> Result<dub_faces::VoiceEmbedder, String> {
     dub_faces::VoiceEmbedder::load(&dub_faces::wespeaker_path(&p.models_root)).map_err(|e| e.to_string())
 }
 
-/// Each speaker's speech of the recording, up to `MAX_SECS`, as 16 kHz samples; speakers with too little are left out.
-fn speakers_audio(p: &Paths, pid: &str) -> Result<(lp::ListenProject, Vec<(String, Vec<f32>)>), String> {
-    let project = lp::load(&p.workspace, pid)?;
-    let dir = lp::dir(&p.workspace, pid);
-    let clean = dir.join("work").join("vocals16.wav");
-    let wav = if clean.is_file() { clean } else { dir.join("work").join("audio16.wav") };
-    if !wav.is_file() {
-        return Err(t!("listen-transcribe-first"));
-    }
-    let (samples, sr) = crate::wavio::read_mono_f32(&wav)?;
-    if sr != SR {
-        return Err(format!("{}: {sr} Hz, the voice print takes {SR} Hz", wav.display()));
-    }
-    let mut out = Vec::new();
-    for key in project.speakers.keys() {
-        let mut voice: Vec<f32> = Vec::new();
-        for l in project.lines.iter().filter(|l| &l.speaker == key && !l.hidden) {
-            let a = ((l.start * SR as f64) as usize).min(samples.len());
-            let z = ((l.end * SR as f64) as usize).min(samples.len());
-            voice.extend_from_slice(&samples[a..z]);
-            if voice.len() as f64 >= MAX_SECS * SR as f64 {
-                break;
-            }
-        }
-        if voice.len() as f64 >= MIN_SECS * SR as f64 {
-            out.push((key.clone(), voice));
-        }
-    }
-    Ok((project, out))
-}
-
 /// A library voice's embedding, kept by its file's size and time so it is worked out once.
-fn voice_print(p: &Paths, emb: &mut dub_faces::VoiceEmbedder, name: &str) -> Result<Vec<f32>, String> {
+fn voice_print(p: &Paths, embed: &mut impl FnMut(&[f32]) -> Result<Vec<f32>, String>, name: &str) -> Result<Vec<f32>, String> {
     let audio = crate::voice_library::audio_path(&p.voices_dir, name).ok_or_else(|| t!("voice-missing", name = name.to_string()))?;
     let meta = std::fs::metadata(&audio).map_err(|e| format!("{}: {e}", audio.display()))?;
-    let stamp = meta.modified().ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map_or(0, |d| d.as_secs());
+    let stamp = meta
+        .modified()
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map_or(0, |d| d.as_secs());
     let cache = p.voices_dir.join(".work").join("prints");
     std::fs::create_dir_all(&cache).map_err(|e| format!("{}: {e}", cache.display()))?;
     let tag = blake3::hash(format!("{name}|{}|{stamp}", meta.len()).as_bytes()).to_hex()[..16].to_string();
@@ -122,30 +98,39 @@ fn voice_print(p: &Paths, emb: &mut dub_faces::VoiceEmbedder, name: &str) -> Res
     crate::media::to_16k_mono(&audio, &wav)?;
     let (samples, _) = crate::wavio::read_mono_f32(&wav)?;
     let cut = samples.len().min((MAX_SECS * SR as f64) as usize);
-    let print = emb.embed_samples(&samples[..cut]).map_err(|e| e.to_string())?;
+    let print = embed(&samples[..cut])?;
     std::fs::write(&file, serde_json::to_vec(&print).map_err(|e| e.to_string())?).map_err(|e| format!("{}: {e}", file.display()))?;
     Ok(print)
 }
 
 /// For each speaker of the recording, the most alike profile or library voice, and whether it is alike enough to be
 /// the same person.
-pub fn matches(p: &Paths, pid: &str) -> Result<Value, String> {
-    let (project, voices) = speakers_audio(p, pid)?;
+pub fn matches(p: &Paths, speakers: &[Speaker<'_>]) -> Result<Value, String> {
     let mut emb = embedder(p)?;
+    matches_with(p, speakers, |audio| emb.embed_samples(audio).map_err(|e| e.to_string()))
+}
+
+fn matches_with(p: &Paths, speakers: &[Speaker<'_>], mut embed: impl FnMut(&[f32]) -> Result<Vec<f32>, String>) -> Result<Value, String> {
     let profiles = load(&p.repo_root)?;
     let (library, _) = crate::voice_library::list(&p.voices_dir);
-    let mut prints: Vec<(String, &str, Vec<f32>)> = profiles.iter().map(|pr| (pr.name.clone(), "profile", pr.embedding.clone())).collect();
+    let mut prints: Vec<(String, &str, Vec<f32>)> = profiles
+        .iter()
+        .map(|pr| (pr.name.clone(), "profile", pr.embedding.clone()))
+        .collect();
     for v in &library {
-        prints.push((v.name.clone(), "voice", voice_print(p, &mut emb, &v.name)?));
+        prints.push((v.name.clone(), "voice", voice_print(p, &mut embed, &v.name)?));
     }
     let threshold = dub_faces::voice_cos_threshold() as f64;
     let mut out = Vec::new();
-    for (key, audio) in &voices {
-        let print = emb.embed_samples(audio).map_err(|e| e.to_string())?;
-        let best = prints.iter().map(|(name, kind, e)| (name, *kind, cosine(&print, e))).max_by(|a, b| a.2.total_cmp(&b.2));
+    for speaker in speakers {
+        let print = embed(speaker.audio)?;
+        let best = prints
+            .iter()
+            .map(|(name, kind, e)| (name, *kind, cosine(&print, e)))
+            .max_by(|a, b| a.2.total_cmp(&b.2));
         out.push(json!({
-            "speaker": key,
-            "name": project.speakers.get(key),
+            "speaker": speaker.key,
+            "name": speaker.name,
             "best": best.map(|(name, kind, score)| json!({ "name": name, "kind": kind, "score": (score * 100.0).round() / 100.0, "same": score >= threshold })),
         }));
     }
@@ -153,21 +138,27 @@ pub fn matches(p: &Paths, pid: &str) -> Result<Value, String> {
 }
 
 /// Keeps the voice of a recording's speaker under the name it has there: a known name learns from one more recording.
-pub fn remember(p: &Paths, pid: &str, speaker: &str) -> Result<Value, String> {
-    let (project, voices) = speakers_audio(p, pid)?;
-    let name = project.speakers.get(speaker).cloned().ok_or_else(|| format!("no speaker {speaker} in this recording"))?;
-    let audio = voices.iter().find(|(k, _)| k == speaker).map(|(_, a)| a).ok_or_else(|| t!("speaker-too-little", name = name.clone()))?;
+pub fn remember(p: &Paths, pid: &str, name: &str, audio: &[f32]) -> Result<Value, String> {
     let print = embedder(p)?.embed_samples(audio).map_err(|e| e.to_string())?;
-    let mut profiles = load(&p.repo_root)?;
+    remember_print(&p.repo_root, pid, name, print)
+}
+
+fn remember_print(repo_root: &Path, pid: &str, name: &str, print: Vec<f32>) -> Result<Value, String> {
+    let mut profiles = load(repo_root)?;
     match profiles.iter_mut().find(|pr| pr.name == name) {
         Some(pr) if pr.pids.iter().any(|x| x == pid) => {}
         Some(pr) => {
             learn(pr, &print);
             pr.pids.push(pid.to_string());
         }
-        None => profiles.push(Profile { name: name.clone(), embedding: print, recordings: 1, pids: vec![pid.to_string()] }),
+        None => profiles.push(Profile {
+            name: name.to_string(),
+            embedding: print,
+            recordings: 1,
+            pids: vec![pid.to_string()],
+        }),
     }
-    save(&p.repo_root, &profiles)?;
+    save(repo_root, &profiles)?;
     let recordings = profiles.iter().find(|pr| pr.name == name).map_or(1, |pr| pr.recordings);
     Ok(json!({ "name": name, "recordings": recordings }))
 }
@@ -188,13 +179,25 @@ pub fn listing(repo_root: &Path) -> Result<Value, String> {
 }
 
 #[cfg(test)]
+mod comparison_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn a_profile_learns_from_more_recordings_and_can_be_forgotten() {
         let d = tempfile::tempdir().unwrap();
-        save(d.path(), &[Profile { name: "Anna".into(), embedding: vec![1.0, 0.0], recordings: 1, pids: vec!["a".into()] }]).unwrap();
+        save(
+            d.path(),
+            &[Profile {
+                name: "Anna".into(),
+                embedding: vec![1.0, 0.0],
+                recordings: 1,
+                pids: vec!["a".into()],
+            }],
+        )
+        .unwrap();
         let mut profiles = load(d.path()).unwrap();
         learn(&mut profiles[0], &[0.0, 1.0]);
         assert_eq!(profiles[0].recordings, 2);

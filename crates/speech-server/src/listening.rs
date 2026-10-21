@@ -5,5 +5,9 @@ pub(crate) mod watch;
 pub(crate) mod live;
 pub(crate) mod export;
 mod source;
+mod transcript;
+mod speakers;
 
 pub(crate) use source::create_from_source;
+pub(crate) use transcript::export_transcript;
+pub(crate) use speakers::speakers_audio;

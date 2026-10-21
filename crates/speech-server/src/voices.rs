@@ -8,3 +8,4 @@ pub(crate) mod record;
 mod reference;
 
 pub(crate) use reference::prepare_reference;
+pub(crate) use library::audio_path;

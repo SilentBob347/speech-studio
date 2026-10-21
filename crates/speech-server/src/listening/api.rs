@@ -13,7 +13,6 @@ use serde_json::{json, Value};
 use crate::listen_jobs::{self, ListenPaths};
 use crate::listen_project::{self as lp, ListenProject};
 use crate::speech_api::{joined, refuse};
-use crate::speech_project as sp;
 use crate::{jobs, AppState};
 
 pub fn paths(st: &AppState) -> ListenPaths {
@@ -366,22 +365,8 @@ pub async fn check(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json
 /// POST /listen/{pid}/to-speech — проект Speech из транскрипта: реплики с теми же спикерами на таймкодах записи.
 pub async fn to_speech(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Response {
     let (ws, voices_dir) = (st.workspace.clone(), st.voices_dir.clone());
-    let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || -> Result<Value, String> {
-        let project = lp::load(&ws, &pid)?;
-        let cues: Vec<crate::subimport::Cue> =
-            project.shown().map(|l| crate::subimport::Cue { start: l.start, end: l.end, text: l.text.clone(), speaker: Some(project.speaker_name(&l.speaker)) }).collect();
-        if cues.is_empty() {
-            return Err(t!("listen-empty"));
-        }
-        let mut speech = sp::from_cues(&project.name, &cues, &t!("speech-narrator"));
-        for name in project.speakers.values() {
-            if crate::voice_library::audio_path(&voices_dir, name).is_some() {
-                speech.cast.insert(name.clone(), name.clone());
-            }
-        }
-        let new_pid = crate::platform::ids::new_id();
-        sp::save(&ws, &new_pid, &speech)?;
-        Ok(json!({ "pid": new_pid }))
+    let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || {
+        crate::app::listening_to_speech::convert(&ws, &voices_dir, &pid).map(|pid| json!({ "pid": pid }))
     }))
     .await);
     saved(res, StatusCode::BAD_REQUEST)
@@ -392,19 +377,22 @@ pub async fn to_speech(State(st): State<AppState>, AxPath(pid): AxPath<String>) 
 pub async fn voices(State(st): State<AppState>, AxPath(pid): AxPath<String>, body: Option<Json<Value>>) -> Response {
     let only = body.and_then(|Json(v)| v.get("speaker").and_then(Value::as_str).map(str::to_string));
     let (ws, voices_dir, models_root) = (st.workspace.clone(), st.voices_dir.clone(), st.models_root.clone());
-    let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || voices_from_speakers(&ws, &voices_dir, &models_root, &pid, only.as_deref()))).await);
+    let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || crate::app::listening_voices::extract(&ws, &voices_dir, &models_root, &pid, only.as_deref()))).await);
     saved(res, StatusCode::BAD_REQUEST)
 }
 
-fn profile_paths(st: &AppState) -> crate::speaker_profiles::Paths {
-    crate::speaker_profiles::Paths { repo_root: st.repo_root.clone(), workspace: st.workspace.clone(), voices_dir: st.voices_dir.clone(), models_root: st.models_root.clone() }
+fn profile_paths(st: &AppState) -> crate::app::speaker_profiles::Paths {
+    crate::app::speaker_profiles::Paths {
+        workspace: st.workspace.clone(),
+        profiles: crate::speaker_profiles::Paths { repo_root: st.repo_root.clone(), voices_dir: st.voices_dir.clone(), models_root: st.models_root.clone() },
+    }
 }
 
 /// POST /listen/{pid}/speakers/match — who each speaker of the recording is like among the named speakers and the
 /// library voices, by the voice print.
 pub async fn speakers_match(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Response {
     let p = profile_paths(&st);
-    let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || crate::speaker_profiles::matches(&p, &pid))).await);
+    let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || crate::app::speaker_profiles::matches(&p, &pid))).await);
     saved(res, StatusCode::BAD_REQUEST)
 }
 
@@ -412,7 +400,7 @@ pub async fn speakers_match(State(st): State<AppState>, AxPath(pid): AxPath<Stri
 pub async fn speaker_remember(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<Value>) -> Response {
     let speaker = body.get("speaker").and_then(Value::as_str).unwrap_or_default().to_string();
     let p = profile_paths(&st);
-    let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || crate::speaker_profiles::remember(&p, &pid, &speaker))).await);
+    let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || crate::app::speaker_profiles::remember(&p, &pid, &speaker))).await);
     saved(res, StatusCode::BAD_REQUEST)
 }
 
@@ -430,53 +418,6 @@ pub async fn speaker_forget(State(st): State<AppState>, AxPath(name): AxPath<Str
         Ok(v) => Json(v).into_response(),
         Err(e) => refuse(StatusCode::NOT_FOUND, "no_profile", e),
     }
-}
-
-fn voices_from_speakers(ws: &Path, voices_dir: &Path, models_root: &Path, pid: &str, only: Option<&str>) -> Result<Value, String> {
-    let project = lp::load(ws, pid)?;
-    let dir = lp::dir(ws, pid);
-    let clean = dir.join("work").join("vocals16.wav");
-    let pick_wav = if clean.is_file() { clean } else { dir.join("work").join("audio16.wav") };
-    if !pick_wav.is_file() {
-        return Err(t!("listen-transcribe-first"));
-    }
-    let src = lp::source_path(ws, pid, &project)?;
-    let stems_vocals = dir.join("work").join("stems").join("vocals.wav");
-    let cut_from = if stems_vocals.is_file() { stems_vocals } else { src };
-    let (samples, sr) = crate::wavio::read_mono_f32(&pick_wav)?;
-    let sel = crate::models::load_selection(models_root);
-    let max_len = sel.get("higgs_ref_secs").and_then(Value::as_str).and_then(|v| v.parse::<f64>().ok()).unwrap_or(12.0);
-    let mut made = Vec::new();
-    let mut skipped = Vec::new();
-    for (key, name) in project.speakers.iter().filter(|(k, _)| only.is_none_or(|o| o == k.as_str())) {
-        let words: Vec<crate::ref_pick::Word> = project
-            .lines
-            .iter()
-            .filter(|l| &l.speaker == key && !l.hidden && !l.approx)
-            .flat_map(|l| l.words.iter().map(|w| crate::ref_pick::Word { word: w.text.clone(), start: w.start, end: w.end }))
-            .collect();
-        let Some(best) = crate::ref_pick::candidates(&words, &samples, sr, (max_len * 0.4).min(5.0), max_len, 1).into_iter().next() else {
-            skipped.push(name.clone());
-            continue;
-        };
-        let tmp = tempfile::Builder::new().prefix("spk-").suffix(".flac").tempfile().map_err(|e| e.to_string())?;
-        crate::media::keep_audio_ranges(&cut_from, tmp.path(), &[(best.start, best.end)])?;
-        let mut card = crate::voice_library::guess_card(name);
-        card.source = "listening".into();
-        card.transcript_auto = true;
-        if !matches!(project.settings.lang.as_str(), "" | "auto") {
-            card.lang = project.settings.lang.clone();
-        } else if crate::stress::is_russian(&best.text, "auto") {
-            card.lang = "ru".into();
-        }
-        let voice = crate::voice_library::import_audio(voices_dir, &crate::voice_library::sanitize(name), tmp.path(), card)?;
-        crate::voice_library::write_transcript(voices_dir, &voice, best.text.trim())?;
-        let local: Vec<crate::ref_pick::Word> =
-            words.iter().filter(|w| w.start >= best.start - 1e-6 && w.end <= best.end + 1e-6).map(|w| crate::ref_pick::Word { word: w.word.clone(), start: w.start - best.start, end: w.end - best.start }).collect();
-        crate::voice_library::write_words(voices_dir, &voice, &local)?;
-        made.push(json!({ "speaker": key, "voice": voice, "seconds": best.duration }));
-    }
-    Ok(json!({ "made": made, "skipped": skipped }))
 }
 
 /// Карточка проекта Listening для списка проектов.

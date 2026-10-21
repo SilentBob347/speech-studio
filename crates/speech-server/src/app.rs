@@ -19,6 +19,9 @@ pub(crate) mod url_import;
 pub(crate) mod chat;
 pub(crate) mod chat_api;
 pub(crate) mod tools;
+pub(crate) mod listening_to_speech;
+pub(crate) mod listening_voices;
+pub(crate) mod speaker_profiles;
 
 #[cfg(test)]
 mod project_primitives_tests;

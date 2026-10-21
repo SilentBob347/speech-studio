@@ -16,6 +16,8 @@ pub(crate) mod director;
 pub(crate) mod director_api;
 pub(crate) mod auto_cast;
 mod preparation;
+mod creation;
 
 pub(crate) use preparation::{dictionary_counts, prepare_text, unknown_words, PrepareText};
 pub(crate) use jobs::SpeechPaths;
+pub(crate) use creation::from_transcript;
