@@ -4,7 +4,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
-use crate::jobs::{JobKind, JobStatus};
+use crate::jobs::{JobCompletion, JobKind, JobStatus};
 
 static HUB: OnceLock<Option<studio_hub_client::Hub>> = OnceLock::new();
 /// The models folder, whose active.json says what a job ran on.
@@ -116,17 +116,28 @@ pub fn setup_failed(reason: &str) {
 
 /// A finished job, counted as `<kind>_done`, `<kind>_failed` or `<kind>_cancelled` (frame previews are not counted);
 /// a failure keeps its reason, which the hub client scrubs, and finished work names the models it ran on.
-pub fn job_ended(kind: JobKind, status: JobStatus, error: Option<&str>, pid: Option<&str>) {
-    let Some(hub) = HUB.get().and_then(Option::as_ref) else { return };
+pub(crate) fn job_ended(completion: &JobCompletion) {
+    record_job(HUB.get().and_then(Option::as_ref), completion);
+}
+
+fn completion_counter(kind: JobKind, status: JobStatus) -> Option<String> {
     if kind == JobKind::Frame {
-        return;
+        return None;
     }
     let outcome = match status {
         JobStatus::Done => "done",
         JobStatus::Cancelled => "cancelled",
         _ => "failed",
     };
-    hub.count(&format!("{}_{outcome}", kind.as_str()), 1);
+    Some(format!("{}_{outcome}", kind.as_str()))
+}
+
+fn record_job(hub: Option<&studio_hub_client::Hub>, completion: &JobCompletion) {
+    let Some(hub) = hub else { return };
+    let (kind, status) = (completion.kind, completion.status);
+    let Some(counter) = completion_counter(kind, status) else { return };
+    let (error, pid) = (completion.error.as_deref(), completion.pid.as_deref());
+    hub.count(&counter, 1);
     match status {
         JobStatus::Done => {
             let stages: &[&str] = match kind {
@@ -191,7 +202,30 @@ fn models_in_use(mroot: &Path, stages: &[&str]) -> Vec<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::models_in_use;
+    use super::*;
+
+    #[test]
+    fn completion_counters_keep_outcomes_and_exclude_frames() {
+        for status in [JobStatus::Done, JobStatus::Error, JobStatus::Cancelled] {
+            assert_eq!(completion_counter(JobKind::Frame, status), None);
+        }
+        assert_eq!(completion_counter(JobKind::Synth, JobStatus::Done).as_deref(), Some("synth_done"));
+        assert_eq!(completion_counter(JobKind::Export, JobStatus::Error).as_deref(), Some("export_failed"));
+        assert_eq!(completion_counter(JobKind::VoiceClean, JobStatus::Cancelled).as_deref(), Some("voice_clean_cancelled"));
+    }
+
+    #[tokio::test]
+    async fn missing_hub_completion_observer_keeps_job_results() {
+        let queue = crate::jobs::JobQueue::with_completion_observer(|completion| record_job(None, completion));
+        for expected in [Ok(serde_json::json!({"done":true})), Err("job error".to_string())] {
+            let answer = expected.clone();
+            let (_, result) = queue
+                .enqueue_awaitable(crate::jobs::JobMeta::new(JobKind::Write, None), Box::new(move |_| answer))
+                .await.unwrap();
+            let actual = tokio::time::timeout(std::time::Duration::from_secs(5), result).await.unwrap().unwrap();
+            assert_eq!(actual, expected);
+        }
+    }
 
     #[test]
     fn a_job_names_only_the_stages_it_ran() {

@@ -316,7 +316,7 @@ impl AppState {
             workspace,
             web_root,
             opts: Arc::new(EngineOpts::default()),
-            jobs: JobQueue::new(),
+            jobs: JobQueue::with_completion_observer(hub::job_ended),
             sortformer_onnx,
             llama_bin,
             bsroformer_cli,
