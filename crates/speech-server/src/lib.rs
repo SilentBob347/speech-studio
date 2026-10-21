@@ -279,7 +279,7 @@ impl AppState {
         let web_root = spa::find_web_root(&repo_root);
         let mroot = models_root(&repo_root);
         setup::remove_retired(&mroot);
-        match credentials::migrate_legacy_selection(&mroot) {
+        match app::credential_migration::migrate_legacy_selection(&mroot) {
             Ok(moved) if moved.openrouter_key || moved.proxy_password => {
                 tracing::info!("secrets moved from active.json to the secret store: {moved:?}")
             }

@@ -1,4 +1,5 @@
 pub(crate) mod context;
+pub(crate) mod credential_migration;
 pub(crate) mod events;
 pub(crate) mod revisions;
 pub(crate) mod endpoints;

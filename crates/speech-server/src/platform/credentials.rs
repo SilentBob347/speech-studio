@@ -18,7 +18,6 @@ use std::{
 
 use anyhow::{bail, Context, Result};
 use serde::Serialize;
-use serde_json::Value;
 
 pub const OPENROUTER_ENV_VAR: &str = "OPENROUTER_API_KEY";
 pub const GOOGLE_ENV_VAR: &str = "GEMINI_API_KEY";
@@ -128,9 +127,13 @@ pub fn store_openrouter_api_key(api_key: Option<&str>) -> Result<Option<Credenti
         bail!("{OPENROUTER_ENV_VAR} is set in this environment and takes priority; unset it before storing a key in Studio");
     }
     let dir = secrets_dir().context("no per-user application data directory for credential storage")?;
-    let stored = write_secret(&dir, OPENROUTER_FILE, api_key, "an OpenRouter API key must be a single line",
-    )?;
+    let stored = store_openrouter_api_key_in(&dir, api_key)?;
     Ok(stored.then_some(CredentialSource::LocalStore))
+}
+
+/// Explicit-store operations leave environment precedence to their caller.
+pub(crate) fn store_openrouter_api_key_in(dir: &Path, api_key: Option<&str>) -> Result<bool> {
+    write_secret(dir, OPENROUTER_FILE, api_key, "an OpenRouter API key must be a single line")
 }
 
 /// Ключ локального OpenAI-совместимого сервера (LM Studio, vLLM с --api-key) лежит вместе с адресом, для
@@ -186,7 +189,7 @@ pub(crate) fn local_server_key_in(dir: &Path, address: &str) -> Option<String> {
     }
 }
 
-/// Пароль прокси: хранится отдельно от адреса, в active.json лежит адрес без пароля.
+/// Пароль прокси хранится отдельно от адреса.
 pub fn proxy_password() -> Option<String> {
     read_secret(&secrets_dir()?, PROXY_PASSWORD_FILE)
 }
@@ -265,9 +268,7 @@ fn write_secret(dir: &Path, name: &str, value: Option<&str>, multiline_error: &s
                 bail!("{multiline_error}");
             }
             fs::create_dir_all(dir).with_context(|| format!("create {}", dir.display()))?;
-            let tmp = dir.join(format!("{name}.tmp"));
-            fs::write(&tmp, value).with_context(|| format!("write {}", tmp.display()))?;
-            fs::rename(&tmp, &path).with_context(|| format!("replace {}", path.display()))?;
+            super::fs::write_atomic(&path, value.as_bytes()).map_err(anyhow::Error::msg)?;
             Ok(true)
         }
         None => {
@@ -281,55 +282,6 @@ fn write_secret(dir: &Path, name: &str, value: Option<&str>, multiline_error: &s
             Ok(false)
         }
     }
-}
-
-/// Что перенесено из active.json при старте.
-#[derive(Debug, Default, PartialEq, Eq)]
-pub struct Migrated {
-    pub openrouter_key: bool,
-    pub proxy_password: bool,
-}
-
-/// Прежние версии держали ключ OpenRouter (`or_key`) и пароль прокси (внутри `proxy_url`) открытым
-/// текстом в models/active.json. Переносит их в хранилище секретов и переписывает active.json без них.
-/// Из active.json секрет уходит только после того, как он записан в хранилище.
-pub fn migrate_legacy_selection(models_root: &Path) -> Result<Migrated> {
-    let dir = secrets_dir().context("no per-user application data directory for credential storage")?;
-    migrate_legacy_selection_into(models_root, &dir)
-}
-
-pub(crate) fn migrate_legacy_selection_into(models_root: &Path, dir: &Path) -> Result<Migrated> {
-    let _held = crate::models::selection_writes();
-    let mut selection = crate::models::load_selection(models_root);
-    let slots = selection.as_object_mut().expect("load_selection returns object");
-    let mut migrated = Migrated::default();
-    let mut changed = false;
-
-    if let Some(legacy) = slots.remove("or_key") {
-        if let Some(key) = legacy.as_str().map(str::trim).filter(|key| !key.is_empty()) {
-            write_secret(dir, OPENROUTER_FILE, Some(key), "an OpenRouter API key must be a single line",
-            )?;
-            migrated.openrouter_key = true;
-        }
-        changed = true;
-    }
-
-    if let Some(url) = slots.get("proxy_url").and_then(Value::as_str).map(str::to_owned) {
-        let (bare, password) = crate::models::split_proxy_password(&url);
-        if let Some(password) = password {
-            store_proxy_password_in(dir, Some(&password))?;
-            migrated.proxy_password = true;
-        }
-        if bare != url {
-            slots.insert("proxy_url".into(), Value::String(bare));
-            changed = true;
-        }
-    }
-
-    if changed {
-        crate::models::write_selection(models_root, &selection).context("rewrite active.json without secrets")?;
-    }
-    Ok(migrated)
 }
 
 #[cfg(test)]
@@ -411,46 +363,23 @@ mod tests {
         }
     }
 
+    #[cfg(windows)]
     #[test]
-    fn legacy_secrets_leave_active_json_for_the_store() {
-        let models = scratch("migrate-models");
-        let secrets = scratch("migrate-secrets");
-        fs::write(
-            models.join("active.json"),
-            r#"{"tts":"q6_k","or_key":"sk-or-v1-secret","proxy_on":"1","proxy_url":"http://alice:s3cr%40t@proxy.lan:3128"}"#,
-        )
-        .unwrap();
+    fn a_locked_secret_keeps_its_value_without_leaving_temporary_files() {
+        use std::os::windows::fs::OpenOptionsExt;
 
-        let migrated = migrate_legacy_selection_into(&models, &secrets).unwrap();
-        assert_eq!(migrated, Migrated { openrouter_key: true, proxy_password: true });
+        let dir = tempfile::tempdir().unwrap();
+        store_openrouter_api_key_in(dir.path(), Some("previous")).unwrap();
+        let path = dir.path().join(OPENROUTER_FILE);
+        let lock = fs::OpenOptions::new().read(true).share_mode(1).open(&path).unwrap();
 
-        let on_disk = fs::read_to_string(models.join("active.json")).unwrap();
-        assert!(!on_disk.contains("sk-or-v1-secret") && !on_disk.contains("s3cr%40t") && !on_disk.contains("or_key"));
-        let selection = crate::models::load_selection(&models);
-        assert_eq!(selection["proxy_url"], "http://alice@proxy.lan:3128");
-        assert_eq!(selection["tts"], "q6_k");
-        assert_eq!(selection["proxy_on"], "1");
-        assert_eq!(read_secret(&secrets, OPENROUTER_FILE).as_deref(), Some("sk-or-v1-secret"));
-        assert_eq!(proxy_password_in(&secrets).as_deref(), Some("s3cr@t"), "the store keeps the password itself, not its %XX form");
-        assert!(!models.join("active.json.tmp").exists());
+        let error = store_openrouter_api_key_in(dir.path(), Some("replacement")).unwrap_err();
+        assert!(format!("{error:#}").contains(&path.display().to_string()));
+        assert_eq!(read_secret(dir.path(), OPENROUTER_FILE).as_deref(), Some("previous"));
+        assert_eq!(fs::read_dir(dir.path()).unwrap().count(), 1);
+        drop(lock);
 
-        assert_eq!(migrate_legacy_selection_into(&models, &secrets).unwrap(), Migrated::default());
-        assert_eq!(fs::read_to_string(models.join("active.json")).unwrap(), on_disk);
-
-        fs::remove_dir_all(&models).unwrap();
-        fs::remove_dir_all(&secrets).unwrap();
-    }
-
-    #[test]
-    fn a_selection_without_secrets_is_left_untouched() {
-        let models = scratch("untouched-models");
-        let secrets = scratch("untouched-secrets");
-        let original = "{\n  \"proxy_url\": \"socks5://proxy.lan:1080\",\n  \"tts\": \"q8_0\"\n}";
-        fs::write(models.join("active.json"), original).unwrap();
-        assert_eq!(migrate_legacy_selection_into(&models, &secrets).unwrap(), Migrated::default());
-        assert_eq!(fs::read_to_string(models.join("active.json")).unwrap(), original);
-        assert!(fs::read_dir(&secrets).unwrap().next().is_none());
-        fs::remove_dir_all(&models).unwrap();
-        fs::remove_dir_all(&secrets).unwrap();
+        store_openrouter_api_key_in(dir.path(), Some("replacement")).unwrap();
+        assert_eq!(read_secret(dir.path(), OPENROUTER_FILE).as_deref(), Some("replacement"));
     }
 }
