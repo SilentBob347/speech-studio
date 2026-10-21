@@ -249,12 +249,12 @@ mod tests {
     #[ignore = "needs the DPDFNet model and a 48 kHz mono WAV: SPEECH_DENOISE_MODEL, SPEECH_DENOISE_IN, SPEECH_DENOISE_OUT"]
     fn denoise_a_file_for_comparison_with_the_python_package() {
         let var = |k: &str| PathBuf::from(std::env::var(k).unwrap());
-        let (x, sr) = crate::wavio::read_mono_f32(&var("SPEECH_DENOISE_IN")).unwrap();
+        let (x, sr) = crate::audio::wavio::read_mono_f32(&var("SPEECH_DENOISE_IN")).unwrap();
         assert_eq!(sr, SR);
         let limit = std::env::var("SPEECH_DENOISE_DB").ok().map(|v| v.parse::<f32>().unwrap());
         let y = denoise(&var("SPEECH_DENOISE_MODEL"), &x, limit, &|_| {}).unwrap();
         let repeated = denoise(&var("SPEECH_DENOISE_MODEL"), &x, limit, &|_| {}).unwrap();
         assert_eq!(y, repeated, "each recording starts with a fresh recurrent state");
-        crate::wavio::write_mono_f32(&var("SPEECH_DENOISE_OUT"), &y, SR).unwrap();
+        crate::audio::wavio::write_mono_f32(&var("SPEECH_DENOISE_OUT"), &y, SR).unwrap();
     }
 }

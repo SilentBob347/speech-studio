@@ -99,9 +99,9 @@ pub struct HardwareRecommendation {
 /// Рекомендовать пресет по железу: явное совпадение имени карты (5090/4090) приоритетнее, иначе по VRAM;
 /// нет NVIDIA GPU или <7 ГБ -> облако (локально не потянет комфортно).
 pub fn recommend() -> HardwareRecommendation {
-    let hw = crate::hw::snapshot();
-    let vram_gb = hw.total_vram as f64 / crate::hw::GIB;
-    let ram_gb = hw.total_ram as f64 / crate::hw::GIB;
+    let hw = crate::engines::hw::snapshot();
+    let vram_gb = hw.total_vram as f64 / crate::engines::hw::GIB;
+    let ram_gb = hw.total_ram as f64 / crate::engines::hw::GIB;
     let has_gpu = hw.total_vram > 0;
     let name_lc = hw.gpu_name.to_lowercase();
 
@@ -132,7 +132,7 @@ pub fn apply(models_root: &Path, id: &str) -> Result<Vec<(String, String)>, Stri
     let preset = by_id(id).ok_or_else(|| t!("preset-unknown", id = id.to_string()))?;
     let mut applied = Vec::new();
     for (k, v) in preset.keys {
-        crate::models::set_selection(models_root, k, v).map_err(|e| t!("common-write", what = k.to_string(), error = e.to_string()))?;
+        crate::engines::models::set_selection(models_root, k, v).map_err(|e| t!("common-write", what = k.to_string(), error = e.to_string()))?;
         applied.push((k.to_string(), v.to_string()));
     }
     Ok(applied)

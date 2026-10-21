@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use super::jobs::ListenPaths;
-use crate::listen_project as lp;
+use crate::listening::project as lp;
 
 #[derive(Clone)]
 pub(crate) struct Dependencies {
@@ -370,7 +370,7 @@ async fn one(
         PathBuf::from(&config.out)
     };
     std::fs::create_dir_all(&out).map_err(|e| format!("{}: {e}", out.display()))?;
-    let o = crate::transcript_out::Opts {
+    let o = crate::listening::export::Opts {
         speakers: true,
         times: true,
         rules: dub_captions::RulesProfile::by_name(&config.rules),
@@ -382,7 +382,7 @@ async fn one(
         .unwrap_or_else(|| pid.clone());
     let mut outputs = Vec::new();
     for format in &config.formats {
-        let text = crate::transcript_out::render(&project, format, &o)?;
+        let text = crate::listening::export::render(&project, format, &o)?;
         let target = out.join(format!("{stem}.{format}"));
         crate::platform::fs::write_atomic(&target, text.as_bytes())?;
         outputs.push(target.to_string_lossy().into_owned());

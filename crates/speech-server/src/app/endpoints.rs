@@ -25,7 +25,7 @@ pub async fn openrouter_models(State(st): State<AppState>, Query(q): Query<HashM
         return (StatusCode::BAD_REQUEST, format!("unknown model kind: {kind:?}")).into_response();
     };
     let models_root = st.models_root.clone();
-    match tokio::task::spawn_blocking(move || crate::openrouter::catalog(&models_root)).await.unwrap_or_else(|e| Err(e.to_string())) {
+    match tokio::task::spawn_blocking(move || crate::integrations::openrouter::catalog(&models_root)).await.unwrap_or_else(|e| Err(e.to_string())) {
         Ok(cached) => {
             let models: Vec<Value> = cached.catalog().models_for(capability).map(model_view).collect();
             Json(json!({ "models": models, "refreshed_at": cached.refreshed_at })).into_response()
@@ -48,7 +48,7 @@ fn model_view(model: &dub_llm::openrouter::CatalogModel) -> Value {
 
 // ─── GET /engine/openrouter/catalog, POST /engine/openrouter/catalog/refresh ─
 // Сводка каталога: сколько моделей по стадиям и когда он обновлялся; refresh — скачать заново.
-fn catalog_summary(cached: &crate::openrouter::CachedCatalog) -> Value {
+fn catalog_summary(cached: &crate::integrations::openrouter::CachedCatalog) -> Value {
     use dub_llm::openrouter::Capability;
     let catalog = cached.catalog();
     let count = |capability| catalog.models_for(capability).count();
@@ -66,7 +66,7 @@ fn catalog_summary(cached: &crate::openrouter::CachedCatalog) -> Value {
 
 pub async fn openrouter_catalog(State(st): State<AppState>) -> Response {
     let models_root = st.models_root.clone();
-    match tokio::task::spawn_blocking(move || crate::openrouter::catalog(&models_root)).await.unwrap_or_else(|e| Err(e.to_string())) {
+    match tokio::task::spawn_blocking(move || crate::integrations::openrouter::catalog(&models_root)).await.unwrap_or_else(|e| Err(e.to_string())) {
         Ok(cached) => Json(catalog_summary(&cached)).into_response(),
         Err(e) => (StatusCode::BAD_GATEWAY, t!("openrouter-catalog-failed", error = e)).into_response(),
     }
@@ -74,7 +74,7 @@ pub async fn openrouter_catalog(State(st): State<AppState>) -> Response {
 
 pub async fn openrouter_catalog_refresh(State(st): State<AppState>) -> Response {
     let models_root = st.models_root.clone();
-    match tokio::task::spawn_blocking(move || crate::openrouter::refresh(&models_root)).await.unwrap_or_else(|e| Err(e.to_string())) {
+    match tokio::task::spawn_blocking(move || crate::integrations::openrouter::refresh(&models_root)).await.unwrap_or_else(|e| Err(e.to_string())) {
         Ok(cached) => Json(catalog_summary(&cached)).into_response(),
         Err(e) => (StatusCode::BAD_GATEWAY, t!("openrouter-catalog-failed", error = e)).into_response(),
     }
@@ -109,8 +109,8 @@ pub async fn server_models(State(st): State<AppState>, Query(q): Query<HashMap<S
         .get("url")
         .map(|u| u.trim().to_string())
         .filter(|u| !u.is_empty())
-        .unwrap_or_else(|| crate::models::server_url(&st.models_root));
-    let res = tokio::task::spawn_blocking(move || list_server_models(&url, crate::credentials::local_server_key_for(&url)))
+        .unwrap_or_else(|| crate::engines::models::server_url(&st.models_root));
+    let res = tokio::task::spawn_blocking(move || list_server_models(&url, crate::platform::credentials::local_server_key_for(&url)))
         .await
         .unwrap_or_else(|e| Err(e.to_string()));
     match res {
@@ -160,15 +160,15 @@ pub async fn proxy_test(State(st): State<AppState>, Json(body): Json<Value>) -> 
         },
     };
     let kind = match body.get("kind").and_then(Value::as_str) {
-        None => crate::models::proxy_kind(&crate::models::load_selection(&st.models_root)),
+        None => crate::engines::models::proxy_kind(&crate::engines::models::load_selection(&st.models_root)),
         Some(kind) => match dub_llm::net::ProxyKind::parse(kind) {
             Some(kind) => kind,
             None => return (StatusCode::BAD_REQUEST, Json(json!({ "error": "invalid_proxy_kind", "detail": kind }))).into_response(),
         },
     };
-    let address = crate::secrets_api::proxy_test_address(
+    let address = crate::app::secrets_api::proxy_test_address(
         &st.models_root,
-        crate::credentials::secrets_dir().as_deref(),
+        crate::platform::credentials::secrets_dir().as_deref(),
         body.get("url").and_then(Value::as_str).unwrap_or(""),
         body.get("password").and_then(Value::as_str),
     );
@@ -195,10 +195,10 @@ pub async fn proxy_test(State(st): State<AppState>, Json(body): Json<Value>) -> 
 
 // ─── Пресеты железа: GET /engine/presets (список + детект GPU + рекомендация), POST /engine/preset {id} ──
 pub async fn presets_list(State(_st): State<AppState>) -> Response {
-    let rec = tokio::task::spawn_blocking(crate::presets::recommend)
+    let rec = tokio::task::spawn_blocking(crate::engines::presets::recommend)
         .await
-        .unwrap_or_else(|_| crate::presets::recommend());
-    let list: Vec<Value> = crate::presets::PRESETS
+        .unwrap_or_else(|_| crate::engines::presets::recommend());
+    let list: Vec<Value> = crate::engines::presets::PRESETS
         .iter()
         .map(|p| json!({ "id": p.id, "title": (p.title)(), "subtitle": (p.subtitle)() }))
         .collect();
@@ -207,7 +207,7 @@ pub async fn presets_list(State(_st): State<AppState>) -> Response {
 
 pub async fn preset_apply(State(st): State<AppState>, Json(body): Json<Value>) -> Response {
     let id = body.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string();
-    match crate::presets::apply(&st.models_root, &id) {
+    match crate::engines::presets::apply(&st.models_root, &id) {
         Ok(applied) => Json(json!({
             "ok": true,
             "id": id,
@@ -223,8 +223,8 @@ pub async fn preset_apply(State(st): State<AppState>, Json(body): Json<Value>) -
 // пустой список (юзер введёт голос вручную).
 pub async fn openrouter_voices(Query(q): Query<HashMap<String, String>>) -> Response {
     let model = q.get("model").cloned().unwrap_or_default();
-    let voices = crate::cloud_voices::list(&model).cloned().unwrap_or_default();
-    let ru = crate::cloud_voices::model_supports_russian(&model);
+    let voices = crate::integrations::cloud_voices::list(&model).cloned().unwrap_or_default();
+    let ru = crate::integrations::cloud_voices::model_supports_russian(&model);
     Json(json!({ "voices": voices, "supportsRussian": ru })).into_response()
 }
 
@@ -264,19 +264,19 @@ pub async fn select_model(State(st): State<AppState>, Json(body): Json<Value>) -
     if let (Some(key), Some(val)) =
         (body.get("key").and_then(Value::as_str), body.get("value").and_then(Value::as_str))
     {
-        if !crate::models::is_selection_key(key) {
+        if !crate::engines::models::is_selection_key(key) {
             return (StatusCode::BAD_REQUEST, format!("unknown selection key: {key:?}")).into_response();
         }
         if val.trim().is_empty() {
             return (StatusCode::BAD_REQUEST, "empty value").into_response();
         }
-        if !crate::models::is_selection_value(key, val) {
+        if !crate::engines::models::is_selection_value(key, val) {
             return (StatusCode::BAD_REQUEST, format!("invalid value for {key}: {val:?}")).into_response();
         }
-        if let Err(e) = crate::models::set_selection(&st.models_root, key, val) {
+        if let Err(e) = crate::engines::models::set_selection(&st.models_root, key, val) {
             return (StatusCode::INTERNAL_SERVER_ERROR, format!("write selection: {e}")).into_response();
         }
-        return Json(crate::models::public_selection(&st.models_root)).into_response();
+        return Json(crate::engines::models::public_selection(&st.models_root)).into_response();
     }
     // Форма 2: {"id":"whisper-small"} — id компонента манифеста -> набор слотов (активация при скачивании
     // и переключение варианта). Пустой набор -> неизвестный компонент.
@@ -286,11 +286,11 @@ pub async fn select_model(State(st): State<AppState>, Json(body): Json<Value>) -
         return (StatusCode::BAD_REQUEST, format!("unknown model component: {id:?}")).into_response();
     }
     for (engine, variant) in pairs {
-        if let Err(e) = crate::models::set_selection(&st.models_root, engine, &variant) {
+        if let Err(e) = crate::engines::models::set_selection(&st.models_root, engine, &variant) {
             return (StatusCode::INTERNAL_SERVER_ERROR, format!("write selection: {e}")).into_response();
         }
     }
-    Json(crate::models::public_selection(&st.models_root)).into_response()
+    Json(crate::engines::models::public_selection(&st.models_root)).into_response()
 }
 
 // ─── PUT /projects/{pid} ────────────────────────────────────────────────────
@@ -324,8 +324,8 @@ mod provider_endpoint_tests {
         let saved = serve(vec![Reply::json(200, r#"{"data":[{"id":"m"}]}"#)]);
         let foreign = serve(vec![Reply::json(200, r#"{"data":[{"id":"m"}]}"#)]);
         let dir = std::env::temp_dir().join(format!("speech-server-key-{}-{}", std::process::id(), uuid::Uuid::new_v4().simple()));
-        crate::credentials::store_local_server_key_in(&dir, &format!("{}/v1", saved.base()), Some("lm-secret")).unwrap();
-        let key_for = |url: &str| crate::credentials::local_server_key_in(&dir, url);
+        crate::platform::credentials::store_local_server_key_in(&dir, &format!("{}/v1", saved.base()), Some("lm-secret")).unwrap();
+        let key_for = |url: &str| crate::platform::credentials::local_server_key_in(&dir, url);
 
         list_server_models(&foreign.base(), key_for(&foreign.base())).unwrap();
         let sent = foreign.request(0).to_ascii_lowercase();

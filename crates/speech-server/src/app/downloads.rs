@@ -204,7 +204,7 @@ impl Downloads {
         let stop = move || pause.load(Ordering::SeqCst);
         let on_progress = |ev: Value| self.apply_progress(id, &ev);
         // what another program has is taken first, by copy too when it sits on another drive: still faster than the network
-        setup::import_from_neighbors(&self.inner.repo_root, &crate::hub::neighbors(), true);
+        setup::import_from_neighbors(&self.inner.repo_root, &crate::app::hub::neighbors(), true);
         let res = super::engine_setup::download_components(&self.inner.repo_root, &ids, &stop, &on_progress);
         let mut state = lock(&self.inner.state);
         // Закачку уже сменила следующая — итог этой никому не нужен.
@@ -226,14 +226,14 @@ impl Downloads {
                 }
                 Err(e) => {
                     tracing::warn!("download {:?}: {} ({})", job.ids, e.detail, e.code);
-                    crate::hub::setup_failed(&e.code);
+                    crate::app::hub::setup_failed(&e.code);
                     job.status = DownloadStatus::Failed;
                     job.error_code = Some(e.code.to_string());
                     job.error = Some(e.detail);
                 }
             }
             if job.status == DownloadStatus::Completed {
-                crate::hub::setup_ready();
+                crate::app::hub::setup_ready();
             }
         }
         self.save(&state);

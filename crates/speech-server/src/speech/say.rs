@@ -10,9 +10,10 @@ use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde_json::{json, Value};
 
-use crate::speech_api::refuse;
-use crate::speech_project as sp;
-use crate::AppState;
+use crate::app::refuse;
+use crate::speech::project as sp;
+use crate::{AppState, jobs};
+use super::SpeechPaths;
 
 /// A phrase longer than this is said up to its last comma rather than waiting for its full stop.
 const LONG_PHRASE: usize = 300;
@@ -46,13 +47,13 @@ const ECHO_SECS: u64 = 30;
 
 /// Whether `heard` is the studio's own recent speech coming back: most of its words are in what it said lately.
 pub fn is_echo(heard: &str) -> bool {
-    let words = crate::qc::normalize(heard);
+    let words = crate::audio::qc::normalize(heard);
     if words.is_empty() {
         return false;
     }
     let mut said = SAID.lock().unwrap_or_else(|p| p.into_inner());
     said.retain(|(at, _, _)| at.elapsed().as_secs() < ECHO_SECS);
-    let spoken: std::collections::HashSet<String> = said.iter().flat_map(|(_, _, t)| crate::qc::normalize(t)).collect();
+    let spoken: std::collections::HashSet<String> = said.iter().flat_map(|(_, _, t)| crate::audio::qc::normalize(t)).collect();
     let known = words.iter().filter(|w| spoken.contains(*w)).count();
     known * 3 >= words.len() * 2
 }
@@ -68,13 +69,13 @@ const BACKCHANNEL: &[&str] = &[
 /// `min_words`, LiveKit's `min_words`): two words at least, and not only backchannels. A cough, a laugh or the studio's
 /// own non-speech sounds come out of recognition as a word or none and do not cut its speech off.
 pub fn takes_the_floor(heard: &str) -> bool {
-    let words = crate::qc::normalize(heard);
+    let words = crate::audio::qc::normalize(heard);
     words.len() >= 2 && !words.iter().all(|w| BACKCHANNEL.contains(&w.as_str()))
 }
 
 /// A person started talking: every session stops speaking, as people stop when interrupted, the ended ones whose
 /// sound may still play included. Answers whether there was a session to stop.
-pub fn interrupt(st: &AppState) -> bool {
+pub fn interrupt(workspace: &std::path::Path, queue: &jobs::JobQueue) -> bool {
     // the open sessions, and the ended ones whose last phrases a window may still be playing
     let mut open: Vec<String> = sessions().keys().cloned().collect();
     {
@@ -90,13 +91,13 @@ pub fn interrupt(st: &AppState) -> bool {
     let now = std::time::Instant::now();
     INTERRUPTED.lock().unwrap_or_else(|p| p.into_inner()).retain(|_, at| at.elapsed().as_secs() < INTERRUPTED_SECS);
     for sid in open.iter() {
-        if let Ok(project) = crate::speech::load(&st.workspace, sid) {
+        if let Ok(project) = crate::speech::load(workspace, sid) {
             INTERRUPTED.lock().unwrap_or_else(|p| p.into_inner()).extend(project.blocks().filter(|b| b.takes.is_empty()).map(|b| (b.id.clone(), now)));
         }
-        crate::speech_jobs::unqueue(sid, None);
-        crate::live::silence(sid);
+        crate::speech::jobs::unqueue(sid, None);
+        crate::speech::live::silence(sid);
     }
-    let jobs = st.jobs.clone();
+    let jobs = queue.clone();
     tokio::spawn(async move {
         for sid in open {
             if let Some((job, crate::jobs::JobKind::Synth)) = jobs.active_for(&sid).await {
@@ -159,20 +160,20 @@ pub struct TalkVoice {
     #[serde(default)]
     pub voice: Option<String>,
     #[serde(default)]
-    pub params: Option<crate::tts_host::Params>,
+    pub params: Option<crate::engines::tts_host::Params>,
 }
 
-fn talk_voice_path(st: &AppState) -> std::path::PathBuf {
-    st.workspace.join(".talk-voice.json")
+fn talk_voice_path(workspace: &std::path::Path) -> std::path::PathBuf {
+    workspace.join(".talk-voice.json")
 }
 
-fn talk_voice(st: &AppState) -> TalkVoice {
-    std::fs::read(talk_voice_path(st)).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default()
+fn talk_voice(workspace: &std::path::Path) -> TalkVoice {
+    std::fs::read(talk_voice_path(workspace)).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default()
 }
 
 /// GET /speech/say/voice — the voice chosen for speaking aloud; empty fields: the studio's default.
 pub async fn voice_get(State(st): State<AppState>) -> Json<TalkVoice> {
-    Json(talk_voice(&st))
+    Json(talk_voice(&st.workspace))
 }
 
 /// POST /speech/say/voice {engine, voice?, params?} — choose the voice agents speak aloud with when they give none.
@@ -189,25 +190,25 @@ pub async fn voice_set(State(st): State<AppState>, headers: HeaderMap, Json(chos
         Ok(b) => b,
         Err(e) => return refuse(StatusCode::INTERNAL_SERVER_ERROR, "save_failed", e.to_string()),
     };
-    if let Err(e) = std::fs::write(talk_voice_path(&st), body) {
+    if let Err(e) = std::fs::write(talk_voice_path(&st.workspace), body) {
         return refuse(StatusCode::INTERNAL_SERVER_ERROR, "save_failed", e.to_string());
     }
-    crate::live::voice_chosen();
+    crate::speech::live::voice_chosen();
     // the voice the person picks in the window is the one heard, whatever voice an agent opened its session with
-    if !crate::app::tools::by_agent(&headers) {
+    if !crate::app::agent::by_agent(&headers) {
         for session in sessions().values_mut() {
             session.follows = true;
         }
     }
     // a conversation going on takes the new voice at its next phrase: the engine loads now, not in that phrase
     if !chosen.engine.is_empty() && sessions().values().any(|s| s.follows) {
-        let (paths, engine, voice) = (crate::speech_api::paths(&st), chosen.engine.clone(), chosen.voice.clone());
+        let (paths, engine, voice) = (crate::speech::api::paths(&st), chosen.engine.clone(), chosen.voice.clone());
         tokio::task::spawn_blocking(move || {
-            crate::live::voice_loading(Some(&engine));
-            if let Err(e) = crate::speech_jobs::warm(&paths, &engine, voice.as_deref(), "auto") {
+            crate::speech::live::voice_loading(Some(&engine));
+            if let Err(e) = crate::speech::jobs::warm(&paths, &engine, voice.as_deref(), "auto") {
                 tracing::warn!("say: the new voice's engine was not warmed: {e}");
             }
-            crate::live::voice_loading(None);
+            crate::speech::live::voice_loading(None);
         });
     }
     Json(chosen).into_response()
@@ -216,13 +217,13 @@ pub async fn voice_set(State(st): State<AppState>, headers: HeaderMap, Json(chos
 /// POST /speech/say {voice?, engine?, lang?, direction?, name?} — a session said aloud as its text comes; refused when no
 /// window listens, there being nothing to play it on.
 pub async fn start(State(st): State<AppState>, Json(body): Json<Value>) -> Response {
-    if !crate::live::listening() {
+    if !crate::speech::live::listening() {
         return refuse(StatusCode::CONFLICT, "no_window", t!("speak-aloud-no-window"));
     }
     let field = |n: &str| body.get(n).and_then(Value::as_str).map(str::trim).filter(|v| !v.is_empty()).map(str::to_string);
-    let chosen = talk_voice(&st);
+    let chosen = talk_voice(&st.workspace);
     let own_engine = field("engine");
-    let engine = own_engine.clone().or_else(|| Some(chosen.engine.clone()).filter(|e| !e.is_empty())).unwrap_or_else(|| crate::qwen_tts::ENGINE.to_string());
+    let engine = own_engine.clone().or_else(|| Some(chosen.engine.clone()).filter(|e| !e.is_empty())).unwrap_or_else(|| crate::engines::qwen_tts::ENGINE.to_string());
     let Some(manifest) = crate::engines::get(&engine) else {
         return refuse(StatusCode::BAD_REQUEST, "bad_engine", t!("speech-engine-unknown", engine = engine));
     };
@@ -249,13 +250,13 @@ pub async fn start(State(st): State<AppState>, Json(body): Json<Value>) -> Respo
     }
     let follows = own_engine.is_none() && field("voice").is_none();
     sessions().insert(pid.clone(), Session { buf: String::new(), direction: field("direction").unwrap_or_default(), pieces: 0, follows });
-    let (paths, engine, voice, lang) = (crate::speech_api::paths(&st), project.settings.engine.clone(), project.settings.voice.clone(), project.settings.lang.clone());
+    let (paths, engine, voice, lang) = (crate::speech::api::paths(&st), project.settings.engine.clone(), project.settings.voice.clone(), project.settings.lang.clone());
     tokio::task::spawn_blocking(move || {
-        crate::live::voice_loading(Some(&engine));
-        if let Err(e) = crate::speech_jobs::warm(&paths, &engine, voice.as_deref(), &lang) {
+        crate::speech::live::voice_loading(Some(&engine));
+        if let Err(e) = crate::speech::jobs::warm(&paths, &engine, voice.as_deref(), &lang) {
             tracing::warn!("say: the engine was not warmed before the first phrase: {e}");
         }
-        crate::live::voice_loading(None);
+        crate::speech::live::voice_loading(None);
     });
     Json(json!({ "session": pid, "engine": project.settings.engine, "voice": project.settings.voice })).into_response()
 }
@@ -285,7 +286,7 @@ pub async fn text(State(st): State<AppState>, AxPath(sid): AxPath<String>, Json(
         (phrases, direction, pieces, follows)
     };
     if !end {
-        let (st2, sid2) = (st.clone(), sid.clone());
+        let (paths2, queue2, sid2) = (super::api::paths(&st), st.jobs.clone(), sid.clone());
         tokio::spawn(async move {
             tokio::time::sleep(std::time::Duration::from_millis(SETTLE_MS)).await;
             let settled = {
@@ -296,23 +297,23 @@ pub async fn text(State(st): State<AppState>, AxPath(sid): AxPath<String>, Json(
                 }
             };
             if let Some((phrases, direction)) = settled {
-                let _ = voice(st2, sid2, phrases, direction, follows).await;
+                let _ = voice(paths2, queue2, sid2, phrases, direction, follows).await;
             }
         });
     }
-    voice(st, sid, phrases, direction, follows).await
+    voice(super::api::paths(&st), st.jobs.clone(), sid, phrases, direction, follows).await
 }
 
 /// Puts the phrases into the session's project and voices them aloud; a session that follows the person's choice takes
 /// the voice chosen in Live now.
-async fn voice(st: AppState, sid: String, phrases: Vec<String>, direction: String, follows: bool) -> Response {
+async fn voice(paths: SpeechPaths, queue: jobs::JobQueue, sid: String, phrases: Vec<String>, direction: String, follows: bool) -> Response {
     if phrases.is_empty() {
         return Json(json!({ "voicing": 0 })).into_response();
     }
-    let chosen = follows.then(|| talk_voice(&st)).filter(|c| !c.engine.is_empty());
+    let chosen = follows.then(|| talk_voice(&paths.workspace)).filter(|c| !c.engine.is_empty());
     let manifest = chosen.as_ref().and_then(|c| crate::engines::get(&c.engine));
     let speaker = t!("speech-narrator");
-    let added = crate::speech::edit(&st.workspace, &sid, |project| {
+    let added = crate::speech::edit(&paths.workspace, &sid, |project| {
         if let (Some(c), Some(m)) = (&chosen, &manifest) {
             let s = &mut project.settings;
             if s.engine != c.engine || s.voice != c.voice {
@@ -328,7 +329,7 @@ async fn voice(st: AppState, sid: String, phrases: Vec<String>, direction: Strin
             .iter()
             .map(|phrase| {
                 let id = sp::new_id();
-                crate::timings::arrived(&id);
+                crate::app::arrived(&id);
                 project.chapters[0].blocks.push(sp::Block { id: id.clone(), speaker: speaker.clone(), text: phrase.clone(), direction: direction.clone(), ..Default::default() });
                 id
             })
@@ -339,7 +340,7 @@ async fn voice(st: AppState, sid: String, phrases: Vec<String>, direction: Strin
         Err(e) => return refuse(StatusCode::INTERNAL_SERVER_ERROR, "save_failed", e),
     };
     SAID.lock().unwrap_or_else(|p| p.into_inner()).extend(phrases.iter().map(|p| (std::time::Instant::now(), sid.clone(), p.clone())));
-    let started = crate::speech_api::synth(State(st.clone()), AxPath(sid.clone()), Json(json!({ "ids": ids, "aloud": true }))).await;
+    let started = super::synthesis::enqueue(&paths, &queue, sid.clone(), json!({ "ids": ids, "aloud": true })).await;
     if !started.status().is_success() {
         return started;
     }
@@ -348,22 +349,22 @@ async fn voice(st: AppState, sid: String, phrases: Vec<String>, direction: Strin
         Err(e) => return refuse(StatusCode::INTERNAL_SERVER_ERROR, "internal", e),
     };
     if let Some(job_id) = job["job_id"].as_str().map(str::to_string) {
-        tokio::spawn(failed_job_marks_phrases(st, sid, job_id, ids.clone()));
+        tokio::spawn(failed_job_marks_phrases(paths.workspace, queue, sid, job_id, ids.clone()));
     }
     Json(json!({ "voicing": ids.len(), "blocks": ids })).into_response()
 }
 
 /// A voicing job that fails as a whole (an engine without the language, a missing model) leaves its phrases unsaid with
 /// its reason, so `state` says they failed instead of waiting for ever.
-async fn failed_job_marks_phrases(st: AppState, sid: String, job_id: String, ids: Vec<String>) {
+async fn failed_job_marks_phrases(workspace: std::path::PathBuf, queue: jobs::JobQueue, sid: String, job_id: String, ids: Vec<String>) {
     let end = loop {
-        match st.jobs.wait(&job_id, 300).await {
+        match queue.wait(&job_id, 300).await {
             Some(snap) if matches!(snap["status"].as_str(), Some("running" | "queued")) => continue,
             other => break other,
         }
     };
     let Some(error) = end.filter(|s| s["status"] == "error").and_then(|s| s["error"].as_str().map(str::to_string)) else { return };
-    let marked = crate::speech::edit(&st.workspace, &sid, |project| {
+    let marked = crate::speech::edit(&workspace, &sid, |project| {
         for id in &ids {
             if let Some(b) = project.block_mut(id).filter(|b| b.takes.is_empty() && b.error.is_none()) {
                 b.error = Some(sp::BlockError { key: String::new(), text: error.clone() });
@@ -377,21 +378,21 @@ async fn failed_job_marks_phrases(st: AppState, sid: String, job_id: String, ids
 
 /// DELETE /speech/say — every session stops speaking now, as when the person interrupts.
 pub async fn stop_all(State(st): State<AppState>, headers: HeaderMap) -> Json<Value> {
-    if !crate::app::tools::by_agent(&headers) {
+    if !crate::app::agent::by_agent(&headers) {
         *HUSHED_AT.lock().unwrap_or_else(|p| p.into_inner()) = Some(heard_count());
     }
-    Json(json!({ "stopped": interrupt(&st) }))
+    Json(json!({ "stopped": interrupt(&st.workspace, &st.jobs) }))
 }
 
 /// DELETE /speech/say/{session} — stop now: what is queued is dropped, the phrase being voiced is cancelled, the window
 /// stops its sound.
 pub async fn stop(State(st): State<AppState>, AxPath(sid): AxPath<String>) -> Response {
     sessions().remove(&sid);
-    crate::speech_jobs::unqueue(&sid, None);
+    crate::speech::jobs::unqueue(&sid, None);
     if let Some((job, crate::jobs::JobKind::Synth)) = st.jobs.active_for(&sid).await {
         let _ = st.jobs.cancel(&job).await;
     }
-    crate::live::silence(&sid);
+    crate::speech::live::silence(&sid);
     Json(json!({ "stopped": sid })).into_response()
 }
 
@@ -422,7 +423,7 @@ static LISTENING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool:
 static HUSHED_AT: Mutex<Option<usize>> = Mutex::new(None);
 
 fn heard_count() -> usize {
-    crate::listen_live::state()["lines"].as_array().map_or(0, Vec::len)
+    crate::listening::recognition::state()["lines"].as_array().map_or(0, Vec::len)
 }
 
 /// Whether the person stopped the speech and has not spoken or typed since.
@@ -445,47 +446,47 @@ pub async fn listen_start(State(st): State<AppState>, headers: HeaderMap, body: 
     let lang = body.get("lang").and_then(Value::as_str).unwrap_or("auto");
     // the microphone is on already (the person turned it on): this conversation listens to it too, and a recogniser
     // named here hears its next phrase while the microphone goes on recording
-    if let Some(pid) = crate::listen_api::recording().filter(|_| crate::listen_live::state()["running"] == true) {
+    if let Some(pid) = crate::listening::recording().filter(|_| crate::listening::recognition::state()["running"] == true) {
         let engine = body.get("engine").and_then(Value::as_str).filter(|e| !e.is_empty()).map(str::to_string);
         if let Some(engine) = engine {
             if !matches!(engine.as_str(), "parakeet" | "nemotron" | "whisper") {
                 return refuse(StatusCode::BAD_REQUEST, "bad_engine", t!("listen-live-engine", engine = engine));
             }
             let (root, models, asked) = (st.repo_root.clone(), st.models_root.clone(), engine.clone());
-            match tokio::task::spawn_blocking(move || crate::listen_live::switch(&root, &models, &asked)).await {
-                Ok(Ok(label)) => crate::live::asr_switched(&engine, &label),
+            match tokio::task::spawn_blocking(move || crate::listening::recognition::switch(&root, &models, &asked)).await {
+                Ok(Ok(label)) => crate::speech::live::asr_switched(&engine, &label),
                 Ok(Err(e)) => return refuse(StatusCode::CONFLICT, "asr_switch_failed", e),
                 Err(e) => return refuse(StatusCode::INTERNAL_SERVER_ERROR, "internal", e.to_string()),
             }
         }
-        watch_interruptions(st);
-        let (asr, lang) = crate::listen_live::engine().unwrap_or_default();
+        watch_interruptions(st.workspace, st.jobs);
+        let (asr, lang) = crate::listening::recognition::engine().unwrap_or_default();
         return Json(json!({ "pid": pid, "live": true, "joined": true, "asr": asr, "lang": lang })).into_response();
     }
     // the microphone is the person's: an agent listens to a conversation the person started and never turns it on
-    if crate::app::tools::by_agent(&headers) {
+    if crate::app::agent::by_agent(&headers) {
         return refuse(StatusCode::CONFLICT, "mic_off", t!("say-mic-off"));
     }
-    let started = crate::listen_api::record_start(State(st.clone()), HeaderMap::new(), Some(Json(json!({ "live": true, "lang": lang, "device": body.get("device"), "engine": body.get("engine") })))).await;
+    let started = crate::listening::http::record_start(State(st.clone()), HeaderMap::new(), Some(Json(json!({ "live": true, "lang": lang, "device": body.get("device"), "engine": body.get("engine") })))).await;
     if !started.status().is_success() {
         return started;
     }
-    watch_interruptions(st);
+    watch_interruptions(st.workspace, st.jobs);
     started
 }
 
 /// While the microphone is on, a phrase the person starts interrupts what the studio says; one watcher at a time.
-fn watch_interruptions(st: AppState) {
+fn watch_interruptions(workspace: std::path::PathBuf, queue: jobs::JobQueue) {
     if LISTENING.swap(true, std::sync::atomic::Ordering::Relaxed) {
         return;
     }
     tokio::spawn(async move {
         let mut heard = String::new();
         while LISTENING.load(std::sync::atomic::Ordering::Relaxed) {
-            let state = crate::listen_live::state();
+            let state = crate::listening::recognition::state();
             let partial = state["partial"]["text"].as_str().unwrap_or_default().to_string();
             if partial != heard && takes_the_floor(&partial) && !is_echo(&partial) {
-                interrupt(&st);
+                interrupt(&workspace, &queue);
                 heard = partial;
             }
             tokio::time::sleep(std::time::Duration::from_millis(150)).await;
@@ -498,13 +499,13 @@ fn watch_interruptions(st: AppState) {
 pub async fn listen_mute(headers: HeaderMap, Json(body): Json<Value>) -> Response {
     let muted = match body.get("muted").and_then(Value::as_bool) {
         Some(m) => m,
-        None if body.get("toggle").and_then(Value::as_bool) == Some(true) => !crate::listen_live::muted().unwrap_or(false),
+        None if body.get("toggle").and_then(Value::as_bool) == Some(true) => !crate::listening::recognition::muted().unwrap_or(false),
         None => true,
     };
-    if !muted && crate::app::tools::by_agent(&headers) {
+    if !muted && crate::app::agent::by_agent(&headers) {
         return refuse(StatusCode::FORBIDDEN, "mic_only_person", t!("mic-only-person"));
     }
-    match crate::listen_live::mute(muted) {
+    match crate::listening::recognition::mute(muted) {
         Ok(()) => Json(json!({ "muted": muted })).into_response(),
         Err(e) => refuse(StatusCode::CONFLICT, "not_listening", e),
     }
@@ -516,7 +517,7 @@ pub async fn listen_text(Json(body): Json<Value>) -> Response {
     if text.is_empty() {
         return refuse(StatusCode::BAD_REQUEST, "no_text", t!("say-no-text"));
     }
-    match crate::listen_live::type_line(text) {
+    match crate::listening::recognition::type_line(text) {
         Ok(()) => Json(json!({ "ok": true })).into_response(),
         Err(e) => refuse(StatusCode::CONFLICT, "not_listening", e),
     }
@@ -529,7 +530,7 @@ pub async fn listen_next(axum::extract::Query(q): axum::extract::Query<HashMap<S
     let seconds: u64 = q.get("seconds").and_then(|v| v.parse().ok()).unwrap_or(30).min(55);
     let until = std::time::Instant::now() + std::time::Duration::from_secs(seconds);
     loop {
-        let state = crate::listen_live::state();
+        let state = crate::listening::recognition::state();
         let all = state["lines"].as_array().cloned().unwrap_or_default();
         let fresh: Vec<Value> = all
             .iter()
@@ -552,7 +553,7 @@ pub async fn listen_next(axum::extract::Query(q): axum::extract::Query<HashMap<S
 /// An agent may turn it off too: only turning it on is the person's.
 pub async fn listen_stop(State(st): State<AppState>) -> Response {
     LISTENING.store(false, std::sync::atomic::Ordering::Relaxed);
-    let stopped = crate::listen_api::record_stop(State(st)).await;
+    let stopped = crate::listening::http::record_stop(State(st)).await;
     if !stopped.status().is_success() {
         return stopped;
     }
@@ -567,10 +568,10 @@ pub async fn listen_stop(State(st): State<AppState>) -> Response {
 /// What the microphone does now, for the window's indicator: on or not, for what (live, listening, voice, test), for
 /// how many seconds, and whether the conversation is muted.
 pub fn mic_state() -> Value {
-    let Some((test, on_for)) = crate::record::in_use() else {
+    let Some((test, on_for)) = crate::voices::record::in_use() else {
         return json!({ "on": false });
     };
-    let listening = crate::listen_api::recording().is_some();
+    let listening = crate::listening::recording().is_some();
     let what = if listening && LISTENING.load(std::sync::atomic::Ordering::Relaxed) {
         "live"
     } else if listening {
@@ -580,8 +581,8 @@ pub fn mic_state() -> Value {
     } else {
         "voice"
     };
-    let (asr, lang) = crate::listen_live::engine().unzip();
-    json!({ "on": true, "what": what, "seconds": on_for.as_secs(), "muted": crate::listen_live::muted().unwrap_or(false), "asr": asr, "lang": lang })
+    let (asr, lang) = crate::listening::recognition::engine().unzip();
+    json!({ "on": true, "what": what, "seconds": on_for.as_secs(), "muted": crate::listening::recognition::muted().unwrap_or(false), "asr": asr, "lang": lang })
 }
 
 /// GET /mic/state — see `mic_state`.
@@ -594,29 +595,29 @@ const NO_WINDOW_SECS: u32 = 5;
 static GUARDED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 /// While the microphone is on, turns it off once no window of the studio has been open for `NO_WINDOW_SECS`.
-pub fn guard_mic(st: AppState) {
+pub fn guard_mic(workspace: std::path::PathBuf) {
     if GUARDED.swap(true, std::sync::atomic::Ordering::Relaxed) {
         return;
     }
     tokio::spawn(async move {
         let mut gone = 0;
-        while crate::record::in_use().is_some() {
-            gone = if crate::live::listening() { 0 } else { gone + 1 };
+        while crate::voices::record::in_use().is_some() {
+            gone = if crate::speech::live::listening() { 0 } else { gone + 1 };
             if gone >= NO_WINDOW_SECS {
                 tracing::warn!("no window of the studio is open: the microphone is turned off");
                 LISTENING.store(false, std::sync::atomic::Ordering::Relaxed);
-                if crate::listen_api::recording().is_some() {
-                    let _ = crate::listen_api::record_stop(State(st.clone())).await;
+                if crate::listening::recording().is_some() {
+                    let _ = crate::listening::stop_recording(&workspace).await;
                 } else {
-                    let _ = tokio::task::spawn_blocking(crate::record::stop).await;
+                    let _ = tokio::task::spawn_blocking(crate::voices::record::stop).await;
                 }
                 break;
             }
             tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         }
         GUARDED.store(false, std::sync::atomic::Ordering::Relaxed);
-        if crate::record::in_use().is_some() {
-            guard_mic(st);
+        if crate::voices::record::in_use().is_some() {
+            guard_mic(workspace);
         }
     });
 }

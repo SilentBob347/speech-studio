@@ -91,8 +91,8 @@ fn recent_log() -> Vec<String> {
 
 /// The diagnostics as data.
 fn report(root: &Path) -> Value {
-    let gpu = crate::hw::gpu_report();
-    let hw = crate::hw::snapshot();
+    let gpu = crate::engines::hw::gpu_report();
+    let hw = crate::engines::hw::snapshot();
     let setup = super::engine_setup::setup_status(root);
     let components: Vec<Value> = setup.components.iter().map(|c| json!({ "id": c.id, "installed": c.installed, "size": c.size, "on_disk": c.bytes_on_disk })).collect();
     #[cfg(windows)]
@@ -123,7 +123,7 @@ fn report(root: &Path) -> Value {
 /// The diagnostics as text to paste into an issue.
 fn text(report: &Value, log: &[String]) -> String {
     let gb = |b: &Value| b.as_u64().map(|b| format!("{:.1} GB", b as f64 / 1e9)).unwrap_or_else(|| "?".into());
-    let gib = |b: &Value| b.as_u64().map(|b| format!("{:.1} GB", b as f64 / crate::hw::GIB)).unwrap_or_else(|| "?".into());
+    let gib = |b: &Value| b.as_u64().map(|b| format!("{:.1} GB", b as f64 / crate::engines::hw::GIB)).unwrap_or_else(|| "?".into());
     let gpu = &report["gpu"];
     let mut out = String::new();
     out.push_str(&format!("Speech Studio {}\n", report["version"].as_str().unwrap_or_default()));
@@ -205,7 +205,7 @@ pub async fn reveal_report(State(st): State<AppState>, Json(body): Json<Value>) 
     if !inside {
         return (StatusCode::NOT_FOUND, Json(json!({ "error": "no_report", "detail": asked.to_string_lossy() }))).into_response();
     }
-    crate::reveal_in_explorer(asked.to_string_lossy().into_owned());
+    crate::app::reveal_in_explorer(asked.to_string_lossy().into_owned());
     Json(json!({ "ok": true })).into_response()
 }
 
@@ -215,7 +215,7 @@ pub async fn reveal_logs(State(st): State<AppState>) -> Response {
     if let Err(e) = std::fs::create_dir_all(&dir) {
         return (StatusCode::INTERNAL_SERVER_ERROR, Json(json!({ "error": "io", "detail": format!("{}: {e}", dir.display()) }))).into_response();
     }
-    crate::reveal_in_explorer(dir.to_string_lossy().into_owned());
+    crate::app::reveal_in_explorer(dir.to_string_lossy().into_owned());
     Json(json!({ "ok": true })).into_response()
 }
 

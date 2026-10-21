@@ -149,8 +149,8 @@ fn people_schema() -> Value {
                     "type": "object",
                     "properties": {
                         "name": { "type": "string" },
-                        "gender": { "type": "string", "enum": crate::voice_library::GENDERS },
-                        "age": { "type": "string", "enum": crate::voice_library::AGES }
+                        "gender": { "type": "string", "enum": crate::voices::GENDERS },
+                        "age": { "type": "string", "enum": crate::voices::AGES }
                     },
                     "required": ["name", "gender", "age"],
                     "additionalProperties": false
@@ -227,7 +227,7 @@ pub fn register(people: &mut Vec<Person>, p: Person, narrator: &str) {
         return;
     }
     let ok = |v: &str, all: &[&str]| if all.contains(&v) { v.to_string() } else { String::new() };
-    let (gender, age) = (ok(&p.gender, &crate::voice_library::GENDERS), ok(&p.age, &crate::voice_library::AGES));
+    let (gender, age) = (ok(&p.gender, &crate::voices::GENDERS), ok(&p.age, &crate::voices::AGES));
     match people.iter_mut().find(|x| x.name == name) {
         Some(x) => {
             if x.gender.is_empty() {

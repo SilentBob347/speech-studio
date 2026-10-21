@@ -25,7 +25,7 @@ async fn chat_batches_keep_the_same_tool_restrictions_and_stop_policy() {
 
 /// The routes of build_router: (METHOD, path pattern).
 fn router_routes() -> Vec<(String, String)> {
-    let source = include_str!("../../lib.rs").replace("\r\n", "\n");
+    let source = include_str!("../router.rs").replace("\r\n", "\n");
     let body = source
         .split("pub fn build_router(")
         .nth(1)

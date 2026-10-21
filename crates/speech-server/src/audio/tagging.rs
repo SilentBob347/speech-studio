@@ -139,7 +139,7 @@ mod tests {
         match extension {
             "mp3" => std::fs::write(&path, audio_post::encode::mp3(&silence, 320).unwrap()).unwrap(),
             "flac" => std::fs::write(&path, audio_post::encode::flac(&silence).unwrap()).unwrap(),
-            _ => crate::wavio::write_mono_f32(&path, &silence.left, 48_000).unwrap(),
+            _ => crate::audio::wavio::write_mono_f32(&path, &silence.left, 48_000).unwrap(),
         }
         path
     }

@@ -16,7 +16,7 @@ fn play_copy(dir: &Path, source: &str) -> Result<(), String> {
     }
     let work = dir.join("work");
     std::fs::create_dir_all(&work).map_err(|e| format!("{}: {e}", work.display()))?;
-    crate::media::encode_preview_aac(&dir.join(source), &work.join("play.m4a"))
+    crate::audio::media::encode_preview_aac(&dir.join(source), &work.join("play.m4a"))
 }
 
 /// Проект вокруг файла, уже лежащего в папке `pid`.
@@ -31,9 +31,9 @@ pub(crate) fn create_from_source(workspace: &Path, pid: &str, name: &str, source
 fn create_in(workspace: &Path, pid: &str, name: &str, source: &str, origin: &str) -> Result<lp::ListenProject, String> {
     let d = super::project_dir(workspace, pid);
     let mut project = lp::ListenProject::new(name, source, origin);
-    project.duration = crate::media::probe(&d.join(source)).map(|m| m.duration).unwrap_or(0.0);
+    project.duration = crate::audio::media::probe(&d.join(source)).map(|m| m.duration).unwrap_or(0.0);
     if let Ok(text) = std::fs::read_to_string(d.join("import_subs.srt")) {
-        let cues = crate::subimport::parse(&text, "srt");
+        let cues = crate::text::subimport::parse(&text, "srt");
         if !cues.is_empty() {
             project.lines = lp::from_cues(&cues, &mut project.speakers);
             project.made = Some(lp::Made { by: "subs".into(), at: crate::platform::time::unix_seconds(), ..Default::default() });

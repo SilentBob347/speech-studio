@@ -15,10 +15,10 @@ static WORKSPACE: OnceLock<PathBuf> = OnceLock::new();
 /// Starts the hub once, inside the tokio runtime of the server; a state file that cannot be read leaves the studio
 /// without it, said once.
 pub fn start(repo_root: &Path, workspace: &Path) {
-    let _ = MODELS.set(crate::models_root(repo_root));
+    let _ = MODELS.set(crate::app::models_root(repo_root));
     let _ = WORKSPACE.set(workspace.to_path_buf());
     HUB.get_or_init(|| {
-        let gpu = crate::hw::gpu_report();
+        let gpu = crate::engines::hw::gpu_report();
         let name = gpu.name.clone().unwrap_or_default().to_ascii_lowercase();
         let vendor = if gpu.nvidia {
             "nvidia"
@@ -46,13 +46,13 @@ pub fn start(repo_root: &Path, workspace: &Path) {
         .to_ascii_lowercase();
         let config = studio_hub_client::HubConfig {
             app: "speech".into(),
-            version: crate::service::app_version().to_string(),
+            version: crate::app::service::app_version().to_string(),
             data_dir: repo_root.to_path_buf(),
             http,
             os_label,
             gpu: studio_hub_client::Gpu {
                 vendor: vendor.into(),
-                vram_gb: studio_hub_client::Gpu::vram_bucket(crate::hw::snapshot().total_vram),
+                vram_gb: studio_hub_client::Gpu::vram_bucket(crate::engines::hw::snapshot().total_vram),
                 backend: if gpu.cuda13_ok { "cuda" } else { "cpu" }.into(),
             },
             ui_lang: "en".into(),
@@ -174,7 +174,8 @@ fn voiced_by(pid: &str) -> Option<Vec<String>> {
 
 /// What these stages run on now, each as `stage:model`: Dub has no named sets, its choice per stage is the set.
 fn models_in_use(mroot: &Path, stages: &[&str]) -> Vec<String> {
-    use crate::models::{self, LlmBackend};
+    use crate::engines::models;
+    use crate::engines::models::LlmBackend;
     let sel = models::load_selection(mroot);
     let slot = |key: &str| sel.get(key).and_then(serde_json::Value::as_str).map(str::trim).filter(|value| !value.is_empty()).unwrap_or("default").to_string();
     stages

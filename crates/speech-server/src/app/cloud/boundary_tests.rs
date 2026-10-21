@@ -115,7 +115,7 @@ fn pending_handles_are_saved_before_polling_and_a_network_error_can_resume_witho
 fn the_daily_limit_refuses_before_submitting_but_does_not_block_an_already_paid_operation() {
     let _language = crate::i18n::test_language("ru");
     let root = tempfile::tempdir().unwrap();
-    crate::models::set_selection(root.path(), "cloud_daily_limit_usd", "0.1").unwrap();
+    crate::engines::models::set_selection(root.path(), "cloud_daily_limit_usd", "0.1").unwrap();
     let handle = root.path().join("pending.json");
     let run = Run {
         handle_file: &handle,

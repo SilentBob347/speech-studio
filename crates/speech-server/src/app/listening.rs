@@ -1,4 +1,4 @@
-use crate::listening::{jobs::ListenPaths, watch};
+use crate::listening::{ListenPaths, watching as watch};
 use crate::AppState;
 
 pub(crate) fn paths(st: &AppState) -> ListenPaths {

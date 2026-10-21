@@ -44,7 +44,7 @@ pub fn read_mono_f32_head(path: &Path, frames: usize) -> Result<(Vec<f32>, u32),
 
 fn peaks_args(video: &Path) -> Vec<std::ffi::OsString> {
     let mut a: Vec<std::ffi::OsString> = vec!["-v".into(), "quiet".into(), "-i".into(), video.into()];
-    a.extend(["-vn", "-af", crate::media::SYNC_AF, "-ac", "1", "-ar", "8000", "-f", "s16le", "-"].map(Into::into));
+    a.extend(["-vn", "-af", crate::audio::media::SYNC_AF, "-ac", "1", "-ar", "8000", "-f", "s16le", "-"].map(Into::into));
     a
 }
 
@@ -108,6 +108,6 @@ mod tests {
     fn waveform_reads_audio_by_its_timestamps() {
         let args = super::peaks_args(std::path::Path::new("in.mp4"));
         let af = args.iter().position(|a| a == "-af").expect("-af");
-        assert!(args[af + 1].to_string_lossy().starts_with(crate::media::SYNC_AF));
+        assert!(args[af + 1].to_string_lossy().starts_with(crate::audio::media::SYNC_AF));
     }
 }

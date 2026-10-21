@@ -27,11 +27,11 @@ pub fn phrases() -> Vec<Phrase> {
 
 /// A Speech project of the phrases, a block each, in Russian with stress marking, normalisation and the check by
 /// recognition on: voiced by an engine, its quality report shows which phrases the engine says wrong.
-pub fn project(name: &str, narrator: &str) -> crate::speech_project::SpeechProject {
-    let mut p = crate::speech_project::from_text(name, "", narrator);
+pub fn project(name: &str, narrator: &str) -> crate::speech::project::SpeechProject {
+    let mut p = crate::speech::project::from_text(name, "", narrator);
     p.chapters[0].blocks = phrases()
         .iter()
-        .map(|ph| crate::speech_project::Block { id: crate::speech_project::new_id(), speaker: narrator.to_string(), text: ph.text.to_string(), ..Default::default() })
+        .map(|ph| crate::speech::project::Block { id: crate::speech::project::new_id(), speaker: narrator.to_string(), text: ph.text.to_string(), ..Default::default() })
         .collect();
     p.settings.lang = "ru".into();
     p.settings.auto_stress = true;
@@ -69,10 +69,10 @@ mod tests {
     fn the_hard_phrases_read_as_pinned() {
         let root = PathBuf::from(std::env::var("SPEECH_STUDIO_ROOT").expect("SPEECH_STUDIO_ROOT"));
         crate::set_ort_dylib_env(&root, &root);
-        let s = crate::stress::Stresser::load(&crate::stress::dir(Path::new(&root.join("models")))).expect("RUAccent");
+        let s = crate::engines::stress::Stresser::load(&crate::engines::stress::dir(Path::new(&root.join("models")))).expect("RUAccent");
         let mut wrong = Vec::new();
         for p in phrases() {
-            let got = s.annotate(&crate::normalize_ru::normalize(p.text).text).expect("annotate").text;
+            let got = s.annotate(&crate::text::normalize_ru::normalize(p.text).text).expect("annotate").text;
             eprintln!("{}\t{}\t{}", p.kind, p.text, got);
             if got != p.read {
                 wrong.push(format!("{}\n  want: {}\n  got:  {}", p.text, p.read, got));

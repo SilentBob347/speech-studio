@@ -39,11 +39,11 @@ pub(crate) fn guide(topic: &str) -> Option<String> {
         "tags" => format!("{}\n\nEach engine, as the studio has it (engine_tags gives one as data):{}", skill_tags(), engine_tags()),
         "podcast" => format!(
             "The rules the studio's director model writes a podcast by (podcast_write runs it):\n\n{}\n\nAs a project: voices_list for the voices; project_create with the script as lines 'Name: text' and split lines makes a block per line with its speaker; project_get, then project_update puts each line's direction into its block and each speaker's voice into the project's cast; project_synth, studio_wait, project_export. Expression tags: the guide tags.",
-            crate::director::podcast_rules("<the speakers, each as 'name - manner'>", "<language code>", "<about 140 per minute>")
+            crate::speech::podcast_rules("<the speakers, each as 'name - manner'>", "<language code>", "<about 140 per minute>")
         ),
         "audiobook" => format!(
             "The rules the studio's director model splits a book by (project_cast_characters runs it on one chapter):\n\n{}\n\nFrom the file: book_preview reads the book and lists its chapters (skip names one to leave out: empty, toc, front matter or cover); book_chapter gives one whole; project_create_from_book makes the project of the chapters chosen with the narrator's voice. Then per chapter project_cast_characters, or split it yourself by the rules above and save the blocks (speaker, text, direction) with project_update. Give every character a voice in the project's cast, project_synth, studio_wait, then project_export with format m4b (chapters) and part_minutes for a long book.",
-            crate::director::casting_rules("<the narrator's name>", "<the characters met so far, or none yet>", "<language code>")
+            crate::speech::casting_rules("<the narrator's name>", "<the characters met so far, or none yet>", "<language code>")
         ),
         _ => return None,
     })

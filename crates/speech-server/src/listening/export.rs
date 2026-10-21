@@ -3,7 +3,7 @@
 
 use serde_json::{json, Value};
 
-use crate::listen_project::ListenProject;
+use crate::listening::project::ListenProject;
 
 pub const FORMATS: &[&str] = &["srt", "vtt", "ass", "txt", "json"];
 
@@ -39,9 +39,9 @@ pub fn with_digits(rows: Vec<Row>, lang: &str) -> Result<(Vec<Row>, usize), Stri
     let mut unknown = 0;
     let mut out = Vec::with_capacity(rows.len());
     for mut r in rows {
-        let line_lang = crate::prep::block_lang(&r.text, lang);
-        if crate::itn::knows(&line_lang) {
-            r.text = crate::itn::digits(&r.text, &line_lang)?;
+        let line_lang = crate::text::prep::block_lang(&r.text, lang);
+        if crate::text::itn::knows(&line_lang) {
+            r.text = crate::text::itn::digits(&r.text, &line_lang)?;
             r.words = Vec::new();
         } else {
             unknown += 1;
@@ -247,7 +247,7 @@ fn json_value(p: &ListenProject) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::listen_project::Line;
+    use crate::listening::project::Line;
 
     fn project() -> ListenProject {
         let mut p = ListenProject::new("t", "source.wav", "");

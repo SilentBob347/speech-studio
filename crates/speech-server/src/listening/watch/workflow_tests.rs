@@ -46,7 +46,7 @@ fn fixture() -> (tempfile::TempDir, Dependencies, WatchConfig) {
 
 fn audio(config: &WatchConfig, name: &str) -> PathBuf {
     let path = Path::new(&config.folder).join(name);
-    crate::wavio::write_mono_f32(&path, &[0.25; 4_000], 16_000).unwrap();
+    crate::audio::wavio::write_mono_f32(&path, &[0.25; 4_000], 16_000).unwrap();
     fs::File::options()
         .write(true)
         .open(&path)
@@ -102,7 +102,7 @@ async fn existing_transcripts_keep_their_settings_and_export_order_and_report_ou
     let pid = prepared(&deps, &path);
     let project_file = deps.paths.workspace.join(&pid).join("project.json");
     let before = fs::read(&project_file).unwrap();
-    let revision = crate::app::revisions::revision(&pid);
+    let revision = crate::app::revision(&pid);
     let (found, outputs) = one(&deps, &config, &path, &never).await.unwrap();
     assert_eq!(found, pid);
     assert_eq!(
@@ -116,7 +116,7 @@ async fn existing_transcripts_keep_their_settings_and_export_order_and_report_ou
         assert!(fs::read_to_string(output).unwrap().contains("Hello."));
     }
     assert_eq!(fs::read(&project_file).unwrap(), before);
-    assert_eq!(crate::app::revisions::revision(&pid), revision);
+    assert_eq!(crate::app::revision(&pid), revision);
     assert!(deps.jobs.list(Some(&pid)).await.is_empty());
     config.out = path.to_string_lossy().into_owned();
     let error = one(&deps, &config, &path, &never).await.unwrap_err();
@@ -317,7 +317,7 @@ async fn resume_reuses_interrupted_projects_and_an_off_snapshot_does_not_start_w
     let (_root, deps, config) = fixture();
     let path = audio(&config, "A.wav");
     let pid = prepared(&deps, &path);
-    let revision = crate::app::revisions::revision(&pid);
+    let revision = crate::app::revision(&pid);
     let saved = Saved {
         config: config.clone(),
         on: true,
@@ -334,7 +334,7 @@ async fn resume_reuses_interrupted_projects_and_an_off_snapshot_does_not_start_w
     finished().await;
     assert_eq!(status()["done"], 1);
     assert_eq!(status()["items"][0]["pid"], pid);
-    assert_eq!(crate::app::revisions::revision(&pid), revision);
+    assert_eq!(crate::app::revision(&pid), revision);
     assert!(deps.jobs.list(None).await.is_empty());
     fs::remove_file(Path::new(&config.out).join("A.txt")).unwrap();
     let off = Saved { on: false, ..saved };

@@ -22,7 +22,7 @@ pub(crate) fn speakers_audio(workspace: &Path, pid: &str, min_secs: f64, max_sec
     if !wav.is_file() {
         return Err(t!("listen-transcribe-first"));
     }
-    let (samples, sr) = crate::wavio::read_mono_f32(&wav)?;
+    let (samples, sr) = crate::audio::wavio::read_mono_f32(&wav)?;
     if sr != SR {
         return Err(format!("{}: {sr} Hz, the voice print takes {SR} Hz", wav.display()));
     }

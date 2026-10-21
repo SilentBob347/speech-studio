@@ -8,10 +8,11 @@ use serde_json::{json, Value};
 use tower::ServiceExt;
 
 use super::*;
-use crate::app::{context::RequestContext, revisions};
+use crate::app::RequestContext;
+use crate::app as revisions;
 
 fn audio(path: &Path) {
-    crate::wavio::write_mono_f32(path, &[0.25; 4_000], 16_000).unwrap();
+    crate::audio::wavio::write_mono_f32(path, &[0.25; 4_000], 16_000).unwrap();
 }
 
 #[test]
@@ -154,7 +155,7 @@ fn non_webview_media_prepares_the_same_aac_preview_before_creating_the_project()
     assert_eq!(crate::listening::load(&ws, &pid).unwrap().source, "source.wma");
     let preview = ws.join(&pid).join("work/play.m4a");
     assert!(preview.is_file());
-    assert!(crate::media::probe(&preview).unwrap().duration > 0.0);
+    assert!(crate::audio::media::probe(&preview).unwrap().duration > 0.0);
 }
 
 #[test]

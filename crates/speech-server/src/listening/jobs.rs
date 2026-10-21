@@ -10,8 +10,9 @@ use std::path::{Path, PathBuf};
 use dub_asr::{hallucination_kind, HallucinationRules};
 use serde_json::{json, Value};
 
-use crate::listen_project::{self as lp, Fix, Line, ListenProject, Made, Word};
-use crate::localize::Localize;
+use crate::listening::project as lp;
+use crate::listening::project::{Fix, Line, ListenProject, Made, Word};
+use crate::app::Localize;
 
 #[derive(Clone)]
 pub struct ListenPaths {
@@ -25,7 +26,7 @@ pub struct ListenPaths {
 const VOICE_MIN_COVER: f64 = 0.3;
 
 enum Engine {
-    Local(crate::models::AsrChoice, &'static str),
+    Local(crate::engines::models::AsrChoice, &'static str),
     Cloud(String),
     Fal(String),
 }
@@ -33,11 +34,11 @@ enum Engine {
 /// The recogniser a recording in `lang` gets: the project's, else the studio's, and Whisper for a language the studio's
 /// transcribe.cpp model does not know (then `true`).
 fn picked_engine(p: &ListenPaths, project: &ListenProject, lang: &str) -> (String, bool) {
-    let sel = crate::models::load_selection(&p.models_root);
+    let sel = crate::engines::models::load_selection(&p.models_root);
     let studio = sel.get("asr_engine").and_then(Value::as_str).unwrap_or("parakeet").to_string();
     match project.settings.engine.as_str() {
-        "" => match crate::tcpp_asr::chosen(&studio, sel.get("asr").and_then(Value::as_str)) {
-            Some(m) if !crate::tcpp_asr::knows(m, lang) => ("whisper".to_string(), true),
+        "" => match crate::engines::tcpp_asr::chosen(&studio, sel.get("asr").and_then(Value::as_str)) {
+            Some(m) if !crate::engines::tcpp_asr::knows(m, lang) => ("whisper".to_string(), true),
             _ => (studio, false),
         },
         e => (e.to_string(), false),
@@ -48,13 +49,13 @@ fn picked_engine(p: &ListenPaths, project: &ListenProject, lang: &str) -> (Strin
 fn ready_engine(p: &ListenPaths, project: &ListenProject, lang: &str, progress: &dyn Fn(Value)) -> Result<Engine, String> {
     let (picked, _) = picked_engine(p, project, lang);
     if !matches!(picked.as_str(), "fal" | "openrouter") {
-        crate::asr_util::ensure(&p.repo_root, &p.models_root, &picked, &|ev| progress(ev))?;
+        crate::app::recognition::ensure(&p.repo_root, &p.models_root, &picked, &|ev| progress(ev))?;
     }
     engine_for(p, project, lang)
 }
 
 fn engine_for(p: &ListenPaths, project: &ListenProject, lang: &str) -> Result<Engine, String> {
-    let mut sel = crate::models::load_selection(&p.models_root);
+    let mut sel = crate::engines::models::load_selection(&p.models_root);
     let (picked, for_lang) = picked_engine(p, project, lang);
     if picked == "fal" {
         let model = project.settings.cloud_model.trim().to_string();
@@ -64,7 +65,7 @@ fn engine_for(p: &ListenPaths, project: &ListenProject, lang: &str) -> Result<En
         return Ok(Engine::Fal(model));
     }
     if picked == "openrouter" {
-        let model = if project.settings.cloud_model.trim().is_empty() { crate::models::openrouter_model(&p.models_root, "asr") } else { project.settings.cloud_model.trim().to_string() };
+        let model = if project.settings.cloud_model.trim().is_empty() { crate::engines::models::openrouter_model(&p.models_root, "asr") } else { project.settings.cloud_model.trim().to_string() };
         if model.is_empty() {
             return Err(t!("cloud-asr-no-model"));
         }
@@ -73,15 +74,15 @@ fn engine_for(p: &ListenPaths, project: &ListenProject, lang: &str) -> Result<En
     if let Some(obj) = sel.as_object_mut() {
         obj.insert("asr_engine".into(), json!(picked));
     }
-    let choice = crate::models::resolve_asr_choice(&p.repo_root, &p.models_root, &sel);
+    let choice = crate::engines::models::resolve_asr_choice(&p.repo_root, &p.models_root, &sel);
     match &choice {
-        crate::models::AsrChoice::Whisper { .. } => Ok(Engine::Local(choice, "whisper")),
+        crate::engines::models::AsrChoice::Whisper { .. } => Ok(Engine::Local(choice, "whisper")),
         _ if picked == "whisper" => Err(if for_lang { t!("listen-whisper-for-lang", lang = lang.to_string()) } else { t!("listen-whisper-missing") }),
-        crate::models::AsrChoice::Ggml { build, model, .. } => {
-            if !crate::tcpp_asr::installed(&p.models_root, *build, model) {
+        crate::engines::models::AsrChoice::Ggml { build, model, .. } => {
+            if !crate::engines::tcpp_asr::installed(&p.models_root, *build, model) {
                 return Err(t!("listen-gguf-missing", engine = model.name));
             }
-            if !crate::tcpp_asr::knows(model, lang) {
+            if !crate::engines::tcpp_asr::knows(model, lang) {
                 return Err(t!("listen-gguf-lang", engine = model.name, lang = lang.to_string()));
             }
             Ok(Engine::Local(choice.clone(), if model.id == "nemotron" { "nemotron" } else { "parakeet" }))
@@ -94,7 +95,7 @@ fn step(progress: &dyn Fn(Value), msg: String, pct: i64) {
 }
 
 fn active_spans(wav: &Path) -> Result<Vec<(f64, f64)>, String> {
-    let (samples, sr) = crate::wavio::read_mono_f32(wav)?;
+    let (samples, sr) = crate::audio::wavio::read_mono_f32(wav)?;
     let cfg = dub_asr::WindowConfig::default();
     let (env, frame_sec) = dub_asr::speech_envelope(&samples, sr, cfg.frame_sec);
     Ok(dub_asr::detect_active_spans(&env, frame_sec, &cfg))
@@ -195,49 +196,49 @@ fn join_words(words: &[Word]) -> String {
 
 /// Отделённый голос записи в 16 кГц (Roformer); ошибка — явная, без тихого перехода на сырую запись.
 fn separate(p: &ListenPaths, src: &Path, work: &Path) -> Result<PathBuf, String> {
-    crate::tts_host::make_room();
-    let sel = crate::models::load_selection(&p.models_root);
-    let cli = dub_sep::engine_cli(&p.repo_root, crate::models::stage_backend(&p.models_root, "sep_backend"));
-    let model = crate::models::resolve_sep(&p.models_root, &sel);
+    crate::engines::tts_host::make_room();
+    let sel = crate::engines::models::load_selection(&p.models_root);
+    let cli = dub_sep::engine_cli(&p.repo_root, crate::engines::models::stage_backend(&p.models_root, "sep_backend"));
+    let model = crate::engines::models::resolve_sep(&p.models_root, &sel);
     if !cli.is_file() || !model.is_file() {
         return Err(t!("listen-separate-missing"));
     }
     let hq = work.join("mix-44k.wav");
-    crate::media::extract_audio(src, &hq, 44_100, 2)?;
+    crate::audio::media::extract_audio(src, &hq, 44_100, 2)?;
     let stems = work.join("stems");
     let res = dub_sep::separate(&hq, &stems, &cli, &model).map_err(|e| e.localize())?;
     let clean = work.join("vocals16.wav");
-    crate::media::to_16k_mono(&res.vocals, &clean)?;
+    crate::audio::media::to_16k_mono(&res.vocals, &clean)?;
     let _ = std::fs::remove_file(&hq);
     Ok(clean)
 }
 
 /// Голос и остальное файла отдельно (Roformer) — FLAC в `out`: vocals.flac и instrumental.flac.
 pub fn separate_to(repo_root: &Path, models_root: &Path, src: &Path, out: &Path, progress: &dyn Fn(Value)) -> Result<Value, String> {
-    crate::tts_host::make_room();
-    crate::ensure_job_components(repo_root, models_root, false, false, &|ev| progress(ev))?;
-    let sel = crate::models::load_selection(models_root);
-    let cli = dub_sep::engine_cli(repo_root, crate::models::stage_backend(models_root, "sep_backend"));
-    let model = crate::models::resolve_sep(models_root, &sel);
+    crate::engines::tts_host::make_room();
+    crate::app::ensure_job_components(repo_root, models_root, false, false, &|ev| progress(ev))?;
+    let sel = crate::engines::models::load_selection(models_root);
+    let cli = dub_sep::engine_cli(repo_root, crate::engines::models::stage_backend(models_root, "sep_backend"));
+    let model = crate::engines::models::resolve_sep(models_root, &sel);
     if !cli.is_file() || !model.is_file() {
         return Err(t!("listen-separate-missing"));
     }
     step(progress, t!("listen-step-separate"), 10);
     let work = tempfile::Builder::new().prefix("separate-").tempdir().map_err(|e| e.to_string())?;
     let hq = work.path().join("mix-44k.wav");
-    crate::media::extract_audio(src, &hq, 44_100, 2)?;
+    crate::audio::media::extract_audio(src, &hq, 44_100, 2)?;
     let res = dub_sep::separate(&hq, &work.path().join("stems"), &cli, &model).map_err(|e| e.localize())?;
     std::fs::create_dir_all(out).map_err(|e| format!("{}: {e}", out.display()))?;
     let vocals = out.join("vocals.flac");
     let rest = out.join("instrumental.flac");
-    crate::media::encode_audio(&res.vocals, &vocals, "flac", false)?;
-    crate::media::encode_audio(&res.instrumental, &rest, "flac", false)?;
+    crate::audio::media::encode_audio(&res.vocals, &vocals, "flac", false)?;
+    crate::audio::media::encode_audio(&res.instrumental, &rest, "flac", false)?;
     step(progress, t!("listen-step-done", lines = 0), 100);
     Ok(json!({ "done": true, "vocals": vocals, "instrumental": rest }))
 }
 
 fn diarize(p: &ListenPaths, wav: &Path, speakers: u8) -> Result<Vec<dub_asr::Turn>, String> {
-    std::env::set_var("DUB_ASR_BACKEND", crate::models::stage_backend(&p.models_root, "diar_backend"));
+    std::env::set_var("DUB_ASR_BACKEND", crate::engines::models::stage_backend(&p.models_root, "diar_backend"));
     let turns = match speakers {
         1 => return Ok(Vec::new()),
         0 => dub_asr::turns(wav, &p.sortformer_onnx, 0.8, 2.5).map_err(|e| e.localize())?,
@@ -253,17 +254,17 @@ fn diarize(p: &ListenPaths, wav: &Path, speakers: u8) -> Result<Vec<dub_asr::Tur
 /// Распознать по кускам, на которые запись режут паузы (Silero VAD): тишина не идёт в распознаватель, а длинная
 /// запись не грузится в него целиком.
 #[allow(clippy::too_many_arguments)]
-fn recognise_by_pauses(p: &ListenPaths, choice: &crate::models::AsrChoice, wav: &Path, work: &Path, lang: &str, vad: &crate::vad::VadConfig, prompt: Option<String>, progress: &dyn Fn(Value)) -> Result<Vec<dub_asr::Segment>, String> {
-    if !crate::vad::installed(&p.models_root) {
+fn recognise_by_pauses(p: &ListenPaths, choice: &crate::engines::models::AsrChoice, wav: &Path, work: &Path, lang: &str, vad: &crate::engines::vad::VadConfig, prompt: Option<String>, progress: &dyn Fn(Value)) -> Result<Vec<dub_asr::Segment>, String> {
+    if !crate::engines::vad::installed(&p.models_root) {
         return Err(t!("vad-missing"));
     }
-    let (samples, sr) = crate::wavio::read_mono_f32(wav)?;
-    if sr as usize != crate::vad::SR {
-        return Err(format!("{}: {sr} Hz, the speech finder takes {} Hz", wav.display(), crate::vad::SR));
+    let (samples, sr) = crate::audio::wavio::read_mono_f32(wav)?;
+    if sr as usize != crate::engines::vad::SR {
+        return Err(format!("{}: {sr} Hz, the speech finder takes {} Hz", wav.display(), crate::engines::vad::SR));
     }
-    let probs = crate::vad::probabilities(&p.models_root, &samples)?;
-    let spans = crate::vad::speech(&probs, samples.len(), vad);
-    let windows = crate::vad::windows(&spans, &probs, crate::vad::MAX_WINDOW_SECS);
+    let probs = crate::engines::vad::probabilities(&p.models_root, &samples)?;
+    let spans = crate::engines::vad::speech(&probs, samples.len(), vad);
+    let windows = crate::engines::vad::windows(&spans, &probs, crate::engines::vad::MAX_WINDOW_SECS);
     if windows.is_empty() {
         return Err(t!("listen-no-speech", threshold = format!("{:.2}", vad.threshold)));
     }
@@ -273,7 +274,7 @@ fn recognise_by_pauses(p: &ListenPaths, choice: &crate::models::AsrChoice, wav: 
         step(progress, t!("listen-step-asr-piece", n = (k + 1) as i64, total = windows.len() as i64), 45 + (k * 40 / windows.len().max(1)) as i64);
         let piece = work.join("piece.wav");
         let (from, to) = ((a * sr as f64) as usize, ((b * sr as f64) as usize).min(samples.len()));
-        crate::wavio::write_mono_f32(&piece, &samples[from..to], sr)?;
+        crate::audio::wavio::write_mono_f32(&piece, &samples[from..to], sr)?;
         for mut s in asr.transcribe(&piece, lang).map_err(|e| e.localize())? {
             s.start += a;
             s.end += a;
@@ -292,11 +293,11 @@ fn recognise(p: &ListenPaths, engine: &Engine, wav: &Path, work: &Path, s: &lp::
     let lang = if s.lang.is_empty() { "auto" } else { s.lang.as_str() };
     let lines = match engine {
         Engine::Local(choice, _) => {
-            std::env::set_var("DUB_ASR_BACKEND", crate::models::stage_backend(&p.models_root, "asr_backend"));
+            std::env::set_var("DUB_ASR_BACKEND", crate::engines::models::stage_backend(&p.models_root, "asr_backend"));
             // Whisper windows a long recording itself; the others get it in pieces cut at pauses
             let segments = match choice {
-                crate::models::AsrChoice::Whisper { .. } => crate::engines::asr::build_engine(choice, prompt).transcribe(wav, lang).map_err(|e| e.localize())?,
-                crate::models::AsrChoice::Ggml { .. } => recognise_by_pauses(p, choice, wav, work, lang, &s.vad, prompt, progress)?,
+                crate::engines::models::AsrChoice::Whisper { .. } => crate::engines::asr::build_engine(choice, prompt).transcribe(wav, lang).map_err(|e| e.localize())?,
+                crate::engines::models::AsrChoice::Ggml { .. } => recognise_by_pauses(p, choice, wav, work, lang, &s.vad, prompt, progress)?,
             };
             dub_asr::split_at_speaker_turns(segments, turns)
                 .into_iter()
@@ -311,30 +312,30 @@ fn recognise(p: &ListenPaths, engine: &Engine, wav: &Path, work: &Path, s: &lp::
         }
         Engine::Fal(model) => {
             let packed = work.join("upload.mp3");
-            crate::media::encode_audio(wav, &packed, "mp3", false)?;
+            crate::audio::media::encode_audio(wav, &packed, "mp3", false)?;
             let handle = work.join("cloud-asr.json");
             let pid = work.parent().and_then(|d| d.file_name()).map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-            let run = crate::cloud::Run { repo_root: &p.repo_root, models_root: &p.models_root, project: &pid, task: vs_providers::Task::Transcribe, handle_file: &handle };
-            let (text, _) = crate::cloud::transcribe(&run, model, &packed, lang)?;
-            let end = crate::media::duration(wav)?;
+            let run = crate::app::remote::Run { repo_root: &p.repo_root, models_root: &p.models_root, project: &pid, task: vs_providers::Task::Transcribe, handle_file: &handle };
+            let (text, _) = crate::app::remote::transcribe(&run, model, &packed, lang)?;
+            let end = crate::audio::media::duration(wav)?;
             vec![Line { start: 0.0, end, speaker: "0".into(), words: lp::spread_words(text.trim(), 0.0, end), text: text.trim().to_string(), approx: true, ..Default::default() }]
         }
         Engine::Cloud(model) => {
-            let key = crate::models::openrouter_key().ok_or_else(|| t!("cloud-asr-no-key"))?;
-            crate::app::spending::check_limit(&p.repo_root, &p.models_root, None)?;
+            let key = crate::engines::models::openrouter_key().ok_or_else(|| t!("cloud-asr-no-key"))?;
+            crate::app::costs::check_limit(&p.repo_root, &p.models_root, None)?;
             let packed = work.join("upload.mp3");
-            crate::media::encode_audio(wav, &packed, "mp3", false)?;
+            crate::audio::media::encode_audio(wav, &packed, "mp3", false)?;
             let audio = std::fs::read(&packed).map_err(|e| format!("{}: {e}", packed.display()))?;
             let client = dub_llm::openrouter::OpenRouter::new(Some(key)).map_err(|e| t!("cloud-asr-failed", error = format!("{e:#}")))?;
             let heard = client.transcribe(model, &audio, "mp3", lang).map_err(|e| t!("cloud-asr-failed", error = format!("{e:#}")))?;
             let pid = work.parent().and_then(|d| d.file_name()).map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
-            crate::app::spending::record(&p.repo_root, crate::app::spending::Spent { at: chrono::Utc::now().timestamp_millis(), day: chrono::Local::now().format("%Y-%m-%d").to_string(), project: pid, provider: "openrouter".into(), model: model.clone(), task: "transcribe".into(), cost_source: "unknown".into(), origin: crate::app::context::current_actor(), ..Default::default() });
+            crate::app::costs::record(&p.repo_root, crate::app::costs::Spent { at: chrono::Utc::now().timestamp_millis(), day: chrono::Local::now().format("%Y-%m-%d").to_string(), project: pid, provider: "openrouter".into(), model: model.clone(), task: "transcribe".into(), cost_source: "unknown".into(), origin: crate::app::current_actor(), ..Default::default() });
             let mut segments: Vec<(f64, f64, String)> = heard.segments.into_iter().map(|s| (s.start, s.end, s.text)).collect();
             if segments.is_empty() {
                 if heard.text.trim().is_empty() {
                     return Err(t!("cloud-asr-empty"));
                 }
-                let end = heard.duration.unwrap_or_else(|| crate::media::duration(wav).unwrap_or(0.0));
+                let end = heard.duration.unwrap_or_else(|| crate::audio::media::duration(wav).unwrap_or(0.0));
                 segments.push((0.0, end.max(0.1), heard.text));
             }
             segments
@@ -358,12 +359,12 @@ const OWN_LANGUAGES_MIN: f32 = 0.1;
 /// own language while those hold a noticeable share, else the likeliest of all 107 (the recording goes to a model that
 /// knows it). None for a recording under half a second, which the detector does not hear.
 fn spoken_language(models_root: &Path, wav: &Path, known: &[&str]) -> Result<Option<String>, String> {
-    let (pcm, _) = crate::wavio::read_mono_f32_head(wav, 30 * 16_000)?;
+    let (pcm, _) = crate::audio::wavio::read_mono_f32_head(wav, 30 * 16_000)?;
     if pcm.len() < dub_asr::tcpp::LANGID_MIN_SAMPLES {
         return Ok(None);
     }
     let pcm = pcm.as_slice();
-    let engine = dub_asr::tcpp::engine_dir(models_root, crate::models::tcpp_build(models_root));
+    let engine = dub_asr::tcpp::engine_dir(models_root, crate::engines::models::tcpp_build(models_root));
     let model = dub_asr::tcpp::helper_path(models_root, &dub_asr::tcpp::LANGID);
     let own = dub_asr::tcpp::detect_language(&engine, &model, pcm, known)?;
     let guess = if own.allowed_mass >= OWN_LANGUAGES_MIN { own } else { dub_asr::tcpp::detect_language(&engine, &model, pcm, &[])? };
@@ -372,21 +373,21 @@ fn spoken_language(models_root: &Path, wav: &Path, known: &[&str]) -> Result<Opt
 
 /// Распознать запись проекта заново (прежний транскрипт заменяется; имена спикеров по ключам сохраняются).
 pub fn transcribe(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Result<Value, String> {
-    crate::tts_host::make_room();
+    crate::engines::tts_host::make_room();
     let mut project = crate::listening::load(&p.workspace, pid)?;
     let src = crate::listening::source_path(&p.workspace, pid, &project)?;
     let mut s = project.settings.clone();
     let mut engine = ready_engine(p, &project, &s.lang, progress)?;
     let diar = s.speakers != 1;
-    crate::ensure_job_components(&p.repo_root, &p.models_root, s.speakers > 1, diar, &|ev| progress(ev))?;
+    crate::app::ensure_job_components(&p.repo_root, &p.models_root, s.speakers > 1, diar, &|ev| progress(ev))?;
     let mut extra = Vec::new();
-    if let Engine::Local(crate::models::AsrChoice::Ggml { build, .. }, _) = &engine {
+    if let Engine::Local(crate::engines::models::AsrChoice::Ggml { build, .. }, _) = &engine {
         extra.extend([build.dir(), "silero-vad"]);
     }
     if s.denoise {
         extra.push("dpdfnet");
     }
-    crate::ensure_components(&p.repo_root, &extra, &|ev| progress(ev))?;
+    crate::app::ensure_components(&p.repo_root, &extra, &|ev| progress(ev))?;
     if diar && !p.sortformer_onnx.is_file() {
         return Err(t!("listen-diar-missing"));
     }
@@ -397,19 +398,19 @@ pub fn transcribe(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Resul
         step(progress, t!("listen-step-denoise"), 4);
         let out = work.join("denoised48.wav");
         let limit = (s.denoise_db > 0.0).then_some(s.denoise_db as f32);
-        crate::denoise::denoise_file(&p.models_root, &src, &out, limit, &|f| step(progress, t!("listen-step-denoise"), 4 + (f * 4.0) as i64))?;
+        crate::engines::denoise::denoise_file(&p.models_root, &src, &out, limit, &|f| step(progress, t!("listen-step-denoise"), 4 + (f * 4.0) as i64))?;
         out
     } else {
         src
     };
     let mix = work.join("audio16.wav");
-    crate::media::to_16k_mono(&src, &mix)?;
+    crate::audio::media::to_16k_mono(&src, &mix)?;
     let studio_model = match &engine {
-        Engine::Local(crate::models::AsrChoice::Ggml { model, .. }, _) if matches!(s.lang.as_str(), "" | "auto") => Some(*model),
+        Engine::Local(crate::engines::models::AsrChoice::Ggml { model, .. }, _) if matches!(s.lang.as_str(), "" | "auto") => Some(*model),
         _ => None,
     };
     if let Some(model) = studio_model {
-        crate::ensure_components(&p.repo_root, &[crate::models::tcpp_build(&p.models_root).dir(), "langid"], &|ev| progress(ev))?;
+        crate::app::ensure_components(&p.repo_root, &[crate::engines::models::tcpp_build(&p.models_root).dir(), "langid"], &|ev| progress(ev))?;
         if let Some(lang) = spoken_language(&p.models_root, &mix, model.languages)? {
             step(progress, t!("listen-step-langid", lang = lang.to_uppercase()), 7);
             engine = ready_engine(p, &project, &lang, progress)?;
@@ -460,12 +461,12 @@ pub fn transcribe(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Resul
         }
     }
     let by = match &engine {
-        Engine::Local(crate::models::AsrChoice::Whisper { model, .. }, _) => format!("whisper:{model}"),
+        Engine::Local(crate::engines::models::AsrChoice::Whisper { model, .. }, _) => format!("whisper:{model}"),
         Engine::Local(_, tag) => tag.to_string(),
         Engine::Cloud(model) => format!("openrouter:{model}"),
         Engine::Fal(model) => format!("fal:{model}"),
     };
-    project.duration = crate::media::duration(&mix).unwrap_or(project.duration);
+    project.duration = crate::audio::media::duration(&mix).unwrap_or(project.duration);
     project.speakers = speakers;
     project.made = Some(Made { by, at: crate::platform::time::unix_seconds(), lang: s.lang.clone(), separated: clean.is_some(), hidden });
     let count = lines.len();
@@ -489,12 +490,12 @@ pub fn cut(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Result<Value
     std::fs::create_dir_all(&work).map_err(|e| format!("{}: {e}", work.display()))?;
     let wav = work.join("audio16.wav");
     if !wav.is_file() {
-        crate::media::to_16k_mono(&src, &wav)?;
+        crate::audio::media::to_16k_mono(&src, &wav)?;
     }
-    let (samples, sr) = crate::wavio::read_mono_f32(&wav)?;
+    let (samples, sr) = crate::audio::wavio::read_mono_f32(&wav)?;
     let cuts: Vec<(f64, f64)> = cuts.iter().map(|&(a, b)| snap_cut(&samples, sr, a, b)).collect();
     let cuts = lp::merge_ranges(cuts);
-    let total = crate::media::duration(&src)?;
+    let total = crate::audio::media::duration(&src)?;
     let keep = lp::keep_ranges(&cuts, total);
     if keep.is_empty() {
         return Err(t!("listen-cut-everything"));
@@ -503,7 +504,7 @@ pub fn cut(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Result<Value
     let dir = crate::listening::project_dir(&p.workspace, &new_pid);
     std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let out = dir.join("source.flac");
-    if let Err(e) = crate::media::keep_audio_ranges(&src, &out, &keep) {
+    if let Err(e) = crate::audio::media::keep_audio_ranges(&src, &out, &keep) {
         let _ = std::fs::remove_dir_all(&dir);
         return Err(e);
     }
@@ -620,10 +621,10 @@ pub fn align_to_text(project: &ListenProject, reference: &str) -> Vec<Line> {
 
 pub fn check_reference(project: &ListenProject, reference: &str) -> Result<Value, String> {
     let heard: String = project.shown().map(|l| l.text.as_str()).collect::<Vec<_>>().join(" ");
-    let (reference, heard) = crate::qc::said_alike(reference, &heard, &crate::prep::block_lang(reference, &project.settings.lang))?;
-    let e = crate::qc::normalize(&reference);
-    let h = crate::qc::normalize(&heard);
-    let ops = crate::qc::word_diff(&e, &h);
+    let (reference, heard) = crate::audio::qc::said_alike(reference, &heard, &crate::text::prep::block_lang(reference, &project.settings.lang))?;
+    let e = crate::audio::qc::normalize(&reference);
+    let h = crate::audio::qc::normalize(&heard);
+    let ops = crate::audio::qc::word_diff(&e, &h);
     let errors = ops.iter().filter(|o| o.op != "same").count();
     let wer = if e.is_empty() { if h.is_empty() { 0.0 } else { 1.0 } } else { errors as f64 / e.len() as f64 };
     Ok(json!({ "words": e.len(), "wer": wer, "ops": ops }))

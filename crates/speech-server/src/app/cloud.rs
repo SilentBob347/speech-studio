@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use vs_providers::{price, ModelEntry, ModelForm, Output, Polled, Provider, Role, Submitted, Task};
 
-use crate::credentials;
+use crate::platform::credentials;
 
 /// Провайдеры каталога здесь: OpenRouter идёт своим путём (каталог Dub).
 pub const PROVIDERS: [Provider; 2] = [Provider::Fal, Provider::Runware];
@@ -363,8 +363,8 @@ pub fn speak(r: &Run, provider: &str, id: &str, values: &Map<String, Value>, tex
     let src = dir.path().join("out.bin");
     let wav = dir.path().join("out.wav");
     std::fs::write(&src, &bytes).map_err(|e| e.to_string())?;
-    crate::media::extract_audio(&src, &wav, 24_000, 1)?;
-    let (samples, _) = crate::wavio::read_mono_f32(&wav)?;
+    crate::audio::media::extract_audio(&src, &wav, 24_000, 1)?;
+    let (samples, _) = crate::audio::wavio::read_mono_f32(&wav)?;
     Ok((samples, done))
 }
 

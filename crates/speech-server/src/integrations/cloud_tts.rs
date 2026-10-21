@@ -30,6 +30,6 @@ pub fn synth(key: String, text: &str, model: &str, voice: &str, style: &str) -> 
     let src = dir.path().join(format!("in.{ext}"));
     let wav = dir.path().join("out.wav");
     std::fs::write(&src, &bytes).map_err(|e| e.to_string())?;
-    crate::media::extract_audio(&src, &wav, SR, 1)?;
-    crate::wavio::read_mono_f32(&wav).map(|(s, _)| s)
+    crate::audio::media::extract_audio(&src, &wav, SR, 1)?;
+    crate::audio::wavio::read_mono_f32(&wav).map(|(s, _)| s)
 }

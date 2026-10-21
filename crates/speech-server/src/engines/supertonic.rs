@@ -313,7 +313,7 @@ mod tests {
         assert!(secs > 1.5 && secs < 8.0, "{secs}");
         assert_eq!(wav, m.speak("Сегодня в восемь вечера мы встретимся у старого моста.", "ru", "F1", DEFAULT_STEPS, DEFAULT_SPEED, 42).unwrap());
         if let Ok(out) = std::env::var("SUPERTONIC_OUT") {
-            crate::wavio::write_mono_f32(Path::new(&out), &wav, m.sample_rate()).unwrap();
+            crate::audio::wavio::write_mono_f32(Path::new(&out), &wav, m.sample_rate()).unwrap();
         }
     }
 
@@ -353,7 +353,7 @@ mod tests {
                 let secs = wav.len() as f64 / m.sample_rate() as f64;
                 eprintln!("[OK] {kind} {n}: {secs:.2} s");
                 assert!(secs > 1.0 && secs < 12.0, "{secs}");
-                crate::wavio::write_mono_f32(&out.join(format!("{n}-{kind}.wav")), &wav, m.sample_rate()).unwrap();
+                crate::audio::wavio::write_mono_f32(&out.join(format!("{n}-{kind}.wav")), &wav, m.sample_rate()).unwrap();
             }
         }
     }

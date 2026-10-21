@@ -10,19 +10,20 @@ use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde_json::{json, Value};
 
-use crate::listen_jobs::{self, ListenPaths};
-use crate::listen_project::{self as lp, ListenProject};
-use crate::speech_api::{joined, refuse};
+use crate::listening::{jobs as listen_jobs, project as lp};
+use crate::listening::jobs::ListenPaths;
+use crate::listening::project::ListenProject;
+use crate::app::{joined, refuse};
 use crate::{jobs, AppState};
 
 pub fn paths(st: &AppState) -> ListenPaths {
-    crate::app::listening::paths(st)
+    crate::app::listening_paths(st)
 }
 
 fn saved(r: Result<Result<Value, String>, Response>, missing: StatusCode) -> Response {
     match r {
         Ok(Ok(v)) => Json(v).into_response(),
-        Ok(Err(e)) if e.starts_with(crate::app::revisions::PROJECT_CHANGED) => refuse(StatusCode::CONFLICT, crate::app::revisions::PROJECT_CHANGED, e),
+        Ok(Err(e)) if e.starts_with(crate::app::PROJECT_CHANGED) => refuse(StatusCode::CONFLICT, crate::app::PROJECT_CHANGED, e),
         Ok(Err(e)) => refuse(missing, "listen_failed", e),
         Err(r) => r,
     }
@@ -72,7 +73,7 @@ pub async fn upload(State(st): State<AppState>, mut multipart: axum::extract::Mu
     }
     let Some((original, source)) = got else { return refuse(StatusCode::BAD_REQUEST, "bad_request", "no file") };
     let ws = st.workspace.clone();
-    let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || {
+    let res = joined(tokio::task::spawn_blocking(crate::app::carry(move || {
         let made = make(&ws, &pid, &super::stem(&original), &source, &original);
         if made.is_err() {
             let _ = std::fs::remove_dir_all(crate::listening::project_dir(&ws, &pid));
@@ -83,11 +84,11 @@ pub async fn upload(State(st): State<AppState>, mut multipart: axum::extract::Mu
     saved(res, StatusCode::BAD_REQUEST)
 }
 
-static RECORDING: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+use super::recording::RECORDING;
 
-/// The recording the microphone is making now, if it is on.
-pub fn recording() -> Option<String> {
-    RECORDING.lock().unwrap_or_else(|e| e.into_inner()).clone()
+
+pub async fn record_stop(State(st): State<AppState>) -> Response {
+    super::stop_recording_response(super::stop_recording(&st.workspace).await)
 }
 
 /// Live recognition starts only with its recogniser and the speech detector on disk: what is missing is downloaded in
@@ -96,8 +97,8 @@ pub fn recording() -> Option<String> {
 async fn live_parts(st: &AppState, engine: &str) -> Result<(), Response> {
     let (root, models, engine) = (st.repo_root.clone(), st.models_root.clone(), engine.to_string());
     let ids = joined(tokio::task::spawn_blocking(move || {
-        let mut ids = crate::asr_util::missing_parts(&root, &models, &engine);
-        if !crate::vad::installed(&models) {
+        let mut ids = crate::app::recognition::missing_parts(&root, &models, &engine);
+        if !crate::engines::vad::installed(&models) {
             ids.push("silero-vad".to_string());
         }
         ids
@@ -117,7 +118,7 @@ async fn live_parts(st: &AppState, engine: &str) -> Result<(), Response> {
 /// POST /listen/record/start {device?, live?, lang?, engine?} — запись с микрофона в новый проект; с `live` она распознаётся по
 /// фразам, пока идёт (`/listen/record/live`).
 pub async fn record_start(State(st): State<AppState>, headers: HeaderMap, body: Option<Json<Value>>) -> Response {
-    if crate::app::tools::by_agent(&headers) {
+    if crate::app::agent::by_agent(&headers) {
         return refuse(StatusCode::FORBIDDEN, "mic_only_person", t!("mic-only-person"));
     }
     let body = body.map(|Json(v)| v).unwrap_or(Value::Null);
@@ -139,18 +140,18 @@ pub async fn record_start(State(st): State<AppState>, headers: HeaderMap, body: 
         return refuse(StatusCode::INTERNAL_SERVER_ERROR, "io", format!("{}: {e}", dir.display()));
     }
     let path = dir.join("source.wav");
-    match joined(tokio::task::spawn_blocking(move || crate::record::start(&path, device)).await) {
+    match joined(tokio::task::spawn_blocking(move || crate::voices::record::start(&path, device)).await) {
         Ok(Ok(())) => {
             if live {
                 let (root, models) = (st.repo_root.clone(), st.models_root.clone());
-                if let Err(e) = joined(tokio::task::spawn_blocking(move || crate::listen_live::start(&root, &models, &lang, &engine)).await).and_then(|r| r.map_err(|e| refuse(StatusCode::CONFLICT, "live_failed", e))) {
-                    let _ = tokio::task::spawn_blocking(crate::record::stop).await;
+                if let Err(e) = joined(tokio::task::spawn_blocking(move || crate::listening::live::start(&root, &models, &lang, &engine)).await).and_then(|r| r.map_err(|e| refuse(StatusCode::CONFLICT, "live_failed", e))) {
+                    let _ = tokio::task::spawn_blocking(crate::voices::record::stop).await;
                     let _ = std::fs::remove_dir_all(&dir);
                     return e;
                 }
             }
             *RECORDING.lock().unwrap_or_else(|e| e.into_inner()) = Some(pid.clone());
-            crate::say_api::guard_mic(st);
+            crate::speech::talk::guard_mic(st.workspace.clone());
             Json(json!({ "pid": pid, "live": live })).into_response()
         }
         Ok(Err(e)) => {
@@ -161,48 +162,20 @@ pub async fn record_start(State(st): State<AppState>, headers: HeaderMap, body: 
     }
 }
 
-/// POST /listen/record/stop — остановить запись: проект с ней готов к распознаванию.
-pub async fn record_stop(State(st): State<AppState>) -> Response {
-    let Some(pid) = RECORDING.lock().unwrap_or_else(|e| e.into_inner()).take() else {
-        return refuse(StatusCode::CONFLICT, "not_recording", t!("listen-not-recording"));
-    };
-    let ws = st.workspace.clone();
-    let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || {
-        crate::record::stop()?;
-        let heard = crate::listen_live::finish();
-        let made = make(&ws, &pid, &t!("listen-mic-name", time = chrono::Local::now().format("%d.%m %H:%M").to_string()), "source.wav", &t!("listen-mic-origin"))?;
-        let heard = heard?;
-        if heard.is_empty() {
-            return Ok(made);
-        }
-        // the phrases heard live are the recording's first transcript, in one speaker's voice
-        let mut project = crate::listening::load(&ws, &pid)?;
-        project.speakers.insert("0".into(), t!("listen-speaker-n", n = 1));
-        project.lines = heard
-            .iter()
-            .enumerate()
-            .map(|(i, (start, end, text))| lp::Line { id: format!("live{i}"), start: *start, end: *end, speaker: "0".into(), words: lp::spread_words(text, *start, *end), text: text.clone(), approx: true, ..Default::default() })
-            .collect();
-        crate::listening::save(&ws, &pid, &project)?;
-        Ok(json!({ "pid": pid, "project": project }))
-    }))
-    .await);
-    saved(res, StatusCode::INTERNAL_SERVER_ERROR)
-}
 
 /// GET /listen/watch — the folder of recordings recognised in the background: its settings, files and how far it got.
 pub async fn watch_status() -> Json<Value> {
-    Json(crate::listen_watch::status())
+    Json(crate::listening::watch::status())
 }
 
 /// POST /listen/watch {folder, out?, formats, keep?, engine?, lang?, rules?, digits?} — go through a folder of
 /// recordings in the background (and keep watching it with `keep`).
 pub async fn watch_start(State(st): State<AppState>, Json(body): Json<Value>) -> Response {
-    let config: crate::listen_watch::WatchConfig = match serde_json::from_value(body) {
+    let config: crate::listening::watch::WatchConfig = match serde_json::from_value(body) {
         Ok(c) => c,
         Err(e) => return refuse(StatusCode::BAD_REQUEST, "bad_request", e.to_string()),
     };
-    match crate::listen_watch::start(crate::app::listening::watch_dependencies(&st), config) {
+    match crate::listening::watch::start(crate::app::watch_dependencies(&st), config) {
         Ok(v) => Json(v).into_response(),
         Err(e) => refuse(StatusCode::BAD_REQUEST, "bad_watch", e),
     }
@@ -210,7 +183,7 @@ pub async fn watch_start(State(st): State<AppState>, Json(body): Json<Value>) ->
 
 /// POST /listen/watch/stop — stop after the recording being recognised now.
 pub async fn watch_stop(State(st): State<AppState>) -> Response {
-    match crate::listen_watch::stop(&st.repo_root) {
+    match crate::listening::watch::stop(&st.repo_root) {
         Ok(v) => Json(v).into_response(),
         Err(e) => refuse(StatusCode::INTERNAL_SERVER_ERROR, "watch_failed", e),
     }
@@ -218,7 +191,7 @@ pub async fn watch_stop(State(st): State<AppState>) -> Response {
 
 /// GET /listen/record/live — what live recognition of the recording under way has heard: phrases with their times.
 pub async fn record_live() -> Json<Value> {
-    Json(crate::listen_live::state())
+    Json(crate::listening::live::state())
 }
 
 /// GET /listen/{pid} — проект.
@@ -232,7 +205,7 @@ pub async fn get(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Res
 /// PUT /listen/{pid} — сохранить правки транскрипта (тексты, спикеры, скрытие, пометки к вырезке, настройки).
 pub async fn put(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<Value>) -> Response {
     let ws = st.workspace.clone();
-    let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || -> Result<Value, String> {
+    let res = joined(tokio::task::spawn_blocking(crate::app::carry(move || -> Result<Value, String> {
         let mut project: ListenProject = serde_json::from_value(body).map_err(|e| e.to_string())?;
         let was = crate::listening::load(&ws, &pid)?;
         project.kind = lp::KIND.into();
@@ -256,7 +229,7 @@ pub async fn audio(State(st): State<AppState>, AxPath(pid): AxPath<String>, req:
     if !path.is_file() {
         return refuse(StatusCode::NOT_FOUND, "no_file", t!("listen-no-source"));
     }
-    crate::serve_file_range(&path, req, None).await
+    crate::app::serve_file_range(&path, req, None).await
 }
 
 fn enqueue_job(st: &AppState, pid: &str, kind: jobs::JobKind, run: fn(&ListenPaths, &str, &dyn Fn(Value)) -> Result<Value, String>) -> impl std::future::Future<Output = Response> {
@@ -270,7 +243,7 @@ fn enqueue_job(st: &AppState, pid: &str, kind: jobs::JobKind, run: fn(&ListenPat
         let job: jobs::JobFn = Box::new(move |progress: jobs::ProgressFn| run(&p, &pid2, &|ev| progress(ev)));
         match jobs.enqueue(jobs::JobMeta::new(kind, Some(&pid)), job).await {
             Ok(job_id) => Json(json!({ "job_id": job_id })).into_response(),
-            Err(e) => crate::enqueue_error(e),
+            Err(e) => crate::app::enqueue_error(e),
         }
     }
 }
@@ -309,7 +282,7 @@ pub async fn export(State(st): State<AppState>, AxPath(pid): AxPath<String>, Jso
         },
         None => None,
     };
-    let o = crate::transcript_out::Opts {
+    let o = crate::listening::export::Opts {
         speakers: body.get("speakers").and_then(Value::as_bool).unwrap_or(true),
         times: body.get("times").and_then(Value::as_bool).unwrap_or(true),
         rules,
@@ -318,9 +291,9 @@ pub async fn export(State(st): State<AppState>, AxPath(pid): AxPath<String>, Jso
     let ws = st.workspace.clone();
     let res = joined(tokio::task::spawn_blocking(move || -> Result<Value, String> {
         let project = crate::listening::load(&ws, &pid)?;
-        let text = crate::transcript_out::render(&project, &format, &o)?;
-        let (rows, unknown) = if o.digits { crate::transcript_out::with_digits(crate::transcript_out::shown_rows(&project), &project.settings.lang)? } else { (crate::transcript_out::shown_rows(&project), 0) };
-        let fast = o.rules.filter(|_| matches!(format.as_str(), "srt" | "vtt" | "ass")).map(|rules| crate::transcript_out::by_rules(&rows, rules, &project.settings.lang).1);
+        let text = crate::listening::export::render(&project, &format, &o)?;
+        let (rows, unknown) = if o.digits { crate::listening::export::with_digits(crate::listening::export::shown_rows(&project), &project.settings.lang)? } else { (crate::listening::export::shown_rows(&project), 0) };
+        let fast = o.rules.filter(|_| matches!(format.as_str(), "srt" | "vtt" | "ass")).map(|rules| crate::listening::export::by_rules(&rows, rules, &project.settings.lang).1);
         let dir = crate::listening::project_dir(&ws, &pid).join("exports");
         std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
         let base: String = project.name.chars().map(|c| if c.is_control() || "<>:\"/\\|?*".contains(c) { ' ' } else { c }).collect::<String>().trim().to_string();
@@ -361,8 +334,8 @@ pub async fn check(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json
 /// POST /listen/{pid}/to-speech — проект Speech из транскрипта: реплики с теми же спикерами на таймкодах записи.
 pub async fn to_speech(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Response {
     let (ws, voices_dir) = (st.workspace.clone(), st.voices_dir.clone());
-    let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || {
-        crate::app::listening_to_speech::convert(&ws, &voices_dir, &pid).map(|pid| json!({ "pid": pid }))
+    let res = joined(tokio::task::spawn_blocking(crate::app::carry(move || {
+        crate::app::convert_listening_to_speech(&ws, &voices_dir, &pid).map(|pid| json!({ "pid": pid }))
     }))
     .await);
     saved(res, StatusCode::BAD_REQUEST)
@@ -373,14 +346,14 @@ pub async fn to_speech(State(st): State<AppState>, AxPath(pid): AxPath<String>) 
 pub async fn voices(State(st): State<AppState>, AxPath(pid): AxPath<String>, body: Option<Json<Value>>) -> Response {
     let only = body.and_then(|Json(v)| v.get("speaker").and_then(Value::as_str).map(str::to_string));
     let (ws, voices_dir, models_root) = (st.workspace.clone(), st.voices_dir.clone(), st.models_root.clone());
-    let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || crate::app::listening_voices::extract(&ws, &voices_dir, &models_root, &pid, only.as_deref()))).await);
+    let res = joined(tokio::task::spawn_blocking(crate::app::carry(move || crate::app::extract_listening_voices(&ws, &voices_dir, &models_root, &pid, only.as_deref()))).await);
     saved(res, StatusCode::BAD_REQUEST)
 }
 
-fn profile_paths(st: &AppState) -> crate::app::speaker_profiles::Paths {
-    crate::app::speaker_profiles::Paths {
+fn profile_paths(st: &AppState) -> crate::app::profiles::Paths {
+    crate::app::profiles::Paths {
         workspace: st.workspace.clone(),
-        profiles: crate::speaker_profiles::Paths { repo_root: st.repo_root.clone(), voices_dir: st.voices_dir.clone(), models_root: st.models_root.clone() },
+        profiles: crate::voices::matching::Paths { repo_root: st.repo_root.clone(), voices_dir: st.voices_dir.clone(), models_root: st.models_root.clone() },
     }
 }
 
@@ -388,7 +361,7 @@ fn profile_paths(st: &AppState) -> crate::app::speaker_profiles::Paths {
 /// library voices, by the voice print.
 pub async fn speakers_match(State(st): State<AppState>, AxPath(pid): AxPath<String>) -> Response {
     let p = profile_paths(&st);
-    let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || crate::app::speaker_profiles::matches(&p, &pid))).await);
+    let res = joined(tokio::task::spawn_blocking(crate::app::carry(move || crate::app::profiles::matches(&p, &pid))).await);
     saved(res, StatusCode::BAD_REQUEST)
 }
 
@@ -396,13 +369,13 @@ pub async fn speakers_match(State(st): State<AppState>, AxPath(pid): AxPath<Stri
 pub async fn speaker_remember(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<Value>) -> Response {
     let speaker = body.get("speaker").and_then(Value::as_str).unwrap_or_default().to_string();
     let p = profile_paths(&st);
-    let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || crate::app::speaker_profiles::remember(&p, &pid, &speaker))).await);
+    let res = joined(tokio::task::spawn_blocking(crate::app::carry(move || crate::app::profiles::remember(&p, &pid, &speaker))).await);
     saved(res, StatusCode::BAD_REQUEST)
 }
 
 /// GET /speaker-profiles — the named speakers the studio knows by voice.
 pub async fn speaker_profiles(State(st): State<AppState>) -> Response {
-    match crate::speaker_profiles::listing(&st.repo_root) {
+    match crate::voices::matching::listing(&st.repo_root) {
         Ok(v) => Json(v).into_response(),
         Err(e) => refuse(StatusCode::INTERNAL_SERVER_ERROR, "read_failed", e),
     }
@@ -410,30 +383,19 @@ pub async fn speaker_profiles(State(st): State<AppState>) -> Response {
 
 /// DELETE /speaker-profiles/{name} — forget a named speaker's voice print.
 pub async fn speaker_forget(State(st): State<AppState>, AxPath(name): AxPath<String>) -> Response {
-    match crate::speaker_profiles::forget(&st.repo_root, &name) {
+    match crate::voices::matching::forget(&st.repo_root, &name) {
         Ok(v) => Json(v).into_response(),
         Err(e) => refuse(StatusCode::NOT_FOUND, "no_profile", e),
     }
 }
 
-/// Карточка проекта Listening для списка проектов.
-pub fn summary(project: &ListenProject) -> Value {
-    json!({
-        "name": project.name,
-        "created": project.created,
-        "duration": project.duration,
-        "lines": project.shown().count(),
-        "speakers": project.speakers.len(),
-        "transcribed": project.made.is_some(),
-    })
-}
 
 /// POST /listen/from-path {path} — проект Listening файла этого компьютера (для агента): тот же файл с теми же
 /// размером и временем находит прежний проект.
 pub async fn from_path(State(st): State<AppState>, Json(body): Json<Value>) -> Response {
     let path = std::path::PathBuf::from(body.get("path").and_then(Value::as_str).unwrap_or_default());
     let ws = st.workspace.clone();
-    let res = joined(tokio::task::spawn_blocking(crate::app::context::carry(move || -> Result<Value, String> {
+    let res = joined(tokio::task::spawn_blocking(crate::app::carry(move || -> Result<Value, String> {
         let (pid, existing) = super::project_of_file(&ws, &path)?;
         Ok(json!({ "pid": pid, "existing": existing }))
     }))
@@ -457,9 +419,9 @@ pub async fn separate_file(State(st): State<AppState>, Json(body): Json<Value>) 
         return Json(json!({ "done": true, "vocals": vocals, "instrumental": out.join("instrumental.flac") })).into_response();
     }
     let (repo_root, models_root) = (st.repo_root.clone(), st.models_root.clone());
-    let job: jobs::JobFn = Box::new(move |progress: jobs::ProgressFn| crate::listen_jobs::separate_to(&repo_root, &models_root, &path, &out, &|ev| progress(ev)));
+    let job: jobs::JobFn = Box::new(move |progress: jobs::ProgressFn| crate::listening::jobs::separate_to(&repo_root, &models_root, &path, &out, &|ev| progress(ev)));
     match st.jobs.enqueue(jobs::JobMeta::new(jobs::JobKind::Separate, None), job).await {
         Ok(job_id) => Json(json!({ "done": false, "job_id": job_id })).into_response(),
-        Err(e) => crate::enqueue_error(e),
+        Err(e) => crate::app::enqueue_error(e),
     }
 }

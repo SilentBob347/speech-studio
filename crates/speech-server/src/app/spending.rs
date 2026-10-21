@@ -87,7 +87,7 @@ pub fn summary(all: &[Spent], project: Option<&str>) -> Value {
 
 /// Дневной лимит агентов и программ (USD, 0 — без лимита) из настроек студии.
 pub(super) fn daily_limit(models_root: &Path) -> f64 {
-    crate::models::load_selection(models_root)
+    crate::engines::models::load_selection(models_root)
         .get("cloud_daily_limit_usd")
         .and_then(|v| v.as_str().and_then(|s| s.parse().ok()).or_else(|| v.as_f64()))
         .unwrap_or(0.0)

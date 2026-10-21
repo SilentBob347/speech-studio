@@ -437,7 +437,7 @@ mod tests {
         eprintln!("[OK] {secs:.2} s of audio in {:.3} s, first sound {:?}, {} chunks", started.elapsed().as_secs_f64(), first.lock().unwrap(), chunks.load(Ordering::Relaxed));
         assert!(secs > 1.5 && secs < 10.0, "{secs}");
         if let Ok(out) = std::env::var("QWEN_OUT") {
-            crate::wavio::write_mono_f32(Path::new(&out), &wav, SAMPLE_RATE).unwrap();
+            crate::audio::wavio::write_mono_f32(Path::new(&out), &wav, SAMPLE_RATE).unwrap();
         }
     }
 
@@ -493,14 +493,14 @@ mod tests {
         let root = PathBuf::from(std::env::var("QWEN_ROOT").expect("QWEN_ROOT"));
         drop(Engine::load(&root, "Q4_K_M", false, false).unwrap());
         let e = Engine::load(&root, "Q4_K_M", true, false).unwrap();
-        let (reference, sr) = crate::wavio::read_mono_f32(Path::new(&std::env::var("QWEN_REF").expect("QWEN_REF"))).unwrap();
+        let (reference, sr) = crate::audio::wavio::read_mono_f32(Path::new(&std::env::var("QWEN_REF").expect("QWEN_REF"))).unwrap();
         assert_eq!(sr, SAMPLE_RATE);
         let text = std::env::var("QWEN_REF_TEXT").ok();
         let say = Say { text: "Только после завтрака.", lang: "ru", speaker: None, reference: Some((&reference, text.as_deref())), instruct: None, seed: 7, temperature: 0.7, top_k: 50, top_p: 0.9, max_new_tokens: 0 };
         let wav = e.speak(&say, None).unwrap();
         eprintln!("[OK] clone {:.2} s", wav.len() as f64 / SAMPLE_RATE as f64);
         if let Ok(out) = std::env::var("QWEN_OUT") {
-            crate::wavio::write_mono_f32(Path::new(&out), &wav, SAMPLE_RATE).unwrap();
+            crate::audio::wavio::write_mono_f32(Path::new(&out), &wav, SAMPLE_RATE).unwrap();
         }
     }
 
@@ -511,7 +511,7 @@ mod tests {
     fn the_stress_adapter_loads_beside_the_quantised_base_and_speaks() {
         let root = PathBuf::from(std::env::var("QWEN_ROOT").expect("QWEN_ROOT"));
         let out = PathBuf::from(std::env::var("QWEN_OUT_DIR").expect("QWEN_OUT_DIR"));
-        let (reference, sr) = crate::wavio::read_mono_f32(Path::new(&std::env::var("QWEN_REF").expect("QWEN_REF"))).unwrap();
+        let (reference, sr) = crate::audio::wavio::read_mono_f32(Path::new(&std::env::var("QWEN_REF").expect("QWEN_REF"))).unwrap();
         assert_eq!(sr, SAMPLE_RATE);
         let ref_text = std::env::var("QWEN_REF_TEXT").ok();
         let phrases = [
@@ -529,7 +529,7 @@ mod tests {
                 let secs = wav.len() as f64 / SAMPLE_RATE as f64;
                 eprintln!("[OK] {} {n}: {secs:.2} s in {:.2} s", if stress { "stress" } else { "base" }, started.elapsed().as_secs_f64());
                 assert!(secs > 1.0 && secs < 15.0, "{secs}");
-                crate::wavio::write_mono_f32(&out.join(format!("{n}-{}.wav", if stress { "stress" } else { "base" })), &wav, SAMPLE_RATE).unwrap();
+                crate::audio::wavio::write_mono_f32(&out.join(format!("{n}-{}.wav", if stress { "stress" } else { "base" })), &wav, SAMPLE_RATE).unwrap();
             }
         }
     }

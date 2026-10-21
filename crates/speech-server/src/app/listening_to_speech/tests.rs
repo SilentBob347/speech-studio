@@ -8,7 +8,7 @@ use tower::ServiceExt;
 
 use super::*;
 use crate::app::context::RequestContext;
-use crate::listening::project::{Line, ListenProject};
+use crate::listening::{Line, ListenProject};
 use crate::AppState;
 
 fn fixture(workspace: &Path, lines: Vec<Line>) -> String {
@@ -132,7 +132,7 @@ async fn http_conversion_keeps_the_pid_envelope_errors_and_request_context() {
     let pid = fixture(&workspace, vec![line("a", "Привет", 0.0, false)]);
     let empty = fixture(&workspace, Vec::new());
     let router = Router::new()
-        .route("/listen/{pid}/to-speech", post(crate::listening::api::to_speech))
+        .route("/listen/{pid}/to-speech", post(crate::listening::http::to_speech))
         .with_state(state);
     let request = RequestContext::new("agent:b05".into(), None);
     let outcome = request.outcome();

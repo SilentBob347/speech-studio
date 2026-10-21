@@ -8,7 +8,8 @@ use serde_json::{json, Value};
 use crate::setup::{
     component_status, free_bytes, manifest, Component, ComponentStatus, Delivery, DlError, ProgressCb, Requirement, GH_LLAMA_BUILD,
 };
-use crate::{jobs, models, setup};
+use crate::{jobs, setup};
+use crate::engines::models;
 
 // ── Полный статус (для GET /setup/status) ────────────────────────────────────
 
@@ -29,7 +30,7 @@ pub struct SetupStatus {
     /// Свободно на томе моделей, байт; None — ОС не ответила, место не проверяется.
     pub free_bytes: Option<u64>,
     /// Видеокарта и драйвер против требований CUDA 13.
-    pub gpu: crate::hw::GpuReport,
+    pub gpu: crate::engines::hw::GpuReport,
     /// Фоновая закачка (идёт, на паузе, прервана перезапуском, упала или завершилась). Заполняет обработчик.
     pub active: Option<super::downloads::DownloadJob>,
 }
@@ -90,9 +91,9 @@ pub fn setup_status(repo_root: &Path) -> SetupStatus {
     // TTS идёт через облако (флаг + ключ), её локальную модель качать НЕ обязательно — не гейтит ready и не
     // преселектится на первом запуске (юзер выбрал облако -> не тянет ненужные гигабайты Gemma/Higgs).
     let mroot = repo_root.join("models");
-    let cloud_llm = !crate::models::local_gemma_needed(&mroot);
-    let cloud_tts = crate::models::cloud_tts_on(&mroot);
-    let cloud_asr = crate::models::openrouter_asr_on(&mroot);
+    let cloud_llm = !crate::engines::models::local_gemma_needed(&mroot);
+    let cloud_tts = crate::engines::models::cloud_tts_on(&mroot);
+    let cloud_asr = crate::engines::models::openrouter_asr_on(&mroot);
     for c in comps.iter_mut() {
         if c.requirement != Requirement::Required {
             continue;
@@ -109,8 +110,8 @@ pub fn setup_status(repo_root: &Path) -> SetupStatus {
     // CPU-сборкой, тяжёлое в облаке. CPU-движок сепарации становится рекомендованным (преселект на
     // первом запуске), а CUDA-движок + CUDA-рантайм — необязательными (не тянем лишние гигабайты).
     // В GPU-режиме наоборот: CPU-движок не нужен.
-    let backend = crate::models::local_backend(&mroot);
-    let asr_cpu = crate::models::tcpp_build(&mroot) == dub_asr::tcpp::Build::Cpu;
+    let backend = crate::engines::models::local_backend(&mroot);
+    let asr_cpu = crate::engines::models::tcpp_build(&mroot) == dub_asr::tcpp::Build::Cpu;
     for c in comps.iter_mut() {
         if !cloud_asr && c.id == "transcribe-engine" {
             c.requirement = if asr_cpu { Requirement::Optional } else { Requirement::Required };
@@ -131,7 +132,7 @@ pub fn setup_status(repo_root: &Path) -> SetupStatus {
         }
     }
     if backend == "gpu" {
-        fit_to_vram(&mut comps, crate::hw::total_vram());
+        fit_to_vram(&mut comps, crate::engines::hw::total_vram());
     }
     installed_variant_covers_group(&mut comps);
     // ready = всё СКАЧИВАЕМОЕ/бандл-обязательное на месте. External (драйвер NVIDIA) НЕ гейтит: без NVIDIA
@@ -145,7 +146,7 @@ pub fn setup_status(repo_root: &Path) -> SetupStatus {
         .filter(|c| c.delivery == Delivery::Download && !c.installed)
         .map(|c| c.size.saturating_sub(c.bytes_on_disk))
         .sum();
-    let gpu = crate::hw::gpu_report();
+    let gpu = crate::engines::hw::gpu_report();
     SetupStatus {
         components: comps,
         ready,
@@ -160,7 +161,7 @@ pub fn setup_status(repo_root: &Path) -> SetupStatus {
 }
 
 pub(crate) fn remove_components(repo_root: &Path, ids: &[String]) -> Result<setup::RemovalReport, DlError> {
-    let mroot = crate::models_root(repo_root);
+    let mroot = crate::app::models_root(repo_root);
     setup::remove_files(repo_root, ids, |id| {
         let mut errors = Vec::new();
         for (engine, variant) in setup::component_selection(id) {
@@ -178,13 +179,13 @@ pub(crate) fn remove_components(repo_root: &Path, ids: &[String]) -> Result<setu
 /// Итог закачки: статус каждого компонента; скачанный вариант модели становится активным (models/active.json),
 /// иначе резолв взял бы дефолт и альт-квант бы не применился.
 fn finish(repo_root: &Path, selected: &[&Component]) -> Value {
-    let mroot = crate::models_root(repo_root);
+    let mroot = crate::app::models_root(repo_root);
     let mut results = Vec::new();
     for c in selected {
         let st = component_status(repo_root, c);
         if st.installed {
             for (engine, variant) in setup::component_selection(c.id) {
-                if let Err(e) = crate::models::set_selection(&mroot, engine, &variant) {
+                if let Err(e) = crate::engines::models::set_selection(&mroot, engine, &variant) {
                     tracing::warn!("active.json: the choice {engine}={variant} was not written: {e}");
                 }
             }
@@ -201,7 +202,7 @@ fn finish(repo_root: &Path, selected: &[&Component]) -> Value {
 pub fn download_components(repo_root: &Path, ids: &[String], cancel: &dyn Fn() -> bool, progress: &ProgressCb) -> Result<Value, DlError> {
     let done = setup::fetch_components(repo_root, ids, cancel, progress, |selected| finish(repo_root, selected))?;
     if ids.iter().any(|id| id.starts_with("onnxruntime")) {
-        crate::point_ort(repo_root);
+        crate::app::point_ort(repo_root);
     }
     Ok(done)
 }
@@ -268,7 +269,7 @@ fn ensure_llm_components_with(repo_root: &Path, models_root: &Path, progress: &P
     let ctl = jobs::current();
     let cancel = move || ctl.as_ref().is_some_and(|c| c.is_cancelled());
     download(repo_root, &need, &cancel, progress).map_err(|e| e.detail)?;
-    crate::augment_path_for_tools(repo_root);
+    crate::app::augment_path_for_tools(repo_root);
     Ok(())
 }
 

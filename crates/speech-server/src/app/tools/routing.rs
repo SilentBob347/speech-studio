@@ -28,7 +28,7 @@ pub(super) async fn respond(call: Call) -> Result<Response, String> {
         .header(window::AGENT_HEADER, "1");
     // the OpenAI-compatible routes ask other programs for the key; a tool is the studio itself
     if call.path.starts_with("/v1/") {
-        if let Some((token, _)) = crate::credentials::api_token() {
+        if let Some((token, _)) = crate::platform::credentials::api_token() {
             builder = builder.header(header::AUTHORIZATION, format!("Bearer {token}"));
         }
     }

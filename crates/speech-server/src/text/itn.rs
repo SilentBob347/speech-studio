@@ -8,7 +8,7 @@ use std::sync::OnceLock;
 
 use num_bigint::BigInt;
 
-use crate::normalize_ru::{cardinal, ordinal, Case, Gender};
+use crate::text::normalize_ru::{cardinal, ordinal, Case, Gender};
 
 /// Numbers below this said alone stay words.
 const ALONE_BELOW: f64 = 10.0;

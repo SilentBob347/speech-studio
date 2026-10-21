@@ -107,7 +107,7 @@ pub struct Phrase {
     first_ms: Mutex<Option<u64>>,
     heard_ms: Mutex<Option<u64>>,
     ended: AtomicBool,
-    gate: Mutex<crate::tts_trim::PauseGate>,
+    gate: Mutex<crate::audio::trim::PauseGate>,
 }
 
 impl Drop for Phrase {
@@ -157,7 +157,7 @@ impl Phrase {
         if let Ok(mut first) = self.first_ms.lock() {
             if first.is_none() {
                 *first = Some(self.started.elapsed().as_millis() as u64);
-                *self.heard_ms.lock().unwrap_or_else(|p| p.into_inner()) = crate::timings::since_arrival(&self.block);
+                *self.heard_ms.lock().unwrap_or_else(|p| p.into_inner()) = crate::app::since_arrival(&self.block);
             }
         }
         // a phrase said aloud is heard without the long pauses an engine leaves inside it, as an export is

@@ -337,9 +337,9 @@ mod tests {
 /// Отпечаток голоса для ключа: имя, размер и время звука, текст рефа.
 pub fn voice_tag(voices: &Path, name: Option<&str>) -> String {
     let Some(name) = name else { return "base".into() };
-    let Some(audio) = crate::voice_library::audio_path(voices, name) else { return format!("missing:{name}") };
+    let Some(audio) = crate::voices::audio_path(voices, name) else { return format!("missing:{name}") };
     let meta = std::fs::metadata(&audio).ok();
     let stamp = meta.as_ref().and_then(|m| m.modified().ok()).and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map(|d| d.as_secs()).unwrap_or(0);
-    let transcript = crate::voice_library::read_transcript(voices, name).unwrap_or_default();
+    let transcript = crate::voices::read_transcript(voices, name).unwrap_or_default();
     format!("{name}|{}|{stamp}|{}", meta.map(|m| m.len()).unwrap_or(0), blake3::hash(transcript.as_bytes()).to_hex())
 }

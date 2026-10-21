@@ -10,9 +10,10 @@ use axum::Json;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-use crate::director::{self, Speaker};
-use crate::speech_api::refuse;
-use crate::speech_project::{self as sp, Block};
+use crate::speech::{director, project as sp};
+use crate::speech::director::Speaker;
+use crate::app::refuse;
+use crate::speech::project::Block;
 use crate::{jobs, AppState};
 
 struct LlmPaths {
@@ -22,14 +23,14 @@ struct LlmPaths {
     workspace: std::path::PathBuf,
 }
 
-fn llm(p: &LlmPaths, progress: &dyn Fn(Value)) -> Result<crate::llm_provider::LlmProvider, String> {
-    crate::ensure_llm_components(&p.repo_root, &p.models_root, &|ev| progress(ev))?;
-    if crate::models::llm_backend(&p.models_root, "llm") == crate::models::LlmBackend::Local {
-        crate::tts_host::unload();
+fn llm(p: &LlmPaths, progress: &dyn Fn(Value)) -> Result<crate::app::llm::LlmProvider, String> {
+    crate::app::ensure_llm_components(&p.repo_root, &p.models_root, &|ev| progress(ev))?;
+    if crate::engines::models::llm_backend(&p.models_root, "llm") == crate::engines::models::LlmBackend::Local {
+        crate::engines::tts_host::unload();
     }
-    let (mt_model, mmproj) = crate::models::resolve_mt(&p.models_root, &crate::models::load_selection(&p.models_root));
-    let open = crate::llm_provider::LlmOpen { llama_bin: &p.llama_bin, mt_model: &mt_model, mmproj: &mmproj, models_root: &p.models_root };
-    crate::llm_provider::open(&open, crate::llm_provider::LlmMode::Text)
+    let (mt_model, mmproj) = crate::engines::models::resolve_mt(&p.models_root, &crate::engines::models::load_selection(&p.models_root));
+    let open = crate::app::llm::LlmOpen { llama_bin: &p.llama_bin, mt_model: &mt_model, mmproj: &mmproj, models_root: &p.models_root };
+    crate::app::llm::open(&open, crate::app::llm::LlmMode::Text)
 }
 
 fn paths(st: &AppState) -> LlmPaths {
@@ -85,7 +86,7 @@ pub async fn podcast(State(st): State<AppState>, Json(req): Json<PodcastReq>) ->
     });
     match st.jobs.enqueue(jobs::JobMeta::new(jobs::JobKind::Write, None), job).await {
         Ok(job_id) => Json(json!({ "job_id": job_id })).into_response(),
-        Err(e) => crate::enqueue_error(e),
+        Err(e) => crate::app::enqueue_error(e),
     }
 }
 
@@ -144,7 +145,7 @@ pub async fn cast(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(
     });
     match st.jobs.enqueue(jobs::JobMeta::new(jobs::JobKind::Cast, Some(&pid)), job).await {
         Ok(job_id) => Json(json!({ "job_id": job_id })).into_response(),
-        Err(e) => crate::enqueue_error(e),
+        Err(e) => crate::app::enqueue_error(e),
     }
 }
 
@@ -209,6 +210,6 @@ pub async fn enrich(State(st): State<AppState>, AxPath(pid): AxPath<String>, Jso
     });
     match st.jobs.enqueue(jobs::JobMeta::new(jobs::JobKind::Enrich, Some(&pid)), job).await {
         Ok(job_id) => Json(json!({ "job_id": job_id })).into_response(),
-        Err(e) => crate::enqueue_error(e),
+        Err(e) => crate::app::enqueue_error(e),
     }
 }

@@ -8,8 +8,8 @@ pub enum AsrChoice {
     /// A GGUF model run by the selected transcribe.cpp build.
     Ggml {
         models_root: PathBuf,
-        build: crate::tcpp_asr::Build,
-        model: &'static crate::tcpp_asr::Model,
+        build: crate::engines::tcpp_asr::Build,
+        model: &'static crate::engines::tcpp_asr::Model,
     },
     Whisper {
         bin: PathBuf,
@@ -27,9 +27,9 @@ impl AsrChoice {
             AsrChoice::Ggml { model, build, .. } => {
                 let quant = model.file.trim_end_matches(".gguf").rsplit('-').next().unwrap_or(model.file);
                 let on = match build {
-                    crate::tcpp_asr::Build::Cuda => "CUDA",
-                    crate::tcpp_asr::Build::Vulkan => "Vulkan",
-                    crate::tcpp_asr::Build::Cpu => "CPU",
+                    crate::engines::tcpp_asr::Build::Cuda => "CUDA",
+                    crate::engines::tcpp_asr::Build::Vulkan => "Vulkan",
+                    crate::engines::tcpp_asr::Build::Cpu => "CPU",
                 };
                 format!("{} {quant} ({on})", model.name)
             }
@@ -53,7 +53,7 @@ impl AsrChoice {
         lang.is_empty()
             || lang == "auto"
             || match self {
-                AsrChoice::Ggml { model, .. } => crate::tcpp_asr::knows(model, lang),
+                AsrChoice::Ggml { model, .. } => crate::engines::tcpp_asr::knows(model, lang),
                 AsrChoice::Whisper { .. } => true,
             }
     }
@@ -108,20 +108,20 @@ mod tests {
 
     #[test]
     fn cache_labels_survive_relocation_and_distinguish_the_selected_build() {
-        let model = crate::tcpp_asr::model("parakeet-v3").unwrap();
+        let model = crate::engines::tcpp_asr::model("parakeet-v3").unwrap();
         let spec = |root: &str, build| AsrChoice::Ggml {
             models_root: root.into(),
             model,
             build,
         };
         assert_eq!(
-            spec("old/models", crate::tcpp_asr::Build::Cpu).label(),
-            spec("new/models", crate::tcpp_asr::Build::Cpu).label()
+            spec("old/models", crate::engines::tcpp_asr::Build::Cpu).label(),
+            spec("new/models", crate::engines::tcpp_asr::Build::Cpu).label()
         );
-        assert_eq!(spec("models", crate::tcpp_asr::Build::Cpu).label(), "Parakeet TDT v3 Q8_0 (CPU)");
+        assert_eq!(spec("models", crate::engines::tcpp_asr::Build::Cpu).label(), "Parakeet TDT v3 Q8_0 (CPU)");
         assert_ne!(
-            spec("models", crate::tcpp_asr::Build::Cpu).label(),
-            spec("models", crate::tcpp_asr::Build::Cuda).label()
+            spec("models", crate::engines::tcpp_asr::Build::Cpu).label(),
+            spec("models", crate::engines::tcpp_asr::Build::Cuda).label()
         );
     }
 }

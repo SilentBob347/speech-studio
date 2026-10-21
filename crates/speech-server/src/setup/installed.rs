@@ -51,7 +51,7 @@ pub(super) fn status_with_system_dir(repo_root: &Path, c: &Component, system: Op
     }
     let (installed, detail) = match c.delivery {
         Delivery::External => {
-            let gpu = crate::hw::gpu_report();
+            let gpu = crate::engines::hw::gpu_report();
             (gpu.cuda13_ok, gpu.summary())
         }
         _ if c.id == "ffmpeg" && !missing.is_empty() && ffmpeg_on_path() => {

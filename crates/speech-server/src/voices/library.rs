@@ -367,7 +367,7 @@ pub fn import_audio(dir: &Path, base: &str, src: &Path, card: VoiceCard) -> Resu
     let name = free_name(dir, base);
     let target = dir.join(format!("{name}.wav"));
     let part = staging_wav(dir, &name)?;
-    let made = crate::media::loudnorm(src, &part, -20.0, -2.0, 11.0).and_then(|_| std::fs::rename(&part, &target).map_err(|e| format!("{}: {e}", target.display())));
+    let made = crate::audio::media::loudnorm(src, &part, -20.0, -2.0, 11.0).and_then(|_| std::fs::rename(&part, &target).map_err(|e| format!("{}: {e}", target.display())));
     if let Err(e) = made {
         let _ = std::fs::remove_file(&part);
         return Err(e);
@@ -388,7 +388,7 @@ pub fn replace_with_cleaned(dir: &Path, name: &str, cleaned: &Path) -> Result<()
     }
     let target = dir.join(format!("{name}.wav"));
     let part = staging_wav(dir, name)?;
-    if let Err(e) = crate::media::loudnorm(cleaned, &part, -20.0, -2.0, 11.0) {
+    if let Err(e) = crate::audio::media::loudnorm(cleaned, &part, -20.0, -2.0, 11.0) {
         let _ = std::fs::remove_file(&part);
         return Err(e);
     }
@@ -401,11 +401,11 @@ pub fn replace_with_cleaned(dir: &Path, name: &str, cleaned: &Path) -> Result<()
     write_card(dir, name, &card)
 }
 
-pub fn read_words(dir: &Path, name: &str) -> Option<Vec<crate::ref_pick::Word>> {
+pub fn read_words(dir: &Path, name: &str) -> Option<Vec<crate::voices::ref_pick::Word>> {
     std::fs::read_to_string(dir.join(format!("{name}.words.json"))).ok().and_then(|t| serde_json::from_str(&t).ok())
 }
 
-pub fn write_words(dir: &Path, name: &str, words: &[crate::ref_pick::Word]) -> Result<(), String> {
+pub fn write_words(dir: &Path, name: &str, words: &[crate::voices::ref_pick::Word]) -> Result<(), String> {
     let text = serde_json::to_string(words).map_err(|e| e.to_string())?;
     write_atomic(&dir.join(format!("{name}.words.json")), text.as_bytes())
 }
@@ -440,7 +440,7 @@ pub fn apply_ref(dir: &Path, name: &str, start: f64, end: f64) -> Result<(), Str
     }
     keep_original_text(dir, name)?;
     let part = staging_wav(dir, name)?;
-    if let Err(e) = crate::media::trim_ref(&audio, &part, start, end) {
+    if let Err(e) = crate::audio::media::trim_ref(&audio, &part, start, end) {
         let _ = std::fs::remove_file(&part);
         return Err(e);
     }
@@ -449,7 +449,7 @@ pub fn apply_ref(dir: &Path, name: &str, start: f64, end: f64) -> Result<(), Str
         std::fs::remove_file(&audio).map_err(|e| format!("{}: {e}", audio.display()))?;
     }
     std::fs::rename(&part, &target).map_err(|e| format!("{}: {e}", target.display()))?;
-    let inside = crate::ref_pick::words_within(&words, start, end);
+    let inside = crate::voices::ref_pick::words_within(&words, start, end);
     write_words(dir, name, &inside)?;
     let text = inside.iter().map(|w| w.word.trim()).filter(|w| !w.is_empty()).collect::<Vec<_>>().join(" ");
     write_transcript(dir, name, &text)
@@ -580,7 +580,7 @@ mod tests {
         let d = tempfile::tempdir().unwrap();
         voice(d.path(), "A", "wav");
         write_card(d.path(), "A", &VoiceCard { favorite: true, ..Default::default() }).unwrap();
-        write_words(d.path(), "A", &[crate::ref_pick::Word { word: "x".into(), start: 0.0, end: 0.5 }]).unwrap();
+        write_words(d.path(), "A", &[crate::voices::ref_pick::Word { word: "x".into(), start: 0.0, end: 0.5 }]).unwrap();
         rename(d.path(), "A", "B").unwrap();
         assert!(read_card(d.path(), "B").unwrap().favorite);
         assert_eq!(read_words(d.path(), "B").unwrap().len(), 1);

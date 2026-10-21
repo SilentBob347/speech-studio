@@ -5,8 +5,8 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
 
-use crate::localize::Localize;
-use crate::voice_library as lib;
+use crate::app::Localize;
+use crate::voices::library as lib;
 
 pub struct VoicePaths {
     pub repo_root: PathBuf,
@@ -25,10 +25,10 @@ pub fn transcribe(p: &VoicePaths, name: &str, progress: &dyn Fn(Value)) -> Resul
     let audio = lib::audio_path(&p.voices_dir, name).ok_or_else(|| t!("voice-missing", name = name.to_string()))?;
     let card = lib::read_card(&p.voices_dir, name)?;
     progress(json!({ "type": "progress", "stage": "voice_transcript", "msg": t!("voice-transcribing", name = name.to_string()) }));
-    crate::tts_host::make_room();
-    crate::ensure_job_components(&p.repo_root, &p.models_root, false, false, &|ev| progress(ev))?;
-    crate::asr_util::ensure(&p.repo_root, &p.models_root, "", &|ev| progress(ev))?;
-    let heard = crate::asr_util::transcribe(&p.repo_root, &p.models_root, &audio, &card.lang, name)?;
+    crate::engines::tts_host::make_room();
+    crate::app::ensure_job_components(&p.repo_root, &p.models_root, false, false, &|ev| progress(ev))?;
+    crate::app::recognition::ensure(&p.repo_root, &p.models_root, "", &|ev| progress(ev))?;
+    let heard = crate::app::recognition::transcribe(&p.repo_root, &p.models_root, &audio, &card.lang, name)?;
     let text = heard.text;
     if text.is_empty() {
         return Err(t!("voice-no-speech", name = name.to_string()));
@@ -48,15 +48,15 @@ pub fn ensure_words(p: &VoicePaths, name: &str, limit: f64) -> Result<(), String
         return Ok(());
     }
     let audio = lib::audio_path(&p.voices_dir, name).ok_or_else(|| t!("voice-missing", name = name.to_string()))?;
-    if crate::media::duration(&audio)? <= limit + 0.5 {
+    if crate::audio::media::duration(&audio)? <= limit + 0.5 {
         return Ok(());
     }
     let card = lib::read_card(&p.voices_dir, name)?;
     // распознавание рядом с целой моделью озвучки не входит и в 24 ГБ
-    crate::tts_host::unload();
-    crate::ensure_job_components(&p.repo_root, &p.models_root, false, false, &|_| {})?;
-    crate::asr_util::ensure(&p.repo_root, &p.models_root, "", &|_| {})?;
-    let heard = crate::asr_util::transcribe(&p.repo_root, &p.models_root, &audio, &card.lang, name)?;
+    crate::engines::tts_host::unload();
+    crate::app::ensure_job_components(&p.repo_root, &p.models_root, false, false, &|_| {})?;
+    crate::app::recognition::ensure(&p.repo_root, &p.models_root, "", &|_| {})?;
+    let heard = crate::app::recognition::transcribe(&p.repo_root, &p.models_root, &audio, &card.lang, name)?;
     if heard.words.is_empty() {
         return Err(t!("voice-no-speech", name = name.to_string()));
     }
@@ -66,18 +66,18 @@ pub fn ensure_words(p: &VoicePaths, name: &str, limit: f64) -> Result<(), String
 /// Голос без музыки и шума: Roformer отделяет вокал, он заменяет звук голоса, исходник остаётся в `.originals`.
 pub fn clean(p: &VoicePaths, name: &str, progress: &dyn Fn(Value)) -> Result<Value, String> {
     let audio = lib::audio_path(&p.voices_dir, name).ok_or_else(|| t!("voice-missing", name = name.to_string()))?;
-    crate::tts_host::make_room();
-    crate::ensure_job_components(&p.repo_root, &p.models_root, false, false, &|ev| progress(ev))?;
-    let sel = crate::models::load_selection(&p.models_root);
-    let cli = dub_sep::engine_cli(&p.repo_root, crate::models::stage_backend(&p.models_root, "sep_backend"));
-    let model = crate::models::resolve_sep(&p.models_root, &sel);
+    crate::engines::tts_host::make_room();
+    crate::app::ensure_job_components(&p.repo_root, &p.models_root, false, false, &|ev| progress(ev))?;
+    let sel = crate::engines::models::load_selection(&p.models_root);
+    let cli = dub_sep::engine_cli(&p.repo_root, crate::engines::models::stage_backend(&p.models_root, "sep_backend"));
+    let model = crate::engines::models::resolve_sep(&p.models_root, &sel);
     if !cli.is_file() || !model.is_file() {
         return Err(t!("voice-clean-missing"));
     }
     let work = work_dir(&p.voices_dir, name, "clean")?;
     let wav = work.path().join("mix.wav");
     progress(json!({ "type": "progress", "stage": "voice_clean", "msg": t!("voice-cleaning", name = name.to_string()) }));
-    crate::media::to_wav(&audio, &wav)?;
+    crate::audio::media::to_wav(&audio, &wav)?;
     let stems = work.path().join("stems");
     let res = dub_sep::separate(&wav, &stems, &cli, &model).map_err(|e| e.localize())?;
     lib::replace_with_cleaned(&p.voices_dir, name, &res.vocals)?;
@@ -87,11 +87,11 @@ pub fn clean(p: &VoicePaths, name: &str, progress: &dyn Fn(Value)) -> Result<Val
 /// Голос без шума (DPDFNet): `limit_db` — предел подавления, `None` — без предела. Исходник остаётся в `.originals`.
 pub fn denoise(p: &VoicePaths, name: &str, limit_db: Option<f32>, progress: &dyn Fn(Value)) -> Result<Value, String> {
     let audio = lib::audio_path(&p.voices_dir, name).ok_or_else(|| t!("voice-missing", name = name.to_string()))?;
-    crate::ensure_components(&p.repo_root, &["dpdfnet"], &|ev| progress(ev))?;
+    crate::app::ensure_components(&p.repo_root, &["dpdfnet"], &|ev| progress(ev))?;
     let work = work_dir(&p.voices_dir, name, "denoise")?;
     let out = work.path().join("denoised.wav");
     let msg = t!("voice-denoising", name = name.to_string());
-    crate::denoise::denoise_file(&p.models_root, &audio, &out, limit_db, &|f| progress(json!({ "type": "progress", "stage": "voice_clean", "msg": msg, "pct": (f * 100.0) as i64 })))?;
+    crate::engines::denoise::denoise_file(&p.models_root, &audio, &out, limit_db, &|f| progress(json!({ "type": "progress", "stage": "voice_clean", "msg": msg, "pct": (f * 100.0) as i64 })))?;
     lib::replace_with_cleaned(&p.voices_dir, name, &out)?;
     Ok(json!({ "name": name, "denoised": true }))
 }
@@ -107,22 +107,22 @@ pub fn design_dir(voices: &Path, id: &str) -> PathBuf {
 /// Кандидаты голоса по описанию (Qwen3-TTS VoiceDesign): образец текста озвучен `count` раз разными сидами в
 /// `.design/<ид>/<k>.wav`; ответ — ид пачки и длительность каждого кандидата.
 pub fn design(p: &VoicePaths, description: &str, sample: &str, lang: &str, count: u32, progress: &dyn Fn(Value)) -> Result<Value, String> {
-    let quant = crate::models::qwen_quant(&p.models_root);
+    let quant = crate::engines::models::qwen_quant(&p.models_root);
     let model = if quant == "Q8_0" { "qwen3-tts-design-q8_0" } else { "qwen3-tts-design" };
-    crate::ensure_components(&p.repo_root, &["qwen3-tts-engine", model], &|ev| progress(ev))?;
-    crate::tts_host::make_room();
-    let engine = crate::tts_host::qwen_design(&p.models_root)?;
+    crate::app::ensure_components(&p.repo_root, &["qwen3-tts-engine", model], &|ev| progress(ev))?;
+    crate::engines::tts_host::make_room();
+    let engine = crate::engines::tts_host::qwen_design(&p.models_root)?;
     drop_old_designs(&p.voices_dir);
     let id = uuid::Uuid::new_v4().simple().to_string()[..12].to_string();
     let dir = design_dir(&p.voices_dir, &id);
     std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let lang = if lang == "auto" { "" } else { lang };
-    let mut params = crate::tts_host::Params { seed_mode: "random".into(), ..Default::default() };
+    let mut params = crate::engines::tts_host::Params { seed_mode: "random".into(), ..Default::default() };
     params.temperature = 0.9;
     let mut out = Vec::new();
     for k in 0..count.clamp(1, DESIGN_MAX) {
         progress(json!({ "type": "progress", "stage": "voice_design", "msg": t!("voice-designing", n = (k + 1) as i64, total = count as i64), "pct": (k * 100 / count.max(1)) as i64 }));
-        let req = crate::tts_host::Request {
+        let req = crate::engines::tts_host::Request {
             text: sample,
             lang,
             ref_wav: None,
@@ -133,9 +133,9 @@ pub fn design(p: &VoicePaths, description: &str, sample: &str, lang: &str, count
             fresh_seed: u64::from_str_radix(&id, 16).unwrap_or(0).wrapping_add(k as u64),
             live: None,
         };
-        let s = crate::tts_host::synth(&engine, &req)?;
+        let s = crate::engines::tts_host::synth(&engine, &req)?;
         let file = dir.join(format!("{k}.wav"));
-        crate::wavio::write_mono_f32(&file, &s.samples, s.sr as u32)?;
+        crate::audio::wavio::write_mono_f32(&file, &s.samples, s.sr as u32)?;
         out.push(json!({ "k": k, "seconds": s.samples.len() as f64 / s.sr.max(1) as f64, "seed": s.seed }));
     }
     Ok(json!({ "id": id, "candidates": out }))
@@ -169,21 +169,21 @@ pub fn design_keep(p: &VoicePaths, id: &str, k: u32, name: &str, description: &s
 
 /// Можно ли чистить голос сейчас: движок и модель Roformer на месте.
 pub fn clean_ready(p: &VoicePaths) -> bool {
-    let sel = crate::models::load_selection(&p.models_root);
-    dub_sep::engine_cli(&p.repo_root, crate::models::stage_backend(&p.models_root, "sep_backend")).is_file()
-        && crate::models::resolve_sep(&p.models_root, &sel).is_file()
+    let sel = crate::engines::models::load_selection(&p.models_root);
+    dub_sep::engine_cli(&p.repo_root, crate::engines::models::stage_backend(&p.models_root, "sep_backend")).is_file()
+        && crate::engines::models::resolve_sep(&p.models_root, &sel).is_file()
 }
 
 /// Куски рефа по словам распознавания, не длиннее лимита рефа движка (настройка `higgs_ref_secs`, 12 с).
 pub fn ref_candidates(p: &VoicePaths, name: &str) -> Result<Value, String> {
     let audio = lib::audio_path(&p.voices_dir, name).ok_or_else(|| t!("voice-missing", name = name.to_string()))?;
     let words = lib::read_words(&p.voices_dir, name).ok_or_else(|| t!("voice-no-words", name = name.to_string()))?;
-    let sel = crate::models::load_selection(&p.models_root);
+    let sel = crate::engines::models::load_selection(&p.models_root);
     let max_len = sel.get("higgs_ref_secs").and_then(Value::as_str).and_then(|v| v.parse::<f64>().ok()).unwrap_or(12.0);
     let work = work_dir(&p.voices_dir, name, "pick")?;
     let wav = work.path().join("ref-16k.wav");
-    crate::media::to_16k_mono(&audio, &wav)?;
-    let (samples, sr) = crate::wavio::read_mono_f32(&wav)?;
-    let found = crate::ref_pick::candidates(&words, &samples, sr, (max_len * 0.4).min(5.0), max_len, 5);
+    crate::audio::media::to_16k_mono(&audio, &wav)?;
+    let (samples, sr) = crate::audio::wavio::read_mono_f32(&wav)?;
+    let found = crate::voices::ref_pick::candidates(&words, &samples, sr, (max_len * 0.4).min(5.0), max_len, 5);
     Ok(json!({ "name": name, "max_len": max_len, "duration": samples.len() as f64 / sr.max(1) as f64, "candidates": found }))
 }

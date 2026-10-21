@@ -11,7 +11,7 @@ use tower::ServiceExt;
 async fn cloud_routes_keep_validation_errors_and_the_spending_response() {
     let root = tempfile::tempdir().unwrap();
     let state = AppState::new(root.path());
-    crate::models::set_selection(&state.models_root, "cloud_daily_limit_usd", "2").unwrap();
+    crate::engines::models::set_selection(&state.models_root, "cloud_daily_limit_usd", "2").unwrap();
     super::super::spending::record(
         &state.repo_root,
         super::super::spending::Spent {

@@ -1,6 +1,7 @@
 use super::url_import::FetchRequest;
 use crate::integrations::url_import::{self as download, Cookies};
-use crate::ytdlp::{self, Quality, UrlError};
+use crate::integrations::ytdlp;
+use crate::integrations::ytdlp::{Quality, UrlError};
 use crate::AppState;
 use axum::extract::{Path as AxPath, Query, State};
 use axum::http::StatusCode;

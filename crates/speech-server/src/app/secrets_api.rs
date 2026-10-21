@@ -11,7 +11,8 @@ use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde_json::{json, Value};
 
-use crate::credentials::{self, CredentialSource};
+use crate::platform::credentials;
+use crate::platform::credentials::CredentialSource;
 use crate::AppState;
 
 fn failure(status: StatusCode, code: &str, detail: impl Into<String>) -> Response {
@@ -59,7 +60,7 @@ pub async fn update_google_settings(Json(body): Json<Value>) -> Response {
         );
     }
     let candidate = key.clone();
-    match tokio::task::spawn_blocking(move || crate::google_tts::Client::new(candidate)?.models())
+    match tokio::task::spawn_blocking(move || crate::integrations::google_tts::Client::new(candidate)?.models())
         .await
     {
         Ok(Ok(_)) => {}
@@ -97,7 +98,7 @@ pub async fn google_models() -> Response {
             "Google API key is not configured",
         );
     };
-    match tokio::task::spawn_blocking(move || crate::google_tts::Client::new(key)?.models()).await {
+    match tokio::task::spawn_blocking(move || crate::integrations::google_tts::Client::new(key)?.models()).await {
         Ok(Ok(v)) => Json(v).into_response(),
         Ok(Err(e)) => failure(StatusCode::BAD_GATEWAY, "google_models_failed", e),
         Err(e) => failure(
@@ -173,7 +174,7 @@ pub async fn delete_openrouter_settings() -> Response {
 // быть ещё не запущен. Ключ принадлежит адресу, для которого его сохранили: `url` в запросе (адрес в поле
 // окна) или адрес из настроек. Наружу — только «задан ли для этого адреса».
 fn server_key_address(models_root: &Path, url: Option<&str>) -> String {
-    url.map(str::trim).filter(|url| !url.is_empty()).map_or_else(|| crate::models::server_url(models_root), str::to_string)
+    url.map(str::trim).filter(|url| !url.is_empty()).map_or_else(|| crate::engines::models::server_url(models_root), str::to_string)
 }
 
 fn server_key_state(address: &str) -> Value {
@@ -220,15 +221,15 @@ pub async fn delete_server_key(State(st): State<AppState>, Query(q): Query<HashM
 /// сохранённый свой адрес не читается (запросы тогда идут напрямую). Проверяется адрес, по которому пошли бы
 /// запросы, — вместе с паролем; текст причины его маскирует.
 pub(crate) fn proxy_view(models_root: &Path, secrets: &Path) -> Value {
-    let selection = crate::models::load_selection(models_root);
+    let selection = crate::engines::models::load_selection(models_root);
     let password = credentials::proxy_password_in(secrets);
-    let public = crate::models::redact_selection(&selection, false, password.is_some());
-    let mode = crate::models::proxy_mode(&selection);
-    let kind = crate::models::proxy_kind(&selection);
+    let public = crate::engines::models::redact_selection(&selection, false, password.is_some());
+    let mode = crate::engines::models::proxy_mode(&selection);
+    let kind = crate::engines::models::proxy_kind(&selection);
     let url = public.get("proxy_url").and_then(Value::as_str).unwrap_or_default().to_string();
     let problem = match mode {
         dub_llm::net::ProxyMode::Custom => {
-            let address = crate::models::proxy_address(&selection, password.as_deref()).unwrap_or_default();
+            let address = crate::engines::models::proxy_address(&selection, password.as_deref()).unwrap_or_default();
             dub_llm::net::normalize(&address, kind).err().map(|e| format!("{e:#}"))
         }
         _ => None,
@@ -251,7 +252,7 @@ pub(crate) fn proxy_test_address(models_root: &Path, secrets: Option<&Path>, url
     let password = match typed.map(str::trim).filter(|typed| !typed.is_empty()) {
         Some(typed) => Some(typed.to_string()),
         None => {
-            let selection = crate::models::load_selection(models_root);
+            let selection = crate::engines::models::load_selection(models_root);
             let saved = selection.get("proxy_url").and_then(Value::as_str).map(str::trim);
             if saved == Some(url) {
                 secrets.and_then(credentials::proxy_password_in)
@@ -260,7 +261,7 @@ pub(crate) fn proxy_test_address(models_root: &Path, secrets: Option<&Path>, url
             }
         }
     };
-    crate::models::proxy_with_password(url, password.as_deref())
+    crate::engines::models::proxy_with_password(url, password.as_deref())
 }
 
 #[derive(Debug)]
@@ -319,12 +320,12 @@ pub(crate) fn apply_proxy_form(models_root: &Path, secrets: &Path, form: &Value,
         }
     };
 
-    let _held = crate::models::selection_writes();
-    let mut selection = crate::models::load_selection(models_root);
+    let _held = crate::engines::models::selection_writes();
+    let mut selection = crate::engines::models::load_selection(models_root);
     // Режим, который действует сейчас (в т.ч. выведенный из прежнего proxy_on), — если форма его не меняет.
-    let mode = mode.unwrap_or_else(|| crate::models::proxy_mode(&selection));
+    let mode = mode.unwrap_or_else(|| crate::engines::models::proxy_mode(&selection));
     let kind = match form.get("kind") {
-        None => crate::models::proxy_kind(&selection),
+        None => crate::engines::models::proxy_kind(&selection),
         Some(Value::String(kind)) => dub_llm::net::ProxyKind::parse(kind)
             .ok_or_else(|| {
             FormError::bad("invalid_proxy_kind", "kind must be http, https, socks5 or socks4",
@@ -339,7 +340,7 @@ pub(crate) fn apply_proxy_form(models_root: &Path, secrets: &Path, form: &Value,
     let store = match form.get("url") {
         None => {
             let stored = slots.get("proxy_url").and_then(Value::as_str).unwrap_or_default();
-            if matches!(change, Some(Some(_))) && !crate::models::proxy_has_user(stored) {
+            if matches!(change, Some(Some(_))) && !crate::engines::models::proxy_has_user(stored) {
                 return Err(FormError::bad("proxy_password_without_user", "a proxy password needs a user name in the address (user@host:port)",
                 ));
             }
@@ -352,9 +353,9 @@ pub(crate) fn apply_proxy_form(models_root: &Path, secrets: &Path, form: &Value,
         Some(Value::String(url)) => {
             let written = dub_llm::net::normalize(url, kind)
                 .map_err(|e| FormError::bad("invalid_proxy_url", format!("{e:#}")))?;
-            let (bare, inline) = crate::models::split_proxy_password(&dub_llm::net::normalized_text(&written));
+            let (bare, inline) = crate::engines::models::split_proxy_password(&dub_llm::net::normalized_text(&written));
             let change = change.or(inline.map(Some));
-            let store = if crate::models::proxy_has_user(&bare) {
+            let store = if crate::engines::models::proxy_has_user(&bare) {
                 change
             } else {
                 if matches!(change, Some(Some(_))) {
@@ -378,7 +379,7 @@ pub(crate) fn apply_proxy_form(models_root: &Path, secrets: &Path, form: &Value,
     slots.insert("proxy_mode".into(), Value::String(mode.as_str().into()));
     slots.insert("proxy_kind".into(), Value::String(kind.as_str().into()));
     slots.remove("proxy_on");
-    crate::models::write_selection(models_root, &selection).map_err(FormError::internal)
+    crate::engines::models::write_selection(models_root, &selection).map_err(FormError::internal)
 }
 
 // ─── GET /engine/proxy/settings ─────────────────────────────────────────────
@@ -399,7 +400,7 @@ pub async fn update_proxy_settings(State(st): State<AppState>, Json(form): Json<
     };
     match apply_proxy_form(&st.models_root, &secrets, &form) {
         Ok(()) => {
-            crate::models::apply_proxy_route(&st.models_root);
+            crate::engines::models::apply_proxy_route(&st.models_root);
             Json(proxy_view(&st.models_root, &secrets)).into_response()
         }
         Err(e) => failure(e.status, e.code, e.detail),
@@ -421,8 +422,8 @@ mod tests {
     }
 
     fn resolved(models: &Path, secrets: &Path) -> String {
-        let bare = crate::models::load_selection(models)["proxy_url"].as_str().unwrap().to_string();
-        crate::models::proxy_with_password(&bare, credentials::proxy_password_in(secrets).as_deref(),
+        let bare = crate::engines::models::load_selection(models)["proxy_url"].as_str().unwrap().to_string();
+        crate::engines::models::proxy_with_password(&bare, credentials::proxy_password_in(secrets).as_deref(),
         )
     }
 
@@ -467,7 +468,7 @@ mod tests {
         apply_proxy_form(&models, &secrets, &json!({ "url": "http://bob:pw@proxy.lan:8080" }),
         ).unwrap();
         apply_proxy_form(&models, &secrets, &json!({ "url": "" })).unwrap();
-        assert!(crate::models::load_selection(&models).get("proxy_url").is_none());
+        assert!(crate::engines::models::load_selection(&models).get("proxy_url").is_none());
         assert_eq!(credentials::proxy_password_in(&secrets), None);
 
         std::fs::remove_dir_all(&models).unwrap();
@@ -576,13 +577,13 @@ mod tests {
                 let shown = view.to_string();
                 assert!(!shown.contains(password) && !shown.contains(&encoded), "{shown}");
 
-                let selection = crate::models::load_selection(&models);
-                let address = crate::models::proxy_address(&selection, credentials::proxy_password_in(&secrets).as_deref(),
+                let selection = crate::engines::models::load_selection(&models);
+                let address = crate::engines::models::proxy_address(&selection, credentials::proxy_password_in(&secrets).as_deref(),
                 ).unwrap();
                 let settings = dub_llm::net::ProxySettings {
                     mode: dub_llm::net::ProxyMode::Custom,
                     address: Some(address.clone()),
-                    kind: crate::models::proxy_kind(&selection),
+                    kind: crate::engines::models::proxy_kind(&selection),
                 };
                 let through = settings.custom_url().unwrap_or_else(|| panic!("{form}: the route went direct"));
                 assert_eq!((through.host_str(), through.port()), (Some("1.2.3.4"), Some(8000)), "{form}");

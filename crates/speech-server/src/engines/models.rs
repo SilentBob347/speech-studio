@@ -30,8 +30,8 @@ pub fn qwen_quant(mroot: &Path) -> String {
     load_selection(mroot)
         .get("qwen_tts_quant")
         .and_then(|v| v.as_str())
-        .filter(|v| crate::qwen_tts::QUANTS.iter().any(|(q, _, _)| q == v))
-        .unwrap_or(crate::qwen_tts::QUANTS[0].0)
+        .filter(|v| crate::engines::qwen_tts::QUANTS.iter().any(|(q, _, _)| q == v))
+        .unwrap_or(crate::engines::qwen_tts::QUANTS[0].0)
         .to_string()
 }
 
@@ -84,13 +84,13 @@ pub fn apply_faces_backend(mroot: &Path) {
 pub fn public_selection(mroot: &Path) -> Value {
     let mut public = redact_selection(
         &load_selection(mroot),
-        crate::credentials::openrouter_source().is_some(),
-        crate::credentials::proxy_password().is_some(),
+        crate::platform::credentials::openrouter_source().is_some(),
+        crate::platform::credentials::proxy_password().is_some(),
     );
     let slots = public.as_object_mut().expect("redact_selection returns object");
     slots.insert(
         "google_key_set".into(),
-        crate::credentials::google_api_key().is_some().into(),
+        crate::platform::credentials::google_api_key().is_some().into(),
     );
     slots.insert("tts_provider".into(), tts_provider(mroot).into());
     for (key, stage) in [("llm_provider", "llm"), ("vision_provider", "vision")] {
@@ -206,11 +206,11 @@ pub fn is_selection_value(key: &str, value: &str) -> bool {
         "assistant" => matches!(value, "openrouter" | "agent"),
         "cloud_ok_speech" | "cloud_ok_listening" | "cloud_ok_director" | "cloud_ok_assistant" | "clone_terms_ok" => matches!(value, "0" | "1"),
         "tts_idle_unload_min" => matches!(value, "0" | "5" | "15" | "30" | "60"),
-        "qwen_tts_quant" => crate::qwen_tts::QUANTS.iter().any(|(q, _, _)| *q == value),
+        "qwen_tts_quant" => crate::engines::qwen_tts::QUANTS.iter().any(|(q, _, _)| *q == value),
         "voice_clean" => matches!(value, "0" | "1"),
         "drama_vram_gb" => value.parse::<u32>().is_ok_and(|gb| gb == 0 || (DRAMA_MIN_LIMIT_GB..=256).contains(&gb)),
         "cloud_daily_limit_usd" => value.parse::<f64>().is_ok_and(|v| (0.0..=10_000.0).contains(&v)),
-        "google_tts_model" => crate::google_tts::is_model_id(value),
+        "google_tts_model" => crate::integrations::google_tts::is_model_id(value),
         _ => true,
     }
 }
@@ -232,12 +232,12 @@ pub fn stage_backend(mroot: &Path, key: &str) -> &'static str {
         .or_else(|| {
             if key == "local_backend" { None } else { pick_bk("local_backend") }
         })
-        .unwrap_or(if crate::hw::gpu_report().cuda13_ok { "gpu" } else { "cpu" })
+        .unwrap_or(if crate::engines::hw::gpu_report().cuda13_ok { "gpu" } else { "cpu" })
 }
 
 /// Сборка transcribe.cpp под backend распознавания: GPU — CUDA, CPU — CPU-сборка.
-pub fn tcpp_build(mroot: &Path) -> crate::tcpp_asr::Build {
-    if stage_backend(mroot, "asr_backend") == "cpu" { crate::tcpp_asr::Build::Cpu } else { crate::tcpp_asr::Build::Cuda }
+pub fn tcpp_build(mroot: &Path) -> crate::engines::tcpp_asr::Build {
+    if stage_backend(mroot, "asr_backend") == "cpu" { crate::engines::tcpp_asr::Build::Cpu } else { crate::engines::tcpp_asr::Build::Cuda }
 }
 
 /// Глобальный backend локальных стадий (обратная совместимость: пресеты/старые вызовы).
@@ -248,7 +248,7 @@ pub fn local_backend(mroot: &Path) -> &'static str {
 
 /// API-ключ OpenRouter: переменная окружения OPENROUTER_API_KEY, иначе хранилище секретов. Нет -> None.
 pub fn openrouter_key() -> Option<String> {
-    crate::credentials::openrouter_api_key().map(|(key, _)| key)
+    crate::platform::credentials::openrouter_api_key().map(|(key, _)| key)
 }
 
 /// Режим прокси из active.json. Прежние версии знали только proxy_on + proxy_url: включённый прокси с адресом —
@@ -284,7 +284,7 @@ pub fn proxy_settings(mroot: &Path) -> dub_llm::net::ProxySettings {
     dub_llm::net::ProxySettings {
         mode: proxy_mode(&sel),
         kind: proxy_kind(&sel),
-        address: proxy_address(&sel, crate::credentials::proxy_password().as_deref()),
+        address: proxy_address(&sel, crate::platform::credentials::proxy_password().as_deref()),
     }
 }
 
@@ -432,7 +432,7 @@ pub fn local_gemma_needed(mroot: &Path) -> bool {
 /// Требует ключ OpenRouter — без ключа облако невозможно. Для "llm"/"vision" это только прежний формат
 /// настроек: провайдера стадии решает `llm_backend`.
 pub fn openrouter_stage_on(mroot: &Path, stage: &str) -> bool {
-    if crate::credentials::openrouter_source().is_none() {
+    if crate::platform::credentials::openrouter_source().is_none() {
         return false;
     }
     let sel = load_selection(mroot);
@@ -608,8 +608,8 @@ pub fn resolve_asr_choice(repo_root: &Path, mroot: &Path, sel: &Value) -> AsrCho
             };
         }
     }
-    let model = crate::tcpp_asr::chosen(pick(sel, "asr_engine").unwrap_or(""), pick(sel, "asr"))
-        .or_else(|| crate::tcpp_asr::model("parakeet-v3"))
+    let model = crate::engines::tcpp_asr::chosen(pick(sel, "asr_engine").unwrap_or(""), pick(sel, "asr"))
+        .or_else(|| crate::engines::tcpp_asr::model("parakeet-v3"))
         .expect("parakeet-v3 is in dub_asr::tcpp::MODELS");
     AsrChoice::Ggml { models_root: mroot.to_path_buf(), build: tcpp_build(mroot), model }
 }
@@ -708,20 +708,20 @@ pub fn drama_dll(mroot: &Path) -> PathBuf {
 /// памяти не меньше [`DRAMA_MIN_RAM`]. `SPEECH_STUDIO_SIMULATE_VRAM_GB` и `SPEECH_STUDIO_SIMULATE_RAM_GB` подменяют
 /// объёмы для проверки отказа на другой машине.
 pub fn drama_unavailable(mroot: &Path) -> Option<String> {
-    let gpu = crate::hw::gpu_report();
+    let gpu = crate::engines::hw::gpu_report();
     let card = gpu.summary().unwrap_or_else(|| "-".to_string());
     if !gpu.cuda13_ok {
         return Some(t!("drama-needs-cuda", card = card));
     }
     let simulated = |var: &str| std::env::var(var).ok().and_then(|v| v.parse::<u64>().ok()).map(|gb| gb << 30);
     let gb = |bytes: u64| format!("{:.0}", bytes as f64 / (1u64 << 30) as f64);
-    let vram = simulated("SPEECH_STUDIO_SIMULATE_VRAM_GB").unwrap_or_else(crate::hw::total_vram);
+    let vram = simulated("SPEECH_STUDIO_SIMULATE_VRAM_GB").unwrap_or_else(crate::engines::hw::total_vram);
     if vram < DRAMA_MIN_VRAM {
         return Some(t!("drama-needs-vram", card = card, gb = gb(vram)));
     }
     let limit = drama_vram_limit_mb(mroot) as u64 * (1 << 20);
     if vram < DRAMA_FULL_VRAM || (limit > 0 && limit < DRAMA_FULL_VRAM) {
-        let ram = simulated("SPEECH_STUDIO_SIMULATE_RAM_GB").unwrap_or_else(crate::hw::total_ram);
+        let ram = simulated("SPEECH_STUDIO_SIMULATE_RAM_GB").unwrap_or_else(crate::engines::hw::total_ram);
         if ram < DRAMA_MIN_RAM {
             return Some(t!("drama-needs-ram", gb = gb(ram)));
         }
@@ -927,7 +927,7 @@ mod provider_tests {
             std::env::remove_var("SPEECH_STUDIO_SIMULATE_RAM_GB");
             why
         };
-        if !crate::hw::gpu_report().cuda13_ok {
+        if !crate::engines::hw::gpu_report().cuda13_ok {
             assert!(why("16", "64").is_some(), "no CUDA 13 card: refused");
             return;
         }

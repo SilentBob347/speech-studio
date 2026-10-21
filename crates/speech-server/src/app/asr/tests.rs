@@ -95,10 +95,10 @@ fn each_request_resolves_current_selection_without_changing_previous_specificati
     selection(root.path(), json!({"local_backend":"cpu", "asr":"ultra-int8"}));
     let second = choice(root.path(), &models, "en", "voice").unwrap();
     assert!(
-        matches!(first, crate::engines::asr::AsrChoice::Ggml {model, build: crate::tcpp_asr::Build::Cpu, ..} if model.id == "parakeet-v3")
+        matches!(first, crate::engines::asr::AsrChoice::Ggml {model, build: crate::engines::tcpp_asr::Build::Cpu, ..} if model.id == "parakeet-v3")
     );
     assert!(
-        matches!(second, crate::engines::asr::AsrChoice::Ggml {model, build: crate::tcpp_asr::Build::Cpu, ..} if model.id == "parakeet-ultra")
+        matches!(second, crate::engines::asr::AsrChoice::Ggml {model, build: crate::engines::tcpp_asr::Build::Cpu, ..} if model.id == "parakeet-ultra")
     );
     assert_ne!(first.label(), second.label());
 }
@@ -113,7 +113,7 @@ fn an_explicit_engine_language_error_keeps_the_requested_engine() {
         err,
         t!(
             "listen-gguf-lang",
-            engine = crate::tcpp_asr::model("nemotron").unwrap().name,
+            engine = crate::engines::tcpp_asr::model("nemotron").unwrap().name,
             lang = "zz".to_string()
         )
     );

@@ -31,13 +31,13 @@ impl Default for VadConfig {
 /// Скачаны ли модель разметки речи и движок, что её запускает.
 pub fn installed(models_root: &Path) -> bool {
     dub_asr::tcpp::helper_path(models_root, &dub_asr::tcpp::VAD).is_file()
-        && dub_asr::tcpp::engine_dir(models_root, crate::models::tcpp_build(models_root)).join(dub_asr::tcpp::LIBRARY).is_file()
+        && dub_asr::tcpp::engine_dir(models_root, crate::engines::models::tcpp_build(models_root)).join(dub_asr::tcpp::LIBRARY).is_file()
 }
 
 /// Вероятность речи на каждый кадр в 32 мс (16 кГц моно).
 pub fn probabilities(models_root: &Path, samples: &[f32]) -> Result<Vec<f32>, String> {
     let model = dub_asr::tcpp::helper_path(models_root, &dub_asr::tcpp::VAD);
-    dub_asr::tcpp::vad_probabilities(&dub_asr::tcpp::engine_dir(models_root, crate::models::tcpp_build(models_root)), &model, samples)
+    dub_asr::tcpp::vad_probabilities(&dub_asr::tcpp::engine_dir(models_root, crate::engines::models::tcpp_build(models_root)), &model, samples)
 }
 
 /// Отрезки речи в секундах по вероятностям кадров (`get_speech_timestamps` Silero без ограничения длины: длинное
@@ -157,7 +157,7 @@ mod tests {
     #[ignore = "needs a models folder with transcribe.cpp and Silero VAD and a 16 kHz mono WAV: SPEECH_VAD_MODELS, SPEECH_VAD_IN"]
     fn probabilities_of_a_file_for_comparison_with_the_python_wrapper() {
         let var = |k: &str| std::path::PathBuf::from(std::env::var(k).unwrap());
-        let (x, _) = crate::wavio::read_mono_f32(&var("SPEECH_VAD_IN")).unwrap();
+        let (x, _) = crate::audio::wavio::read_mono_f32(&var("SPEECH_VAD_IN")).unwrap();
         let p = probabilities(&var("SPEECH_VAD_MODELS"), &x).unwrap();
         println!("PROBS {}", p.iter().map(|v| format!("{v:.5}")).collect::<Vec<_>>().join(","));
         println!("SPANS {:?}", speech(&p, x.len(), &VadConfig::default()));

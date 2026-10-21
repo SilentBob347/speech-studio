@@ -31,7 +31,7 @@ pub async fn chat(State(st): State<AppState>, Json(body): Json<ChatBody>) -> Res
     if assistant(&st.models_root) == "agent" {
         tokio::spawn(agent_conversation(body, events));
     } else {
-        let Some(key) = crate::models::openrouter_key() else {
+        let Some(key) = crate::engines::models::openrouter_key() else {
             return (
                 StatusCode::PRECONDITION_FAILED,
                 Json(json!({ "error": "no_key", "detail": t!("cloud-no-key", provider = "OpenRouter") })),
@@ -67,7 +67,7 @@ fn event_stream(received: mpsc::Receiver<Value>) -> Response {
 /// GET /chat/models: the OpenRouter models that can work the tools, the one to start with, and who answers.
 pub async fn models(State(st): State<AppState>) -> Response {
     let models_root = st.models_root.clone();
-    let listed = tokio::task::spawn_blocking(move || crate::openrouter::catalog(&models_root)).await;
+    let listed = tokio::task::spawn_blocking(move || crate::integrations::openrouter::catalog(&models_root)).await;
     let cached = match listed {
         Ok(Ok(cached)) => cached,
         Ok(Err(e)) => return (StatusCode::BAD_GATEWAY, Json(json!({ "error": "catalog", "detail": e }))).into_response(),
@@ -82,7 +82,7 @@ pub async fn models(State(st): State<AppState>) -> Response {
                 && !m.id.ends_with(":batch")
         })
         .collect();
-    let chosen = crate::models::load_selection(&st.models_root)
+    let chosen = crate::engines::models::load_selection(&st.models_root)
         .get("assistant_model")
         .and_then(Value::as_str)
         .map(str::to_string)
@@ -99,7 +99,7 @@ pub async fn models(State(st): State<AppState>) -> Response {
         .iter()
         .map(|m| json!({ "id": m.id, "name": m.name, "pricing": m.pricing }))
         .collect();
-    Json(json!({ "models": list, "default": default, "assistant": assistant(&st.models_root), "has_key": crate::models::openrouter_key().is_some() })).into_response()
+    Json(json!({ "models": list, "default": default, "assistant": assistant(&st.models_root), "has_key": crate::engines::models::openrouter_key().is_some() })).into_response()
 }
 
 #[cfg(test)]

@@ -32,7 +32,7 @@ pub fn save(workspace: &Path, pid: &str, project: &ListenProject) -> Result<(), 
     let dir = project_dir(workspace, pid);
     std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let text = serde_json::to_string_pretty(project).map_err(|e| e.to_string())?;
-    crate::app::revisions::save_with_revision(&dir, || {
+    crate::app::save_with_revision(&dir, || {
         crate::platform::fs::write_atomic(&dir.join("project.json"), text.as_bytes())
     })
 }

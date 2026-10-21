@@ -104,7 +104,7 @@ pub(super) fn journal_target(args: &Value) -> String {
         ["pid", "project_id"]
             .iter()
             .find_map(text)
-            .and_then(|pid| crate::journal::project_name(&pid))
+            .and_then(|pid| crate::app::journal::project_name(&pid))
     };
     NAMED
         .iter()
@@ -126,7 +126,7 @@ pub(super) fn journal_call(name: &str, target: &str, answer: Option<&Value>) {
     if answer.is_some_and(|a| a.get("done") == Some(&Value::Bool(false)) || a.get("reused") == Some(&Value::Bool(true))) {
         return;
     }
-    crate::journal::agent_change(verb, kind, target);
+    crate::app::journal::agent_change(verb, kind, target);
 }
 
 // ---------------------------------------------------------------- origin and agent

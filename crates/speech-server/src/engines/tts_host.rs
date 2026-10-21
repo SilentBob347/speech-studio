@@ -12,7 +12,7 @@ use audiocpp::AudiocppEngine;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::localize::Localize;
+use crate::app::Localize;
 
 const GUARD_GRACE_SECS: u64 = 20;
 pub const ENGINE_STUCK: &str = "ENGINE_STUCK";
@@ -41,8 +41,8 @@ impl HiggsConfig {
 pub enum Tts {
     Higgs(Arc<AudiocppEngine>),
     Drama(Arc<drama::DramaEngine>),
-    Supertonic(Arc<crate::supertonic::Model>),
-    Qwen(Arc<crate::qwen_tts::Engine>),
+    Supertonic(Arc<crate::engines::supertonic::Model>),
+    Qwen(Arc<crate::engines::qwen_tts::Engine>),
 }
 
 impl Tts {
@@ -82,7 +82,7 @@ fn touch() {
 
 /// Room for another heavy model (recognition, separation, similarity): on a card under 12 GB the voicing model goes.
 pub fn make_room() {
-    if crate::hw::total_vram() < SHARED_VRAM {
+    if crate::engines::hw::total_vram() < SHARED_VRAM {
         unload();
     }
 }
@@ -112,7 +112,7 @@ pub fn watch_idle(models_root: PathBuf) {
         .name("tts-idle".into())
         .spawn(move || loop {
             std::thread::sleep(Duration::from_secs(30));
-            let minutes = crate::models::load_selection(&models_root).get("tts_idle_unload_min").and_then(|v| v.as_str()).and_then(|v| v.parse::<u64>().ok()).unwrap_or(15);
+            let minutes = crate::engines::models::load_selection(&models_root).get("tts_idle_unload_min").and_then(|v| v.as_str()).and_then(|v| v.parse::<u64>().ok()).unwrap_or(15);
             if minutes > 0 && unload_if_idle(Duration::from_secs(minutes * 60)) {
                 tracing::info!("the voicing model was unloaded after {minutes} min idle");
             }
@@ -131,7 +131,7 @@ pub fn engine(cfg: &HiggsConfig) -> Result<Tts, String> {
     }
     *slot = None;
     if cfg.backend == "cuda" {
-        let gpu = crate::hw::gpu_report();
+        let gpu = crate::engines::hw::gpu_report();
         if !gpu.cuda13_ok {
             let card = gpu.summary().unwrap_or_else(|| "-".to_string());
             return Err(match gpu.reason {
@@ -159,8 +159,8 @@ const DRAMA_MAX_LEN: u32 = 2048;
 /// Higgs её не подменяет. Видеопамяти берёт не больше лимита из настроек: не входит целиком — эксперты в оперативной
 /// памяти; другой лимит — перезагрузка. cuBLAS она находит в models/higgs-engine, который при старте кладётся в PATH.
 pub fn drama(models_root: &Path) -> Result<Tts, String> {
-    let limit = crate::models::drama_vram_limit_mb(models_root);
-    let want = format!("{}:{limit}", crate::models::DRAMA_TTS);
+    let limit = crate::engines::models::drama_vram_limit_mb(models_root);
+    let want = format!("{}:{limit}", crate::engines::models::DRAMA_TTS);
     let mut slot = host();
     if let Some((key, Tts::Drama(e))) = slot.as_ref() {
         if *key == want {
@@ -169,13 +169,13 @@ pub fn drama(models_root: &Path) -> Result<Tts, String> {
         }
     }
     *slot = None;
-    if let Some(why) = crate::models::drama_unavailable(models_root) {
+    if let Some(why) = crate::engines::models::drama_unavailable(models_root) {
         return Err(why);
     }
-    if !crate::models::drama_installed(models_root) {
+    if !crate::engines::models::drama_installed(models_root) {
         return Err(t!("render-drama-missing"));
     }
-    let e = drama::DramaEngine::load_limited(&crate::models::drama_dll(models_root), &[], &models_root.join(crate::models::DRAMA_TTS), DRAMA_MAX_LEN, limit)
+    let e = drama::DramaEngine::load_limited(&crate::engines::models::drama_dll(models_root), &[], &models_root.join(crate::engines::models::DRAMA_TTS), DRAMA_MAX_LEN, limit)
         .map_err(|e| t!("render-drama-load-failed", error = e.to_string()))?;
     let e = Arc::new(e);
     *slot = Some((want, Tts::Drama(e.clone())));
@@ -189,16 +189,16 @@ pub fn drama(models_root: &Path) -> Result<Tts, String> {
 pub fn supertonic(models_root: &Path) -> Result<Tts, String> {
     let mut slot = host();
     if let Some((key, Tts::Supertonic(e))) = slot.as_ref() {
-        if key == crate::supertonic::ENGINE {
+        if key == crate::engines::supertonic::ENGINE {
             touch();
             return Ok(Tts::Supertonic(e.clone()));
         }
     }
     *slot = None;
-    if !crate::supertonic::installed(models_root) {
+    if !crate::engines::supertonic::installed(models_root) {
         return Err(t!("render-supertonic-missing"));
     }
-    let gpu = crate::hw::gpu_report();
+    let gpu = crate::engines::hw::gpu_report();
     if gpu.nvidia && !gpu.cuda13_ok {
         let card = gpu.summary().unwrap_or_else(|| "-".to_string());
         return Err(match gpu.reason {
@@ -207,8 +207,8 @@ pub fn supertonic(models_root: &Path) -> Result<Tts, String> {
             _ => t!("render-higgs-no-gpu", card = card),
         });
     }
-    let e = Arc::new(crate::supertonic::Model::load(models_root, gpu.nvidia).map_err(|e| t!("render-supertonic-load-failed", error = e))?);
-    *slot = Some((crate::supertonic::ENGINE.to_string(), Tts::Supertonic(e.clone())));
+    let e = Arc::new(crate::engines::supertonic::Model::load(models_root, gpu.nvidia).map_err(|e| t!("render-supertonic-load-failed", error = e))?);
+    *slot = Some((crate::engines::supertonic::ENGINE.to_string(), Tts::Supertonic(e.clone())));
     touch();
     Ok(Tts::Supertonic(e))
 }
@@ -218,13 +218,13 @@ pub fn supertonic(models_root: &Path) -> Result<Tts, String> {
 /// адаптером русских ударений (`stress`); другой квант, другой чекпоинт или другой движок выгружаются. Только на
 /// видеокарте NVIDIA с CUDA 13: на неподходящей — ошибка с причиной.
 pub fn qwen(models_root: &Path, clone: bool, stress: bool) -> Result<Tts, String> {
-    let quant = crate::models::qwen_quant(models_root);
+    let quant = crate::engines::models::qwen_quant(models_root);
     let talker = match (clone, stress) {
         (_, true) => "base+ru-stress",
         (true, false) => "base",
         (false, false) => "custom",
     };
-    let key = format!("{}:{talker}:{quant}", crate::qwen_tts::ENGINE);
+    let key = format!("{}:{talker}:{quant}", crate::engines::qwen_tts::ENGINE);
     let mut slot = host();
     if let Some((k, Tts::Qwen(e))) = slot.as_ref() {
         if *k == key {
@@ -233,7 +233,7 @@ pub fn qwen(models_root: &Path, clone: bool, stress: bool) -> Result<Tts, String
         }
     }
     *slot = None;
-    if !crate::qwen_tts::installed(models_root, &quant, clone || stress, stress) {
+    if !crate::engines::qwen_tts::installed(models_root, &quant, clone || stress, stress) {
         return Err(match (clone, stress) {
             (_, true) => t!("render-qwen-stress-missing"),
             (true, false) => t!("render-qwen-clone-missing"),
@@ -241,7 +241,7 @@ pub fn qwen(models_root: &Path, clone: bool, stress: bool) -> Result<Tts, String
         });
     }
     cuda13_ready()?;
-    let e = Arc::new(crate::qwen_tts::Engine::load(models_root, &quant, clone || stress, stress).map_err(|e| t!("render-qwen-load-failed", error = e))?);
+    let e = Arc::new(crate::engines::qwen_tts::Engine::load(models_root, &quant, clone || stress, stress).map_err(|e| t!("render-qwen-load-failed", error = e))?);
     *slot = Some((key, Tts::Qwen(e.clone())));
     touch();
     Ok(Tts::Qwen(e))
@@ -249,7 +249,7 @@ pub fn qwen(models_root: &Path, clone: bool, stress: bool) -> Result<Tts, String
 
 /// Видеокарта и драйвер тянут CUDA 13 (сборка движков ggml); нет — ошибка с причиной.
 fn cuda13_ready() -> Result<(), String> {
-    let gpu = crate::hw::gpu_report();
+    let gpu = crate::engines::hw::gpu_report();
     if gpu.cuda13_ok {
         return Ok(());
     }
@@ -263,8 +263,8 @@ fn cuda13_ready() -> Result<(), String> {
 
 /// Qwen3-TTS VoiceDesign: голос по описанию, одна модель на процесс вместо прочих.
 pub fn qwen_design(models_root: &Path) -> Result<Tts, String> {
-    let quant = crate::models::qwen_quant(models_root);
-    let key = format!("{}:design:{quant}", crate::qwen_tts::ENGINE);
+    let quant = crate::engines::models::qwen_quant(models_root);
+    let key = format!("{}:design:{quant}", crate::engines::qwen_tts::ENGINE);
     let mut slot = host();
     if let Some((k, Tts::Qwen(e))) = slot.as_ref() {
         if *k == key {
@@ -273,11 +273,11 @@ pub fn qwen_design(models_root: &Path) -> Result<Tts, String> {
         }
     }
     *slot = None;
-    if !crate::qwen_tts::design_installed(models_root, &quant) {
+    if !crate::engines::qwen_tts::design_installed(models_root, &quant) {
         return Err(t!("voice-design-missing"));
     }
     cuda13_ready()?;
-    let e = Arc::new(crate::qwen_tts::Engine::load_design(models_root, &quant).map_err(|e| t!("render-qwen-load-failed", error = e))?);
+    let e = Arc::new(crate::engines::qwen_tts::Engine::load_design(models_root, &quant).map_err(|e| t!("render-qwen-load-failed", error = e))?);
     *slot = Some((key, Tts::Qwen(e.clone())));
     touch();
     Ok(Tts::Qwen(e))
@@ -322,8 +322,8 @@ impl Default for Params {
             seed_mode: "random".into(),
             seed: 42,
             max_tokens: 0,
-            steps: crate::supertonic::DEFAULT_STEPS,
-            speed: crate::supertonic::DEFAULT_SPEED,
+            steps: crate::engines::supertonic::DEFAULT_STEPS,
+            speed: crate::engines::supertonic::DEFAULT_SPEED,
         }
     }
 }
@@ -486,7 +486,7 @@ pub struct Request<'a> {
     /// Сид случайного режима: вызывающий даёт разный на каждый дубль.
     pub fresh_seed: u64,
     /// Куда отдавать звук по мере синтеза, если движок умеет потоком.
-    pub live: Option<Arc<crate::live::Phrase>>,
+    pub live: Option<Arc<crate::speech::stream::Phrase>>,
 }
 
 /// One attempt at a phrase, owned by the guarded synthesis thread.
@@ -505,7 +505,7 @@ struct Call {
     seed: u64,
 }
 
-fn run_guarded(engine: &Tts, call: Call, timeout: Duration, live: Option<Arc<crate::live::Phrase>>) -> Result<(Vec<f32>, i32), String> {
+fn run_guarded(engine: &Tts, call: Call, timeout: Duration, live: Option<Arc<crate::speech::stream::Phrase>>) -> Result<(Vec<f32>, i32), String> {
     let (tx, rx) = mpsc::channel();
     let eng = engine.clone();
     std::thread::spawn(move || {
@@ -556,7 +556,7 @@ fn run_guarded(engine: &Tts, call: Call, timeout: Duration, live: Option<Arc<cra
                 let designed = preset.is_none() && rw.is_none() && instruct.as_deref().is_some_and(|d| !d.trim().is_empty());
                 match if designed { Ok(None) } else { qwen_reference(preset.as_deref(), rw.as_deref()) } {
                     Ok(reference) => {
-                        let say = crate::qwen_tts::Say {
+                        let say = crate::engines::qwen_tts::Say {
                             text: &t,
                             lang: &lang,
                             speaker: preset.as_deref(),
@@ -569,8 +569,8 @@ fn run_guarded(engine: &Tts, call: Call, timeout: Duration, live: Option<Arc<cra
                             max_new_tokens: max_tokens as i32,
                         };
                         streamed = live.is_some();
-                        let sink = live.clone().map(|phrase| move |a: &[f32]| phrase.chunk(a, crate::qwen_tts::SAMPLE_RATE));
-                        e.speak(&say, sink.as_ref().map(|f| f as &(dyn Fn(&[f32]) + Sync))).map(|a| (a, crate::qwen_tts::SAMPLE_RATE as i32))
+                        let sink = live.clone().map(|phrase| move |a: &[f32]| phrase.chunk(a, crate::engines::qwen_tts::SAMPLE_RATE));
+                        e.speak(&say, sink.as_ref().map(|f| f as &(dyn Fn(&[f32]) + Sync))).map(|a| (a, crate::engines::qwen_tts::SAMPLE_RATE as i32))
                     }
                     Err(err) => Err(err),
                 }
@@ -625,8 +625,8 @@ fn qwen_reference(preset: Option<&str>, reference: Option<&Path>) -> Result<Opti
                 }
             }
             let tmp = tempfile::Builder::new().suffix(".wav").tempfile().map_err(|e| e.to_string())?;
-            crate::media::extract_audio(wav, tmp.path(), crate::qwen_tts::SAMPLE_RATE, 1)?;
-            let audio = Arc::new(crate::wavio::read_mono_f32(tmp.path())?.0);
+            crate::audio::media::extract_audio(wav, tmp.path(), crate::engines::qwen_tts::SAMPLE_RATE, 1)?;
+            let audio = Arc::new(crate::audio::wavio::read_mono_f32(tmp.path())?.0);
             *kept = Some((wav.to_path_buf(), len, modified, audio.clone()));
             Ok(Some(audio))
         }
@@ -735,8 +735,8 @@ mod tests {
     fn numbers_are_measured_by_how_they_are_said() {
         let sr = 24_000;
         let raw = "Встреча 12.03 в 18:30, билет стоит 150 руб., а на улице −5 °C.";
-        let opts = crate::prep::Opts { lang: "ru", voice: None, engine: "higgs", entries: &[], normalize: true, normalize_off: &[] };
-        let spoken = crate::prep::prepare(raw, &opts).prepared.text;
+        let opts = crate::text::prep::Opts { lang: "ru", voice: None, engine: "higgs", entries: &[], normalize: true, normalize_off: &[] };
+        let spoken = crate::text::prep::prepare(raw, &opts).prepared.text;
         let count = |t: &str| t.chars().filter(|c| c.is_alphanumeric()).count();
         let take = speech(count(raw) as f64 * RUNAWAY_PER_CHAR + RUNAWAY_SLACK + 1.0, sr);
         assert_eq!(defect(&take, sr, count(raw), "ru"), Some("runaway"), "the written digits are too short a yardstick");

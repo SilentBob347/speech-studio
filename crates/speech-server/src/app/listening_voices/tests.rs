@@ -1,8 +1,8 @@
 use std::fs;
 
 use super::*;
-use crate::listening::project::{Line, ListenProject, Word};
-use crate::voices::library;
+use crate::listening::{Line, ListenProject, Word};
+use crate::voices as library;
 
 fn fixture(root: &Path) -> (String, std::path::PathBuf) {
     let workspace = root.join("workspace");
@@ -28,8 +28,8 @@ fn fixture(root: &Path) -> (String, std::path::PathBuf) {
     let dir = crate::listening::project_dir(&workspace, &pid);
     fs::create_dir(dir.join("work")).unwrap();
     let samples: Vec<f32> = (0..96_000).map(|i| 0.2 * (i as f32 * 0.05).sin()).collect();
-    crate::wavio::write_mono_f32(&dir.join("source.wav"), &samples, 16_000).unwrap();
-    crate::wavio::write_mono_f32(&dir.join("work/audio16.wav"), &samples, 16_000).unwrap();
+    crate::audio::wavio::write_mono_f32(&dir.join("source.wav"), &samples, 16_000).unwrap();
+    crate::audio::wavio::write_mono_f32(&dir.join("work/audio16.wav"), &samples, 16_000).unwrap();
     (pid, workspace)
 }
 

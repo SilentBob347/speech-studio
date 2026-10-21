@@ -1,7 +1,8 @@
 //! Background link imports, persistent progress and publication of Listening projects.
 
 use crate::integrations::url_import::{self as download, DownloadRequest, Downloaded, Progress};
-use crate::ytdlp::{self, Quality, UrlError};
+use crate::integrations::ytdlp;
+use crate::integrations::ytdlp::{Quality, UrlError};
 pub(crate) use download::Cookies;
 use download::{check_lang, check_url, place_cookies};
 use serde::{Deserialize, Serialize};
@@ -540,7 +541,7 @@ fn make_project(workspace: &Path, media: &Path, title: &str, subs: Option<&Path>
     let subtitles = match subs {
         Some(src) => {
             let text = std::fs::read_to_string(src).map_err(|e| io(src, e))?;
-            if crate::subimport::parse(&text, "srt").is_empty() {
+            if crate::text::subimport::parse(&text, "srt").is_empty() {
                 warning = Some(("subs_empty", t!("url-subs-empty", path = src.display().to_string())));
                 None
             } else {

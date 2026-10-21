@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use serde_json::Value;
 
 use crate::listening;
-use crate::voices::profiles;
+use crate::voices::matching as profiles;
 
 pub(crate) struct Paths {
     pub workspace: PathBuf,

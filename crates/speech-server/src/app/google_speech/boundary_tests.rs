@@ -5,7 +5,7 @@ use dub_llm::test_http::{serve, Reply};
 
 use super::*;
 use crate::app::spending;
-use crate::google_tts::Client;
+use crate::integrations::google_tts::Client;
 
 fn setup() -> Setup {
     Setup {
@@ -64,7 +64,7 @@ fn a_named_batch_resumes_reads_audio_and_keeps_history_without_a_new_submission(
     assert!(server.request(0).starts_with("GET /v1beta/batches/paid"));
     assert!(!journal_path(&project).exists());
     assert_eq!(
-        crate::wavio::read_mono_f32(&cache(&project, &key)).unwrap().0,
+        crate::audio::wavio::read_mono_f32(&cache(&project, &key)).unwrap().0,
         [0.0, 0.5, -1.0].repeat(50)
     );
     assert_eq!(report(&project)["batches"][0]["state"], "downloaded");
@@ -171,7 +171,7 @@ fn cached_audio_and_fully_cached_prefetch_need_no_client_credentials_or_spending
     let w = want();
     let key = key_of(&s, &w.text, &w.style, w.n);
     fs::create_dir_all(cache(root.path(), &key).parent().unwrap()).unwrap();
-    crate::wavio::write_mono_f32(&cache(root.path(), &key), &[0.0, 0.5, -1.0], SR).unwrap();
+    crate::audio::wavio::write_mono_f32(&cache(root.path(), &key), &[0.0, 0.5, -1.0], SR).unwrap();
     let (samples, cost) = phrase(root.path(), root.path(), root.path(), "p", &s, &w.text, &w.style, w.n).unwrap();
     assert_eq!(samples, [0.0, 0.5, -1.0]);
     assert_eq!(cost, None);

@@ -105,7 +105,7 @@ fn answered(mut row: Logged, started: Instant, result: Result<Response, Failure>
 }
 
 fn authorised(headers: &HeaderMap) -> Result<(), Failure> {
-    let token = crate::credentials::api_token();
+    let token = crate::platform::credentials::api_token();
     authorised_token(headers, token.as_ref().map(|(token, _)| token.as_str()))
 }
 
@@ -367,8 +367,8 @@ fn transcript_answer(format: &str, language: &str, parsed: &Value) -> Response {
 // ---------------------------------------------------------------- the API page
 
 fn key_state() -> Value {
-    let source = crate::credentials::api_token().map(|(_, source)| source);
-    json!({ "configured": source.is_some(), "source": source, "environment_variable": crate::credentials::API_TOKEN_ENV_VAR })
+    let source = crate::platform::credentials::api_token().map(|(_, source)| source);
+    json!({ "configured": source.is_some(), "source": source, "environment_variable": crate::platform::credentials::API_TOKEN_ENV_VAR })
 }
 
 /// GET /openai/settings: whether a key guards the API and where it comes from; the key itself never comes back.
@@ -379,7 +379,7 @@ pub async fn settings() -> Response {
 /// POST /openai/key: makes a new key and answers it once, for the person to give their program.
 pub async fn new_key() -> Response {
     let token = format!("sk-speech-{}{}", uuid::Uuid::new_v4().simple(), uuid::Uuid::new_v4().simple());
-    match crate::credentials::store_api_token(Some(&token)) {
+    match crate::platform::credentials::store_api_token(Some(&token)) {
         Ok(_) => Json(json!({ "key": token, "state": key_state() })).into_response(),
         Err(e) => (
             StatusCode::CONFLICT,
@@ -391,7 +391,7 @@ pub async fn new_key() -> Response {
 
 /// DELETE /openai/key: the API is open to this computer again.
 pub async fn delete_key() -> Response {
-    match crate::credentials::store_api_token(None) {
+    match crate::platform::credentials::store_api_token(None) {
         Ok(_) => Json(key_state()).into_response(),
         Err(e) => (
             StatusCode::CONFLICT,

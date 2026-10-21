@@ -49,7 +49,7 @@ fn quiet_windows(x: &[f32], sr: u32) -> Vec<bool> {
 
 pub fn report(x: &[f32], sr: u32) -> Result<Report, String> {
     let secs = x.len() as f64 / sr as f64;
-    let peak_db = crate::loudness::true_peak_db(x, sr)?;
+    let peak_db = crate::audio::loudness::true_peak_db(x, sr)?;
     let half = (sr as usize / 2).max(1);
     let noise = x.chunks(half).filter(|c| c.len() == half).map(|c| db(rms(c))).fold(f64::INFINITY, f64::min);
     let quiet = quiet_windows(x, sr);

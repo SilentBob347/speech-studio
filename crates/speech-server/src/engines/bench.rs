@@ -63,7 +63,7 @@ impl Bench {
                 }
                 sys.refresh_cpu_all();
                 let cpu = sys.global_cpu_usage() as f64;
-                let hw = crate::hw::snapshot();
+                let hw = crate::engines::hw::snapshot();
                 let stage = c2.lock().unwrap().clone();
                 sm2.lock().unwrap().push(Sample {
                     stage,

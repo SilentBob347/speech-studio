@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
+use serde_json::{json, Value};
 
 pub const KIND: &str = "listening";
 pub const MAX_SPEAKERS: u8 = 8;
@@ -61,12 +62,12 @@ pub struct Settings {
     pub denoise: bool,
     pub denoise_db: f64,
     /// Разметка речи Silero VAD: по ней длинная запись режется на куски для локального распознавателя.
-    pub vad: crate::vad::VadConfig,
+    pub vad: crate::engines::vad::VadConfig,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { engine: String::new(), cloud_model: String::new(), lang: "auto".into(), speakers: 0, separate: false, filter: true, prompt: String::new(), denoise: false, denoise_db: DENOISE_DB, vad: crate::vad::VadConfig::default() }
+        Settings { engine: String::new(), cloud_model: String::new(), lang: "auto".into(), speakers: 0, separate: false, filter: true, prompt: String::new(), denoise: false, denoise_db: DENOISE_DB, vad: crate::engines::vad::VadConfig::default() }
     }
 }
 
@@ -308,7 +309,7 @@ pub fn is_media(name: &str) -> bool {
 }
 
 /// Строки из субтитров: спикеры из меток субтитров, иначе один; слова — по длине внутри реплики.
-pub fn from_cues(cues: &[crate::subimport::Cue], speakers: &mut BTreeMap<String, String>) -> Vec<Line> {
+pub fn from_cues(cues: &[crate::text::subimport::Cue], speakers: &mut BTreeMap<String, String>) -> Vec<Line> {
     cues.iter()
         .enumerate()
         .map(|(i, c)| {
@@ -403,4 +404,16 @@ mod tests {
         assert_eq!(anna["longest"], 12.0);
         assert_eq!(s["speakers"][1]["name"], "1");
     }
+}
+
+/// Карточка проекта Listening для списка проектов.
+pub fn summary(project: &ListenProject) -> Value {
+    json!({
+        "name": project.name,
+        "created": project.created,
+        "duration": project.duration,
+        "lines": project.shown().count(),
+        "speakers": project.speakers.len(),
+        "transcribed": project.made.is_some(),
+    })
 }

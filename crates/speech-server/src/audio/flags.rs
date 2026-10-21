@@ -66,7 +66,7 @@ pub fn measure(x: &[f32], sr: u32, whistle: bool, repeat: bool) -> Features {
     if x.is_empty() {
         return f;
     }
-    f.trimmed_s = crate::tts_trim::trim_edges(x, sr).0.len() as f64 / sr as f64;
+    f.trimmed_s = crate::audio::trim::trim_edges(x, sr).0.len() as f64 / sr as f64;
     let mut run = 0usize;
     for v in x {
         if v.abs() >= 0.999 {
@@ -78,7 +78,7 @@ pub fn measure(x: &[f32], sr: u32, whistle: bool, repeat: bool) -> Features {
             run = 0;
         }
     }
-    f.lufs = crate::loudness::integrated_lufs(x, sr);
+    f.lufs = crate::audio::loudness::integrated_lufs(x, sr);
     let w = (sr as usize / 100).max(1);
     let rms: Vec<f64> = x.chunks(w).map(|c| (c.iter().map(|&v| (v as f64) * (v as f64)).sum::<f64>() / c.len() as f64).sqrt()).collect();
     let peak = rms.iter().cloned().fold(0.0f64, f64::max);

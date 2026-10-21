@@ -73,13 +73,13 @@ fn cosine(a: &[f32], b: &[f32]) -> f64 {
 }
 
 fn embedder(p: &Paths) -> Result<dub_faces::VoiceEmbedder, String> {
-    crate::ensure_job_components(&p.repo_root, &p.models_root, true, false, &|_| {})?;
+    crate::app::ensure_job_components(&p.repo_root, &p.models_root, true, false, &|_| {})?;
     dub_faces::VoiceEmbedder::load(&dub_faces::wespeaker_path(&p.models_root)).map_err(|e| e.to_string())
 }
 
 /// A library voice's embedding, kept by its file's size and time so it is worked out once.
 fn voice_print(p: &Paths, embed: &mut impl FnMut(&[f32]) -> Result<Vec<f32>, String>, name: &str) -> Result<Vec<f32>, String> {
-    let audio = crate::voice_library::audio_path(&p.voices_dir, name).ok_or_else(|| t!("voice-missing", name = name.to_string()))?;
+    let audio = crate::voices::library::audio_path(&p.voices_dir, name).ok_or_else(|| t!("voice-missing", name = name.to_string()))?;
     let meta = std::fs::metadata(&audio).map_err(|e| format!("{}: {e}", audio.display()))?;
     let stamp = meta
         .modified()
@@ -95,8 +95,8 @@ fn voice_print(p: &Paths, embed: &mut impl FnMut(&[f32]) -> Result<Vec<f32>, Str
     }
     let tmp = tempfile::Builder::new().prefix("print-").tempdir().map_err(|e| e.to_string())?;
     let wav = tmp.path().join("16k.wav");
-    crate::media::to_16k_mono(&audio, &wav)?;
-    let (samples, _) = crate::wavio::read_mono_f32(&wav)?;
+    crate::audio::media::to_16k_mono(&audio, &wav)?;
+    let (samples, _) = crate::audio::wavio::read_mono_f32(&wav)?;
     let cut = samples.len().min((MAX_SECS * SR as f64) as usize);
     let print = embed(&samples[..cut])?;
     std::fs::write(&file, serde_json::to_vec(&print).map_err(|e| e.to_string())?).map_err(|e| format!("{}: {e}", file.display()))?;
@@ -112,7 +112,7 @@ pub fn matches(p: &Paths, speakers: &[Speaker<'_>]) -> Result<Value, String> {
 
 fn matches_with(p: &Paths, speakers: &[Speaker<'_>], mut embed: impl FnMut(&[f32]) -> Result<Vec<f32>, String>) -> Result<Value, String> {
     let profiles = load(&p.repo_root)?;
-    let (library, _) = crate::voice_library::list(&p.voices_dir);
+    let (library, _) = crate::voices::library::list(&p.voices_dir);
     let mut prints: Vec<(String, &str, Vec<f32>)> = profiles
         .iter()
         .map(|pr| (pr.name.clone(), "profile", pr.embedding.clone()))

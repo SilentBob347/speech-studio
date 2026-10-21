@@ -17,10 +17,10 @@ const LOUDSPEAKER_ECHO_DB: f64 = -25.0;
 /// The samples with the effect `kind`; an unknown kind is refused.
 pub fn apply(samples: &[f32], sr: u32, kind: &str) -> Result<Vec<f32>, String> {
     match kind {
-        "radio" => crate::media::filter_samples(samples, sr, &format!("{COMPRESSOR},{BAND}")),
-        "phone" => crate::media::filter_samples(samples, sr, BAND),
+        "radio" => crate::audio::media::filter_samples(samples, sr, &format!("{COMPRESSOR},{BAND}")),
+        "phone" => crate::audio::media::filter_samples(samples, sr, BAND),
         "loudspeaker" => {
-            let banded = crate::media::filter_samples(samples, sr, BAND)?;
+            let banded = crate::audio::media::filter_samples(samples, sr, BAND)?;
             add_echo(&banded, LOUDSPEAKER_RT60, LOUDSPEAKER_ECHO_DB, sr).ok_or_else(|| "the loudspeaker echo found no speech to follow".to_string())
         }
         other => Err(format!("no voice effect {other}: {}", KINDS.join(", "))),

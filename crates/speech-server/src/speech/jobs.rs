@@ -10,9 +10,11 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{json, Value};
 
-use crate::speech_project::{self as sp, Block, SpeechProject, Take};
-use crate::speech_text::{self as stx, Piece};
-use crate::tts_host::{self, HiggsConfig};
+use crate::speech::{project as sp, text as stx};
+use crate::speech::project::{Block, SpeechProject, Take};
+use crate::speech::text::Piece;
+use crate::engines::tts_host;
+use crate::engines::tts_host::HiggsConfig;
 use super::preparation::{self, opts as prep_opts};
 
 pub const SR: u32 = 24_000;
@@ -30,9 +32,9 @@ pub struct SpeechPaths {
 /// Loads what voicing `engine` with `voice` in `lang` takes before its first phrase: the engine as that phrase will
 /// use it (a clone or the engine's own voice) and, for Russian, the stress model.
 /// A phrase said aloud goes into the timings: its engine and voice, the wait the person heard, the engine's time.
-fn time_aloud(live: &crate::live::Phrase, take: &Take) {
+fn time_aloud(live: &crate::speech::live::Phrase, take: &Take) {
     if live.is_aloud() {
-        crate::timings::note("tts", json!({
+        crate::app::note("tts", json!({
             "block": live.block(), "engine": take.engine, "voice": take.voice, "chars": take.text.chars().count(),
             "heard_ms": take.heard_ms, "first_ms": take.first_ms, "synth_ms": (take.synth_secs * 1000.0).round() as u64,
             "audio_secs": (take.duration * 100.0).round() / 100.0,
@@ -44,36 +46,36 @@ fn time_aloud(live: &crate::live::Phrase, take: &Take) {
 pub fn warm(p: &SpeechPaths, engine: &str, voice: Option<&str>, lang: &str) -> Result<(), String> {
     let started = std::time::Instant::now();
     let warmed = load(p, engine, voice, lang);
-    crate::timings::note("load", json!({ "engine": engine, "voice": voice, "ms": started.elapsed().as_millis() as u64, "error": warmed.as_ref().err() }));
+    crate::app::note("load", json!({ "engine": engine, "voice": voice, "ms": started.elapsed().as_millis() as u64, "error": warmed.as_ref().err() }));
     warmed
 }
 
 fn load(p: &SpeechPaths, engine: &str, voice: Option<&str>, lang: &str) -> Result<(), String> {
-    let clones = voice.is_some_and(|v| crate::voice_library::audio_path(&p.voices_dir, v).is_some());
-    if engine == crate::models::DRAMA_TTS {
+    let clones = voice.is_some_and(|v| crate::voices::audio_path(&p.voices_dir, v).is_some());
+    if engine == crate::engines::models::DRAMA_TTS {
         tts_host::drama(&p.models_root)?;
-    } else if engine == crate::supertonic::ENGINE {
+    } else if engine == crate::engines::supertonic::ENGINE {
         tts_host::supertonic(&p.models_root)?;
-    } else if crate::qwen_tts::is_engine(engine) {
-        tts_host::qwen(&p.models_root, clones, engine == crate::qwen_tts::ENGINE_STRESS)?;
+    } else if crate::engines::qwen_tts::is_engine(engine) {
+        tts_host::qwen(&p.models_root, clones, engine == crate::engines::qwen_tts::ENGINE_STRESS)?;
     } else if engine == "higgs" {
         tts_host::engine(&higgs_config(p))?;
     }
-    if matches!(lang, "ru" | "auto" | "") && crate::stress::installed(&p.repo_root) {
-        crate::stress::shared(&p.models_root)?;
+    if matches!(lang, "ru" | "auto" | "") && crate::engines::stress::installed(&p.repo_root) {
+        crate::engines::stress::shared(&p.models_root)?;
     }
     Ok(())
 }
 
 pub fn higgs_config(p: &SpeechPaths) -> HiggsConfig {
-    let sel = crate::models::load_selection(&p.models_root);
-    let (model_root, quant) = crate::models::resolve_tts(&p.models_root, &sel);
-    let backend = if crate::hw::gpu_report().nvidia { "cuda" } else { "cpu" };
+    let sel = crate::engines::models::load_selection(&p.models_root);
+    let (model_root, quant) = crate::engines::models::resolve_tts(&p.models_root, &sel);
+    let backend = if crate::engines::hw::gpu_report().nvidia { "cuda" } else { "cpu" };
     HiggsConfig { dll: p.higgs_dll.clone(), model_root, quant, backend: backend.into(), threads: p.threads }
 }
 
 pub fn ref_limit(models_root: &Path) -> f64 {
-    crate::models::load_selection(models_root).get("higgs_ref_secs").and_then(Value::as_str).and_then(|v| v.parse::<f64>().ok()).unwrap_or(12.0)
+    crate::engines::models::load_selection(models_root).get("higgs_ref_secs").and_then(Value::as_str).and_then(|v| v.parse::<f64>().ok()).unwrap_or(12.0)
 }
 
 /// The voice, when it is one of the engine's own voices rather than a library voice.
@@ -86,7 +88,7 @@ fn preset_of<'a>(engine: &str, voice: Option<&'a str>) -> Option<&'a str> {
 pub fn keys(p: &SpeechPaths, project: &SpeechProject) -> BTreeMap<String, String> {
     let limit = ref_limit(&p.models_root);
     let entries = dictionary(p, project);
-    let compiled = crate::prep::compile_all(&entries);
+    let compiled = crate::text::prep::compile_all(&entries);
     let mut tags: BTreeMap<(String, Option<String>), String> = BTreeMap::new();
     let mut engines: BTreeMap<String, String> = BTreeMap::new();
     project
@@ -111,29 +113,29 @@ pub fn keys(p: &SpeechPaths, project: &SpeechProject) -> BTreeMap<String, String
 /// Что за движок и модель озвучивают блок — часть ключа дубля.
 pub(crate) fn engine_tag(p: &SpeechPaths, project: &SpeechProject, engine: &str) -> String {
     if engine == "openrouter" {
-        let (m, v) = crate::cloud_tts::model_and_voice(&p.models_root, &project.settings.cloud_model, &project.settings.cloud_voice).unwrap_or_default();
+        let (m, v) = crate::app::voice_synthesis::model_and_voice(&p.models_root, &project.settings.cloud_model, &project.settings.cloud_voice).unwrap_or_default();
         format!("openrouter:{m}:{v}")
     } else if engine == "google" {
-        let g = crate::google_speech::setup(&p.models_root, &project.settings.cloud_model, &project.settings.cloud_voice);
+        let g = crate::app::google::setup(&p.models_root, &project.settings.cloud_model, &project.settings.cloud_voice);
         g.map(|g| format!("google:{}:{}", g.model, g.voice)).unwrap_or_else(|_| "google".into())
     } else if matches!(engine, "fal" | "runware") {
         let values = serde_json::to_string(&project.settings.cloud_values).unwrap_or_default();
         format!("{}:{}:{}", engine, project.settings.cloud_model, &blake3::hash(values.as_bytes()).to_hex()[..10])
-    } else if engine == crate::models::DRAMA_TTS {
-        crate::models::DRAMA_TTS.to_string()
-    } else if engine == crate::supertonic::ENGINE {
-        format!("{}:int8", crate::supertonic::ENGINE)
-    } else if crate::qwen_tts::is_engine(&engine) {
-        format!("{}:{}", engine, crate::models::qwen_quant(&p.models_root))
+    } else if engine == crate::engines::models::DRAMA_TTS {
+        crate::engines::models::DRAMA_TTS.to_string()
+    } else if engine == crate::engines::supertonic::ENGINE {
+        format!("{}:int8", crate::engines::supertonic::ENGINE)
+    } else if crate::engines::qwen_tts::is_engine(&engine) {
+        format!("{}:{}", engine, crate::engines::models::qwen_quant(&p.models_root))
     } else {
         format!("higgs:{}", higgs_config(p).quant)
     }
 }
 
 /// Записи словаря для проекта сверху вниз: его собственные, затем глобальные.
-pub fn dictionary(p: &SpeechPaths, project: &SpeechProject) -> Vec<crate::pron_dict::Entry> {
+pub fn dictionary(p: &SpeechPaths, project: &SpeechProject) -> Vec<crate::text::pron_dict::Entry> {
     let mut all = project.dictionary.clone();
-    all.extend(crate::pron_dict::load_global(&p.repo_root));
+    all.extend(crate::text::pron_dict::load_global(&p.repo_root));
     all
 }
 
@@ -198,11 +200,11 @@ fn breath(sr: u32, seed: usize, level: f32) -> Vec<f32> {
 /// каталог (`cloud`), с ручкой задачи на диске до ответа и ценой в журнале расходов.
 fn synth_block_cloud(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Block, n: u32) -> Result<(Vec<f32>, Value, Take), String> {
     let provider = project.engine_of(b);
-    let google = if provider == "google" { Some(crate::google_speech::setup(&p.models_root, &project.settings.cloud_model, &project.settings.cloud_voice)?) } else { None };
+    let google = if provider == "google" { Some(crate::app::google::setup(&p.models_root, &project.settings.cloud_model, &project.settings.cloud_voice)?) } else { None };
     let (model, voice) = if let Some(g) = &google {
         (g.model.clone(), g.voice.clone())
     } else if provider == "openrouter" {
-        crate::cloud_tts::model_and_voice(&p.models_root, &project.settings.cloud_model, &project.settings.cloud_voice)?
+        crate::app::voice_synthesis::model_and_voice(&p.models_root, &project.settings.cloud_model, &project.settings.cloud_voice)?
     } else {
         let model = project.settings.cloud_model.trim().to_string();
         if model.is_empty() {
@@ -212,11 +214,11 @@ fn synth_block_cloud(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Bl
         (model, voice)
     };
     let entries = dictionary(p, project);
-    let stress = project.settings.auto_stress && crate::stress::is_russian(&b.text, project.lang_of(b));
+    let stress = project.settings.auto_stress && crate::engines::stress::is_russian(&b.text, project.lang_of(b));
     let prepared = preparation::prepare(&b.text, &prep_opts(p, project, project.lang_of(b), project.engine_of(b), Some(voice.as_str()), &entries, stress)).map_err(|e| t!("stress-failed", detail = e))?;
     let (mut out, mut rate, started) = (Vec::new(), 1.0f64, std::time::Instant::now());
     let (mut cost, mut estimate) = (None::<f64>, None::<f64>);
-    let live = crate::live::Phrase::begin(pid, &b.id);
+    let live = crate::speech::live::Phrase::begin(pid, &b.id);
     for (k, piece) in stx::pieces(&prepared.text).into_iter().enumerate() {
         match piece {
             Piece::Pause(ms) => {
@@ -230,18 +232,18 @@ fn synth_block_cloud(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Bl
                     continue;
                 }
                 let samples = if let Some(g) = &google {
-                    let (samples, est) = crate::google_speech::phrase(&p.repo_root, &p.models_root, &p.workspace.join(pid), pid, g, &say, b.direction.trim(), n)?;
+                    let (samples, est) = crate::app::google::phrase(&p.repo_root, &p.models_root, &p.workspace.join(pid), pid, g, &say, b.direction.trim(), n)?;
                     estimate = match (estimate, est) { (Some(a), Some(b)) => Some(a + b), (a, b) => a.or(b) };
                     samples
                 } else if provider == "openrouter" {
-                    crate::app::spending::check_limit(&p.repo_root, &p.models_root, None)?;
-                    let samples = crate::cloud_tts::synth(&say, &model, &voice, b.direction.trim())?;
-                    crate::app::spending::record(&p.repo_root, crate::app::spending::Spent { at: chrono::Utc::now().timestamp_millis(), day: chrono::Local::now().format("%Y-%m-%d").to_string(), project: pid.to_string(), provider: "openrouter".into(), model: model.clone(), task: "speech".into(), cost_source: "unknown".into(), origin: crate::app::context::current_actor(), ..Default::default() });
+                    crate::app::costs::check_limit(&p.repo_root, &p.models_root, None)?;
+                    let samples = crate::app::voice_synthesis::synth(&say, &model, &voice, b.direction.trim())?;
+                    crate::app::costs::record(&p.repo_root, crate::app::costs::Spent { at: chrono::Utc::now().timestamp_millis(), day: chrono::Local::now().format("%Y-%m-%d").to_string(), project: pid.to_string(), provider: "openrouter".into(), model: model.clone(), task: "speech".into(), cost_source: "unknown".into(), origin: crate::app::current_actor(), ..Default::default() });
                     samples
                 } else {
                     let handle = p.workspace.join(pid).join("cloud").join(format!("{}-{n}-{k}.json", b.id));
-                    let run = crate::cloud::Run { repo_root: &p.repo_root, models_root: &p.models_root, project: pid, task: vs_providers::Task::Speech, handle_file: &handle };
-                    let (samples, done) = crate::cloud::speak(&run, provider, &model, &project.settings.cloud_values, &say)?;
+                    let run = crate::app::remote::Run { repo_root: &p.repo_root, models_root: &p.models_root, project: pid, task: vs_providers::Task::Speech, handle_file: &handle };
+                    let (samples, done) = crate::app::remote::speak(&run, provider, &model, &project.settings.cloud_values, &say)?;
                     cost = match (cost, done.cost) { (Some(a), Some(b)) => Some(a + b), (a, b) => a.or(b) };
                     estimate = match (estimate, done.estimate) { (Some(a), Some(b)) => Some(a + b), (a, b) => a.or(b) };
                     samples
@@ -262,7 +264,7 @@ fn synth_block_cloud(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Bl
         source: "cloud".into(),
         synth_secs: started.elapsed().as_secs_f64(),
         duration: fitted.samples.len() as f64 / SR as f64,
-        tidy: Some(crate::tts_trim::tidy(&fitted.samples, SR).samples.len() as f64 / SR as f64),
+        tidy: Some(crate::audio::trim::tidy(&fitted.samples, SR).samples.len() as f64 / SR as f64),
         text: b.text.clone(),
         direction: b.direction.clone(),
         voice: voice.clone(),
@@ -286,7 +288,7 @@ fn synth_block_cloud(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Bl
 /// `synth_block_cloud`, с номерами дублей, которые получат блоки (`takes` на блок при нескольких дублях).
 fn google_prefetch(p: &SpeechPaths, pid: &str, ids: &[String], force: bool, takes: u32, progress: &dyn Fn(Value)) -> Result<(), String> {
     let project = crate::speech::load(&p.workspace, pid)?;
-    let g = crate::google_speech::setup(&p.models_root, &project.settings.cloud_model, &project.settings.cloud_voice)?;
+    let g = crate::app::google::setup(&p.models_root, &project.settings.cloud_model, &project.settings.cloud_voice)?;
     let entries = dictionary(p, &project);
     let mut keys = keys(p, &project);
     let mut phrases = Vec::new();
@@ -295,7 +297,7 @@ fn google_prefetch(p: &SpeechPaths, pid: &str, ids: &[String], force: bool, take
         if state == "skipped" || (!force && state == "ready") {
             continue;
         }
-        let stress = project.settings.auto_stress && crate::stress::is_russian(&b.text, project.lang_of(b));
+        let stress = project.settings.auto_stress && crate::engines::stress::is_russian(&b.text, project.lang_of(b));
         let prepared = preparation::prepare(&b.text, &prep_opts(p, &project, project.lang_of(b), project.engine_of(b), Some(g.voice.as_str()), &entries, stress)).map_err(|e| t!("stress-failed", detail = e))?;
         let first = b.takes.iter().map(|t| t.n).max().unwrap_or(0) + 1;
         for piece in stx::pieces(&prepared.text) {
@@ -303,7 +305,7 @@ fn google_prefetch(p: &SpeechPaths, pid: &str, ids: &[String], force: bool, take
                 let say = stx::visible(&text);
                 if !say.trim().is_empty() {
                     for n in first..first + takes.max(1) {
-                        phrases.push(crate::google_speech::Want { text: say.clone(), style: b.direction.trim().to_string(), n });
+                        phrases.push(crate::app::google::Want { text: say.clone(), style: b.direction.trim().to_string(), n });
                     }
                 }
             }
@@ -312,7 +314,7 @@ fn google_prefetch(p: &SpeechPaths, pid: &str, ids: &[String], force: bool, take
     if phrases.is_empty() {
         return Ok(());
     }
-    crate::google_speech::prefetch(&p.repo_root, &p.models_root, &p.workspace.join(pid), pid, &g, &phrases, progress).map(|_| ())
+    crate::app::google::prefetch(&p.repo_root, &p.models_root, &p.workspace.join(pid), pid, &g, &phrases, progress).map(|_| ())
 }
 
 fn synth_block(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Block, n: u32) -> Result<(Vec<f32>, Value, Take), String> {
@@ -323,16 +325,16 @@ fn synth_block(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Block, n
 }
 
 /// A block voiced locally with these dictionary rules.
-fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Block, n: u32, entries: &[crate::pron_dict::Entry]) -> Result<(Vec<f32>, Value, Take), String> {
+fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Block, n: u32, entries: &[crate::text::pron_dict::Entry]) -> Result<(Vec<f32>, Value, Take), String> {
     let own = project.engine_of(b);
-    let drama = own == crate::models::DRAMA_TTS;
+    let drama = own == crate::engines::models::DRAMA_TTS;
     let manifest = crate::engines::get(own);
     let presets: Vec<&str> = manifest.as_ref().map(|m| m.presets.iter().map(|p| p.id).collect()).unwrap_or_default();
     let voice = project.voice_of(b);
     if drama && voice.is_none() {
         return Err(t!("drama-needs-voice"));
     }
-    if own == crate::qwen_tts::ENGINE_STRESS && voice.is_none() {
+    if own == crate::engines::qwen_tts::ENGINE_STRESS && voice.is_none() {
         return Err(t!("render-qwen-stress-needs-voice"));
     }
     // an engine with its own voices speaks one of them; a library voice there is cloned when the engine clones,
@@ -345,21 +347,21 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
         (false, Some(_)) if clones_too => None,
         (false, Some(v)) => return Err(t!("speech-voice-not-preset", voice = v.to_string(), engine = manifest.as_ref().map_or("", |m| m.name).to_string())),
     };
-    let limit = if own == crate::qwen_tts::ENGINE_STRESS { ref_limit(&p.models_root).min(crate::qwen_tts::STRESS_REF_SECS) } else { ref_limit(&p.models_root) };
+    let limit = if own == crate::engines::qwen_tts::ENGINE_STRESS { ref_limit(&p.models_root).min(crate::engines::qwen_tts::STRESS_REF_SECS) } else { ref_limit(&p.models_root) };
     let clones = preset.is_none();
     let continues = manifest.as_ref().is_some_and(|m| m.continuation);
     let own_ref = b.own_ref.as_ref().filter(|r| clones && !r.file.is_empty());
     let continued = sp::continuation_source(project, b).filter(|(_, t)| own_ref.is_none() && clones && continues && t.duration > 0.5 && t.duration <= limit + 0.5);
     if let (None, None, Some(v)) = (own_ref, &continued, voice.as_deref().filter(|_| clones)) {
-        let vp = crate::voice_jobs::VoicePaths { repo_root: p.repo_root.clone(), models_root: p.models_root.clone(), voices_dir: p.voices_dir.clone() };
-        crate::voice_jobs::ensure_words(&vp, v, limit)?;
+        let vp = crate::voices::VoicePaths { repo_root: p.repo_root.clone(), models_root: p.models_root.clone(), voices_dir: p.voices_dir.clone() };
+        crate::voices::ensure_words(&vp, v, limit)?;
     }
     let engine = if drama {
         tts_host::drama(&p.models_root)?
-    } else if own == crate::supertonic::ENGINE {
+    } else if own == crate::engines::supertonic::ENGINE {
         tts_host::supertonic(&p.models_root)?
-    } else if crate::qwen_tts::is_engine(own) {
-        tts_host::qwen(&p.models_root, preset.is_none(), own == crate::qwen_tts::ENGINE_STRESS)?
+    } else if crate::engines::qwen_tts::is_engine(own) {
+        tts_host::qwen(&p.models_root, preset.is_none(), own == crate::engines::qwen_tts::ENGINE_STRESS)?
     } else {
         tts_host::engine(&higgs_config(p))?
     };
@@ -381,15 +383,15 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
         params.seed_mode = "fixed".into();
         params.seed = seed % tts_host::SEED_RANGE;
     }
-    let stress = project.settings.auto_stress && crate::stress::is_russian(&b.text, project.lang_of(b));
+    let stress = project.settings.auto_stress && crate::engines::stress::is_russian(&b.text, project.lang_of(b));
     let text = preparation::prepare(&b.text, &prep_opts(p, project, project.lang_of(b), own, voice.as_deref(), entries, stress)).map_err(|e| t!("stress-failed", detail = e))?.text;
     let max_chars = manifest.as_ref().map_or(usize::MAX, |m| m.max_chars.max(1));
     let speeds = manifest.as_ref().is_some_and(|m| m.params.iter().any(|s| s.key == "speed"));
     if let Some(ahead) = tempo_ahead(project, b).filter(|_| speeds) {
         params.speed = (params.speed * ahead).min(SPEED_MAX);
     }
-    let live = std::sync::Arc::new(crate::live::Phrase::begin(pid, &b.id));
-    let mut render = |params: &tts_host::Params, salt: u64, live: Option<&std::sync::Arc<crate::live::Phrase>>| -> Result<(Vec<f32>, u64, f64), String> {
+    let live = std::sync::Arc::new(crate::speech::live::Phrase::begin(pid, &b.id));
+    let mut render = |params: &tts_host::Params, salt: u64, live: Option<&std::sync::Arc<crate::speech::live::Phrase>>| -> Result<(Vec<f32>, u64, f64), String> {
         let mut out: Vec<f32> = Vec::new();
         let (mut seed, mut temperature) = (0u64, params.temperature);
         let mut rate = 1.0f64;
@@ -430,7 +432,7 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
                             ref_wav: reference.as_ref().map(|(w, _)| w.as_path()),
                             ref_text: reference.as_ref().and_then(|(_, t)| t.as_deref()),
                             preset: preset.as_deref(),
-                            instruct: Some(b.direction.trim()).filter(|d| !d.is_empty() && crate::qwen_tts::is_engine(own)),
+                            instruct: Some(b.direction.trim()).filter(|d| !d.is_empty() && crate::engines::qwen_tts::is_engine(own)),
                             params,
                             fresh_seed: fresh.wrapping_add(salt).wrapping_add(k as u64).wrapping_add((j as u64) << 32),
                             live: live.filter(|_| !retimed).cloned(),
@@ -444,7 +446,7 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
                         retried.extend(s.defects.iter().map(|d| d.to_string()));
                         let mut samples = resample_to(s.samples, s.sr);
                         if joined || joins_next {
-                            samples = crate::tts_trim::trim_edges(&samples, SR).0;
+                            samples = crate::audio::trim::trim_edges(&samples, SR).0;
                         } else {
                             fade_edges(&mut samples, SR);
                         }
@@ -455,7 +457,7 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
                             }
                         }
                         if joined {
-                            crate::tts_trim::crossfade_join(&mut out, &samples, SR);
+                            crate::audio::trim::crossfade_join(&mut out, &samples, SR);
                         } else {
                             out.extend(samples);
                         }
@@ -498,7 +500,7 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
         synth_secs: secs,
         retried,
         duration: out.len() as f64 / SR as f64,
-        tidy: Some(crate::tts_trim::tidy(&out, SR).samples.len() as f64 / SR as f64),
+        tidy: Some(crate::audio::trim::tidy(&out, SR).samples.len() as f64 / SR as f64),
         text: b.text.clone(),
         direction: b.direction.clone(),
         top_k: params.top_k,
@@ -552,8 +554,8 @@ fn cue_slot(project: &SpeechProject, b: &Block) -> Option<(dub_core::fit::Slot, 
 /// тишиной перед ней; None — влезает и так.
 fn tempo_ahead(project: &SpeechProject, b: &Block) -> Option<f64> {
     let (slot, free, rules) = cue_slot(project, b)?;
-    let lang = match project.lang_of(b) { "auto" => if crate::stress::is_russian(&b.text, "auto") { "ru" } else { "en" }, own => own };
-    let est = dub_core::fit::estimate(&crate::speech_text::visible(&b.text), dub_core::fit::table_cps(lang));
+    let lang = match project.lang_of(b) { "auto" => if crate::engines::stress::is_russian(&b.text, "auto") { "ru" } else { "en" }, own => own };
+    let est = dub_core::fit::estimate(&crate::speech::text::visible(&b.text), dub_core::fit::table_cps(lang));
     let room = slot.target + dub_core::fit::lead(est, &slot, free, &rules);
     (room > 0.0 && est > room).then(|| (est / room).min(SPEED_MAX))
 }
@@ -581,12 +583,12 @@ fn own_reference(project_dir: &Path, r: &sp::OwnRef, limit: f64) -> Result<(Path
         return Err(t!("speech-own-ref-missing", file = r.file.clone()));
     }
     let text = Some(r.text.trim().to_string()).filter(|t| !t.is_empty());
-    if r.whole || crate::media::duration(&src)? <= limit + 0.5 {
+    if r.whole || crate::audio::media::duration(&src)? <= limit + 0.5 {
         return Ok((src, text));
     }
     let cut = project_dir.join("refs").join(format!(".{}-{limit:.1}.wav", r.file.trim_end_matches(".wav")));
     if !cut.is_file() {
-        crate::media::trim_ref(&src, &cut, 0.0, limit)?;
+        crate::audio::media::trim_ref(&src, &cut, 0.0, limit)?;
     }
     // a cut reference no longer says the whole transcript, so the engine clones the timbre without it
     Ok((cut, None))
@@ -596,9 +598,9 @@ fn continuation_ref(takes: &Path, take: &sp::Take, text: &str) -> Result<(PathBu
     let src = takes.join(&take.file);
     let wav = takes.join(format!(".ref-{}.wav", take.file.trim_end_matches(".flac")));
     if !wav.is_file() {
-        crate::media::extract_audio(&src, &wav, SR, 1)?;
+        crate::audio::media::extract_audio(&src, &wav, SR, 1)?;
     }
-    let said = crate::speech_text::visible(text);
+    let said = crate::speech::text::visible(text);
     Ok((wav, (!said.trim().is_empty()).then_some(said)))
 }
 
@@ -607,9 +609,9 @@ fn at_rate(samples: &[f32], rate: f64) -> Result<Vec<f32>, String> {
     let dir = tempfile::Builder::new().prefix("rate-").tempdir().map_err(|e| e.to_string())?;
     let src = dir.path().join("in.wav");
     let dst = dir.path().join("out.wav");
-    crate::wavio::write_mono_f32(&src, samples, SR)?;
-    crate::media::time_stretch(&src, &dst, rate)?;
-    let (out, sr) = crate::wavio::read_mono_f32(&dst)?;
+    crate::audio::wavio::write_mono_f32(&src, samples, SR)?;
+    crate::audio::media::time_stretch(&src, &dst, rate)?;
+    let (out, sr) = crate::audio::wavio::read_mono_f32(&dst)?;
     Ok(resample_to(out, sr as i32))
 }
 
@@ -628,7 +630,7 @@ fn take_params(base: &tts_host::Params, n: u32) -> tts_host::Params {
 
 /// A dictionary rule tried by ear: the phrase as written (no dictionaries) and with this one rule, in the voice asked or
 /// the project's, by the project's local engine. The audio is kept in the project's `tries/` by what it was made of.
-pub fn try_rule(p: &SpeechPaths, pid: &str, phrase: &str, rule: crate::pron_dict::Entry, voice: Option<String>, progress: &dyn Fn(Value)) -> Result<Value, String> {
+pub fn try_rule(p: &SpeechPaths, pid: &str, phrase: &str, rule: crate::text::pron_dict::Entry, voice: Option<String>, progress: &dyn Fn(Value)) -> Result<Value, String> {
     let project = crate::speech::load(&p.workspace, pid)?;
     let b = Block { id: "try".into(), voice: voice.filter(|v| !v.trim().is_empty()), text: phrase.trim().to_string(), ..Default::default() };
     if crate::engines::is_cloud(project.engine_of(&b)) {
@@ -637,12 +639,12 @@ pub fn try_rule(p: &SpeechPaths, pid: &str, phrase: &str, rule: crate::pron_dict
     if b.text.is_empty() {
         return Err(t!("dict-try-empty"));
     }
-    let rule = crate::pron_dict::Entry { enabled: true, ..rule };
+    let rule = crate::text::pron_dict::Entry { enabled: true, ..rule };
     let dir = p.workspace.join(pid).join("tries");
     let voice_of = project.voice_of(&b).unwrap_or_default();
     let mut out = json!({});
     for (name, entries) in [("before", Vec::new()), ("after", vec![rule])] {
-        let stress = project.settings.auto_stress && crate::stress::is_russian(&b.text, project.lang_of(&b));
+        let stress = project.settings.auto_stress && crate::engines::stress::is_russian(&b.text, project.lang_of(&b));
         let read = preparation::prepare(&b.text, &prep_opts(p, &project, project.lang_of(&b), project.engine_of(&b), Some(voice_of.as_str()).filter(|v| !v.is_empty()), &entries, stress)).map_err(|e| t!("stress-failed", detail = e))?.text;
         let made_of = format!("{read}|{voice_of}|{}|{}|{}", project.engine_of(&b), higgs_config(p).quant, serde_json::to_string(project.params_of(&b)).unwrap_or_default());
         let file = format!("{}.flac", &blake3::hash(made_of.as_bytes()).to_hex()[..20]);
@@ -661,8 +663,8 @@ fn write_flac(samples: &[f32], dst: &Path) -> Result<(), String> {
     let dir = dst.parent().expect("a folder");
     std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     let wav = dir.join(format!(".{}.wav", sp::new_id()));
-    crate::wavio::write_mono_f32(&wav, samples, SR)?;
-    let made = crate::media::encode_audio(&wav, dst, "flac", false);
+    crate::audio::wavio::write_mono_f32(&wav, samples, SR)?;
+    let made = crate::audio::media::encode_audio(&wav, dst, "flac", false);
     let _ = std::fs::remove_file(&wav);
     made
 }
@@ -771,7 +773,7 @@ fn voice_block(p: &SpeechPaths, pid: &str, id: &str, count: u32, source: &str, p
 fn voice_embedding(embedder: &mut dub_faces::VoiceEmbedder, audio: &Path) -> Result<Vec<f32>, String> {
     let dir = tempfile::Builder::new().prefix("emb-").tempdir().map_err(|e| e.to_string())?;
     let wav = dir.path().join("16k.wav");
-    crate::media::to_16k_mono(audio, &wav)?;
+    crate::audio::media::to_16k_mono(audio, &wav)?;
     embedder.embed_wav(&wav).map_err(|e| e.to_string())
 }
 
@@ -779,24 +781,24 @@ fn voice_embedding(embedder: &mut dub_faces::VoiceEmbedder, audio: &Path) -> Res
 /// «прошёл всё → WER → похожесть» становится активным; блоки, где не прошёл ни один, — в ответе.
 /// Дубль, где вместо речи музыка или шум: его звук в 16 кГц через Silero VAD.
 fn non_speech(p: &SpeechPaths, file: &Path) -> Result<bool, String> {
-    if !crate::vad::installed(&p.models_root) {
+    if !crate::engines::vad::installed(&p.models_root) {
         return Err(t!("vad-missing"));
     }
     let tmp = tempfile::Builder::new().prefix("vad-").tempdir().map_err(|e| e.to_string())?;
     let wav = tmp.path().join("take16.wav");
-    crate::media::to_16k_mono(file, &wav)?;
-    let (samples, _) = crate::wavio::read_mono_f32(&wav)?;
-    let probs = crate::vad::probabilities(&p.models_root, &samples)?;
-    Ok(crate::qc::non_speech(&samples, &probs, crate::vad::FRAME))
+    crate::audio::media::to_16k_mono(file, &wav)?;
+    let (samples, _) = crate::audio::wavio::read_mono_f32(&wav)?;
+    let probs = crate::engines::vad::probabilities(&p.models_root, &samples)?;
+    Ok(crate::audio::qc::non_speech(&samples, &probs, crate::engines::vad::FRAME))
 }
 
 /// What a voice sounds like elsewhere in the project, from the takes already checked: seconds per syllable (the
 /// project's when the voice has too few takes) and loudness (the voice's only).
-fn voice_norm(project: &SpeechProject, voice: Option<&str>) -> crate::audio_flags::Norm {
+fn voice_norm(project: &SpeechProject, voice: Option<&str>) -> crate::audio::flags::Norm {
     let (mut rate_v, mut rate_all, mut lufs_v) = (Vec::new(), Vec::new(), Vec::new());
     for b in project.blocks() {
         let same = project.voice_of(b).as_deref() == voice;
-        for q in b.takes.iter().filter_map(|t| t.qc.as_ref().map(|q| (q, q.syllables.unwrap_or_else(|| crate::audio_flags::syllables(&t.text))))) {
+        for q in b.takes.iter().filter_map(|t| t.qc.as_ref().map(|q| (q, q.syllables.unwrap_or_else(|| crate::audio::flags::syllables(&t.text))))) {
             let (q, syl) = q;
             if let Some(s) = q.speech_secs.filter(|_| syl >= 6) {
                 rate_all.push(s / syl as f64);
@@ -809,20 +811,20 @@ fn voice_norm(project: &SpeechProject, voice: Option<&str>) -> crate::audio_flag
             }
         }
     }
-    crate::audio_flags::Norm {
-        secs_per_syllable: crate::audio_flags::median(rate_v, 5).or_else(|| crate::audio_flags::median(rate_all, 5)),
-        lufs: crate::audio_flags::median(lufs_v, 5),
+    crate::audio::flags::Norm {
+        secs_per_syllable: crate::audio::flags::median(rate_v, 5).or_else(|| crate::audio::flags::median(rate_all, 5)),
+        lufs: crate::audio::flags::median(lufs_v, 5),
     }
 }
 
 /// The take's sound measured and the flags of `want` it raises (Dub Studio's synthesis defect first), over the part of
 /// the take the project uses; its expected length is counted on `spoken`, the take's text as the engine was given it.
-fn sound_flags(take: &Take, spoken: &str, lang: &str, file: &Path, want: &[String], norm: crate::audio_flags::Norm) -> Result<(crate::audio_flags::Features, Vec<String>), String> {
+fn sound_flags(take: &Take, spoken: &str, lang: &str, file: &Path, want: &[String], norm: crate::audio::flags::Norm) -> Result<(crate::audio::flags::Features, Vec<String>), String> {
     const SR: u32 = 24_000;
     let tmp = tempfile::Builder::new().prefix("flags-").tempdir().map_err(|e| e.to_string())?;
     let wav = tmp.path().join("take.wav");
-    crate::media::extract_audio(file, &wav, SR, 1)?;
-    let (all, _) = crate::wavio::read_mono_f32(&wav)?;
+    crate::audio::media::extract_audio(file, &wav, SR, 1)?;
+    let (all, _) = crate::audio::wavio::read_mono_f32(&wav)?;
     let samples = match take.cut {
         Some([a, z]) => {
             let a = ((a * SR as f64) as usize).min(all.len());
@@ -831,8 +833,8 @@ fn sound_flags(take: &Take, spoken: &str, lang: &str, file: &Path, want: &[Strin
         None => all,
     };
     let on = |k: &str| want.iter().any(|w| w == k);
-    let features = crate::audio_flags::measure(&samples, SR, on("whistle"), on("audio_repeat"));
-    let mut raised = crate::audio_flags::flags(&features, want, spoken, norm);
+    let features = crate::audio::flags::measure(&samples, SR, on("whistle"), on("audio_repeat"));
+    let mut raised = crate::audio::flags::flags(&features, want, spoken, norm);
     if on("defect") {
         let chars = stx::visible(spoken).chars().filter(|c| c.is_alphanumeric()).count();
         if let Some(d) = tts_host::defect(&samples, SR as i32, chars, lang) {
@@ -849,10 +851,10 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, re
     let asr_on = recognise || settings.qc.asr_check || settings.qc.takes > 1;
     let sim_on = settings.qc.similarity;
     let want = settings.qc.heuristics.clone();
-    crate::ensure_job_components(&p.repo_root, &p.models_root, sim_on, false, &|ev| progress(ev))?;
+    crate::app::ensure_job_components(&p.repo_root, &p.models_root, sim_on, false, &|ev| progress(ev))?;
     if asr_on {
-        crate::asr_util::ensure(&p.repo_root, &p.models_root, "", &|ev| progress(ev))?;
-        crate::ensure_components(&p.repo_root, &["silero-vad"], &|ev| progress(ev))?;
+        crate::app::recognition::ensure(&p.repo_root, &p.models_root, "", &|ev| progress(ev))?;
+        crate::app::ensure_components(&p.repo_root, &["silero-vad"], &|ev| progress(ev))?;
     }
     let mut embedder = if sim_on {
         Some(dub_faces::VoiceEmbedder::load(&dub_faces::wespeaker_path(&p.models_root)).map_err(|e| e.to_string())?)
@@ -870,7 +872,7 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, re
                 files.push((takes_dir(p, pid).join(&take.file), project.lang_of(b).to_string(), b.id.clone()));
             }
         }
-        crate::asr_util::transcribe_many(&p.repo_root, &p.models_root, &files)?
+        crate::app::recognition::transcribe_many(&p.repo_root, &p.models_root, &files)?
     } else {
         Default::default()
     };
@@ -888,7 +890,7 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, re
             (Some(emb), Some(v)) => match refs.get(v) {
                 Some(e) => Some(e.clone()),
                 None => {
-                    let audio = crate::voice_library::audio_path(&p.voices_dir, v).ok_or_else(|| t!("voice-missing", name = v.to_string()))?;
+                    let audio = crate::voices::audio_path(&p.voices_dir, v).ok_or_else(|| t!("voice-missing", name = v.to_string()))?;
                     let e = voice_embedding(emb, &audio)?;
                     refs.insert(v.to_string(), e.clone());
                     Some(e)
@@ -897,19 +899,19 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, re
             _ => None,
         };
         let entries = dictionary(p, &project);
-        let mut checks: Vec<(u32, crate::qc::Check)> = Vec::new();
+        let mut checks: Vec<(u32, crate::audio::qc::Check)> = Vec::new();
         for n in takes {
             let Some(take) = b.takes.iter().find(|t| t.n == *n) else { continue };
             let file = takes_dir(p, pid).join(&take.file);
             let mut check = if asr_on {
                 let heard = heard_all.remove(&file).ok_or_else(|| format!("{}: not recognised", file.display()))??;
                 let expected = preparation::prepare(&b.text, &prep_opts(p, &project, project.lang_of(&b), project.engine_of(&b), voice.as_deref(), &entries, false)).map_err(|e| t!("stress-failed", detail = e))?.text;
-                let (expected, heard_said) = crate::qc::said_alike(&expected, &heard.text, &crate::prep::block_lang(&b.text, &lang))?;
-                let mut c = crate::qc::check(&expected, &heard_said, &strictness);
+                let (expected, heard_said) = crate::audio::qc::said_alike(&expected, &heard.text, &crate::text::prep::block_lang(&b.text, &lang))?;
+                let mut c = crate::audio::qc::check(&expected, &heard_said, &strictness);
                 c.heard = heard.text.clone();
                 let pause = stx::pieces(&b.text).iter().filter_map(|x| if let Piece::Pause(ms) = x { Some(*ms as f64 / 1000.0) } else { None }).fold(0.0, f64::max);
-                c.issues = crate::qc::timing_issues(&heard.words, take.duration, pause);
-                if crate::qc::repeated(&crate::qc::normalize(&expected), &crate::qc::normalize(&heard_said)) {
+                c.issues = crate::audio::qc::timing_issues(&heard.words, take.duration, pause);
+                if crate::audio::qc::repeated(&crate::audio::qc::normalize(&expected), &crate::audio::qc::normalize(&heard_said)) {
                     c.issues.push("repeat".to_string());
                 }
                 if non_speech(p, &file)? {
@@ -918,20 +920,20 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, re
                 c.timed = heard.words.iter().map(|w| (w.word.clone(), (w.start * 1000.0).round() / 1000.0, (w.end * 1000.0).round() / 1000.0)).collect();
                 c
             } else {
-                crate::qc::Check { passed: true, ..Default::default() }
+                crate::audio::qc::Check { passed: true, ..Default::default() }
             };
             if !want.is_empty() {
                 let spoken = preparation::prepare(&take.text, &prep_opts(p, &project, project.lang_of(&b), project.engine_of(&b), voice.as_deref(), &entries, false)).map_err(|e| t!("stress-failed", detail = e))?.text;
                 let (features, raised) = sound_flags(take, &spoken, &lang, &file, &want, norm)?;
                 check.speech_secs = Some(features.trimmed_s);
-                check.syllables = Some(crate::audio_flags::syllables(&spoken));
+                check.syllables = Some(crate::audio::flags::syllables(&spoken));
                 check.lufs = features.lufs;
                 let mut suspects = Vec::new();
                 for flag in raised {
-                    match crate::audio_flags::role(&flag) {
-                        crate::audio_flags::Role::Defect => check.issues.push(flag),
-                        crate::audio_flags::Role::Note => check.notes.push(flag),
-                        crate::audio_flags::Role::Suspect => suspects.push(flag),
+                    match crate::audio::flags::role(&flag) {
+                        crate::audio::flags::Role::Defect => check.issues.push(flag),
+                        crate::audio::flags::Role::Note => check.notes.push(flag),
+                        crate::audio::flags::Role::Suspect => suspects.push(flag),
                     }
                 }
                 if !suspects.is_empty() {
@@ -939,15 +941,15 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, re
                     let first = if asr_on {
                         check.heard.clone()
                     } else {
-                        crate::asr_util::ensure(&p.repo_root, &p.models_root, "", &|ev| progress(ev))?;
-                        let heard = crate::asr_util::transcribe(&p.repo_root, &p.models_root, &file, &lang, &b.id)?;
+                        crate::app::recognition::ensure(&p.repo_root, &p.models_root, "", &|ev| progress(ev))?;
+                        let heard = crate::app::recognition::transcribe(&p.repo_root, &p.models_root, &file, &lang, &b.id)?;
                         check.timed = heard.words.iter().map(|w| (w.word.clone(), (w.start * 1000.0).round() / 1000.0, (w.end * 1000.0).round() / 1000.0)).collect();
                         check.heard = heard.text.clone();
                         heard.text
                     };
-                    let second = crate::asr_util::second_opinion(&p.repo_root, &p.models_root, &file, &lang)?.map(|h| h.text);
+                    let second = crate::app::recognition::second_opinion(&p.repo_root, &p.models_root, &file, &lang)?.map(|h| h.text);
                     let heard: Vec<&str> = std::iter::once(first.as_str()).chain(second.as_deref()).collect();
-                    match crate::audio_flags::verdict(&stx::visible(&take.text), &heard) {
+                    match crate::audio::flags::verdict(&stx::visible(&take.text), &heard) {
                         Some("listen") => check.notes.push("listen".to_string()),
                         Some(v) => check.issues.push(v.to_string()),
                         None => check.notes.extend(suspects),
@@ -962,7 +964,7 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, re
             }
             checks.push((*n, check));
         }
-        let rank = |c: &crate::qc::Check| (!c.ok(), c.wer, -c.similarity.unwrap_or(0.0));
+        let rank = |c: &crate::audio::qc::Check| (!c.ok(), c.wer, -c.similarity.unwrap_or(0.0));
         let bad = crate::speech::edit(&p.workspace, pid, |fresh| {
             let block = fresh.block_mut(id)?;
             for (n, c) in &checks {
@@ -1047,8 +1049,8 @@ fn synth_scope(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Valu
             return Err(t!("speech-lang-unsupported", lang = project.lang_of(b).to_uppercase(), engine = engine.name.to_string()));
         }
     }
-    if project.settings.auto_stress && wanted.iter().any(|id| project.blocks().any(|b| &b.id == id && crate::stress::is_russian(&b.text, project.lang_of(b)))) {
-        crate::ensure_components(&p.repo_root, &[crate::stress::COMPONENT, "onnxruntime"], &|ev| progress(ev))?;
+    if project.settings.auto_stress && wanted.iter().any(|id| project.blocks().any(|b| &b.id == id && crate::engines::stress::is_russian(&b.text, project.lang_of(b)))) {
+        crate::app::ensure_components(&p.repo_root, &[crate::engines::stress::COMPONENT, "onnxruntime"], &|ev| progress(ev))?;
     }
     if project.blocks().any(|b| wanted.contains(&b.id) && project.engine_of(b) == "google") {
         google_prefetch(p, pid, &wanted, scope.force, qc.takes, progress)?;
@@ -1233,12 +1235,12 @@ pub fn timeline(project: &SpeechProject) -> Vec<Value> {
     let mut rows: Vec<Value> = Vec::new();
     for b in project.blocks().filter(|b| !b.hidden && !b.text.trim().is_empty()) {
         let take = b.active.and_then(|n| b.takes.iter().find(|t| t.n == n));
-        let lang = match project.lang_of(b) { "auto" => if crate::stress::is_russian(&b.text, "auto") { "ru" } else { "en" }, own => own };
+        let lang = match project.lang_of(b) { "auto" => if crate::engines::stress::is_russian(&b.text, "auto") { "ru" } else { "en" }, own => own };
         let secs = take.map(|t| match t.cut {
             Some([a, z]) => z - a,
             None if project.settings.tidy_pauses => t.tidy.unwrap_or(t.duration),
             None => t.duration,
-        }).unwrap_or_else(|| dub_core::fit::estimate(&crate::speech_text::visible(&b.text), dub_core::fit::table_cps(lang)));
+        }).unwrap_or_else(|| dub_core::fit::estimate(&crate::speech::text::visible(&b.text), dub_core::fit::table_cps(lang)));
         let start = placer.place(b, take.map(|t| t.fit_lead).unwrap_or(0.0), (secs * RATE as f64) as usize) as f64 / RATE as f64;
         let end = start + secs;
         let overlap = furthest.filter(|(_, prev_end)| *prev_end > start + 1e-3).map(|(id, prev_end)| json!({ "with": id, "secs": round3(prev_end - start) }));
@@ -1368,28 +1370,28 @@ pub fn fix_take(p: &SpeechPaths, pid: &str, id: &str, progress: &dyn Fn(Value)) 
         mark_checked(p, pid, &[id.to_string()], &[])?;
         return Ok(json!({ "mode": "none", "take": old.n, "passed": true }));
     }
-    let lang = crate::prep::block_lang(&b.text, project.lang_of(&b));
+    let lang = crate::text::prep::block_lang(&b.text, project.lang_of(&b));
     let pause = stx::pieces(&b.text).iter().filter_map(|x| if let Piece::Pause(ms) = x { Some(*ms as f64 / 1000.0) } else { None }).fold(0.0, f64::max);
-    let plan = crate::take_fix::plan(&b.text, &lang, &qc, old.duration, pause);
+    let plan = crate::speech::take_fix::plan(&b.text, &lang, &qc, old.duration, pause);
     let n = if plan.whole || plan.edits.is_empty() {
         let made = voice_block(p, pid, id, 1, "patch", progress)?;
         *made.first().ok_or_else(|| t!("speech-fix-no-take"))?
     } else {
         let mut pieces = std::collections::BTreeMap::new();
         for e in &plan.edits {
-            if let crate::take_fix::Edit::Revoice { sentence, .. } = e {
+            if let crate::speech::take_fix::Edit::Revoice { sentence, .. } = e {
                 progress(json!({ "type": "progress", "stage": "speech_fix", "msg": t!("speech-fix-sentence", n = (*sentence + 1) as i64), "pct": 20 }));
                 let mut one = b.clone();
                 one.text = plan.sentences[*sentence].clone();
                 let (samples, _, _) = synth_block(p, pid, &project, &one, old.n)?;
-                pieces.insert(*sentence, crate::tts_trim::trim_edges(&samples, SR).0);
+                pieces.insert(*sentence, crate::audio::trim::trim_edges(&samples, SR).0);
             }
         }
         let tmp = tempfile::Builder::new().prefix("fix-").tempdir().map_err(|e| e.to_string())?;
         let wav = tmp.path().join("take.wav");
-        crate::media::extract_audio(&takes_dir(p, pid).join(&old.file), &wav, SR, 1)?;
-        let (x, sr) = crate::wavio::read_mono_f32(&wav)?;
-        let out = crate::take_fix::splice(&x, sr, &plan.edits, &pieces);
+        crate::audio::media::extract_audio(&takes_dir(p, pid).join(&old.file), &wav, SR, 1)?;
+        let (x, sr) = crate::audio::wavio::read_mono_f32(&wav)?;
+        let out = crate::speech::take_fix::splice(&x, sr, &plan.edits, &pieces);
         crate::speech::edit(&p.workspace, pid, |fresh| -> Result<u32, String> {
             let key = keys(p, fresh).remove(id).unwrap_or_default();
             let block = fresh.block_mut(id).ok_or_else(|| t!("speech-no-block", id = id.to_string()))?;
@@ -1417,7 +1419,7 @@ pub fn fix_take(p: &SpeechPaths, pid: &str, id: &str, progress: &dyn Fn(Value)) 
         })??
     };
     let failed = check_takes(p, pid, &BTreeMap::from([(id.to_string(), vec![n])]), true, progress)?;
-    let rank = |c: &crate::qc::Check| (!c.ok(), c.wer, c.issues.len());
+    let rank = |c: &crate::audio::qc::Check| (!c.ok(), c.wer, c.issues.len());
     let kept = crate::speech::edit(&p.workspace, pid, |fresh| {
         let block = fresh.block_mut(id)?;
         let new = block.takes.iter().find(|t| t.n == n).and_then(|t| t.qc.clone()).unwrap_or_default();
@@ -1430,8 +1432,8 @@ pub fn fix_take(p: &SpeechPaths, pid: &str, id: &str, progress: &dyn Fn(Value)) 
         let still = if kept == Some(n) { failed.clone() } else { vec![id.to_string()] };
         mark_checked(p, pid, &[id.to_string()], &still)?;
         let mode = if plan.whole || plan.edits.is_empty() { "whole" } else { "patch" };
-        let sentences: Vec<usize> = plan.edits.iter().filter_map(|e| if let crate::take_fix::Edit::Revoice { sentence, .. } = e { Some(sentence + 1) } else { None }).collect();
-        let cuts = plan.edits.iter().filter(|e| matches!(e, crate::take_fix::Edit::Cut { .. })).count();
+        let sentences: Vec<usize> = plan.edits.iter().filter_map(|e| if let crate::speech::take_fix::Edit::Revoice { sentence, .. } = e { Some(sentence + 1) } else { None }).collect();
+        let cuts = plan.edits.iter().filter(|e| matches!(e, crate::speech::take_fix::Edit::Cut { .. })).count();
         return Ok(json!({ "mode": mode, "take": n, "active": kept, "passed": failed.is_empty(), "sentences": sentences, "cuts": cuts }));
     }
     Err(t!("speech-no-block", id = id.to_string()))
@@ -1499,7 +1501,7 @@ fn mark_checked(p: &SpeechPaths, pid: &str, checked: &[String], failed: &[String
             } else if qc.similar == Some(false) {
                 t!("speech-qc-unlike", similarity = format!("{:.2}", qc.similarity.unwrap_or(0.0)))
             } else {
-                t!("speech-qc-defects", list = crate::qc::issue_names(&qc.issues))
+                t!("speech-qc-defects", list = crate::audio::qc::issue_names(&qc.issues))
             };
             block.error = Some(sp::BlockError { key, text });
         }
@@ -1531,11 +1533,11 @@ pub fn check_ready(p: &SpeechPaths, pid: &str, ids: Option<&[String]>, progress:
 /// being voiced as written, a `warn` voices it but not all of it as the text says.
 pub fn lint(p: &SpeechPaths, project: &SpeechProject) -> Vec<Value> {
     let entries = dictionary(p, project);
-    let library = crate::voice_library::list(&p.voices_dir).0;
+    let library = crate::voices::list(&p.voices_dir).0;
     let mut out = Vec::new();
     let mut issue = |block: &str, level: &str, kind: &str, detail: Value| out.push(json!({ "block": block, "level": level, "kind": kind, "detail": detail }));
     for b in project.blocks().filter(|b| !b.hidden) {
-        if crate::speech_text::visible(&b.text).trim().is_empty() {
+        if crate::speech::text::visible(&b.text).trim().is_empty() {
             issue(&b.id, "error", "empty", Value::Null);
             continue;
         }
@@ -1547,7 +1549,7 @@ pub fn lint(p: &SpeechPaths, project: &SpeechProject) -> Vec<Value> {
         if let Some(why) = &engine.unavailable {
             issue(&b.id, "error", "engine_unavailable", json!({ "engine": engine.name, "why": why }));
         }
-        let lang = crate::prep::block_lang(&b.text, project.lang_of(b));
+        let lang = crate::text::prep::block_lang(&b.text, project.lang_of(b));
         if !lang.is_empty() && !engine.languages.is_empty() && !engine.languages.contains(&lang.as_str()) {
             issue(&b.id, "error", "language", json!({ "engine": engine.name, "lang": lang }));
         }
@@ -1562,7 +1564,7 @@ pub fn lint(p: &SpeechPaths, project: &SpeechProject) -> Vec<Value> {
             },
             _ => {}
         }
-        for (problem, markup) in crate::speech_text::markup_problems(&b.text) {
+        for (problem, markup) in crate::speech::text::markup_problems(&b.text) {
             issue(&b.id, "warn", "markup", json!({ "problem": problem, "text": markup }));
         }
         if !b.direction.trim().is_empty() && !engine.direction {
@@ -1606,12 +1608,12 @@ pub struct ExportOpts {
     pub stems: bool,
     /// Экспортировать, хотя дубли не влезли в реплику по длительности.
     pub allow_duration: bool,
-    pub quality: crate::media::Quality,
+    pub quality: crate::audio::media::Quality,
 }
 
 /// Склеить проект в файл `exports/<имя>.<формат>`.
 pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(Value)) -> Result<Value, String> {
-    if !crate::media::EXPORT_FORMATS.contains(&opts.format.as_str()) {
+    if !crate::audio::media::EXPORT_FORMATS.contains(&opts.format.as_str()) {
         return Err(t!("media-bad-format", format = opts.format.clone()));
     }
     let project = crate::speech::load(&p.workspace, pid)?;
@@ -1653,8 +1655,8 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         let take = b.active.and_then(|n| b.takes.iter().find(|t| t.n == n)).ok_or_else(|| t!("speech-export-not-ready", count = 1))?;
         let src = takes_dir(p, pid).join(&take.file);
         let wav = work.path().join(format!("{i}.wav"));
-        crate::media::extract_audio(&src, &wav, SR, 1)?;
-        let (samples, _) = crate::wavio::read_mono_f32(&wav)?;
+        crate::audio::media::extract_audio(&src, &wav, SR, 1)?;
+        let (samples, _) = crate::audio::wavio::read_mono_f32(&wav)?;
         let samples = match take.cut {
             Some([a, z]) => {
                 let a = ((a * SR as f64) as usize).min(samples.len());
@@ -1662,15 +1664,15 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
             }
             None => samples,
         };
-        let tidied = project.settings.tidy_pauses.then(|| crate::tts_trim::tidy(&samples, SR));
+        let tidied = project.settings.tidy_pauses.then(|| crate::audio::trim::tidy(&samples, SR));
         let place = |secs: f64| tidied.as_ref().map_or(secs, |t| t.at(secs));
         let samples = match &tidied { Some(t) => t.samples.clone(), None => samples };
         let mut samples = match project.fx_of(b) {
-            Some(fx) => crate::voice_fx::apply(&samples, SR, fx)?,
+            Some(fx) => crate::voices::fx::apply(&samples, SR, fx)?,
             None => samples,
         };
         if project.settings.level_pieces {
-            crate::loudness::level_piece(&mut samples, SR);
+            crate::audio::loudness::level_piece(&mut samples, SR);
         }
         b.mix.apply(&mut samples, SR);
         let at = placer.place(b, take.fit_lead, samples.len());
@@ -1698,11 +1700,11 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
                 chapter_starts.push((*ci, at as f64 / SR as f64));
             }
         }
-        cues.push((at as f64 / SR as f64, (at + samples.len()) as f64 / SR as f64, b.speaker.clone(), crate::speech_text::visible(&b.text)));
+        cues.push((at as f64 / SR as f64, (at + samples.len()) as f64 / SR as f64, b.speaker.clone(), crate::speech::text::visible(&b.text)));
         made.push((at as f64 / SR as f64, recipe_block(b, take)));
         let [from, to] = take.cut.unwrap_or([0.0, f64::INFINITY]);
         let words = take.qc.as_ref().map(|q| q.timed.iter().filter(|(_, a, z)| *a >= from && *z <= to).map(|(w, a, z)| (w.clone(), at as f64 / SR as f64 + place(a - from), at as f64 / SR as f64 + place(z - from))).collect()).unwrap_or_default();
-        timed.push((at as f64 / SR as f64, (at + samples.len()) as f64 / SR as f64, b.speaker.clone(), crate::speech_text::visible(&b.text), words));
+        timed.push((at as f64 / SR as f64, (at + samples.len()) as f64 / SR as f64, b.speaker.clone(), crate::speech::text::visible(&b.text), words));
         if mix.len() < at + samples.len() {
             mix.resize(at + samples.len(), 0.0);
         }
@@ -1747,18 +1749,18 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         prev_audio = Some((at, samples));
     }
     if !project.tracks.is_empty() && opts.chapter.is_none() {
-        crate::tracks::mix_in(&p.workspace, pid, &project, SR, &mut mix, work.path(), opts.stems.then_some(&mut stems))?;
+        crate::speech::tracks::mix_in(&p.workspace, pid, &project, SR, &mut mix, work.path(), opts.stems.then_some(&mut stems))?;
     }
     progress(json!({ "type": "progress", "stage": "speech_export", "msg": t!("speech-export-loudness"), "pct": 92 }));
     let unlevelled = opts.stems.then(|| mix.clone());
     let levelled = match loudness(&project.settings.loudness) {
-        Some((i, tp, _)) => Some(crate::loudness::level(&mut mix, SR, i, peak_for(&opts.format, tp), project.settings.loudness != "acx")?),
+        Some((i, tp, _)) => Some(crate::audio::loudness::level(&mut mix, SR, i, peak_for(&opts.format, tp), project.settings.loudness != "acx")?),
         None => None,
     };
     let acx = project.settings.loudness == "acx";
     if acx {
         let head = 0.8;
-        crate::acx::room_tone(&mut mix, SR, head, 2.0);
+        crate::speech::acx::room_tone(&mut mix, SR, head, 2.0);
         chapter_starts.iter_mut().for_each(|c| c.1 += head);
         cues.iter_mut().for_each(|c| {
             c.0 += head;
@@ -1774,9 +1776,9 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
             });
         });
     } else if project.settings.room_tone {
-        crate::acx::room_tone(&mut mix, SR, 0.0, 0.0);
+        crate::speech::acx::room_tone(&mut mix, SR, 0.0, 0.0);
     }
-    let acx_report = if acx { Some(crate::acx::report(&mix, SR)?) } else { None };
+    let acx_report = if acx { Some(crate::speech::acx::report(&mix, SR)?) } else { None };
     if let Some(before) = &unlevelled {
         let after = &mix[if acx { (0.8 * SR as f64) as usize } else { 0 }..];
         let head = mix.len() - after.len();
@@ -1839,10 +1841,10 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         let from = (a * SR as f64) as usize;
         let to = ((z * SR as f64) as usize).min(mix.len());
         let joined = work.path().join(format!("part-{k}.wav"));
-        crate::wavio::write_mono_f32(&joined, &mix[from..to], SR)?;
+        crate::audio::wavio::write_mono_f32(&joined, &mix[from..to], SR)?;
         let file = format!("{name}.{}", opts.format);
         let target = exports.join(&file);
-        let meta = crate::media::AudioMeta {
+        let meta = crate::audio::media::AudioMeta {
             title: match &chapter_title {
                 Some(title) => title.clone(),
                 None if bounds.len() > 1 => format!("{} ({})", project.name, t!("speech-part-n", n = (k + 1) as i64)),
@@ -1874,11 +1876,11 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
                 .map_err(|e| e.to_string())?;
                 std::fs::write(&target, bytes).map_err(|e| format!("{}: {e}", target.display()))?;
             }
-            _ => crate::media::encode_audio_meta(&joined, &target, &opts.format, acx, &meta, &opts.quality)?,
+            _ => crate::audio::media::encode_audio_meta(&joined, &target, &opts.format, acx, &meta, &opts.quality)?,
         }
-        if crate::tagging::taggable(&target) {
+        if crate::audio::tagging::taggable(&target) {
             let cover = meta.cover.as_ref().and_then(|c| std::fs::read(c).ok().map(|bytes| (if c.extension().is_some_and(|e| e.eq_ignore_ascii_case("png")) { "image/png" } else { "image/jpeg" }.to_string(), bytes)));
-            let tags = crate::tagging::TrackTags {
+            let tags = crate::audio::tagging::TrackTags {
                 title: meta.title.clone(),
                 album: if meta.album.is_empty() { "Speech Studio".into() } else { meta.album.clone() },
                 // as the studios name the engine the performer when nobody else is
@@ -1889,7 +1891,7 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
                 cover,
             };
             // as in the studios a tag never loses the file: the problem is logged and named in the answer
-            if let Err(e) = crate::tagging::write_tags(&target, &tags).and_then(|()| crate::tagging::write_chapters(&target, &part_chapters)) {
+            if let Err(e) = crate::audio::tagging::write_tags(&target, &tags).and_then(|()| crate::audio::tagging::write_chapters(&target, &part_chapters)) {
                 tracing::error!("[ERROR] could not tag {}: {e:#}", target.display());
                 tag_problems.push(format!("{file}: {e:#}"));
             }
@@ -1901,10 +1903,10 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         }
         let subtitles = format!("{name}.srt");
         std::fs::write(exports.join(&subtitles), srt(&part_cues)).map_err(|e| format!("{subtitles}: {e}"))?;
-        let rows: Vec<crate::transcript_out::Row> = part_cues.iter().map(|(a, z, who, text)| crate::transcript_out::Row { start: *a, end: *z, speaker: who.clone(), text: text.clone(), words: Vec::new() }).collect();
+        let rows: Vec<crate::listening::subtitles::Row> = part_cues.iter().map(|(a, z, who, text)| crate::listening::subtitles::Row { start: *a, end: *z, speaker: who.clone(), text: text.clone(), words: Vec::new() }).collect();
         let mut subtitle_files = vec![subtitles.clone()];
         for format in ["vtt", "ass"] {
-            let text = crate::transcript_out::render_rows(&rows, format, &crate::transcript_out::Opts { speakers: true, times: true, rules: None, digits: false }).unwrap_or_default();
+            let text = crate::listening::subtitles::render_rows(&rows, format, &crate::listening::subtitles::Opts { speakers: true, times: true, rules: None, digits: false }).unwrap_or_default();
             let file = format!("{name}.{format}");
             std::fs::write(exports.join(&file), text).map_err(|e| format!("{file}: {e}"))?;
             subtitle_files.push(file);
@@ -1930,7 +1932,7 @@ pub fn export(p: &SpeechPaths, pid: &str, opts: &ExportOpts, progress: &dyn Fn(V
         let body = json!({ "file": file, "blocks": timed_blocks });
         std::fs::write(exports.join(&timings), serde_json::to_vec_pretty(&body).map_err(|e| e.to_string())?).map_err(|e| format!("{timings}: {e}"))?;
         let player = format!("{name}.player.html");
-        std::fs::write(exports.join(&player), crate::read_along::player_html(&project.name, &file, &timed_blocks)).map_err(|e| format!("{player}: {e}"))?;
+        std::fs::write(exports.join(&player), crate::speech::read_along::player_html(&project.name, &file, &timed_blocks)).map_err(|e| format!("{player}: {e}"))?;
         outputs.push(json!({ "file": file, "table": table, "subtitles": subtitles, "subtitle_files": subtitle_files, "timings": timings, "player": player, "recipe": recipe, "chapters": chapter_list, "path": target.to_string_lossy(), "duration": z - a }));
     }
     let stems_zip = if opts.stems && !stems.is_empty() {
@@ -2005,19 +2007,19 @@ fn export_clips(p: &SpeechPaths, pid: &str, project: &SpeechProject, blocks: &[&
         progress(json!({ "type": "progress", "stage": "speech_export", "msg": t!("speech-export-block", n = (i + 1) as i64, total = blocks.len() as i64), "pct": (i * 100 / blocks.len()) as i64 }));
         let take = b.active.and_then(|n| b.takes.iter().find(|t| t.n == n)).ok_or_else(|| t!("speech-export-not-ready", count = 1))?;
         let wav = work.join(format!("{i}.wav"));
-        crate::media::extract_audio(&takes_dir(p, pid).join(&take.file), &wav, SR, 1)?;
-        let (samples, _) = crate::wavio::read_mono_f32(&wav)?;
-        let samples = if project.settings.tidy_pauses { crate::tts_trim::tidy(&samples, SR).samples } else { samples };
+        crate::audio::media::extract_audio(&takes_dir(p, pid).join(&take.file), &wav, SR, 1)?;
+        let (samples, _) = crate::audio::wavio::read_mono_f32(&wav)?;
+        let samples = if project.settings.tidy_pauses { crate::audio::trim::tidy(&samples, SR).samples } else { samples };
         let mut samples = match project.fx_of(b) {
-            Some(fx) => crate::voice_fx::apply(&samples, SR, fx)?,
+            Some(fx) => crate::voices::fx::apply(&samples, SR, fx)?,
             None => samples,
         };
         b.mix.apply(&mut samples, SR);
         if let Some((target, tp, _)) = loudness(&project.settings.loudness) {
-            crate::loudness::level(&mut samples, SR, target, peak_for(&opts.format, tp), project.settings.loudness != "acx")?;
+            crate::audio::loudness::level(&mut samples, SR, target, peak_for(&opts.format, tp), project.settings.loudness != "acx")?;
         }
-        crate::wavio::write_mono_f32(&wav, &samples, SR)?;
-        let label = if b.note.trim().is_empty() { crate::speech_text::visible(&b.text).chars().take(40).collect::<String>() } else { b.note.trim_end_matches(".txt").to_string() };
+        crate::audio::wavio::write_mono_f32(&wav, &samples, SR)?;
+        let label = if b.note.trim().is_empty() { crate::speech::text::visible(&b.text).chars().take(40).collect::<String>() } else { b.note.trim_end_matches(".txt").to_string() };
         let stem = if project.settings.clip_name.is_empty() {
             format!("{:03} {}", i + 1, file_stem(&label, None))
         } else {
@@ -2028,8 +2030,8 @@ fn export_clips(p: &SpeechPaths, pid: &str, project: &SpeechProject, blocks: &[&
             return Err(t!("speech-name-template-same", template = project.settings.clip_name.clone(), count = blocks.len() as i64));
         }
         let name = format!("{stem}.{}", opts.format);
-        let meta = crate::media::AudioMeta { title: crate::speech_text::visible(&b.text), artist: project.voice_of(b).unwrap_or_default(), album: project.name.clone(), ..Default::default() };
-        crate::media::encode_audio_meta(&wav, &folder.join(&name), &opts.format, project.settings.loudness == "acx", &meta, &opts.quality)?;
+        let meta = crate::audio::media::AudioMeta { title: crate::speech::text::visible(&b.text), artist: project.voice_of(b).unwrap_or_default(), album: project.name.clone(), ..Default::default() };
+        crate::audio::media::encode_audio_meta(&wav, &folder.join(&name), &opts.format, project.settings.loudness == "acx", &meta, &opts.quality)?;
         let mut how = recipe_block(b, take);
         how["file"] = json!(name);
         made.push(how);

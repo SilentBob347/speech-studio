@@ -14,14 +14,14 @@ impl Kind {
     fn save(self, ws: &Path, pid: &str, name: &str, valid: bool) -> Result<(), String> {
         match self {
             Self::Speech => {
-                let mut p = crate::speech_project::from_text(name, "Текст.", "Анна");
+                let mut p = crate::speech::from_text(name, "Текст.", "Анна");
                 if !valid {
                     p.settings.params.temperature = 9.0;
                 }
                 crate::speech::save(ws, pid, &p)
             }
             Self::Listening => {
-                let mut p = crate::listen_project::ListenProject::new(name, "source.wav", "recording");
+                let mut p = crate::listening::ListenProject::new(name, "source.wav", "recording");
                 if !valid {
                     p.source = "../outside.wav".into();
                 }
@@ -247,7 +247,7 @@ fn readers_keep_path_details_for_io_encoding_and_field_type_errors() {
 fn speech_edits_still_serialize_read_modify_write_and_return_the_change_result() {
     let root = tempfile::tempdir().unwrap();
     let id = pid();
-    let project = crate::speech_project::SpeechProject {
+    let project = crate::speech::SpeechProject {
         created: 100,
         ..Default::default()
     };

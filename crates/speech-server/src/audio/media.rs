@@ -171,9 +171,9 @@ fn run_ff(args: &[&std::ffi::OsStr]) -> Result<(), String> {
 pub fn filter_samples(samples: &[f32], sr: u32, af: &str) -> Result<Vec<f32>, String> {
     let tmp = tempfile::Builder::new().prefix("fx-").tempdir().map_err(|e| e.to_string())?;
     let (src, dst) = (tmp.path().join("in.wav"), tmp.path().join("out.wav"));
-    crate::wavio::write_mono_f32(&src, samples, sr)?;
+    crate::audio::wavio::write_mono_f32(&src, samples, sr)?;
     run_ff(&[OsStr::new("-y"), OsStr::new("-i"), src.as_os_str(), OsStr::new("-af"), OsStr::new(af), OsStr::new("-ar"), OsStr::new(&sr.to_string()), OsStr::new("-ac"), OsStr::new("1"), OsStr::new("-c:a"), OsStr::new("pcm_f32le"), dst.as_os_str()])?;
-    Ok(crate::wavio::read_mono_f32(&dst)?.0)
+    Ok(crate::audio::wavio::read_mono_f32(&dst)?.0)
 }
 
 /// run_ff с ЖЁСТКИМ таймаутом — для дорогих графов (mix_env volume:eval=frame на длинном файле мог
@@ -1031,7 +1031,7 @@ mod lossless_tests {
             assert!((got - container).abs() <= frame, "{}: {got} против {container}", w.display());
         }
         // Дыра стоит на своём месте: 1.0–1.5 с тишина, звук после неё начинается с 1.5 с.
-        let (s, sr) = crate::wavio::read_mono_f32(&v16).unwrap();
+        let (s, sr) = crate::audio::wavio::read_mono_f32(&v16).unwrap();
         let at = |t: f64| (t * sr as f64) as usize;
         assert!(rms_of(&s[at(1.1)..at(1.4)]) < 1e-3);
         assert!(rms_of(&s[at(1.6)..at(1.9)]) > 0.05);

@@ -3,7 +3,8 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::speech_project::{self as sp, SpeechProject, Track, TrackClip};
+use crate::speech::project as sp;
+use crate::speech::project::{SpeechProject, Track, TrackClip};
 
 /// What a track takes from a folder: its sound files, by name.
 const AUDIO: [&str; 10] = ["wav", "mp3", "flac", "ogg", "opus", "m4a", "aac", "wma", "aif", "aiff"];
@@ -54,7 +55,7 @@ pub fn clips_of(workspace: &Path, pid: &str, files: &[PathBuf], at: f64) -> Resu
     let mut clips = Vec::new();
     let mut cursor = at.max(0.0);
     for src in files {
-        let duration = crate::media::duration(src)?;
+        let duration = crate::audio::media::duration(src)?;
         let name = free_name(&dir, &src.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default());
         std::fs::copy(src, dir.join(&name)).map_err(|e| format!("{}: {e}", src.display()))?;
         let label = src.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| name.clone());
@@ -92,8 +93,8 @@ pub fn mix_in(workspace: &Path, pid: &str, project: &SpeechProject, sr: u32, mix
         let gain = 10f32.powf(track.gain_db as f32 / 20.0);
         for (c, clip) in track.clips.iter().enumerate() {
             let wav = work.join(format!("track-{t}-{c}.wav"));
-            crate::media::extract_audio(&dir.join(&clip.file), &wav, sr, 1)?;
-            let (samples, _) = crate::wavio::read_mono_f32(&wav)?;
+            crate::audio::media::extract_audio(&dir.join(&clip.file), &wav, sr, 1)?;
+            let (samples, _) = crate::audio::wavio::read_mono_f32(&wav)?;
             let [a, z] = clip.kept();
             let from = ((a * sr as f64) as usize).min(samples.len());
             let to = ((z * sr as f64) as usize).clamp(from, samples.len());

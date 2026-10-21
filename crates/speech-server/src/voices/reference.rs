@@ -26,13 +26,13 @@ pub(crate) fn prepare_reference(voices: &Path, name: &str, limit: f64, take: u32
     if wav.is_file() {
         return Ok((wav, std::fs::read_to_string(&txt).ok().filter(|t| !t.trim().is_empty())));
     }
-    let duration = crate::media::duration(&audio)?;
+    let duration = crate::audio::media::duration(&audio)?;
     let (start, end, text) = if duration <= limit + 0.5 {
         (0.0, duration, lib.transcript.clone())
     } else if let Some(words) = words {
         let tmp = cache.join(format!("{tag}-16k.wav"));
-        crate::media::to_16k_mono(&audio, &tmp)?;
-        let (samples, sr) = crate::wavio::read_mono_f32(&tmp)?;
+        crate::audio::media::to_16k_mono(&audio, &tmp)?;
+        let (samples, sr) = crate::audio::wavio::read_mono_f32(&tmp)?;
         let _ = std::fs::remove_file(&tmp);
         let pieces = ref_pick::candidates(
             &words,
@@ -49,7 +49,7 @@ pub(crate) fn prepare_reference(voices: &Path, name: &str, limit: f64, take: u32
     } else {
         (0.0, limit, None)
     };
-    crate::media::trim_ref(&audio, &wav, start, end)?;
+    crate::audio::media::trim_ref(&audio, &wav, start, end)?;
     std::fs::write(&txt, text.as_deref().unwrap_or("")).map_err(|e| format!("{}: {e}", txt.display()))?;
     Ok((wav, text.filter(|t| !t.trim().is_empty())))
 }

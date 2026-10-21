@@ -2,8 +2,8 @@
 //! other gender is never offered, then the age and the project's language weigh; each voice goes to one character, and
 //! the voices the project already speaks with are left out.
 
-use crate::speech_project::{Character, SpeechProject};
-use crate::voice_library::Voice;
+use crate::speech::project::{Character, SpeechProject};
+use crate::voices::Voice;
 
 const AGE_ORDER: [&str; 4] = ["child", "teen", "adult", "senior"];
 
@@ -48,7 +48,7 @@ pub fn propose(project: &SpeechProject, library: &[Voice], narrator: &str) -> Ve
         }
     }
     let text = project.blocks().map(|b| b.text.as_str()).collect::<Vec<_>>().join(" ");
-    let lang = if project.settings.lang == "auto" && crate::stress::is_russian(&text, "auto") { "ru" } else { project.settings.lang.as_str() };
+    let lang = if project.settings.lang == "auto" && crate::engines::stress::is_russian(&text, "auto") { "ru" } else { project.settings.lang.as_str() };
     let unknown = Character::default();
     speakers
         .into_iter()
@@ -74,8 +74,9 @@ pub fn propose(project: &SpeechProject, library: &[Voice], narrator: &str) -> Ve
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::speech_project::{Block, Chapter};
-    use crate::voice_library::VoiceCard;
+    use crate::speech::project::Block;
+    use crate::speech::project::Chapter;
+    use crate::voices::VoiceCard;
 
     fn voice(name: &str, gender: &str, age: &str, lang: &str) -> Voice {
         Voice { name: name.into(), audio: String::new(), size: 0, transcript: None, photo: None, original: false, card: VoiceCard { gender: gender.into(), age: age.into(), lang: lang.into(), ..Default::default() } }

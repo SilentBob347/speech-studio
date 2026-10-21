@@ -55,7 +55,7 @@ fn timed_voice(rotate: bool) -> (tempfile::TempDir, Vec<f32>) {
             *sample *= 0.0001;
         }
     }
-    crate::wavio::write_mono_f32(&dir.path().join(format!("{NAME}.wav")), &samples, 16_000).unwrap();
+    crate::audio::wavio::write_mono_f32(&dir.path().join(format!("{NAME}.wav")), &samples, 16_000).unwrap();
     library::write_words(dir.path(), NAME, &words).unwrap();
     library::write_transcript(dir.path(), NAME, "The full transcript must not be used for a fragment.").unwrap();
     library::write_card(
@@ -88,7 +88,7 @@ fn assert_format(path: &Path, sr: u32, seconds: f64) {
 
 fn assert_excerpt(path: &Path, source: &[f32], sr: u32, start: f64, end: f64) {
     assert_format(path, sr, end - start);
-    let (actual, _) = crate::wavio::read_mono_f32(path).unwrap();
+    let (actual, _) = crate::audio::wavio::read_mono_f32(path).unwrap();
     let offset = (start * sr as f64).round() as usize;
     let edge = sr as usize / 20;
     // The 15 ms fades intentionally change the edges of the reference.

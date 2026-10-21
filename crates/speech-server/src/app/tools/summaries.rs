@@ -109,7 +109,7 @@ pub(super) fn redact(value: Value) -> Value {
                     "proxy_url" => {
                         let shown = value
                             .as_str()
-                            .map(|url| Value::String(crate::models::split_proxy_password(url).0))
+                            .map(|url| Value::String(crate::engines::models::split_proxy_password(url).0))
                             .unwrap_or(value);
                         clean.insert(key, shown);
                     }

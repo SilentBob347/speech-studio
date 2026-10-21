@@ -5,8 +5,8 @@ use std::path::Path;
 
 use serde_json::json;
 
-use crate::localize::Localize;
-use crate::ref_pick::Word;
+use crate::app::localize::Localize;
+use crate::voices::ref_pick::Word;
 
 pub struct Heard {
     pub text: String,
@@ -29,7 +29,7 @@ pub fn transcribe_many(
             .push((file, what.as_str()));
     }
     let work = tempfile::Builder::new().prefix("asr-many-").tempdir().map_err(|e| e.to_string())?;
-    std::env::set_var("DUB_ASR_BACKEND", crate::models::stage_backend(models_root, "asr_backend"));
+    std::env::set_var("DUB_ASR_BACKEND", crate::engines::models::stage_backend(models_root, "asr_backend"));
     let mut out = std::collections::HashMap::new();
     for (lang, group) in by_lang {
         let choice = match choice(repo_root, models_root, lang, group[0].1) {
@@ -45,7 +45,7 @@ pub fn transcribe_many(
         let mut ready = Vec::new();
         for (k, (file, _)) in group.iter().enumerate() {
             let wav = work.path().join(format!("{lang}-{k}.wav"));
-            match crate::media::to_16k_mono(file, &wav) {
+            match crate::audio::media::to_16k_mono(file, &wav) {
                 Ok(()) => {
                     wavs.push(wav);
                     ready.push(*file);
@@ -86,15 +86,15 @@ pub fn transcribe(repo_root: &Path, models_root: &Path, audio: &Path, lang: &str
 }
 
 /// The recogniser for `lang`: the one chosen in the settings, Whisper for a language it does not know.
-pub fn choice(repo_root: &Path, models_root: &Path, lang: &str, what: &str) -> Result<crate::models::AsrChoice, String> {
+pub fn choice(repo_root: &Path, models_root: &Path, lang: &str, what: &str) -> Result<crate::engines::models::AsrChoice, String> {
     choice_of(repo_root, models_root, lang, what, "")
 }
 
 /// The recogniser for `lang` with `engine` (parakeet, nemotron, whisper) in place of the settings' one; empty
 /// keeps it. A recogniser that was asked for but is not downloaded, or does not know the language, is an error, not
 /// another recogniser; only Parakeet, the default, gives way to Whisper for a language it lacks.
-pub fn choice_of(repo_root: &Path, models_root: &Path, lang: &str, what: &str, engine: &str) -> Result<crate::models::AsrChoice, String> {
-    let mut sel = crate::models::load_selection(models_root);
+pub fn choice_of(repo_root: &Path, models_root: &Path, lang: &str, what: &str, engine: &str) -> Result<crate::engines::models::AsrChoice, String> {
+    let mut sel = crate::engines::models::load_selection(models_root);
     if !engine.is_empty() {
         if let Some(obj) = sel.as_object_mut() {
             obj.insert("asr_engine".into(), json!(engine));
@@ -105,30 +105,30 @@ pub fn choice_of(repo_root: &Path, models_root: &Path, lang: &str, what: &str, e
         .and_then(serde_json::Value::as_str)
         .unwrap_or_default()
         .to_string();
-    let choice = crate::models::resolve_asr_choice(repo_root, models_root, &sel);
-    if asked == "whisper" && !matches!(choice, crate::models::AsrChoice::Whisper { .. }) {
+    let choice = crate::engines::models::resolve_asr_choice(repo_root, models_root, &sel);
+    if asked == "whisper" && !matches!(choice, crate::engines::models::AsrChoice::Whisper { .. }) {
         return Err(t!("listen-whisper-missing"));
     }
     let lang = if lang.is_empty() || lang == "auto" { "" } else { lang };
     if !choice.knows(lang) {
         if !matches!(asked.as_str(), "" | "parakeet") {
             let name = match &choice {
-                crate::models::AsrChoice::Ggml { model, .. } => model.name,
-                crate::models::AsrChoice::Whisper { .. } => "Whisper",
+                crate::engines::models::AsrChoice::Ggml { model, .. } => model.name,
+                crate::engines::models::AsrChoice::Whisper { .. } => "Whisper",
             };
             return Err(t!("listen-gguf-lang", engine = name, lang = lang.to_string()));
         }
         if let Some(obj) = sel.as_object_mut() {
             obj.insert("asr_engine".into(), json!("whisper"));
         }
-        let whisper = crate::models::resolve_asr_choice(repo_root, models_root, &sel);
-        if !matches!(whisper, crate::models::AsrChoice::Whisper { .. }) {
+        let whisper = crate::engines::models::resolve_asr_choice(repo_root, models_root, &sel);
+        if !matches!(whisper, crate::engines::models::AsrChoice::Whisper { .. }) {
             return Err(t!("voice-lang-needs-whisper", name = what.to_string(), lang = lang.to_string()));
         }
         return Ok(whisper);
     }
-    if let crate::models::AsrChoice::Ggml { build, model, .. } = &choice {
-        if !crate::tcpp_asr::installed(models_root, *build, model) {
+    if let crate::engines::models::AsrChoice::Ggml { build, model, .. } = &choice {
+        if !crate::engines::tcpp_asr::installed(models_root, *build, model) {
             return Err(t!("listen-gguf-missing", engine = model.name));
         }
     }
@@ -138,13 +138,13 @@ pub fn choice_of(repo_root: &Path, models_root: &Path, lang: &str, what: &str, e
 /// What the recogniser `engine` (parakeet, nemotron, whisper; empty: the settings' one) needs and this computer does
 /// not have yet: its model and its engine, with their CUDA libraries when recognition runs on the card.
 pub fn missing_parts(repo_root: &Path, models_root: &Path, engine: &str) -> Vec<String> {
-    let mut sel = crate::models::load_selection(models_root);
+    let mut sel = crate::engines::models::load_selection(models_root);
     if !engine.is_empty() {
         if let Some(obj) = sel.as_object_mut() {
             obj.insert("asr_engine".into(), json!(engine));
         }
     }
-    let gpu = crate::models::stage_backend(models_root, "asr_backend") == "gpu";
+    let gpu = crate::engines::models::stage_backend(models_root, "asr_backend") == "gpu";
     let mut ids: Vec<String> = Vec::new();
     if sel.get("asr_engine").and_then(serde_json::Value::as_str) == Some("whisper") {
         let model = sel
@@ -155,9 +155,9 @@ pub fn missing_parts(repo_root: &Path, models_root: &Path, engine: &str) -> Vec<
         if gpu {
             ids.push("whisper-cuda".to_string());
         }
-    } else if let crate::models::AsrChoice::Ggml { build, model, .. } = crate::models::resolve_asr_choice(repo_root, models_root, &sel) {
+    } else if let crate::engines::models::AsrChoice::Ggml { build, model, .. } = crate::engines::models::resolve_asr_choice(repo_root, models_root, &sel) {
         ids.extend([build.dir().to_string(), model.component.to_string()]);
-        if matches!(build, crate::tcpp_asr::Build::Cuda) {
+        if matches!(build, crate::engines::tcpp_asr::Build::Cuda) {
             ids.push("cuda-runtime".to_string());
         }
     }
@@ -182,25 +182,25 @@ pub fn ensure(repo_root: &Path, models_root: &Path, engine: &str, progress: &cra
 /// and knows the language: a second opinion on a take its sound made suspect (Game Dub's checks heard a repeat one of
 /// them missed). `None` when there is no such model.
 pub fn second_opinion(repo_root: &Path, models_root: &Path, audio: &Path, lang: &str) -> Result<Option<Heard>, String> {
-    let mut sel = crate::models::load_selection(models_root);
-    let first = crate::models::resolve_asr_choice(repo_root, models_root, &sel);
+    let mut sel = crate::engines::models::load_selection(models_root);
+    let first = crate::engines::models::resolve_asr_choice(repo_root, models_root, &sel);
     let lang = if lang.is_empty() || lang == "auto" { "" } else { lang };
-    let first_whisper = matches!(first, crate::models::AsrChoice::Whisper { .. });
+    let first_whisper = matches!(first, crate::engines::models::AsrChoice::Whisper { .. });
     if let Some(obj) = sel.as_object_mut() {
         obj.insert("asr_engine".into(), json!(if first_whisper { "parakeet" } else { "whisper" }));
     }
-    let second = crate::models::resolve_asr_choice(repo_root, models_root, &sel);
-    if matches!(second, crate::models::AsrChoice::Whisper { .. }) == first_whisper || !second.knows(lang) {
+    let second = crate::engines::models::resolve_asr_choice(repo_root, models_root, &sel);
+    if matches!(second, crate::engines::models::AsrChoice::Whisper { .. }) == first_whisper || !second.knows(lang) {
         return Ok(None);
     }
     run(&second, models_root, audio, lang).map(Some)
 }
 
-fn run(choice: &crate::models::AsrChoice, models_root: &Path, audio: &Path, lang: &str) -> Result<Heard, String> {
+fn run(choice: &crate::engines::models::AsrChoice, models_root: &Path, audio: &Path, lang: &str) -> Result<Heard, String> {
     let work = tempfile::Builder::new().prefix("asr-").tempdir().map_err(|e| e.to_string())?;
     let wav = work.path().join("in-16k.wav");
-    crate::media::to_16k_mono(audio, &wav)?;
-    std::env::set_var("DUB_ASR_BACKEND", crate::models::stage_backend(models_root, "asr_backend"));
+    crate::audio::media::to_16k_mono(audio, &wav)?;
+    std::env::set_var("DUB_ASR_BACKEND", crate::engines::models::stage_backend(models_root, "asr_backend"));
     let mut asr = crate::engines::asr::build_engine(choice, None);
     let segments = asr
         .transcribe(&wav, if lang.is_empty() { "auto" } else { lang })

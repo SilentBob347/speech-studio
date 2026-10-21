@@ -5,7 +5,7 @@ use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde_json::{json, Value};
 
-use crate::app::tools::{
+use crate::app::agent::{
     annotations, app_version, cut, guides, name_agent, resource, run_for_agent, seen, tools, Answer, LANGUAGES_URI, LIMIT, SKILL, SKILL_URI,
 };
 
@@ -164,8 +164,8 @@ fn tool_title(name: &str) -> String {
 }
 
 pub async fn handle(headers: HeaderMap, body: axum::body::Bytes) -> Response {
-    if !crate::guard::local_origin(&headers) {
-        return crate::guard::foreign_origin();
+    if !crate::app::local_origin(&headers) {
+        return crate::app::foreign_origin();
     }
     let Ok(message) = serde_json::from_slice::<Value>(&body) else {
         return rpc_failure(StatusCode::BAD_REQUEST, Value::Null, -32700, "Parse error".into(), None);
@@ -313,19 +313,19 @@ mod tests {
         let listed = request("tools/list", json!({})).await;
         let list = listed["result"]["tools"].as_array().unwrap();
         assert_eq!(list.len(), tools().len());
-        for chat in crate::app::tools::chat_tools() {
+        for chat in crate::app::agent::chat_tools() {
             let tool = list.iter().find(|tool| tool["name"] == chat["function"]["name"]).unwrap();
             assert_eq!(tool["inputSchema"], chat["function"]["parameters"]);
             assert_eq!(tool["description"], chat["function"]["description"]);
         }
         let args = json!({"topic":"tags"});
         let called = request("tools/call", json!({"name":"studio_guide","arguments":args})).await;
-        let chat = crate::app::tools::chat_call("studio_guide", &args).await.unwrap();
+        let chat = crate::app::agent::chat_call("studio_guide", &args).await.unwrap();
         assert_eq!(called["id"], 7);
         assert_eq!(called["result"]["isError"], false);
         assert_eq!(called["result"]["content"][0]["text"], chat.text);
         assert!(called["result"]["_meta"]["io.modelcontextprotocol/serverInfo"].is_object());
-        assert!(crate::app::tools::chat_call("assistant_chat", &json!({})).await.is_err());
+        assert!(crate::app::agent::chat_call("assistant_chat", &json!({})).await.is_err());
         let failed = request("tools/call", json!({"name":"studio_guide","arguments":{"topic":"missing"}})).await;
         assert_eq!(failed["result"]["isError"], true);
     }

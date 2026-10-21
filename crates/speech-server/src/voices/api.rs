@@ -10,8 +10,8 @@ use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde_json::{json, Value};
 
-use crate::voice_jobs::{self, VoicePaths};
-use crate::voice_library as lib;
+use crate::voices::{jobs as voice_jobs, library as lib};
+use crate::voices::jobs::VoicePaths;
 use crate::{jobs, AppState};
 
 fn refuse(status: StatusCode, code: &str, detail: impl Into<String>) -> Response {
@@ -75,7 +75,7 @@ pub async fn sample(
     let original = q.get("original").is_some_and(|v| v == "1");
     let path = if original { lib::original_path(&st.voices_dir, &name) } else { lib::audio_path(&st.voices_dir, &name) };
     match path {
-        Some(p) => crate::serve_file_range(&p, req, None).await,
+        Some(p) => crate::app::serve_file_range(&p, req, None).await,
         None => missing(&name),
     }
 }
@@ -95,7 +95,7 @@ pub async fn design(State(st): State<AppState>, Json(body): Json<Value>) -> Resp
     });
     match st.jobs.enqueue(jobs::JobMeta::new(jobs::JobKind::VoiceDesign, Some("voice:design")), job).await {
         Ok(job_id) => Json(json!({ "job_id": job_id })).into_response(),
-        Err(e) => crate::enqueue_error(e),
+        Err(e) => crate::app::enqueue_error(e),
     }
 }
 
@@ -110,7 +110,7 @@ pub async fn design_sample(
     match (id.chars().all(|c| c.is_ascii_hexdigit()) && !id.is_empty(), k) {
         (true, Some(k)) => {
             let file = voice_jobs::design_dir(&st.voices_dir, id).join(format!("{k}.wav"));
-            if file.is_file() { crate::serve_file_range(&file, req, None).await } else { refuse(StatusCode::NOT_FOUND, "design_gone", t!("voice-design-gone")) }
+            if file.is_file() { crate::app::serve_file_range(&file, req, None).await } else { refuse(StatusCode::NOT_FOUND, "design_gone", t!("voice-design-gone")) }
         }
         _ => refuse(StatusCode::NOT_FOUND, "design_gone", t!("voice-design-gone")),
     }
@@ -126,7 +126,7 @@ pub async fn design_keep(State(st): State<AppState>, Json(body): Json<Value>) ->
     let name = if name.trim().is_empty() { t!("voice-design-name") } else { name };
     match joined(tokio::task::spawn_blocking(move || voice_jobs::design_keep(&p, &id, k, &name, &description, &sample, if lang.is_empty() { "auto" } else { &lang }).and_then(|made| lib::get(&dir, &made))).await) {
         Ok(Ok(v)) => {
-            crate::app::events::publish(json!({ "changed": "voices" }));
+            crate::app::publish(json!({ "changed": "voices" }));
             Json(json!({ "voice": v })).into_response()
         }
         Ok(Err(e)) => bad(e),
@@ -142,7 +142,7 @@ pub async fn photo(
 ) -> Response {
     let name = lib::sanitize(q.get("name").map(String::as_str).unwrap_or(""));
     match lib::photo_path(&st.voices_dir, &name) {
-        Some(p) => crate::serve_file_range(&p, req, None).await,
+        Some(p) => crate::app::serve_file_range(&p, req, None).await,
         None => refuse(StatusCode::NOT_FOUND, "no_photo", name),
     }
 }
@@ -171,7 +171,7 @@ pub async fn set_photo(State(st): State<AppState>, mut multipart: Multipart) -> 
     let n = name.clone();
     match joined(tokio::task::spawn_blocking(move || lib::set_photo(&dir, &n, &bytes, &ext).and_then(|_| lib::get(&dir, &n))).await) {
         Ok(Ok(v)) => {
-            crate::app::events::publish(json!({ "changed": "voices" }));
+            crate::app::publish(json!({ "changed": "voices" }));
             Json(json!({ "voice": v })).into_response()
         }
         Ok(Err(e)) => bad(e),
@@ -221,8 +221,7 @@ pub async fn set_transcript(State(st): State<AppState>, Json(body): Json<Value>)
     }
 }
 
-pub(crate) async fn enqueue(st: &AppState, kind: jobs::JobKind, name: String, then_transcribe: bool) -> Response {
-    let p = paths(st);
+pub(crate) async fn enqueue(p: VoicePaths, queue: &jobs::JobQueue, kind: jobs::JobKind, name: String, then_transcribe: bool) -> Response {
     if lib::audio_path(&p.voices_dir, &name).is_none() {
         return missing(&name);
     }
@@ -238,23 +237,23 @@ pub(crate) async fn enqueue(st: &AppState, kind: jobs::JobKind, name: String, th
             }),
             _ => voice_jobs::transcribe(&p, &name, &cb),
         };
-        crate::app::events::publish(json!({ "changed": "voices" }));
+        crate::app::publish(json!({ "changed": "voices" }));
         res
     });
-    match st.jobs.enqueue(jobs::JobMeta::new(kind, Some(&key)), job).await {
+    match queue.enqueue(jobs::JobMeta::new(kind, Some(&key)), job).await {
         Ok(job_id) => Json(json!({ "job_id": job_id })).into_response(),
-        Err(e) => crate::enqueue_error(e),
+        Err(e) => crate::app::enqueue_error(e),
     }
 }
 
 /// POST /voices/transcribe {name} — распознать транскрипт рефа задачей.
 pub async fn transcribe(State(st): State<AppState>, Json(body): Json<Value>) -> Response {
-    enqueue(&st, jobs::JobKind::VoiceTranscript, body_name(&body, "name"), false).await
+    enqueue(paths(&st), &st.jobs, jobs::JobKind::VoiceTranscript, body_name(&body, "name"), false).await
 }
 
 /// POST /voices/clean {name} — очистить голос от музыки и шума задачей. Нет Roformer — 409 clean_missing.
 pub async fn clean(State(st): State<AppState>, Json(body): Json<Value>) -> Response {
-    enqueue(&st, jobs::JobKind::VoiceClean, body_name(&body, "name"), false).await
+    enqueue(paths(&st), &st.jobs, jobs::JobKind::VoiceClean, body_name(&body, "name"), false).await
 }
 
 /// POST /voices/denoise {name, db?} — убрать шум из голоса задачей (DPDFNet); `db` — предел подавления, 0 или нет — без
@@ -270,12 +269,12 @@ pub async fn denoise(State(st): State<AppState>, Json(body): Json<Value>) -> Res
     let job: jobs::JobFn = Box::new(move |progress: jobs::ProgressFn| {
         let cb = |ev: Value| progress(ev);
         let res = voice_jobs::denoise(&p, &name, limit, &cb);
-        crate::app::events::publish(json!({ "changed": "voices" }));
+        crate::app::publish(json!({ "changed": "voices" }));
         res
     });
     match st.jobs.enqueue(jobs::JobMeta::new(jobs::JobKind::VoiceClean, Some(&key)), job).await {
         Ok(job_id) => Json(json!({ "job_id": job_id })).into_response(),
-        Err(e) => crate::enqueue_error(e),
+        Err(e) => crate::app::enqueue_error(e),
     }
 }
 
@@ -316,7 +315,7 @@ pub async fn delete(State(st): State<AppState>, Json(body): Json<Value>) -> Resp
 /// становится голосом с громкостью рефа; `clean=1` и `transcribe=1` ставят задачи на каждый новый голос.
 pub async fn import(State(st): State<AppState>, mut multipart: Multipart) -> Response {
     let mut base = String::new();
-    let (mut want_clean, mut want_transcribe) = (crate::models::voice_clean_default(&st.models_root), true);
+    let (mut want_clean, mut want_transcribe) = (crate::engines::models::voice_clean_default(&st.models_root), true);
     let mut files: Vec<(String, Vec<u8>)> = Vec::new();
     while let Ok(Some(field)) = multipart.next_field().await {
         let field_name = field.name().unwrap_or("").to_string();
@@ -365,13 +364,13 @@ pub async fn import(State(st): State<AppState>, mut multipart: Multipart) -> Res
         Ok(Err(e)) => return bad(e),
         Err(r) => return r,
     };
-    crate::app::events::publish(json!({ "changed": "voices" }));
+    crate::app::publish(json!({ "changed": "voices" }));
     let mut jobs_started = Vec::new();
     for n in &names {
         if want_clean {
-            jobs_started.push(job_id(enqueue(&st, jobs::JobKind::VoiceClean, n.clone(), want_transcribe).await).await);
+            jobs_started.push(job_id(enqueue(paths(&st), &st.jobs, jobs::JobKind::VoiceClean, n.clone(), want_transcribe).await).await);
         } else if want_transcribe {
-            jobs_started.push(job_id(enqueue(&st, jobs::JobKind::VoiceTranscript, n.clone(), false).await).await);
+            jobs_started.push(job_id(enqueue(paths(&st), &st.jobs, jobs::JobKind::VoiceTranscript, n.clone(), false).await).await);
         }
     }
     Json(json!({ "names": names, "jobs": jobs_started })).into_response()
@@ -503,7 +502,7 @@ pub async fn import_zip_route(State(st): State<AppState>, mut multipart: Multipa
     let dir = st.voices_dir.clone();
     match joined(tokio::task::spawn_blocking(move || import_zip(&dir, &bytes)).await) {
         Ok(Ok((added, same))) => {
-            crate::app::events::publish(json!({ "changed": "voices" }));
+            crate::app::publish(json!({ "changed": "voices" }));
             Json(json!({ "added": added, "already": same })).into_response()
         }
         Ok(Err(e)) => bad(e),
@@ -565,7 +564,7 @@ pub async fn ref_apply(State(st): State<AppState>, Json(body): Json<Value>) -> R
     let dir = st.voices_dir.clone();
     match joined(tokio::task::spawn_blocking(move || lib::apply_ref(&dir, &name, start, end).and_then(|_| lib::get(&dir, &name))).await) {
         Ok(Ok(v)) => {
-            crate::app::events::publish(json!({ "changed": "voices" }));
+            crate::app::publish(json!({ "changed": "voices" }));
             Json(json!({ "voice": v })).into_response()
         }
         Ok(Err(e)) => bad(e),

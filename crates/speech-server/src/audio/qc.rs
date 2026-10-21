@@ -63,7 +63,7 @@ pub fn normalize(text: &str) -> Vec<String> {
     let mut words = Vec::new();
     let mut word = String::new();
     for c in visible.chars() {
-        if crate::audio_flags::is_cjk(c) {
+        if crate::audio::flags::is_cjk(c) {
             if !word.is_empty() {
                 words.push(std::mem::take(&mut word));
             }
@@ -164,7 +164,7 @@ pub fn repeated(expected: &[String], heard: &[String]) -> bool {
 }
 
 /// Дефекты дубля по таймингам слов распознавания; `pause_secs` — самая длинная пауза, заданная в тексте блока.
-pub fn timing_issues(words: &[crate::ref_pick::Word], duration: f64, pause_secs: f64) -> Vec<String> {
+pub fn timing_issues(words: &[crate::voices::ref_pick::Word], duration: f64, pause_secs: f64) -> Vec<String> {
     let mut issues = Vec::new();
     let Some(last) = words.last() else { return issues };
     if duration - last.end > TAIL_SECS {
@@ -214,9 +214,9 @@ pub fn threshold(words: usize, strictness: &str) -> f64 {
 /// voicing says them, a language `itn` reads in digits, any other as it is.
 pub fn said_alike(expected: &str, heard: &str, lang: &str) -> Result<(String, String), String> {
     if lang == "ru" {
-        Ok((crate::normalize_ru::normalize(expected).text, crate::normalize_ru::normalize(heard).text))
-    } else if crate::itn::knows(lang) {
-        Ok((crate::itn::digits(expected, lang)?, crate::itn::digits(heard, lang)?))
+        Ok((crate::text::normalize_ru::normalize(expected).text, crate::text::normalize_ru::normalize(heard).text))
+    } else if crate::text::itn::knows(lang) {
+        Ok((crate::text::itn::digits(expected, lang)?, crate::text::itn::digits(heard, lang)?))
     } else {
         Ok((expected.to_string(), heard.to_string()))
     }
@@ -237,9 +237,9 @@ mod tests {
 
     #[test]
     fn numbers_match_however_recognition_writes_them() {
-        let said = crate::itn::digits("Deal. Let's meet at the entrance on October 18 at 10:30.", "en").unwrap();
+        let said = crate::text::itn::digits("Deal. Let's meet at the entrance on October 18 at 10:30.", "en").unwrap();
         for heard in ["Deal. Let's meet at the entrance on october eighteenth, at ten thirty.", "Deal. Let's meet at the entrance on October 18th at 1030."] {
-            let c = check(&said, &crate::itn::digits(heard, "en").unwrap(), "normal");
+            let c = check(&said, &crate::text::itn::digits(heard, "en").unwrap(), "normal");
             assert_eq!(c.wer, 0.0, "{heard} -> {:?}", c.off);
         }
         assert_eq!(normalize("le 1er mai à 10 h 30"), ["le", "1", "mai", "à", "10", "h", "30"]);
@@ -255,7 +255,7 @@ mod tests {
 
     #[test]
     fn a_number_in_digits_is_not_a_stretched_word() {
-        let w = |word: &str, start: f64, end: f64| crate::ref_pick::Word { word: word.into(), start, end };
+        let w = |word: &str, start: f64, end: f64| crate::voices::ref_pick::Word { word: word.into(), start, end };
         assert!(timing_issues(&[w("встреча", 0.0, 0.6), w("18.30.", 1.84, 3.12)], 3.2, 0.0).is_empty());
         assert_eq!(timing_issues(&[w("встреча", 0.0, 0.6), w("да", 1.0, 3.0)], 3.2, 0.0), vec!["stretched".to_string()]);
     }
@@ -270,13 +270,13 @@ mod tests {
             }
         }
         for flag in ["runaway", "cutoff", "silence", "hum", "click", "clipping", "whistle"] {
-            assert!(crate::audio_flags::role(flag) != crate::audio_flags::Role::Defect || ISSUES.contains(&flag), "{flag}");
+            assert!(crate::audio::flags::role(flag) != crate::audio::flags::Role::Defect || ISSUES.contains(&flag), "{flag}");
         }
     }
 
     #[test]
     fn a_tail_a_stretched_word_and_a_gap_are_named() {
-        let w = |word: &str, start: f64, end: f64| crate::ref_pick::Word { word: word.into(), start, end };
+        let w = |word: &str, start: f64, end: f64| crate::voices::ref_pick::Word { word: word.into(), start, end };
         assert!(timing_issues(&[w("да", 0.0, 0.3), w("нет", 0.4, 0.8)], 1.0, 0.0).is_empty());
         assert_eq!(timing_issues(&[w("да", 0.0, 0.3)], 2.0, 0.0), vec!["tail"]);
         assert_eq!(timing_issues(&[w("да", 0.0, 1.5)], 1.6, 0.0), vec!["stretched"]);

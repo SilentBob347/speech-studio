@@ -45,7 +45,7 @@ fn legacy_jsonl_keeps_origins_real_cost_and_the_existing_summary_shape() {
 fn daily_limits_count_agent_and_api_use_only_and_keep_the_inclusive_boundary() {
     let _language = crate::i18n::test_language("ru");
     let root = tempfile::tempdir().unwrap();
-    crate::models::set_selection(root.path(), "cloud_daily_limit_usd", "1").unwrap();
+    crate::engines::models::set_selection(root.path(), "cloud_daily_limit_usd", "1").unwrap();
     for (origin, day, cost, estimate) in [
         ("api", today(), Some(0.2), Some(0.9)),
         ("agent", today(), None, Some(0.3)),
@@ -70,6 +70,6 @@ fn daily_limits_count_agent_and_api_use_only_and_keep_the_inclusive_boundary() {
         t!("cloud-limit-unpriced", limit = "1.00")
     );
     assert!(check_limit_as("window:1", root.path(), root.path(), None).is_ok());
-    crate::models::set_selection(root.path(), "cloud_daily_limit_usd", "0").unwrap();
+    crate::engines::models::set_selection(root.path(), "cloud_daily_limit_usd", "0").unwrap();
     assert!(check_limit_as("agent", root.path(), root.path(), None).is_ok());
 }

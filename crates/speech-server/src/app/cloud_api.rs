@@ -1,8 +1,9 @@
 use super::cloud::{cloud, key_state, provider_of, PROVIDERS};
 use super::spending::{daily_limit, spent, summary};
 use crate::integrations::cloud::field_key;
-use crate::speech_api::refuse;
-use crate::{credentials, AppState};
+use crate::app::refuse;
+use crate::platform::credentials;
+use crate::AppState;
 use axum::extract::{Path as AxPath, Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};

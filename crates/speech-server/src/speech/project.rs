@@ -10,7 +10,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::tts_host::Params;
+use crate::engines::tts_host::Params;
 
 pub(crate) use crate::platform::ids::new_id;
 pub(crate) use crate::platform::time::unix_seconds as now;
@@ -38,7 +38,7 @@ pub struct Take {
     pub source: String,
     pub synth_secs: f64,
     pub retried: Vec<String>,
-    pub qc: Option<crate::qc::Check>,
+    pub qc: Option<crate::audio::qc::Check>,
     /// Текст блока, по которому озвучен дубль: к нему можно вернуться вместе с дублем.
     pub text: String,
     pub direction: String,
@@ -181,7 +181,7 @@ pub struct Block {
     pub lang: String,
     /// Свои параметры синтеза блока; нет — персонажа или проекта.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub params: Option<crate::tts_host::Params>,
+    pub params: Option<crate::engines::tts_host::Params>,
     /// The voice effect of the block (`voice_fx::KINDS`): `none` takes its speaker's off, empty — its speaker's.
     #[serde(skip_serializing_if = "String::is_empty")]
     pub fx: String,
@@ -237,7 +237,7 @@ pub struct QcSettings {
 
 impl Default for QcSettings {
     fn default() -> Self {
-        QcSettings { asr_check: false, strictness: "normal".into(), takes: 1, similarity: false, heuristics: crate::audio_flags::CHEAP.iter().map(|k| k.to_string()).collect() }
+        QcSettings { asr_check: false, strictness: "normal".into(), takes: 1, similarity: false, heuristics: crate::audio::flags::CHEAP.iter().map(|k| k.to_string()).collect() }
     }
 }
 
@@ -315,7 +315,7 @@ pub struct SpeechProject {
     pub cast_engines: BTreeMap<String, String>,
     /// Параметры синтеза персонажа, когда они не те, что у проекта; блок может задать свои поверх.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
-    pub cast_params: BTreeMap<String, crate::tts_host::Params>,
+    pub cast_params: BTreeMap<String, crate::engines::tts_host::Params>,
     /// What is known of each character for picking its voice: gender and age, from the director's registry or the user.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub characters: BTreeMap<String, Character>,
@@ -324,7 +324,7 @@ pub struct SpeechProject {
     pub cast_fx: BTreeMap<String, String>,
     pub chapters: Vec<Chapter>,
     /// Словарь произношения проекта: срабатывает раньше глобального.
-    pub dictionary: Vec<crate::pron_dict::Entry>,
+    pub dictionary: Vec<crate::text::pron_dict::Entry>,
     /// Проект из книги: название, автор и файл обложки в папке проекта — в метаданные и обложку аудиокниги.
     pub book: Option<BookMeta>,
     /// Ключ инструмента агента «одним вызовом»: повторный вызов с теми же входами находит этот проект.
@@ -395,7 +395,7 @@ impl Default for SpeechProject {
 }
 
 /// Проект по таймкодам из реплик субтитров: реплика — блок; говорящий — из файла или рассказчик.
-pub fn from_cues(name: &str, cues: &[crate::subimport::Cue], narrator: &str) -> SpeechProject {
+pub fn from_cues(name: &str, cues: &[crate::text::subimport::Cue], narrator: &str) -> SpeechProject {
     let blocks = cues
         .iter()
         .map(|c| Block {
@@ -458,7 +458,7 @@ impl SpeechProject {
 
     /// The sampling the block is voiced with: its own, else its speaker's, else the project's; with one voice the
     /// project's.
-    pub fn params_of<'a>(&'a self, b: &'a Block) -> &'a crate::tts_host::Params {
+    pub fn params_of<'a>(&'a self, b: &'a Block) -> &'a crate::engines::tts_host::Params {
         if self.settings.one_voice {
             return &self.settings.params;
         }
@@ -506,24 +506,24 @@ impl SpeechProject {
         for (speaker, params) in &self.cast_params {
             params.checked().map_err(|e| format!("speaker {speaker}: {e}"))?;
         }
-        if let Some((who, fx)) = self.cast_fx.iter().find(|(_, f)| !crate::voice_fx::KINDS.contains(&f.as_str())) {
-            return Err(format!("speaker {who}: voice effect {fx} is not one of {:?}", crate::voice_fx::KINDS));
+        if let Some((who, fx)) = self.cast_fx.iter().find(|(_, f)| !crate::voices::fx::KINDS.contains(&f.as_str())) {
+            return Err(format!("speaker {who}: voice effect {fx} is not one of {:?}", crate::voices::fx::KINDS));
         }
-        if let Some(b) = self.blocks().find(|b| !b.fx.is_empty() && b.fx != "none" && !crate::voice_fx::KINDS.contains(&b.fx.as_str())) {
-            return Err(format!("block {}: voice effect {} is not one of {:?} or none", b.id, b.fx, crate::voice_fx::KINDS));
+        if let Some(b) = self.blocks().find(|b| !b.fx.is_empty() && b.fx != "none" && !crate::voices::fx::KINDS.contains(&b.fx.as_str())) {
+            return Err(format!("block {}: voice effect {} is not one of {:?} or none", b.id, b.fx, crate::voices::fx::KINDS));
         }
         for (name, c) in &self.characters {
             if !rules.genders.contains(&c.gender.as_str()) || !rules.ages.contains(&c.age.as_str()) {
                 return Err(format!("character {name}: gender is one of {:?} and age one of {:?}", rules.genders, rules.ages));
             }
         }
-        if let Some(g) = self.settings.normalize_off.iter().find(|g| !crate::normalize_ru::GROUPS.contains(&g.as_str())) {
-            return Err(format!("normalize_off: {g} is not one of {}", crate::normalize_ru::GROUPS.join(", ")));
+        if let Some(g) = self.settings.normalize_off.iter().find(|g| !crate::text::normalize_ru::GROUPS.contains(&g.as_str())) {
+            return Err(format!("normalize_off: {g} is not one of {}", crate::text::normalize_ru::GROUPS.join(", ")));
         }
         if !(1.0..=2.0).contains(&self.settings.max_stretch) {
             return Err(format!("max_stretch {} is outside 1.0..2.0", self.settings.max_stretch));
         }
-        crate::pron_dict::validate(&self.dictionary)?;
+        crate::text::pron_dict::validate(&self.dictionary)?;
         let mut seen = std::collections::HashSet::new();
         for c in &self.chapters {
             if c.id.is_empty() || !seen.insert(format!("c:{}", c.id)) {
@@ -594,7 +594,7 @@ impl SpeechProject {
 
 /// Начало видимого текста блока для строки прогресса.
 pub fn visible_snippet(text: &str) -> String {
-    let v = crate::speech_text::visible(text);
+    let v = crate::speech::text::visible(text);
     let mut out: String = v.chars().take(40).collect();
     if v.chars().count() > 40 {
         out.push('…');
@@ -665,7 +665,7 @@ pub fn split_text_lines(text: &str, narrator: &str, lines: Option<&str>) -> Vec<
         .flat_map(|p| {
             let p = p.split_whitespace().collect::<Vec<_>>().join(" ");
             let parts = match lines {
-                Some(who) => crate::direct_speech::split(&p).into_iter().map(|(speech, t)| (if speech { who } else { narrator }, t)).collect(),
+                Some(who) => crate::text::direct_speech::split(&p).into_iter().map(|(speech, t)| (if speech { who } else { narrator }, t)).collect(),
                 None => vec![(narrator, p)],
             };
             parts
@@ -817,7 +817,7 @@ pub fn fit_forecast(project: &SpeechProject, b: &Block) -> Option<&'static str> 
     let rules = dub_core::fit::FitRules { speech_rate_on: false, qc_duration: true, max_stretch: project.settings.max_stretch, lead_into_silence: false };
     let slot = dub_core::fit::slot(start, end, start, next, &rules);
     let lang = if project.settings.lang == "auto" { if crate::text::stress::is_russian(&b.text, "auto") { "ru" } else { "en" } } else { project.settings.lang.as_str() };
-    let est = dub_core::fit::estimate(&crate::speech_text::visible(&b.text), dub_core::fit::table_cps(lang));
+    let est = dub_core::fit::estimate(&crate::speech::text::visible(&b.text), dub_core::fit::table_cps(lang));
     Some(match dub_core::fit::verdict(est, &slot, &rules) {
         dub_core::fit::Verdict::Fits => "fits",
         dub_core::fit::Verdict::Tight => "tight",
@@ -852,7 +852,7 @@ mod tests {
         p.settings.voice = Some("Рассказчик".into());
         p.cast.insert("Олег".into(), "Ливанов".into());
         p.cast_engines.insert("Олег".into(), "drama3".into());
-        p.cast_params.insert("Олег".into(), crate::tts_host::Params { temperature: 0.6, ..Default::default() });
+        p.cast_params.insert("Олег".into(), crate::engines::tts_host::Params { temperature: 0.6, ..Default::default() });
         let b = Block { id: "b".into(), speaker: "Олег".into(), voice: Some("Свой".into()), text: "Раз.".into(), ..Default::default() };
         assert_eq!((p.voice_of(&b).as_deref(), p.engine_of(&b), p.params_of(&b).temperature), (Some("Свой"), "drama3", 0.6));
         p.settings.one_voice = true;
@@ -867,10 +867,10 @@ mod tests {
         let key = |p: &SpeechProject, b: &Block| synth_key(p, b, "v", "higgs", 12.0, "");
         let plain = key(&p, &b);
         assert_eq!(p.params_of(&b).temperature, 1.0);
-        p.cast_params.insert("Олег".into(), crate::tts_host::Params { temperature: 0.6, ..Default::default() });
+        p.cast_params.insert("Олег".into(), crate::engines::tts_host::Params { temperature: 0.6, ..Default::default() });
         assert_eq!(p.params_of(&b).temperature, 0.6);
         let by_speaker = key(&p, &b);
-        b.params = Some(crate::tts_host::Params { temperature: 1.3, ..Default::default() });
+        b.params = Some(crate::engines::tts_host::Params { temperature: 1.3, ..Default::default() });
         assert_eq!(p.params_of(&b).temperature, 1.3);
         assert!(plain != by_speaker && by_speaker != key(&p, &b));
     }
@@ -987,11 +987,11 @@ mod tests {
         let mut p = from_text("t", "Раз.\n\nДва.\n\nТри.", "Р");
         p.settings.engine = "higgs".into();
         p.chapters[0].blocks[1].speaker = "Анна".into();
-        p.cast_engines.insert("Анна".into(), crate::supertonic::ENGINE.into());
+        p.cast_engines.insert("Анна".into(), crate::engines::supertonic::ENGINE.into());
         p.chapters[0].blocks[2].speaker = "Анна".into();
-        p.chapters[0].blocks[2].engine = Some(crate::qwen_tts::ENGINE.into());
+        p.chapters[0].blocks[2].engine = Some(crate::engines::qwen_tts::ENGINE.into());
         let b = &p.chapters[0].blocks;
-        assert_eq!((p.engine_of(&b[0]), p.engine_of(&b[1]), p.engine_of(&b[2])), ("higgs", crate::supertonic::ENGINE, crate::qwen_tts::ENGINE));
+        assert_eq!((p.engine_of(&b[0]), p.engine_of(&b[1]), p.engine_of(&b[2])), ("higgs", crate::engines::supertonic::ENGINE, crate::engines::qwen_tts::ENGINE));
         assert!(crate::speech::validate(&p).is_ok());
         p.chapters[0].blocks[0].engine = Some("openrouter".into());
         assert!(crate::speech::validate(&p).is_err(), "a cloud engine is set up for the whole project only");

@@ -9,7 +9,8 @@ use axum::{Json, Router};
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-use crate::pron_dict::{self, Entry};
+use crate::text::pron_dict;
+use crate::text::pron_dict::Entry;
 use crate::speech::{self, PrepareText, SpeechPaths};
 use crate::AppState;
 
@@ -249,7 +250,7 @@ mod tests {
     async fn project_reports_keep_their_json_envelopes() {
         let root = tempfile::tempdir().unwrap();
         let state = AppState::new(root.path());
-        let mut project = crate::speech_project::from_text("Report", "iPhone iPhone", "Narrator");
+        let mut project = crate::speech::from_text("Report", "iPhone iPhone", "Narrator");
         project.settings.lang = "ru".into();
         let pid = crate::platform::ids::new_id();
         let path = crate::platform::workspace::project_file(&state.workspace, &pid);

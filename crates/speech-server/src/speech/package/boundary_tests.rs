@@ -55,7 +55,7 @@ fn old_packages_keep_project_fields_and_defaults_through_the_new_storage() {
     assert_eq!(block.takes[0].created, 1_700_000_456);
     assert_eq!(block.takes[0].bytes, 0);
     assert!(block.takes[0].engine.is_empty());
-    assert_eq!(crate::app::revisions::revision(&id), 1);
+    assert_eq!(crate::app::revision(&id), 1);
     assert_eq!(std::fs::read_dir(p.workspace.join(id)).unwrap().count(), 1);
 }
 

@@ -3,7 +3,7 @@
 //! extra, wrong or stretched is voiced again alone and put in its place; a tail after the last word is cut, a gap
 //! inside is shortened. A defect of the whole sound, or a block of one sentence, is voiced again whole.
 
-use crate::qc::Check;
+use crate::audio::qc::Check;
 
 /// Defects of the whole sound that no piece of the take can mend.
 const WHOLE: [&str; 8] = ["runaway", "cutoff", "silence", "hum", "noise", "clipping", "whistle", "click"];
@@ -51,7 +51,7 @@ fn heard(timed: &[(String, f64, f64)]) -> Vec<Heard> {
         if w.chars().any(|c| c.is_ascii_digit()) {
             out.push(Heard { word: w.clone(), wild: true, start: *a, end: *z });
         } else {
-            for t in crate::qc::normalize(w) {
+            for t in crate::audio::qc::normalize(w) {
                 out.push(Heard { word: t, wild: false, start: *a, end: *z });
             }
         }
@@ -63,8 +63,8 @@ fn heard(timed: &[(String, f64, f64)]) -> Vec<Heard> {
 fn expected(sentences: &[String], lang: &str) -> Vec<(String, usize)> {
     let mut out = Vec::new();
     for (k, s) in sentences.iter().enumerate() {
-        let said = if lang == "ru" { crate::normalize_ru::normalize(s).text } else { s.clone() };
-        out.extend(crate::qc::normalize(&said).into_iter().map(|w| (w, k)));
+        let said = if lang == "ru" { crate::text::normalize_ru::normalize(s).text } else { s.clone() };
+        out.extend(crate::audio::qc::normalize(&said).into_iter().map(|w| (w, k)));
     }
     out
 }
@@ -106,7 +106,7 @@ fn align(e: &[(String, usize)], h: &[Heard]) -> Vec<(Option<usize>, Option<usize
 
 /// What to do with a take of `text` that failed `check`; `pause` is the longest pause the text asks for, seconds.
 pub fn plan(text: &str, lang: &str, check: &Check, duration: f64, pause: f64) -> Plan {
-    let sentences: Vec<String> = crate::speech_text::sentences(text).into_iter().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
+    let sentences: Vec<String> = crate::speech::text::sentences(text).into_iter().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
     let mut plan = Plan { sentences, ..Default::default() };
     if check.similar == Some(false) || check.issues.iter().any(|i| WHOLE.contains(&i.as_str())) || check.timed.is_empty() {
         plan.whole = true;
@@ -134,7 +134,7 @@ pub fn plan(text: &str, lang: &str, check: &Check, duration: f64, pause: f64) ->
         if w.wild {
             return false;
         }
-        d > crate::qc::STRETCH_SECS && d > w.word.chars().filter(|c| c.is_alphabetic()).count().max(1) as f64 * crate::qc::STRETCH_PER_LETTER
+        d > crate::audio::qc::STRETCH_SECS && d > w.word.chars().filter(|c| c.is_alphabetic()).count().max(1) as f64 * crate::audio::qc::STRETCH_PER_LETTER
     };
     for (j, w) in h.iter().enumerate() {
         if stretched(w) {
@@ -166,12 +166,12 @@ pub fn plan(text: &str, lang: &str, check: &Check, duration: f64, pause: f64) ->
     let mut cuts = Vec::new();
     for w in h.windows(2) {
         let (a, b) = (w[0].end, w[1].start);
-        if b - a > crate::qc::GAP_SECS + pause && !revoiced(a) && !revoiced(b) {
+        if b - a > crate::audio::qc::GAP_SECS + pause && !revoiced(a) && !revoiced(b) {
             cuts.push(Edit::Cut { from: a + KEEP / 2.0, to: b - KEEP / 2.0 });
         }
     }
     if let Some(l) = h.last() {
-        if duration - l.end > crate::qc::TAIL_SECS && !revoiced(l.end) {
+        if duration - l.end > crate::audio::qc::TAIL_SECS && !revoiced(l.end) {
             cuts.push(Edit::Cut { from: l.end + KEEP, to: duration });
         }
     }
@@ -183,7 +183,7 @@ pub fn plan(text: &str, lang: &str, check: &Check, duration: f64, pause: f64) ->
 /// The take with each edit applied: a cut joins its sides, a revoiced sentence (`pieces`, by sentence) goes over its
 /// span at the take's loudness; every join is a short crossfade.
 pub fn splice(x: &[f32], sr: u32, edits: &[Edit], pieces: &std::collections::BTreeMap<usize, Vec<f32>>) -> Vec<f32> {
-    let take_lufs = crate::loudness::integrated_lufs(x, sr);
+    let take_lufs = crate::audio::loudness::integrated_lufs(x, sr);
     let at = |t: f64| ((t * sr as f64) as usize).min(x.len());
     let mut cur = x.to_vec();
     let mut order: Vec<&Edit> = edits.iter().collect();
@@ -193,7 +193,7 @@ pub fn splice(x: &[f32], sr: u32, edits: &[Edit], pieces: &std::collections::BTr
             Edit::Cut { from, to } => (at(*from), at(*to), Vec::new()),
             Edit::Revoice { sentence, from, to } => {
                 let mut p = pieces.get(sentence).cloned().unwrap_or_default();
-                if let (Some(t), Some(l)) = (take_lufs, crate::loudness::integrated_lufs(&p, sr)) {
+                if let (Some(t), Some(l)) = (take_lufs, crate::audio::loudness::integrated_lufs(&p, sr)) {
                     let g = 10f64.powf((t - l) / 20.0) as f32;
                     p.iter_mut().for_each(|s| *s *= g);
                 }
@@ -203,9 +203,9 @@ pub fn splice(x: &[f32], sr: u32, edits: &[Edit], pieces: &std::collections::BTr
         let to = to.min(cur.len()).max(from.min(cur.len()));
         let mut out = cur[..from.min(cur.len())].to_vec();
         if !piece.is_empty() {
-            crate::tts_trim::crossfade_join(&mut out, &piece, sr);
+            crate::audio::trim::crossfade_join(&mut out, &piece, sr);
         }
-        crate::tts_trim::crossfade_join(&mut out, &cur[to..], sr);
+        crate::audio::trim::crossfade_join(&mut out, &cur[to..], sr);
         cur = out;
     }
     cur

@@ -44,7 +44,7 @@ pub struct Want {
 
 /// Модель (проекта, иначе студии), голос проекта и режим студии; без модели или голоса — ошибка с тем, что задать.
 pub fn setup(models_root: &Path, model: &str, voice: &str) -> Result<Setup, String> {
-    let sel = crate::models::load_selection(models_root);
+    let sel = crate::engines::models::load_selection(models_root);
     let model = match model.trim() {
         "" => sel.get("google_tts_model").and_then(Value::as_str).unwrap_or("").trim().to_string(),
         m => m.to_string(),
@@ -63,9 +63,9 @@ pub fn setup(models_root: &Path, model: &str, voice: &str) -> Result<Setup, Stri
     Ok(Setup { model, voice: voice.trim().to_string(), mode })
 }
 
-fn client() -> Result<crate::google_tts::Client, String> {
-    let (key, _) = crate::credentials::google_api_key().ok_or_else(|| t!("cloud-no-key", provider = "Google"))?;
-    crate::google_tts::Client::new(key)
+fn client() -> Result<crate::integrations::google_tts::Client, String> {
+    let (key, _) = crate::platform::credentials::google_api_key().ok_or_else(|| t!("cloud-no-key", provider = "Google"))?;
+    crate::integrations::google_tts::Client::new(key)
 }
 
 fn key_of(s: &Setup, text: &str, style: &str, n: u32) -> String {
@@ -105,12 +105,12 @@ fn samples_of(mime: &str, bytes: &[u8]) -> Result<Vec<f32>, String> {
     let dir = tempfile::Builder::new().prefix("google-").tempdir().map_err(|e| e.to_string())?;
     let (src, wav) = (dir.path().join("in.bin"), dir.path().join("out.wav"));
     std::fs::write(&src, bytes).map_err(|e| e.to_string())?;
-    crate::media::extract_audio(&src, &wav, SR, 1)?;
-    crate::wavio::read_mono_f32(&wav).map(|(s, _)| s)
+    crate::audio::media::extract_audio(&src, &wav, SR, 1)?;
+    crate::audio::wavio::read_mono_f32(&wav).map(|(s, _)| s)
 }
 
 fn spend(repo_root: &Path, pid: &str, s: &Setup, usage: &Value, batch: bool) -> Option<f64> {
-    let cost = crate::google_tts::estimate(&s.model, batch, usage).get("usd").and_then(Value::as_f64);
+    let cost = crate::integrations::google_tts::estimate(&s.model, batch, usage).get("usd").and_then(Value::as_f64);
     crate::app::spending::record(repo_root, crate::app::spending::Spent {
         at: chrono::Utc::now().timestamp_millis(),
         day: chrono::Local::now().format("%Y-%m-%d").to_string(),
@@ -128,13 +128,13 @@ fn spend(repo_root: &Path, pid: &str, s: &Setup, usage: &Value, batch: bool) -> 
 
 /// Ответ с целым клипом — в кэш; иначе ошибка с причиной Google (фильтр, обрыв).
 fn keep(project_dir: &Path, key: &str, response: &Value) -> Result<Vec<f32>, String> {
-    let (mime, bytes) = crate::google_tts::audio(response)?;
+    let (mime, bytes) = crate::integrations::google_tts::audio(response)?;
     let samples = samples_of(&mime, &bytes)?;
     let path = cache(project_dir, key);
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
     }
-    crate::wavio::write_mono_f32(&path, &samples, SR)?;
+    crate::audio::wavio::write_mono_f32(&path, &samples, SR)?;
     Ok(samples)
 }
 
@@ -198,8 +198,8 @@ pub fn explain(error: &str) -> String {
 }
 
 /// Обычный запрос: 429 и 5xx повторяются с паузой, отказ фильтра и прочее — сразу ошибка.
-fn direct(c: &crate::google_tts::Client, s: &Setup, text: &str, style: &str) -> Result<Value, String> {
-    let request = crate::google_tts::request(text, &s.voice, style)?;
+fn direct(c: &crate::integrations::google_tts::Client, s: &Setup, text: &str, style: &str) -> Result<Value, String> {
+    let request = crate::integrations::google_tts::request(text, &s.voice, style)?;
     let mut attempt = 0;
     loop {
         attempt += 1;
@@ -219,7 +219,7 @@ pub fn phrase(repo_root: &Path, models_root: &Path, project_dir: &Path, pid: &st
     let key = key_of(s, text, style, n);
     let path = cache(project_dir, &key);
     if path.is_file() {
-        return crate::wavio::read_mono_f32(&path).map(|(x, _)| (x, None));
+        return crate::audio::wavio::read_mono_f32(&path).map(|(x, _)| (x, None));
     }
     let failed: HashMap<String, String> = std::fs::read(failed_path(project_dir)).ok().and_then(|b| serde_json::from_slice(&b).ok()).unwrap_or_default();
     if let Some(error) = failed.get(&key) {
@@ -279,11 +279,11 @@ pub fn prefetch(repo_root: &Path, models_root: &Path, project_dir: &Path, pid: &
 
 /// Обычные запросы в `or_concurrency` потоков.
 #[allow(clippy::too_many_arguments)]
-fn direct_run(c: &crate::google_tts::Client, repo_root: &Path, models_root: &Path, project_dir: &Path, pid: &str, s: &Setup, keys: &[(String, &Want)], progress: &dyn Fn(Value)) -> Result<(HashMap<String, String>, Option<f64>, Option<String>), String> {
+fn direct_run(c: &crate::integrations::google_tts::Client, repo_root: &Path, models_root: &Path, project_dir: &Path, pid: &str, s: &Setup, keys: &[(String, &Want)], progress: &dyn Fn(Value)) -> Result<(HashMap<String, String>, Option<f64>, Option<String>), String> {
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Mutex;
     crate::app::spending::check_limit(repo_root, models_root, None)?;
-    let threads = crate::models::openrouter_concurrency(models_root).min(keys.len()).max(1);
+    let threads = crate::engines::models::openrouter_concurrency(models_root).min(keys.len()).max(1);
     let (next, done) = (AtomicUsize::new(0), AtomicUsize::new(0));
     let failed: Mutex<HashMap<String, String>> = Mutex::new(HashMap::new());
     // первый отказ по деньгам или доступу останавливает остальные запросы: они получат ту же причину
@@ -340,7 +340,7 @@ fn direct_run(c: &crate::google_tts::Client, repo_root: &Path, models_root: &Pat
 
 /// Пачка: журнал до отправки, поиск по имени после потерянного ответа, ожидание с повторами чтения, результаты в кэш.
 #[allow(clippy::too_many_arguments)]
-fn batch_run(c: &crate::google_tts::Client, repo_root: &Path, models_root: &Path, project_dir: &Path, pid: &str, s: &Setup, keys: &[(String, &Want)], progress: &dyn Fn(Value)) -> Result<(HashMap<String, String>, Option<f64>, Option<String>), String> {
+fn batch_run(c: &crate::integrations::google_tts::Client, repo_root: &Path, models_root: &Path, project_dir: &Path, pid: &str, s: &Setup, keys: &[(String, &Want)], progress: &dyn Fn(Value)) -> Result<(HashMap<String, String>, Option<f64>, Option<String>), String> {
     let path = journal_path(project_dir);
     std::fs::create_dir_all(cloud_dir(project_dir)).map_err(|e| e.to_string())?;
     let mut journal: Value = match std::fs::read(&path) {
@@ -378,7 +378,7 @@ fn batch_run(c: &crate::google_tts::Client, repo_root: &Path, models_root: &Path
         let rows: Vec<Value> = keys
             .iter()
             .filter(|(k, _)| wanted.contains(k))
-            .map(|(k, w)| -> Result<Value, String> { Ok(json!({ "metadata": { "key": k }, "request": crate::google_tts::request(&w.text, &s.voice, &w.style)? })) })
+            .map(|(k, w)| -> Result<Value, String> { Ok(json!({ "metadata": { "key": k }, "request": crate::integrations::google_tts::request(&w.text, &s.voice, &w.style)? })) })
             .collect::<Result<_, _>>()?;
         if rows.is_empty() {
             let _ = std::fs::remove_file(&path);
@@ -397,12 +397,12 @@ fn batch_run(c: &crate::google_tts::Client, repo_root: &Path, models_root: &Path
         journal["submitted_at"] = chrono::Utc::now().timestamp().into();
         save(&path, &journal)?;
         match c.batch_create(&s.model, &display, journal["input_file"].as_str().unwrap_or_default())? {
-            crate::google_tts::Created::Name(name) => {
+            crate::integrations::google_tts::Created::Name(name) => {
                 journal["name"] = name.into();
                 journal["state"] = "BATCH_STATE_PENDING".into();
                 save(&path, &journal)?;
             }
-            crate::google_tts::Created::Rejected(code, e) => {
+            crate::integrations::google_tts::Created::Rejected(code, e) => {
                 journal.as_object_mut().map(|o| o.remove("submitted"));
                 if code != 429 {
                     // входной файл живёт в Google 48 ч: после отказа он заливается заново

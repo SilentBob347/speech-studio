@@ -105,7 +105,7 @@ fn begin(path: &std::path::Path, device: Option<String>, test: bool) -> Result<(
     let (stop_tx, stop_rx) = std::sync::mpsc::channel::<()>();
     let (ready_tx, ready_rx) = std::sync::mpsc::channel::<Result<(), String>>();
     if let Ok(file) = std::env::var("SPEECH_STUDIO_MIC_FILE") {
-        let (samples, sr) = crate::wavio::read_mono_f32(std::path::Path::new(&file))?;
+        let (samples, sr) = crate::audio::wavio::read_mono_f32(std::path::Path::new(&file))?;
         tracing::warn!("the microphone is the file {file} (SPEECH_STUDIO_MIC_FILE)");
         let spec = hound::WavSpec { channels: 1, sample_rate: sr, bits_per_sample: 16, sample_format: hound::SampleFormat::Int };
         let mut writer = hound::WavWriter::create(&thread_path, spec).map_err(|e| t!("record-create-wav", error = e.to_string()))?;

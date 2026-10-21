@@ -10,7 +10,7 @@ pub(crate) fn validate(project: &SpeechProject) -> Result<(), String> {
         .collect();
     project.validate(&ValidationRules {
         engines: &engines,
-        genders: &crate::voice_library::GENDERS,
-        ages: &crate::voice_library::AGES,
+        genders: &crate::voices::GENDERS,
+        ages: &crate::voices::AGES,
     })
 }

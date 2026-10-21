@@ -4,9 +4,9 @@ use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
-use crate::listening::project as listening;
+use crate::listening as listening;
 use crate::platform::{ids, time, workspace};
-use crate::speech::project as speech;
+use crate::speech as speech;
 use crate::text::pron_dict;
 
 const SPEECH: &str = r#"{

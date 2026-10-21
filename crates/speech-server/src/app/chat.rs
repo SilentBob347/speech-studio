@@ -28,7 +28,7 @@ pub struct ChatBody {
 
 /// Who answers the Assistant panel: `openrouter` (a model on the person's key) or `agent` (the connected MCP agent).
 pub fn assistant(models_root: &std::path::Path) -> String {
-    match crate::models::load_selection(models_root).get("assistant").and_then(Value::as_str) {
+    match crate::engines::models::load_selection(models_root).get("assistant").and_then(Value::as_str) {
         Some("agent") => "agent".into(),
         _ => "openrouter".into(),
     }

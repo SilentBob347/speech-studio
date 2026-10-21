@@ -1,6 +1,7 @@
 //! yt-dlp downloads and probes. Completed media stays in the caller's download directory.
 
-use crate::ytdlp::{self, Line, Quality, UrlError};
+use crate::integrations::ytdlp;
+use crate::integrations::ytdlp::{Line, Quality, UrlError};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};

@@ -4,7 +4,8 @@
 
 use std::collections::HashSet;
 
-use crate::speech_project::{self as sp, Block, Chapter, SpeechProject};
+use crate::speech::project as sp;
+use crate::speech::project::{Block, Chapter, SpeechProject};
 
 /// What a rebuild keeps and changes.
 #[derive(Debug, Default, PartialEq, serde::Serialize)]
@@ -25,7 +26,7 @@ pub struct NewChapter {
 }
 
 fn key(text: &str) -> String {
-    crate::speech_text::visible(text).chars().filter(|c| c.is_alphanumeric()).flat_map(char::to_lowercase).map(|c| if c == 'ё' { 'е' } else { c }).collect()
+    crate::speech::text::visible(text).chars().filter(|c| c.is_alphanumeric()).flat_map(char::to_lowercase).map(|c| if c == 'ё' { 'е' } else { c }).collect()
 }
 
 /// The first run of unused old blocks, in their order, whose letters make `want`.

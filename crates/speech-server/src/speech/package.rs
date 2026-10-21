@@ -9,8 +9,9 @@ use std::io::{Read, Write};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::speech_jobs::SpeechPaths;
-use crate::speech_project::{self as sp, SpeechProject};
+use crate::speech::jobs::SpeechPaths;
+use crate::speech::project as sp;
+use crate::speech::project::SpeechProject;
 
 pub const FORMAT: &str = "speechproj";
 pub const VERSION: u32 = 1;
@@ -82,10 +83,10 @@ pub fn voices_of(project: &SpeechProject) -> Vec<String> {
 /// Собрать `.speechproj` проекта в его папку экспорта; ответ — имя файла и размер.
 pub fn pack(p: &SpeechPaths, pid: &str, with_audio: bool) -> Result<(String, u64), String> {
     let mut project = crate::speech::load(&p.workspace, pid)?;
-    let voices: Vec<String> = voices_of(&project).into_iter().filter(|v| crate::voice_library::audio_path(&p.voices_dir, v).is_some()).collect();
+    let voices: Vec<String> = voices_of(&project).into_iter().filter(|v| crate::voices::audio_path(&p.voices_dir, v).is_some()).collect();
     let mut files: Vec<(String, Vec<u8>)> = Vec::new();
     if !voices.is_empty() {
-        files.push(("voices.zip".into(), crate::voice_api::export_zip(&p.voices_dir, &voices)?));
+        files.push(("voices.zip".into(), crate::voices::http::export_zip(&p.voices_dir, &voices)?));
     }
     if with_audio {
         let takes = p.workspace.join(pid).join("takes");
@@ -113,7 +114,7 @@ pub fn pack(p: &SpeechPaths, pid: &str, with_audio: bool) -> Result<(String, u64
         app_version: env!("CARGO_PKG_VERSION").into(),
         created: sp::now(),
         name: project.name.clone(),
-        engines: engines_of(&project, crate::speech_jobs::engine_tag(p, &project, &project.settings.engine)),
+        engines: engines_of(&project, crate::speech::jobs::engine_tag(p, &project, &project.settings.engine)),
         with_audio,
         voices,
         assets: files.iter().map(|(path, b)| Asset { path: path.clone(), size: b.len() as u64, sha256: sha(b) }).collect(),
@@ -135,7 +136,7 @@ pub fn pack(p: &SpeechPaths, pid: &str, with_audio: bool) -> Result<(String, u64
     let bytes = buf.into_inner();
     let dir = p.workspace.join(pid).join("exports");
     std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-    let name = format!("{}.speechproj", crate::speech_jobs::file_stem(&project.name, None));
+    let name = format!("{}.speechproj", crate::speech::jobs::file_stem(&project.name, None));
     std::fs::write(dir.join(&name), &bytes).map_err(|e| format!("{name}: {e}"))?;
     Ok((name, bytes.len() as u64))
 }
@@ -183,7 +184,7 @@ pub fn unpack(p: &SpeechPaths, bytes: &[u8]) -> Result<(String, Vec<String>), St
     super::validate(&project)?;
     let mut added = Vec::new();
     if let Some(zip) = entries.get("voices.zip") {
-        let (mapped, _same) = crate::voice_api::import_zip_mapped(&p.voices_dir, zip)?;
+        let (mapped, _same) = crate::voices::http::import_zip_mapped(&p.voices_dir, zip)?;
         let rename: BTreeMap<String, String> = mapped.into_iter().filter(|(from, to)| from != to).collect();
         added = rename.values().cloned().collect();
         let swap = |v: &mut Option<String>| {
@@ -237,7 +238,7 @@ mod tests {
         let a = tempfile::tempdir().unwrap();
         let pa = paths(a.path());
         std::fs::create_dir_all(&pa.voices_dir).unwrap();
-        crate::wavio::write_mono_f32(&pa.voices_dir.join("Anna.wav"), &[0.1; 2400], 24_000).unwrap();
+        crate::audio::wavio::write_mono_f32(&pa.voices_dir.join("Anna.wav"), &[0.1; 2400], 24_000).unwrap();
         let mut project = sp::from_text("Тест", "Привет.\n\nПока.", "Рассказчик");
         project.settings.voice = Some("Anna".into());
         crate::speech::save(&pa.workspace, "p1", &project).unwrap();
@@ -247,7 +248,7 @@ mod tests {
         let b = tempfile::tempdir().unwrap();
         let pb = paths(b.path());
         std::fs::create_dir_all(&pb.voices_dir).unwrap();
-        crate::wavio::write_mono_f32(&pb.voices_dir.join("Anna.wav"), &[0.5; 2400], 24_000).unwrap();
+        crate::audio::wavio::write_mono_f32(&pb.voices_dir.join("Anna.wav"), &[0.5; 2400], 24_000).unwrap();
         let (pid, added) = unpack(&pb, &bytes).unwrap();
         let back = crate::speech::load(&pb.workspace, &pid).unwrap();
         assert_eq!(back.blocks().count(), 2);

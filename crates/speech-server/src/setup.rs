@@ -3102,7 +3102,8 @@ mod tests {
     }
     use super::*;
     use super::installed::status_with_system_dir;
-    use crate::app::engine_setup::{setup_status, remove_components};
+    use crate::app::setup_status;
+    use crate::app::remove_components;
 
     /// A file a neighbouring program has is taken (copied here) only when its SHA-256 is the pinned one.
     #[test]
@@ -3308,7 +3309,7 @@ mod tests {
     /// that keeps them takes them from its neighbour.
     #[test]
     fn transcribe_cpp_components_are_dub_asrs() {
-        for m in crate::tcpp_asr::MODELS {
+        for m in crate::engines::tcpp_asr::MODELS {
             let c = comp(m.component);
             let [f] = c.files else { panic!("{}: one file", c.id) };
             assert_eq!((f.url, f.size, f.sha256), (m.download.url, m.download.size, m.download.sha256), "{}", c.id);
