@@ -39,11 +39,11 @@ use audio::{
     flags as audio_flags, loudness, media, qc, tagging, trim as tts_trim, wavio,
 };
 use text::{
-    direct_speech, itn, normalize_ru, prep, pron_dict, ssml, stress, subimport,
+    direct_speech, itn, normalize_ru, prep, pron_dict, ssml, subimport,
     tts as tts_text,
 };
 use engines::{
-    asr_util, denoise, hw, models, presets, qwen_tts, supertonic, tcpp_asr, tts_host, vad,
+    asr_util, denoise, hw, models, presets, qwen_tts, stress, supertonic, tcpp_asr, tts_host, vad,
 };
 use integrations::{
     chat, cloud, cloud_tts, cloud_voices, google_speech, google_tts, llm_provider, music_studios,

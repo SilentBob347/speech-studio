@@ -874,7 +874,7 @@ fn push_change(out: &mut String, gap: &str, from: &str, to: String, rule: &'stat
 /// Разметка синтеза и ударения — в приватные символы, чтобы правила их не трогали; цифр в заместителях нет.
 fn protect(text: &str) -> (String, Vec<String>) {
     let mut kept = Vec::new();
-    let out = crate::stress::MARKUP.replace_all(text, |c: &regex::Captures| {
+    let out = super::stress::MARKUP.replace_all(text, |c: &regex::Captures| {
         kept.push(c[0].to_string());
         format!("\u{E000}{}\u{E001}", char::from_u32(0xF0000 + kept.len() as u32 - 1).unwrap_or('\u{E002}'))
     });

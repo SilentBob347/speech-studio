@@ -8,6 +8,7 @@ release notes on GitHub are taken from the release's section.
 
 ### Fixed
 
+- **Stress model errors.** Missing, malformed or non-finite RUAccent outputs now report an error instead of panicking or silently skipping stress marks.
 - **Dictionary import errors.** Malformed multipart uploads now report an error even when an earlier part contained a valid dictionary.
 - **Noise suppression errors.** Invalid DPDFNet metadata or output sizes now return an error instead of panicking during processing.
 - **DLL diagnostics.** Malformed import addresses and unsupported PE headers report an error instead of panicking or passing the check.

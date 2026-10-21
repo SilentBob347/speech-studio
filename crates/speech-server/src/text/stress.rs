@@ -9,26 +9,19 @@
 
 use std::collections::HashMap;
 use std::io::Read;
-use std::path::{Path, PathBuf};
-use std::sync::{Arc, LazyLock, Mutex};
+use std::path::Path;
+use std::sync::LazyLock;
 
-use ort::session::Session;
-use ort::value::TensorRef;
 use regex::Regex;
 use serde::Serialize;
 
-pub const COMPONENT: &str = "ruaccent";
-pub const DIR: &str = "ruaccent";
-pub const OMOGRAPH_BIG: &str = "nn/nn_omograph/big_poetry";
 const VOWELS: &str = "аеёиоуыэюя";
-/// Сеть ударений обучена на словах до 40 знаков с учётом служебных.
-const ACCENT_MAX_CHARS: usize = 38;
-const ACCENT_MIN_SCORE: f32 = 0.55;
 /// Омограф спорный, когда сеть отдала лучшему варианту меньше этого отрыва от второго.
 const DOUBT_MARGIN: f32 = 0.2;
 
 pub(crate) static MARKUP: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)<\|[^|\n]*\|>|\[\[[^\[\]]*\]\]|\[\s*pause[^\]]*\]|\[\s*rate\s*:[^\]]*\]|sil\s*<\[[^\]]*\]>|<\[[^\]]*\]>").expect("markup")
+    Regex::new(r"(?i)<\|[^|\n]*\|>|\[\[[^\[\]]*\]\]|\[\s*pause[^\]]*\]|\[\s*rate\s*:[^\]]*\]|sil\s*<\[[^\]]*\]>|<\[[^\]]*\]>")
+        .expect("markup")
 });
 static TOKEN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[\w]+|[^\w\s]+").expect("token"));
 
@@ -36,7 +29,7 @@ fn is_cyr(c: char) -> bool {
     matches!(c, 'а'..='я' | 'А'..='Я' | 'ё' | 'Ё')
 }
 
-fn is_vowel(c: char) -> bool {
+pub(crate) fn is_vowel(c: char) -> bool {
     VOWELS.contains(c.to_lowercase().next().unwrap_or(c))
 }
 
@@ -69,67 +62,25 @@ pub struct Stressed {
     pub words: Vec<WordNote>,
 }
 
-pub struct Stresser {
+pub(crate) trait Inference {
+    /// Positions count Unicode characters in the unstressed word.
+    fn accent_position(&self, word: &str) -> Result<Option<usize>, String>;
+    fn omograph_probability(&self, context: &str, hypothesis: &str) -> Result<f32, String>;
+}
+
+pub(crate) struct Rules {
     accents: fst::Map<Vec<u8>>,
     omographs: HashMap<String, Vec<String>>,
     yo_words: HashMap<String, String>,
     yo_homographs: HashMap<String, String>,
-    chars: HashMap<char, i64>,
-    accent: Mutex<Session>,
-    omograph: Mutex<Session>,
-    omo_tok: tokenizers::Tokenizer,
-    /// The homograph model's folder, and whether the model takes `token_type_ids`.
-    omo_dir: PathBuf,
-    omo_types: bool,
-}
-
-pub fn dir(models_root: &Path) -> PathBuf {
-    models_root.join(DIR)
-}
-
-/// The homograph model stress marks come from, by name: a take of an engine that reads the marks is keyed by it.
-pub fn omograph_model(models_root: &Path) -> String {
-    omograph_dir(&dir(models_root)).file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()
-}
-
-/// The homograph model to use: big_poetry (weight-only int8, nerualdreming/ruaccent-omograph-int8) once it is
-/// downloaded, else the tiny2 of the base component.
-fn omograph_dir(d: &Path) -> PathBuf {
-    let big = d.join(OMOGRAPH_BIG);
-    if big.join("model.onnx").is_file() && big.join("tokenizer.json").is_file() { big } else { d.join("nn/nn_omograph/tiny2") }
-}
-
-pub fn installed(repo_root: &Path) -> bool {
-    crate::setup::manifest()
-        .iter()
-        .find(|c| c.id == COMPONENT)
-        .is_some_and(|c| crate::setup::component_status(repo_root, c).installed)
-}
-
-static LOADED: LazyLock<Mutex<Option<Arc<Stresser>>>> = LazyLock::new(|| Mutex::new(None));
-
-/// Общий на процесс разметчик: грузится при первом обращении (словарь собирается в память один раз).
-pub fn shared(models_root: &Path) -> Result<Arc<Stresser>, String> {
-    // the slot changes only after a load succeeds, so a lock poisoned by a panic still holds a whole value
-    let mut slot = LOADED.lock().unwrap_or_else(|e| e.into_inner());
-    if let Some(s) = slot.as_ref().filter(|s| s.omo_dir == omograph_dir(&dir(models_root))) {
-        return Ok(s.clone());
-    }
-    let d = dir(models_root);
-    // ONNX Runtime that does not load panics inside `ort`
-    let loaded = std::panic::catch_unwind(|| Stresser::load(&d)).map_err(|p| {
-        let why = p.downcast_ref::<&str>().map(|s| s.to_string()).or_else(|| p.downcast_ref::<String>().cloned()).unwrap_or_default();
-        format!("{}: {why}", d.display())
-    })?;
-    let s = Arc::new(loaded?);
-    *slot = Some(s.clone());
-    Ok(s)
 }
 
 fn read_gz(path: &Path) -> Result<Vec<u8>, String> {
     let f = std::fs::File::open(path).map_err(|e| format!("{}: {e}", path.display()))?;
     let mut out = Vec::new();
-    flate2::read::GzDecoder::new(f).read_to_end(&mut out).map_err(|e| format!("{}: {e}", path.display()))?;
+    flate2::read::GzDecoder::new(f)
+        .read_to_end(&mut out)
+        .map_err(|e| format!("{}: {e}", path.display()))?;
     Ok(out)
 }
 
@@ -156,51 +107,16 @@ fn build_accents(path: &Path) -> Result<fst::Map<Vec<u8>>, String> {
     fst::Map::new(bytes).map_err(|e| format!("accents fst: {e}"))
 }
 
-fn session(path: &Path, threads: usize) -> Result<Session, String> {
-    let err = |e: &dyn std::fmt::Display| format!("{}: {e}", path.display());
-    Session::builder()
-        .map_err(|e| err(&e))?
-        .with_intra_threads(threads)
-        .map_err(|e| err(&e))?
-        .commit_from_file(path)
-        .map_err(|e| err(&e))
-}
-
-impl Stresser {
-    pub fn load(d: &Path) -> Result<Stresser, String> {
+impl Rules {
+    pub(crate) fn load(d: &Path) -> Result<Self, String> {
         let dict = d.join("dictionary");
         let mut omographs: HashMap<String, Vec<String>> = json_gz(&dict.join("omographs.json.gz"))?;
         omographs.insert("коса".into(), vec!["к+оса".into(), "кос+а".into()]);
-        let vocab = std::fs::read_to_string(d.join("nn/nn_accent/vocab.txt")).map_err(|e| e.to_string())?;
-        let chars = vocab
-            .lines()
-            .enumerate()
-            .filter_map(|(i, l)| {
-                let mut it = l.chars();
-                match (it.next(), it.next()) {
-                    (Some(c), None) => Some((c, i as i64)),
-                    _ => None,
-                }
-            })
-            .collect();
-        let omo_dir = omograph_dir(d);
-        let omograph = session(&omo_dir.join("model.onnx"), if omo_dir.ends_with("tiny2") { 2 } else { 4 })?;
-        let mut omo_tok = tokenizers::Tokenizer::from_file(omo_dir.join("tokenizer.json")).map_err(|e| e.to_string())?;
-        omo_tok
-            .with_truncation(Some(tokenizers::TruncationParams { max_length: 512, ..Default::default() }))
-            .map_err(|e| e.to_string())?;
-        omo_tok.with_padding(None);
-        Ok(Stresser {
+        Ok(Self {
             accents: build_accents(&dict.join("accents.json.gz"))?,
             omographs,
             yo_words: json_gz(&dict.join("yo_words.json.gz"))?,
             yo_homographs: json_gz(&dict.join("yo_homographs.json.gz"))?,
-            chars,
-            accent: Mutex::new(session(&d.join("nn/nn_accent/model.onnx"), 2)?),
-            omo_types: omograph.inputs().iter().any(|i| i.name() == "token_type_ids"),
-            omograph: Mutex::new(omograph),
-            omo_tok,
-            omo_dir,
         })
     }
 
@@ -220,72 +136,23 @@ impl Stresser {
         self.accents.get(word.as_bytes()).map(|v| v as usize)
     }
 
-    /// Ударная гласная слова символьной сетью; `None` — сеть не уверена.
-    fn model_pos(&self, word: &str) -> Result<Option<usize>, String> {
-        let chars: Vec<char> = word.chars().collect();
-        if chars.len() > ACCENT_MAX_CHARS {
-            return Ok(None);
-        }
-        let mut ids: Vec<i64> = vec![2];
-        ids.extend(chars.iter().map(|c| *self.chars.get(c).unwrap_or(&1)));
-        ids.push(3);
-        let n = ids.len();
-        let mask = vec![1i64; n];
-        let types = vec![0i64; n];
-        let shape = vec![1i64, n as i64];
-        let mut s = self.accent.lock().map_err(|_| "accent lock".to_string())?;
-        let out = s
-            .run(ort::inputs![
-                "input_ids" => TensorRef::from_array_view((shape.clone(), ids.as_slice())).map_err(|e| e.to_string())?,
-                "attention_mask" => TensorRef::from_array_view((shape.clone(), mask.as_slice())).map_err(|e| e.to_string())?,
-                "token_type_ids" => TensorRef::from_array_view((shape, types.as_slice())).map_err(|e| e.to_string())?,
-            ])
-            .map_err(|e| format!("accent: {e}"))?;
-        let (_, logits) = out["logits"].try_extract_tensor::<f32>().map_err(|e| format!("accent: {e}"))?;
-        let labels = logits.len() / n;
-        let mut best: Option<(usize, f32)> = None;
-        for (i, c) in chars.iter().enumerate() {
-            let row = &logits[(i + 1) * labels..(i + 2) * labels];
-            let p = softmax(row);
-            let (arg, score) = p.iter().enumerate().fold((0, f32::MIN), |m, (k, v)| if *v > m.1 { (k, *v) } else { m });
-            if arg == 1 && score >= ACCENT_MIN_SCORE && is_vowel(*c) && best.is_none_or(|b| score > b.1) {
-                best = Some((i, score));
-            }
-        }
-        Ok(best.map(|b| b.0))
-    }
-
-    /// Вероятность того, что `hypothesis` — верное прочтение помеченного `<w>…</w>` слова в `context`.
-    fn omograph_prob(&self, context: &str, hypothesis: &str) -> Result<f32, String> {
-        let enc = self.omo_tok.encode((context, hypothesis), true).map_err(|e| e.to_string())?;
-        let ids: Vec<i64> = enc.get_ids().iter().map(|v| *v as i64).collect();
-        let mask: Vec<i64> = enc.get_attention_mask().iter().map(|v| *v as i64).collect();
-        let types: Vec<i64> = enc.get_type_ids().iter().map(|v| *v as i64).collect();
-        let shape = vec![1i64, ids.len() as i64];
-        let mut s = self.omograph.lock().map_err(|_| "omograph lock".to_string())?;
-        let mut inputs = ort::inputs![
-            "input_ids" => TensorRef::from_array_view((shape.clone(), ids.as_slice())).map_err(|e| e.to_string())?,
-            "attention_mask" => TensorRef::from_array_view((shape.clone(), mask.as_slice())).map_err(|e| e.to_string())?,
-        ];
-        if self.omo_types {
-            inputs.push(("token_type_ids".into(), TensorRef::from_array_view((shape, types.as_slice())).map_err(|e| e.to_string())?.into()));
-        }
-        let out = s.run(inputs).map_err(|e| format!("omograph: {e}"))?;
-        let (_, logits) = out["logits"].try_extract_tensor::<f32>().map_err(|e| format!("omograph: {e}"))?;
-        Ok(softmax(&logits[..2])[1])
-    }
-
     /// Расставить ударения и «ё» в тексте блока.
-    pub fn annotate(&self, text: &str) -> Result<Stressed, String> {
+    pub(crate) fn annotate(&self, text: &str, model: &impl Inference) -> Result<Stressed, String> {
         let plan = Plan::new(text);
         let mut words: Vec<Decision> = Vec::new();
         for sentence in plan.sentences() {
-            self.decide_sentence(&plan, sentence, &mut words)?;
+            self.decide_sentence(&plan, sentence, model, &mut words)?;
         }
         Ok(plan.render(&words))
     }
 
-    fn decide_sentence(&self, plan: &Plan, sentence: (usize, usize), out: &mut Vec<Decision>) -> Result<(), String> {
+    fn decide_sentence(
+        &self,
+        plan: &Plan,
+        sentence: (usize, usize),
+        model: &impl Inference,
+        out: &mut Vec<Decision>,
+    ) -> Result<(), String> {
         let tokens = plan.tokens(sentence);
         let mut forms: Vec<String> = tokens.iter().map(|t| plan.clean_str(t.0, t.1)).collect();
         let mut decisions: Vec<Option<Decision>> = vec![None; tokens.len()];
@@ -324,7 +191,7 @@ impl Stresser {
             } else {
                 let context = omograph_context(&forms, i);
                 for v in variants {
-                    scored.push((v.clone(), self.omograph_prob(&context, v)?));
+                    scored.push((v.clone(), model.omograph_probability(&context, v)?));
                 }
             }
             let best = scored.iter().cloned().fold(None::<(String, f32)>, |m, v| match m {
@@ -358,7 +225,7 @@ impl Stresser {
             }
             let (pos, source) = match self.dict_pos(&lw) {
                 Some(p) => (Some(p), "dictionary"),
-                None => (self.model_pos(&lw)?, "model"),
+                None => (model.accent_position(&lw)?, "model"),
             };
             let mut d = decisions[i].take().unwrap_or_else(|| Decision::new(s, e, source));
             if d.source != "yo" {
@@ -372,13 +239,6 @@ impl Stresser {
     }
 }
 
-fn softmax(x: &[f32]) -> Vec<f32> {
-    let m = x.iter().cloned().fold(f32::MIN, f32::max);
-    let e: Vec<f32> = x.iter().map(|v| (v - m).exp()).collect();
-    let s: f32 = e.iter().sum();
-    e.into_iter().map(|v| v / s).collect()
-}
-
 /// Регистр исходного слова на форму из словаря той же длины.
 fn fix_capital(source: &str, target: &str) -> String {
     let s: Vec<char> = source.chars().collect();
@@ -388,7 +248,13 @@ fn fix_capital(source: &str, target: &str) -> String {
     }
     s.iter()
         .zip(t)
-        .map(|(a, b)| if a.is_uppercase() { b.to_uppercase().next().unwrap_or(b) } else { b.to_lowercase().next().unwrap_or(b) })
+        .map(|(a, b)| {
+            if a.is_uppercase() {
+                b.to_uppercase().next().unwrap_or(b)
+            } else {
+                b.to_lowercase().next().unwrap_or(b)
+            }
+        })
         .collect()
 }
 
@@ -424,7 +290,9 @@ fn omograph_context(forms: &[String], at: usize) -> String {
         .map(|(i, w)| if i == at { format!(" <w>{w}</w> ") } else { w.clone() })
         .collect::<Vec<_>>()
         .join(" ");
-    SPACE_BEFORE_PUNCT.replace_all(&delete_spaces_before_punc(&joined), "$1").into_owned()
+    SPACE_BEFORE_PUNCT
+        .replace_all(&delete_spaces_before_punc(&joined), "$1")
+        .into_owned()
 }
 
 #[derive(Clone, Debug)]
@@ -442,7 +310,16 @@ struct Decision {
 
 impl Decision {
     fn new(start: usize, end: usize, source: &'static str) -> Self {
-        Decision { start, end, source, stress: None, yo: Vec::new(), doubt: false, variants: Vec::new(), yo_choice: None }
+        Decision {
+            start,
+            end,
+            source,
+            stress: None,
+            yo: Vec::new(),
+            doubt: false,
+            variants: Vec::new(),
+            yo_choice: None,
+        }
     }
 }
 
@@ -474,7 +351,11 @@ impl Plan {
             markup.push(in_markup);
             pending = false;
         }
-        Plan { clean, manual_stress, markup }
+        Plan {
+            clean,
+            manual_stress,
+            markup,
+        }
     }
 
     fn clean_str(&self, s: usize, e: usize) -> String {
@@ -511,10 +392,17 @@ impl Plan {
 
     /// Слова и знаки предложения (как в RUAccent), без разметки синтеза.
     fn tokens(&self, (s, e): (usize, usize)) -> Vec<(usize, usize)> {
-        let text: String = self.clean[s..e].iter().enumerate().map(|(k, c)| if self.markup[s + k] { ' ' } else { *c }).collect();
+        let text: String = self.clean[s..e]
+            .iter()
+            .enumerate()
+            .map(|(k, c)| if self.markup[s + k] { ' ' } else { *c })
+            .collect();
         let offsets: Vec<usize> = text.char_indices().map(|(b, _)| b).collect();
         let to_char = |b: usize| offsets.partition_point(|x| *x < b);
-        TOKEN.find_iter(&text).map(|m| (s + to_char(m.start()), s + to_char(m.end()))).collect()
+        TOKEN
+            .find_iter(&text)
+            .map(|m| (s + to_char(m.start()), s + to_char(m.end())))
+            .collect()
     }
 
     fn processable(&self, s: usize, e: usize) -> bool {
@@ -544,7 +432,15 @@ impl Plan {
         for (i, c) in self.clean.iter().enumerate() {
             out_pos[i] = n;
             let stressed = self.manual_stress[i] || stress_at[i];
-            let c = if yo_at[i] { if c.is_uppercase() { 'Ё' } else { 'ё' } } else { *c };
+            let c = if yo_at[i] {
+                if c.is_uppercase() {
+                    'Ё'
+                } else {
+                    'ё'
+                }
+            } else {
+                *c
+            };
             if stressed && !(matches!(c, 'ё' | 'Ё') && !self.manual_stress[i]) {
                 text.push('+');
                 n += 1;
@@ -604,6 +500,128 @@ pub fn is_russian(text: &str, lang: &str) -> bool {
 mod tests {
     use super::*;
 
+    fn rules() -> Rules {
+        Rules {
+            accents: fst::Map::from_iter([("молоко", 5)]).unwrap(),
+            omographs: HashMap::from([("замок".into(), vec!["з+амок".into(), "зам+ок".into()])]),
+            yo_words: HashMap::from([("елка".into(), "ёлка".into())]),
+            yo_homographs: HashMap::from([("все".into(), "всё".into())]),
+        }
+    }
+
+    struct NoInference;
+
+    impl Inference for NoInference {
+        fn accent_position(&self, word: &str) -> Result<Option<usize>, String> {
+            panic!("unexpected accent inference for {word}")
+        }
+
+        fn omograph_probability(&self, context: &str, hypothesis: &str) -> Result<f32, String> {
+            panic!("unexpected omograph inference for {context}: {hypothesis}")
+        }
+    }
+
+    #[test]
+    fn dictionary_manual_marks_yo_and_markup_do_not_require_model_inference() {
+        let result = rules()
+            .annotate("Молоко Ёлка елка з+амок [[замок]] <|emotion:awe|> [pause 1.5s]", &NoInference)
+            .unwrap();
+        assert_eq!(result.text, "Молок+о Ёлка ёлка з+амок [[замок]] <|emotion:awe|> [pause 1.5s]");
+        assert!(result.words.iter().any(|w| w.source == "dictionary" && w.word == "Молок+о"));
+        assert!(result.words.iter().any(|w| w.source == "yo" && w.word == "ёлка"));
+        assert!(result.words.iter().any(|w| w.source == "manual" && w.word == "з+амок"));
+    }
+
+    struct Prediction {
+        accent: Result<Option<usize>, String>,
+        omograph: Result<f32, String>,
+        seen: std::cell::RefCell<Vec<(String, String)>>,
+    }
+
+    impl Inference for Prediction {
+        fn accent_position(&self, _: &str) -> Result<Option<usize>, String> {
+            self.accent.clone()
+        }
+
+        fn omograph_probability(&self, context: &str, hypothesis: &str) -> Result<f32, String> {
+            self.seen.borrow_mut().push((context.into(), hypothesis.into()));
+            self.omograph.clone()
+        }
+    }
+
+    fn prediction(accent: Result<Option<usize>, String>, omograph: Result<f32, String>) -> Prediction {
+        Prediction {
+            accent,
+            omograph,
+            seen: Default::default(),
+        }
+    }
+
+    #[test]
+    fn model_positions_and_homograph_scores_keep_the_existing_annotation_contract() {
+        let model = prediction(Ok(Some(5)), Ok(0.6));
+        let result = rules().annotate("Это з+амок, замок и куздра, все.", &model).unwrap();
+        assert!(result.text.contains("з+амок, з+амок и куздр+а, все."));
+        let homo = result.words.iter().find(|w| w.source == "omograph").unwrap();
+        assert_eq!(homo.variants, [("з+амок".into(), 0.6), ("зам+ок".into(), 0.6)]);
+        assert!(homo.doubt);
+        let yo = result.words.iter().find(|w| w.yo_choice.is_some()).unwrap();
+        assert_eq!(yo.yo_choice.as_deref(), Some("всё"));
+        assert!(model
+            .seen
+            .borrow()
+            .iter()
+            .all(|(context, _)| context.contains("Это замок,") && context.contains("<w>замок</w>") && !context.contains('+')));
+    }
+
+    #[test]
+    fn inference_errors_propagate_and_uncertain_or_invalid_positions_do_not_add_marks() {
+        assert_eq!(
+            rules()
+                .annotate("куздра", &prediction(Err("accent failed".into()), Ok(1.0)))
+                .unwrap_err(),
+            "accent failed"
+        );
+        assert_eq!(
+            rules()
+                .annotate("замок", &prediction(Ok(None), Err("omograph failed".into())))
+                .unwrap_err(),
+            "omograph failed"
+        );
+        for pos in [None, Some(2), Some(usize::MAX)] {
+            let result = rules().annotate("куздра", &prediction(Ok(pos), Ok(1.0))).unwrap();
+            assert_eq!(result.text, "куздра");
+            assert_eq!(result.words[0].source, "model");
+        }
+    }
+
+    #[test]
+    fn dictionary_loading_and_known_words_work_without_onnx_or_a_tokenizer() {
+        use std::io::Write;
+
+        let root = tempfile::tempdir().unwrap();
+        let dict = root.path().join("dictionary");
+        std::fs::create_dir(&dict).unwrap();
+        for (name, json) in [
+            ("accents", r#"{"молоко":"молок+о"}"#),
+            ("omographs", r#"{"замок":["з+амок","зам+ок"]}"#),
+            ("yo_words", r#"{"елка":"ёлка"}"#),
+            ("yo_homographs", r#"{"все":"всё"}"#),
+        ] {
+            let file = std::fs::File::create(dict.join(format!("{name}.json.gz"))).unwrap();
+            let mut gz = flate2::write::GzEncoder::new(file, flate2::Compression::default());
+            gz.write_all(json.as_bytes()).unwrap();
+            gz.finish().unwrap();
+        }
+        let rules = Rules::load(root.path()).unwrap();
+        for word in ["МОЛОКО", "замок", "коса", "елка", "Ёлка", "все", "кот"] {
+            assert!(rules.knows(word), "{word}")
+        }
+        assert!(!rules.knows("куздра"));
+        assert_eq!(rules.annotate("Молоко елка", &NoInference).unwrap().text, "Молок+о ёлка");
+        assert!(!root.path().join("nn").exists());
+    }
+
     #[test]
     fn manual_pluses_leave_the_clean_text_and_come_back_in_place() {
         let plan = Plan::new("Это з+амок, а не <|emotion:awe|> зам+ок.");
@@ -638,7 +656,10 @@ mod tests {
 
     #[test]
     fn the_omograph_context_is_the_ruaccent_one() {
-        let forms: Vec<String> = ["Старинный", "замок", "стоял", "на", "холме", "."].iter().map(|s| s.to_string()).collect();
+        let forms: Vec<String> = ["Старинный", "замок", "стоял", "на", "холме", "."]
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
         assert_eq!(omograph_context(&forms, 1), "Старинный <w>замок</w>  стоял на холме.");
     }
 
@@ -647,36 +668,5 @@ mod tests {
         assert!(is_russian("Привет, world", "auto"));
         assert!(!is_russian("Hello мир and everyone", "auto"));
         assert!(!is_russian("Привет", "en"));
-    }
-}
-
-#[cfg(test)]
-mod live {
-    use super::*;
-
-    /// Прогон на настоящих моделях: `STRESS_DIR` — папка RUAccent, `ORT_DYLIB_PATH` — onnxruntime 1.28.
-    #[test]
-    #[ignore]
-    fn real_models_read_context_and_dictionary() {
-        let dir = std::env::var("STRESS_DIR").expect("STRESS_DIR");
-        let t0 = std::time::Instant::now();
-        let s = Stresser::load(Path::new(&dir)).expect("load");
-        eprintln!("load {:.2}s", t0.elapsed().as_secs_f64());
-        for text in [
-            "Старинный замок стоял на холме.",
-            "Закрой дверь на замок, пожалуйста.",
-            "Из этой муки пекут хлеб. Адские муки грешников.",
-            "Елка стояла в углу, все дети пели.",
-            "Он пришел домой и включил телевизор.",
-            "Это з+амок, а не <|emotion:awe|> замок. [pause 300ms] Белки бегали по деревьям.",
-            "Кто-то сказал: «Вышлите документы в среду».",
-        ] {
-            let t = std::time::Instant::now();
-            let r = s.annotate(text).expect("annotate");
-            eprintln!("{:.0}ms | {}", t.elapsed().as_secs_f64() * 1000.0, r.text);
-            for w in r.words.iter().filter(|w| w.doubt || w.yo_choice.is_some() || !w.variants.is_empty()) {
-                eprintln!("    {} {} {:?} doubt={} yo={:?}", w.word, w.source, w.variants, w.doubt, w.yo_choice);
-            }
-        }
     }
 }

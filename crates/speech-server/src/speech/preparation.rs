@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use serde::Serialize;
 
+use crate::engines::stress as stress_engine;
 use super::jobs::{self, SpeechPaths};
 use super::project::{self as sp, SpeechProject};
 use crate::text::{prep, pron_dict, stress};
@@ -32,7 +33,7 @@ pub(crate) fn prepare_text(p: &SpeechPaths, request: PrepareText) -> Result<Text
     let voice = block.and_then(|b| project.voice_of(b));
     let entries = jobs::dictionary(p, &project);
     let russian = stress::is_russian(&request.text, &project.settings.lang);
-    let stress = project.settings.auto_stress && russian && stress::installed(&p.repo_root);
+    let stress = project.settings.auto_stress && russian && stress_engine::installed(&p.repo_root);
     let lang = block.map_or(project.settings.lang.as_str(), |b| project.lang_of(b));
     let prepared = prep::prepare(
         &request.text,
@@ -68,8 +69,8 @@ pub(crate) struct UnknownWords {
 pub(crate) fn unknown_words(p: &SpeechPaths, pid: &str) -> Result<UnknownWords, String> {
     let project = sp::load(&p.workspace, pid)?;
     let entries = jobs::dictionary(p, &project);
-    let stresser = if stress::installed(&p.repo_root) {
-        Some(stress::shared(&p.models_root)?)
+    let stresser = if stress_engine::installed(&p.repo_root) {
+        Some(stress_engine::shared(&p.models_root)?)
     } else {
         None
     };

@@ -10,6 +10,7 @@ pub(crate) mod models;
 pub(crate) mod presets;
 pub(crate) mod qwen_tts;
 pub(crate) mod supertonic;
+pub(crate) mod stress;
 pub(crate) mod tcpp_asr;
 pub(crate) mod tts_host;
 pub(crate) mod vad;

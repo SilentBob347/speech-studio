@@ -47,7 +47,7 @@ pub struct Opts<'a> {
 /// Язык блока для правил: язык проекта или, при `auto`, русский по кириллице.
 pub fn block_lang(text: &str, lang: &str) -> String {
     if lang == "auto" || lang.is_empty() {
-        if crate::stress::is_russian(text, "auto") { "ru".into() } else { String::new() }
+        if super::stress::is_russian(text, "auto") { "ru".into() } else { String::new() }
     } else {
         lang.to_string()
     }

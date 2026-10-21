@@ -197,7 +197,7 @@ pub struct Applied {
 fn segments(text: &str) -> Vec<(String, bool)> {
     let mut out = Vec::new();
     let mut last = 0;
-    for m in crate::stress::MARKUP.find_iter(text) {
+    for m in super::stress::MARKUP.find_iter(text) {
         if m.start() > last {
             out.push((text[last..m.start()].to_string(), true));
         }
