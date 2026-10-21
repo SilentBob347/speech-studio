@@ -189,7 +189,7 @@ Qué cambió y cuándo está en [CHANGELOG.md](CHANGELOG.md), y el botón de des
 
 ## Todo lo que descarga la aplicación
 
-El panel del primer inicio descarga todo esto con un botón. Detrás de un proxy, o donde Hugging Face está bloqueado, configura el proxy en Ajustes → **Red**. También puedes descargar tú los archivos directos, ponerlos donde dice la última columna (desde la carpeta de la aplicación) y pulsar **Importar de carpeta**; los componentes en archivo comprimido los descarga la aplicación. Cada archivo se comprueba contra su SHA-256 fijado antes de usarse. Los tamaños y hashes vienen del manifiesto de la aplicación, `crates/speech-server/src/setup/mod.rs`, y esta tabla se comprueba contra él.
+El panel del primer inicio descarga todo esto con un botón. Detrás de un proxy, o donde Hugging Face está bloqueado, configura el proxy en Ajustes → **Red**. También puedes descargar tú los archivos directos, ponerlos donde dice la última columna (desde la carpeta de la aplicación) y pulsar **Importar de carpeta**; los componentes en archivo comprimido los descarga la aplicación. Cada archivo se comprueba contra su SHA-256 fijado antes de usarse. Los tamaños y hashes vienen del manifiesto de la aplicación, `crates/speech-server/src/setup.rs`, y esta tabla se comprueba contra él.
 
 <!-- downloads:start -->
 | Componente | Necesidad | Archivos (enlaces directos) | Tamaño | Dónde ponerlo |

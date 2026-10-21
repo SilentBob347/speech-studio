@@ -47,7 +47,7 @@ pub fn install(api: Router) {
 }
 
 /// The skill an agent reads, served as a resource and a prompt.
-pub(crate) const SKILL: &str = include_str!("../../../../../docs/mcp-skill.md");
+pub(crate) const SKILL: &str = include_str!("../../../../docs/mcp-skill.md");
 pub(crate) const SKILL_URI: &str = "studio://skill";
 pub(crate) const LANGUAGES_URI: &str = "studio://languages";
 /// Answers longer than this are cut: a transcript of hundreds of lines is more
@@ -163,7 +163,7 @@ pub(crate) fn app_version() -> &'static str {
     static VERSION: OnceLock<String> = OnceLock::new();
     VERSION.get_or_init(|| {
         let conf: Value =
-            serde_json::from_str(include_str!("../../../../../desktop/src-tauri/tauri.conf.json")).expect("tauri.conf.json is JSON");
+            serde_json::from_str(include_str!("../../../../desktop/src-tauri/tauri.conf.json")).expect("tauri.conf.json is JSON");
         conf["version"]
             .as_str()
             .expect("tauri.conf.json names the app's version")

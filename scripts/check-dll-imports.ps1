@@ -1,6 +1,6 @@
 # Checks that every DLL the engines import is shipped, provided by Windows, or installed by First Run:
 # downloads the pinned archives with the app's own downloader into an empty root, then walks the import
-# tables through setup/dll_imports.rs and platform/dll_imports.rs. Run after changing an engine/CUDA pin in setup/mod.rs.
+# tables through setup/dll_imports.rs and platform/dll_imports.rs. Run after changing an engine/CUDA pin in setup.rs.
 param(
     [Parameter(Mandatory = $true)][string]$StagingRoot
 )

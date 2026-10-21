@@ -189,7 +189,7 @@ O que mudou e quando está em [CHANGELOG.md](CHANGELOG.md), e o botão de brilho
 
 ## Tudo o que o aplicativo baixa
 
-O painel da primeira execução baixa tudo isso com um botão. Atrás de um proxy, ou onde o Hugging Face está bloqueado, configure o proxy em Configurações → **Rede**. Você também pode baixar os arquivos diretos, colocá-los onde diz a última coluna (a partir da pasta do aplicativo) e clicar em **Importar da pasta**; os componentes em arquivo compactado o aplicativo baixa sozinho. Cada arquivo é conferido com seu SHA-256 fixado antes do uso. Tamanhos e hashes vêm do manifesto do aplicativo, `crates/speech-server/src/setup/mod.rs`, e esta tabela é conferida com ele.
+O painel da primeira execução baixa tudo isso com um botão. Atrás de um proxy, ou onde o Hugging Face está bloqueado, configure o proxy em Configurações → **Rede**. Você também pode baixar os arquivos diretos, colocá-los onde diz a última coluna (a partir da pasta do aplicativo) e clicar em **Importar da pasta**; os componentes em arquivo compactado o aplicativo baixa sozinho. Cada arquivo é conferido com seu SHA-256 fixado antes do uso. Tamanhos e hashes vêm do manifesto do aplicativo, `crates/speech-server/src/setup.rs`, e esta tabela é conferida com ele.
 
 <!-- downloads:start -->
 | Componente | Necessidade | Arquivos (links diretos) | Tamanho | Onde colocar |

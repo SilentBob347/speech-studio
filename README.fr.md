@@ -189,7 +189,7 @@ Ce qui a changé et quand se trouve dans [CHANGELOG.md](CHANGELOG.md), et le bou
 
 ## Tout ce que l’application télécharge
 
-Le panneau du premier lancement récupère tout ceci d’un clic. Derrière un proxy, ou là où Hugging Face est bloqué, réglez le proxy dans Paramètres → **Réseau**. Vous pouvez aussi télécharger vous-même les fichiers directs, les placer là où l’indique la dernière colonne (à partir du dossier de l’application) et cliquer sur **Importer d’un dossier** ; les composants en archive, l’application les télécharge elle-même. Chaque fichier est vérifié contre son SHA-256 épinglé avant usage. Tailles et empreintes viennent du manifeste de l’application, `crates/speech-server/src/setup/mod.rs`, et ce tableau est vérifié contre lui.
+Le panneau du premier lancement récupère tout ceci d’un clic. Derrière un proxy, ou là où Hugging Face est bloqué, réglez le proxy dans Paramètres → **Réseau**. Vous pouvez aussi télécharger vous-même les fichiers directs, les placer là où l’indique la dernière colonne (à partir du dossier de l’application) et cliquer sur **Importer d’un dossier** ; les composants en archive, l’application les télécharge elle-même. Chaque fichier est vérifié contre son SHA-256 épinglé avant usage. Tailles et empreintes viennent du manifeste de l’application, `crates/speech-server/src/setup.rs`, et ce tableau est vérifié contre lui.
 
 <!-- downloads:start -->
 | Composant | Besoin | Fichiers (liens directs) | Taille | Où le placer |

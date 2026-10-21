@@ -1,5 +1,5 @@
 // Checks (default) or rewrites (--write) the download tables of README.md and its five
-// translations against manifest() of crates/speech-server/src/setup/mod.rs.
+// translations against manifest() of crates/speech-server/src/setup.rs.
 // A table sits between <!-- downloads:start --> and <!-- downloads:end -->.
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -143,7 +143,7 @@ function windowsModule(src) {
 
 const SPEC = /FileSpec \{ url: (?:"([^"]+)"|(\w+)), dest_rel: "([^"]+)", size: ([\d_]+),(?: sha256: "[0-9a-f]{64}",)? extract: Extract::(\w+) \}/;
 
-// The files of one component: inline FileSpec literals, FileSpec constants of setup/mod.rs (the Windows platform module
+// The files of one component: inline FileSpec literals, FileSpec constants of setup.rs (the Windows platform module
 // first), constant arrays and the files of a Windows `Parts`.
 function filesOf(src, expr, consts) {
   const windows = windowsModule(src);
@@ -156,7 +156,7 @@ function filesOf(src, expr, consts) {
       const parts = scope.indexOf(`const ${name}: Parts = Parts {`);
       if (parts >= 0) return elements(scope.slice(parts, scope.indexOf("\n    };", parts)).match(/files: &\[([\s\S]*?)\],\n/)?.[1] ?? "");
     }
-    throw new Error(`FileSpec ${name} not found in setup/mod.rs`);
+    throw new Error(`FileSpec ${name} not found in setup.rs`);
   };
   const elements = (list) => {
     const out = [];
@@ -180,12 +180,12 @@ function filesOf(src, expr, consts) {
 }
 
 function readManifest() {
-  const src = readFileSync(join(root, "crates/speech-server/src/setup/mod.rs"), "utf8").replace(/\r\n/g, "\n");
+  const src = readFileSync(join(root, "crates/speech-server/src/setup.rs"), "utf8").replace(/\r\n/g, "\n");
   const consts = {};
   for (const m of src.matchAll(/const (\w+): &str =\s*"([^"]+)";/g)) consts[m[1]] = m[2];
   for (const m of windowsModule(src).matchAll(/const (\w+): &str =\s*"([^"]+)";/g)) consts[m[1]] = m[2];
   const at = src.indexOf("pub fn manifest()");
-  if (at < 0) throw new Error("manifest() not found in setup/mod.rs");
+  if (at < 0) throw new Error("manifest() not found in setup.rs");
   const body = src.slice(at, src.indexOf("\n}\n", at));
   return body.split(/\n {8}Component \{/).slice(1).map((p) => {
     const id = p.match(/id: "([^"]+)"/)?.[1];
@@ -272,7 +272,7 @@ for (const [lang, file] of Object.entries(FILES)) {
   const missing = [...wanted].filter((u) => !present.has(u));
   const extra = [...present].filter((u) => !wanted.has(u));
   if (missing.length || extra.length || have !== fresh) {
-    console.error(`[ERROR] ${file}: the table differs from setup/mod.rs manifest()`);
+    console.error(`[ERROR] ${file}: the table differs from setup.rs manifest()`);
     for (const u of missing) console.error(`  missing in README: ${u}`);
     for (const u of extra) console.error(`  not in manifest: ${u}`);
     if (!missing.length && !extra.length) console.error("  links match, sizes, names or folders differ; run with --write");
