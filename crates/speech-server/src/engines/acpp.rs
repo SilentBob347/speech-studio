@@ -1,5 +1,6 @@
 //! The studio's audiocpp_server (audio.cpp, through Dub Studio's crate `acpp-server`: `SERVERS`, one process per
-//! build): CrisperWhisper, Parakeet TDT v3 and Nemotron 3.5 recognition and Higgs Audio v3 voicing, with the models on disk now. The same server and
+//! build): CrisperWhisper, Parakeet TDT v3 and Nemotron 3.5 recognition, Nemotron 3 Diarization and Higgs Audio v3
+//! voicing, with the models on disk now. The same server and
 //! layout as Dub Studio's, so a model of one program serves the other.
 
 use crate::engines::hw::CudaBuild;
@@ -12,6 +13,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 pub const CRISPERWHISPER: &str = "crisperwhisper";
+pub const DIAR: &str = "nemotron-diar";
 pub const HIGGS: &str = "higgs";
 pub const NEMOTRON: &str = "nemotron";
 pub const PARAKEET: &str = "parakeet-v3";
@@ -100,6 +102,14 @@ pub fn crisperwhisper_dir(models_root: &Path) -> PathBuf {
     std::env::var_os("SPEECH_STUDIO_CRISPERWHISPER").map(PathBuf::from).unwrap_or_else(|| models_root.join(CRISPERWHISPER_DIR))
 }
 
+/// Nemotron 3 Diarization, which the server reads as it is: env SPEECH_STUDIO_SORTFORMER, else
+/// `<models>/nemotron-diar/nemotron3_diar_v3.onnx`.
+pub fn diar_onnx(models_root: &Path) -> PathBuf {
+    std::env::var_os("SPEECH_STUDIO_SORTFORMER")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| models_root.join(dub_asr::DIAR_MODEL_DIR).join(dub_asr::DIAR_MODEL_FILE))
+}
+
 /// Whether CrisperWhisper is downloaded (the Hugging Face repository folder as it is).
 pub fn crisperwhisper_installed(models_root: &Path) -> bool {
     crisperwhisper_dir(models_root).join("model.safetensors").is_file()
@@ -121,6 +131,10 @@ fn models(models_root: &Path) -> Vec<ModelEntry> {
     let higgs = higgs_gguf(models_root);
     if higgs.is_file() {
         out.push(ModelEntry::higgs_tts(HIGGS, &higgs));
+    }
+    let diar = diar_onnx(models_root);
+    if diar.is_file() {
+        out.push(ModelEntry::nemotron_3_diar(DIAR, &diar));
     }
     // the transcribe.cpp GGUFs, which audio.cpp reads in place
     for id in SERVER_ASR {

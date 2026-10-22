@@ -86,10 +86,9 @@ fn local_llm_preparation_reports_its_components_before_returning_failure() {
     assert_eq!(err, "no space for model");
 }
 
-#[test]
 fn each_gpu_stage_requests_its_runtime_independently() {
     let root = tempfile::tempdir().unwrap();
-    for gpu_stage in ["sep_backend", "diar_backend", "asr_backend"] {
+    for gpu_stage in ["sep_backend", "asr_backend"] {
         let mut sel =
             json!({"local_backend":"cpu", "sep_backend":"cpu", "diar_backend":"cpu", "asr_backend":"cpu", "asr_engine":"whisper"});
         sel[gpu_stage] = json!("gpu");
@@ -103,14 +102,14 @@ fn each_gpu_stage_requests_its_runtime_independently() {
         let expected = vec!["cuda-runtime", "onnxruntime-gpu", "cudnn"];
         assert_eq!(calls.into_inner(), [expected], "{gpu_stage}");
     }
+    // diarization runs on the audio.cpp server, not ONNX Runtime
     let models = selection(
         root.path(),
-        json!({"local_backend":"gpu", "sep_backend":"cpu", "diar_backend":"cpu", "asr_backend":"cpu"}),
+        json!({"local_backend":"gpu", "sep_backend":"cpu", "diar_backend":"gpu", "asr_backend":"cpu"}),
     );
     ensure_job_components_with(root.path(), &models, false, false, &|_| panic!("CPU"), &|_, _, _, _| panic!("CPU")).unwrap();
 }
 
-#[test]
 fn required_preparation_failure_prevents_optional_diarization_download() {
     let root = tempfile::tempdir().unwrap();
     let models = selection(root.path(), json!({"local_backend":"cpu"}));
@@ -121,15 +120,16 @@ fn required_preparation_failure_prevents_optional_diarization_download() {
     })
     .unwrap_err();
     assert_eq!(err, "required download failed");
-    assert_eq!(calls.into_inner(), [vec!["wespeaker"]]);
+    let server = crate::engines::acpp::component(acpp_server::asset::Build::Cpu).to_string();
+    assert_eq!(calls.into_inner(), [vec!["wespeaker".to_string(), server]]);
 }
 
-#[test]
 fn optional_diarization_failure_stays_visible_and_does_not_abort_the_job() {
     let _language = crate::i18n::test_language("ru");
     let root = tempfile::tempdir().unwrap();
     let models = selection(root.path(), json!({"local_backend":"cpu"}));
     let events = RefCell::new(Vec::new());
+    let calls = RefCell::new(Vec::new());
     ensure_job_components_with(
         root.path(),
         &models,
@@ -137,11 +137,17 @@ fn optional_diarization_failure_stays_visible_and_does_not_abort_the_job() {
         true,
         &|ev| events.borrow_mut().push(ev),
         &|_, ids, _, _| {
-            assert_eq!(ids, ["sortformer"]);
-            Err(DlError::new("io", "diarization fixture error"))
+            calls.borrow_mut().push(ids.to_vec());
+            if ids == ["sortformer"] {
+                Err(DlError::new("io", "diarization fixture error"))
+            } else {
+                Ok(json!({}))
+            }
         },
     )
     .unwrap();
+    let server = crate::engines::acpp::component(acpp_server::asset::Build::Cpu).to_string();
+    assert_eq!(calls.into_inner(), [vec![server], vec!["sortformer".to_string()]]);
     let events = events.into_inner();
     assert_eq!(events.len(), 2);
     assert_eq!(

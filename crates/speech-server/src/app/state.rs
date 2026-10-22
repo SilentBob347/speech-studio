@@ -68,9 +68,7 @@ impl AppState {
             Ok(_) => {}
             Err(e) => tracing::error!("secrets from active.json were not moved to the store: {e:#}"),
         }
-        let sortformer_onnx = std::env::var("SPEECH_STUDIO_SORTFORMER")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| mroot.join(dub_asr::DIAR_MODEL_DIR).join(dub_asr::DIAR_MODEL_FILE));
+        let sortformer_onnx = crate::engines::acpp::diar_onnx(&mroot);
         // llama-server: env-override, иначе <repo>/tools/llama/llama-server(.exe) (негитуемый каталог,
         // кладёт установщик/раунд 3). Существование проверяет сама стадия перевода (fail-safe).
         let llama_bin = dub_llm::resolve_llama_bin(&crate::setup::llama_dir(&repo_root, crate::engines::acpp::build()));

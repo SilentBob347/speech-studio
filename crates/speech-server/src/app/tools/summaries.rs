@@ -149,7 +149,7 @@ pub(super) fn shape(name: &str, args: &Value, value: Value) -> Value {
             "choices": {
                 "asr_engine": value["asr_engines"],
                 "llama_ubatch": value["llama_ubatches"], "higgs_ref_secs": value["higgs_ref_secs_opts"],
-                "local_backend": ["auto", "gpu", "vulkan", "cpu"], "tts_backend": ["auto", "gpu", "vulkan", "cpu"], "sep_backend": ["auto", "gpu", "vulkan", "cpu"], "diar_backend": ["auto", "gpu", "cpu"], "asr_backend": ["auto", "gpu", "vulkan", "cpu"],
+                "local_backend": ["auto", "gpu", "vulkan", "cpu"], "tts_backend": ["auto", "gpu", "vulkan", "cpu"], "sep_backend": ["auto", "gpu", "vulkan", "cpu"], "diar_backend": ["auto", "gpu", "vulkan", "cpu"], "asr_backend": ["auto", "gpu", "vulkan", "cpu"],
             },
         }),
         "projects_list" => {

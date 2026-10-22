@@ -146,7 +146,7 @@ pub fn is_selection_key(key: &str) -> bool {
         "tts" | "asr" | "mt" | "sep" | "asr_engine"
             // Backend КАЖДОЙ локальной стадии независимо (auto|gpu|cpu): любой движок на любой инстанс.
             // gpu = CUDA, cpu = без NVIDIA. sep=сепарация(BSRoformer CUDA/CPU-сборка), diar=диаризация
-            // (Sortformer onnx CUDA-EP/CPU), asr=локальный ASR (transcribe.cpp / CrisperWhisper в audiocpp_server).
+            // (Nemotron 3 Diarization в audiocpp_server), asr=локальный ASR (transcribe.cpp / CrisperWhisper в audiocpp_server).
             | "local_backend" | "sep_backend" | "diar_backend" | "asr_backend"
             | "tts_backend"     // voicing engines in audiocpp_server (Higgs): auto|gpu|vulkan|cpu
             | "gpu_index"       // карта NVIDIA по порядку PCI (как nvidia-smi); "auto" — как решит драйвер; со следующего запуска

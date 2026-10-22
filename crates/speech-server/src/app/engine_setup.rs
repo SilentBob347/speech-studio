@@ -301,14 +301,24 @@ fn ensure_job_components_with(
     if similarity && missing("wespeaker") {
         need.push("wespeaker".to_string());
     }
-    // Любая локальная стадия на GPU → полный CUDA-стек: диаризация/ASR грузят onnxruntime-GPU + cuDNN,
+    // Любая локальная стадия на GPU → полный CUDA-стек: ASR грузит onnxruntime-GPU + cuDNN,
     // ggml-движки (сепарация/Higgs) — cuda-runtime (cudart/cublas/cuFFT). Без cuFFT CUDA-EP не поднимется.
-    let gpu = ["sep_backend", "diar_backend", "asr_backend"]
+    let gpu = ["sep_backend", "asr_backend"]
         .iter()
         .any(|k| models::stage_backend(models_root, k) == "gpu");
     if gpu {
         for id in ["cuda-runtime", "onnxruntime-gpu", "cudnn"] {
             if missing(id) {
+                need.push(id.to_string());
+            }
+        }
+    }
+    // Диаризация идёт на сервере audio.cpp: сборка устройства диаризации и её CUDA-рантайм.
+    if diarization {
+        let build = crate::engines::acpp::build_for(models::server_choice(models_root, "diar_backend"))?;
+        let parts = std::iter::once(crate::engines::acpp::component(build)).chain(crate::engines::acpp::runtime_component(build));
+        for id in parts {
+            if missing(id) && !need.iter().any(|n| n == id) {
                 need.push(id.to_string());
             }
         }

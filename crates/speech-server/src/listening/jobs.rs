@@ -252,20 +252,23 @@ pub fn separate_to(repo_root: &Path, models_root: &Path, src: &Path, out: &Path,
 }
 
 fn diarize(p: &ListenPaths, wav: &Path, speakers: u8) -> Result<Vec<dub_asr::Turn>, String> {
-    std::env::set_var("DUB_ASR_BACKEND", crate::engines::models::stage_backend(&p.models_root, "diar_backend"));
-    if speakers != 1 {
-        tracing::info!("diarization: Nemotron 3 Diarization on ONNX Runtime {}", if crate::engines::models::stage_backend(&p.models_root, "diar_backend") == "gpu" { "CUDA" } else { "CPU" });
+    if speakers == 1 {
+        return Ok(Vec::new());
     }
-    let turns = match speakers {
-        1 => return Ok(Vec::new()),
-        0 => dub_asr::turns(wav, &p.sortformer_onnx, 0.8, 2.5).map_err(|e| e.localize())?,
+    let build = crate::engines::acpp::build_for(crate::engines::models::server_choice(&p.models_root, "diar_backend"))?;
+    let server = crate::engines::acpp::server(&p.repo_root, &p.models_root, build, crate::engines::acpp::DIAR)?;
+    tracing::info!("diarization: Nemotron 3 Diarization on audiocpp_server {}", crate::engines::models::build_name(build));
+    let diarizer = dub_asr::Diarizer::Server { server, model: crate::engines::acpp::DIAR };
+    let turns = (|| match speakers {
+        0 => dub_asr::turns(wav, &diarizer, 0.8, 2.5).map_err(|e| e.localize()),
         n => {
             let mut embedder = dub_faces::VoiceEmbedder::load(&dub_faces::wespeaker_path(&p.models_root)).map_err(|e| e.to_string())?;
             let mut embed = |samples: &[f32]| embedder.embed_samples(samples).map_err(|e| e.to_string());
-            dub_asr::turns_with_speaker_count(wav, &p.sortformer_onnx, n as usize, &mut embed).map_err(|e| e.localize())?
+            dub_asr::turns_with_speaker_count(wav, &diarizer, n as usize, &mut embed).map_err(|e| e.localize())
         }
-    };
-    Ok(turns.turns)
+    })();
+    crate::engines::acpp::unload(&[crate::engines::acpp::DIAR]);
+    Ok(turns?.turns)
 }
 
 /// Распознать по кускам, на которые запись режут паузы (Silero VAD): тишина не идёт в распознаватель, а длинная
