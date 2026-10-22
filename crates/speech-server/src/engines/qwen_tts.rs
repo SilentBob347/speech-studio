@@ -218,6 +218,26 @@ pub fn lib_dir(models_root: &Path, build: Build) -> PathBuf {
     }
 }
 
+/// The component that downloads a build: `qwen3-tts-engine` is the build «auto» runs here, the others are fetched when
+/// voicing is set to their device.
+pub fn component(build: Build) -> &'static str {
+    if build == crate::engines::acpp::build() {
+        return "qwen3-tts-engine";
+    }
+    match build {
+        Build::Cuda13 => "qwen3-tts-cuda13",
+        Build::Cuda12 => "qwen3-tts-cuda12",
+        Build::Vulkan => "qwen3-tts-vulkan",
+        Build::Cpu => "qwen3-tts-cpu",
+    }
+}
+
+/// The components of the voicing device's build: the library and its CUDA runtime.
+pub fn build_components(models_root: &Path) -> Result<Vec<&'static str>, String> {
+    let build = build(models_root)?;
+    Ok(std::iter::once(component(build)).chain(crate::engines::acpp::runtime_component(build)).collect())
+}
+
 /// The build the voicing device of the settings runs Qwen on (`tts_backend`, see `acpp::build_for`).
 pub fn build(models_root: &Path) -> Result<Build, String> {
     crate::engines::acpp::build_for(crate::engines::models::server_choice(models_root, "tts_backend"))
@@ -451,7 +471,7 @@ mod tests {
     fn speaks_russian_on_the_gpu_and_streams() {
         let root = PathBuf::from(std::env::var("QWEN_ROOT").expect("QWEN_ROOT"));
         let quant = std::env::var("QWEN_QUANT").unwrap_or_else(|_| "Q4_K_M".into());
-        let e = Engine::load(&root, &quant, false, false).unwrap();
+        let e = Engine::load(&root, Build::Cuda13, &quant, false, false).unwrap();
         eprintln!("qwentts {}", e.version());
         let say = Say { text: "Сегодня в восемь вечера мы встретимся у старого моста.", lang: "ru", speaker: Some("ryan"), reference: None, instruct: None, seed: 42, temperature: 0.7, top_k: 50, top_p: 0.9, max_new_tokens: 0 };
         let chunks = std::sync::atomic::AtomicUsize::new(0);
@@ -477,7 +497,7 @@ mod tests {
     #[ignore]
     fn pauses_by_sampling() {
         let root = PathBuf::from(std::env::var("QWEN_ROOT").expect("QWEN_ROOT"));
-        let e = Engine::load(&root, "Q4_K_M", false, false).unwrap();
+        let e = Engine::load(&root, Build::Cuda13, "Q4_K_M", false, false).unwrap();
         let text = "Сегодня утром мы обсудили выпуск, договорились перенести его на пятницу, отдать субтитры Анне, а голоса оставить такими, какие они есть сейчас, потому что менять их перед самым выпуском слишком рискованно.";
         let pauses = |wav: &[f32]| -> Vec<f64> {
             let hop = SAMPLE_RATE as usize / 50;
@@ -521,8 +541,8 @@ mod tests {
     #[ignore]
     fn clones_a_reference_after_the_named_voices_were_freed() {
         let root = PathBuf::from(std::env::var("QWEN_ROOT").expect("QWEN_ROOT"));
-        drop(Engine::load(&root, "Q4_K_M", false, false).unwrap());
-        let e = Engine::load(&root, "Q4_K_M", true, false).unwrap();
+        drop(Engine::load(&root, Build::Cuda13, "Q4_K_M", false, false).unwrap());
+        let e = Engine::load(&root, Build::Cuda13, "Q4_K_M", true, false).unwrap();
         let (reference, sr) = crate::audio::wavio::read_mono_f32(Path::new(&std::env::var("QWEN_REF").expect("QWEN_REF"))).unwrap();
         assert_eq!(sr, SAMPLE_RATE);
         let text = std::env::var("QWEN_REF_TEXT").ok();
@@ -549,9 +569,9 @@ mod tests {
             "Мука\u{301} была\u{301} в мешке\u{301}, а му\u{301}ка — в душе\u{301}.",
             "В а\u{301}тласе на столе\u{301} лежа\u{301}л кусо\u{301}к атла\u{301}са.",
         ];
-        assert!(Engine::load(&root, "Q4_K_M", false, true).is_err(), "the adapter is for the Base talker");
+        assert!(Engine::load(&root, Build::Cuda13, "Q4_K_M", false, true).is_err(), "the adapter is for the Base talker");
         for stress in [false, true] {
-            let e = Engine::load(&root, "Q4_K_M", true, stress).unwrap();
+            let e = Engine::load(&root, Build::Cuda13, "Q4_K_M", true, stress).unwrap();
             for (n, text) in phrases.iter().enumerate() {
                 let say = Say { text, lang: "ru", speaker: None, reference: Some((&reference, ref_text.as_deref())), instruct: None, seed: 11, temperature: 0.7, top_k: 50, top_p: 0.9, max_new_tokens: 0 };
                 let started = std::time::Instant::now();

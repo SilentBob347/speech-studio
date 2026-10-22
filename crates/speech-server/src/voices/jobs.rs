@@ -112,7 +112,10 @@ pub fn design_dir(voices: &Path, id: &str) -> PathBuf {
 pub fn design(p: &VoicePaths, description: &str, sample: &str, lang: &str, count: u32, progress: &dyn Fn(Value)) -> Result<Value, String> {
     let quant = crate::engines::models::qwen_quant(&p.models_root);
     let model = if quant == "Q8_0" { "qwen3-tts-design-q8_0" } else { "qwen3-tts-design" };
-    crate::app::ensure_components(&p.repo_root, &["qwen3-tts-engine", model], &|ev| progress(ev))?;
+    // every build brings the codec with it
+    let mut parts = vec![model];
+    parts.extend(crate::engines::qwen_tts::build_components(&p.models_root)?);
+    crate::app::ensure_components(&p.repo_root, &parts, &|ev| progress(ev))?;
     crate::engines::tts_host::make_room();
     let engine = crate::engines::tts_host::qwen_design(&p.models_root)?;
     drop_old_designs(&p.voices_dir);

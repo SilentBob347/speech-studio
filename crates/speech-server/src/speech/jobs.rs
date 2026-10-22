@@ -1042,7 +1042,7 @@ fn synth_scope(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Valu
             used.push(project.engine_of(b));
         }
     }
-    for id in used {
+    for id in &used {
         crate::engines::get(id).ok_or_else(|| t!("speech-engine-unknown", engine = id.to_string()))?;
     }
     for b in project.blocks().filter(|b| wanted.contains(&b.id)) {
@@ -1084,6 +1084,19 @@ fn synth_scope(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Valu
             blocks.push_str(", …");
         }
         return Err(t!("speech-unknown-voice-blocks", blocks = blocks));
+    }
+    // the build of the voicing device the local engines run on, once their models are here
+    let mut builds: Vec<&str> = Vec::new();
+    if used.contains(&"higgs") && crate::engines::acpp::higgs_gguf(&p.models_root).is_file() {
+        let build = crate::engines::acpp::build_for(crate::engines::models::server_choice(&p.models_root, "tts_backend"))?;
+        builds.push(crate::engines::acpp::component(build));
+        builds.extend(crate::engines::acpp::runtime_component(build));
+    }
+    if used.iter().any(|e| crate::engines::qwen_tts::is_engine(e)) && crate::engines::qwen_tts::dir(&p.models_root).join(crate::engines::qwen_tts::CODEC).is_file() {
+        builds.extend(crate::engines::qwen_tts::build_components(&p.models_root)?);
+    }
+    if !builds.is_empty() {
+        crate::app::ensure_components(&p.repo_root, &builds, &|ev| progress(ev))?;
     }
     if project.settings.auto_stress && wanted.iter().any(|id| project.blocks().any(|b| &b.id == id && crate::engines::stress::is_russian(&b.text, project.lang_of(b)))) {
         crate::app::ensure_components(&p.repo_root, &[crate::engines::stress::COMPONENT, "onnxruntime"], &|ev| progress(ev))?;
