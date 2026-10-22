@@ -86,6 +86,7 @@ fn local_llm_preparation_reports_its_components_before_returning_failure() {
     assert_eq!(err, "no space for model");
 }
 
+#[test]
 fn each_gpu_stage_requests_its_runtime_independently() {
     let root = tempfile::tempdir().unwrap();
     for gpu_stage in ["sep_backend", "asr_backend"] {
@@ -110,6 +111,7 @@ fn each_gpu_stage_requests_its_runtime_independently() {
     ensure_job_components_with(root.path(), &models, false, false, &|_| panic!("CPU"), &|_, _, _, _| panic!("CPU")).unwrap();
 }
 
+#[test]
 fn required_preparation_failure_prevents_optional_diarization_download() {
     let root = tempfile::tempdir().unwrap();
     let models = selection(root.path(), json!({"local_backend":"cpu"}));
@@ -124,6 +126,7 @@ fn required_preparation_failure_prevents_optional_diarization_download() {
     assert_eq!(calls.into_inner(), [vec!["wespeaker".to_string(), server]]);
 }
 
+#[test]
 fn optional_diarization_failure_stays_visible_and_does_not_abort_the_job() {
     let _language = crate::i18n::test_language("ru");
     let root = tempfile::tempdir().unwrap();
