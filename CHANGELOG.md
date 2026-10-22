@@ -23,6 +23,7 @@ release notes on GitHub are taken from the release's section.
 
 ### Fixed
 
+- **Another engine's built-in voice no longer fails voicing block by block** («There is no voice named F1»): choosing Higgs for a block or a speaker drops a Supertonic or Qwen voice it cannot speak, changing the project's engine clears such a voice from the voices by language too, and voicing names every block whose voice is neither in the library nor its engine's own before any model loads.
 - **A failed download tells the anonymous statistics which component failed and on which site** (for example `network asr-gguf-nemotron huggingface.co`), so a cause behind "network" can be found; nothing about the computer or the person is added.
 - **A recording of only silence is not saved as a voice**: when the system keeps the microphone closed or it is muted, recording a voice ends with what to check instead of a voice that recognition later finds empty.
 - **The director splits a chapter without blank lines into pieces the model can hold**: a book whose paragraphs are separated by single line breaks went to the model as one piece, which overran a local model's context or cut its answer short; a long paragraph now splits by lines, a long line by sentences (Chinese and Japanese full stops too), a sentence by its last space.
@@ -56,6 +57,63 @@ release notes on GitHub are taken from the release's section.
 - **Credential saves.** Failed key and proxy password replacements clean up their temporary files and preserve the previous value.
 - **Reliable file saves.** Concurrent saves of a voice's card, transcript and image no longer share a temporary file.
   Failed writes and blocked replacements preserve the previous file.
+
+## 0.2.4 — 2026-10-21
+
+### Added
+
+- **The time of every step for agents** (`studio_timings`): how long each phrase took to recognise and how soon after the end of your speech its text came, how soon after the agent's text its first sound played, and how long a voice's engine took to load, so the agent can compare recognisers and voices with you.
+- **The recogniser that hears is named**: the top bar shows it next to Microphone on, and an agent asked to change it switches it at once, without restarting the microphone, while the Live window shows the new one.
+
+### Fixed
+
+- **Sounds no longer cut the agent off.** A cough, a laugh or a sigh from Drama 3's tags, or a short "uh-huh" reaching the microphone from the speakers, was taken for you interrupting the agent; a phrase of at least two words now interrupts, as in Pipecat and LiveKit.
+- **The cross cuts speech off**: ending the conversation also stops what the agent is saying.
+- **The voice an agent chose shows in the window**: the Agent's voice panel follows the voice the agent set at your request.
+- **The installed app writes its log again**; the diagnostics report showed "0 lines".
+
+## 0.2.3 — 2026-10-21
+
+### Added
+
+- **The top bar shows while the microphone records**: Microphone on, what it is on for (Live, a Listening recording, a voice recording, the microphone test) and for how long, with a cross that turns it off from any screen.
+- **Pause in Live** (M): the agent falls silent and does not hear you; press again and the conversation goes on.
+
+### Changed
+
+- **Only the person turns the microphone on.** Live, a Listening recording, a voice recording and the microphone test start only on your own click or key in the studio's window. An agent connected over MCP has no tool that turns the microphone on, and the window does not take its clicks on those buttons; the agent can only pause the conversation or end it.
+- **No window, no recording**: when no window of the studio has been open for five seconds, the microphone turns off by itself.
+
+## 0.2.2 — 2026-10-21
+
+### Added
+
+- **Live says the voice is loading.** While the engine of a newly chosen voice loads, the window reads "Loading the voice…"; the engine loads at once on the change, not at the next phrase.
+- **Live warns about Parakeet and a chosen language.** When a language is chosen and Parakeet recognises, the window says Parakeet detects the language itself and may write some words in another one, and suggests Nemotron 3.5, which keeps to the chosen language.
+
+### Fixed
+
+- **No strange pauses in Live.** A long phrase of the agent is said whole up to 300 characters instead of being cut at a comma after 120, which gave Qwen3-TTS pauses and a new intonation mid-sentence; a pause an engine leaves inside a phrase lasts at most 0.6 s, as in an export with Even pauses.
+- **The aura has no square edge**, and the wave follows the loudness smoothly instead of in steps.
+
+## 0.2.1 — 2026-10-20
+
+### Changed
+
+- **The chosen recognition model is downloaded on first use.** In Listening jobs, take checks and voices it is a step of the job with its progress; in Live it downloads in the background with progress in the top bar, and recognition starts by itself when it is done.
+- **A recogniser, a language or a microphone chosen during a conversation applies at once**: the microphone starts again with the new choice.
+- **A new voice in a conversation loads its engine at once**, not at the next phrase.
+- **Parakeet leaves video memory** after a Listening job and a take check; in Live it stays while Live is on.
+- **Turning the microphone off answers the agent briefly**: the recording's number and how many phrases were heard.
+
+### Fixed
+
+- **The agent's phrase is said once**: a defective take is no longer voiced again aloud, and no check after the phrase voices it a second time.
+- **An agent turning the microphone on while it is already on in the window joins it** instead of getting "Already recording"; the microphone test in the window gives the microphone up to the conversation.
+- **Two studio windows no longer take every connection**: the main window and the widget each hold one event stream, so buttons no longer hang.
+- **A phrase the engine cannot say** (a language it does not know, for one) is marked failed with its reason instead of waiting for ever.
+- **The bottom line names the model that actually recognises**: its quantization and the graphics card or the processor.
+- **Nemotron 3.5 knows 28 languages**; the window said 35.
 
 ## 0.2.0 — 2026-10-20
 

@@ -132,7 +132,7 @@
 
 На одном компьютере: RTX 4090 (24 ГБ) под Windows 11, Speech Studio как она ставится.
 
-**Озвучка** — Speech Studio 0.2.0, один и тот же русский текст на 17 секунд, второй прогон каждого движка (модель загружена); первый звук — время до начала звука в окне, видеопамять — пик во время озвучки.
+**Озвучка** — Speech Studio 0.2.0, один и тот же русский текст на 17 секунд, второй прогон каждого движка (модель загружена); Higgs — в движке audio.cpp 22.10, три прогона, первый звук не замерен; первый звук — время до начала звука в окне, видеопамять — пик во время озвучки.
 
 | Движок | Быстрее реального времени | Первый звук | Поток | Скачать | Видеопамять |
 |---|---|---|---|---|---|
@@ -140,16 +140,16 @@
 | Qwen3-TTS | 12× | 19 мс | по ходу речи | 2,2 ГБ | 3,1 ГБ |
 | Qwen3-TTS + ru stress LoRA | 10× | 26 мс | по ходу речи | 2,3 ГБ | 3,5 ГБ |
 | Fish Audio Drama 3 | 7,0× | 326 мс | по ходу речи | 21,4 ГБ | 21,9 ГБ |
-| Higgs Audio v3 | 2,3× | 1,0 с | по ходу речи | 5,3 ГБ | 18,1 ГБ |
+| Higgs Audio v3 | 3,4× | — | по ходу речи | 5,3 ГБ | ~7 ГБ |
 
-**Распознавание** — Speech Studio 0.2.1 (Whisper — 0.2.4), одна русская запись одного говорящего на 5 минут (299,7 с) в Listening без разделения по говорящим, загрузка модели входит; после задачи модель освобождает видеопамять.
+**Распознавание** — Speech Studio 0.2.1 (CrisperWhisper — движок audio.cpp 22.10: русская запись на 625,8 с, с загрузкой движка; на процессоре и видеопамять не замерены), одна русская запись одного говорящего на 5 минут (299,7 с) в Listening без разделения по говорящим, загрузка модели входит; после задачи модель освобождает видеопамять.
 
 | Модель | На видеокарте | На процессоре | Языки | Скачать | Видеопамять |
 |---|---|---|---|---|---|
 | Parakeet TDT v3 | 96× (3,1 с) | 33× (9,2 с) | 25 | 0,7 ГБ | 1,2 ГБ |
 | Parakeet Ultra | 73× (4,1 с) | 33× (9,2 с) | 25 | 0,7 ГБ | 1,0 ГБ |
 | Nemotron 3.5 | 73× (4,1 с) | 29× (10,3 с) | 28 | 0,7 ГБ | 1,0 ГБ |
-| Whisper large-v3-turbo | 19× (15,4 с) | 2,2× (134 с) | 99 | 1,6 ГБ | 1,6 ГБ |
+| CrisperWhisper 2.0 turbo | 96× (6,5 с) | — | 99 | 1,6 ГБ | — |
 
 **Live** — один ход разговора.
 
@@ -317,7 +317,7 @@ cd desktop && npm install && npx tauri build            # 3) оболочка (T
 
 ## Благодарности
 
-- **[Boson AI](https://huggingface.co/bosonai)** — Higgs Audio v3, и **[drbaph / Higgs-Audio-v3-Studio](https://huggingface.co/drbaph/Higgs-Audio-v3-Studio)** — его GGUF-кванты и нативный движок.
+- **[Boson AI](https://huggingface.co/bosonai)** — Higgs Audio v3, и **[drbaph / Higgs-Audio-v3-Studio](https://huggingface.co/drbaph/Higgs-Audio-v3-Studio)** — его GGUF-кванты.
 - **[Fish Audio](https://fish.audio)** — Drama 3; **[apiplant/drama-q4](https://huggingface.co/apiplant/drama-q4)** — её веса Q4; **[drama-rs](https://github.com/timoncool/drama-rs)** — движок на Rust/CUDA.
 - **[Команда Qwen](https://huggingface.co/Qwen)** — Qwen3-TTS; **[ServeurpersoCom / qwentts.cpp](https://github.com/ServeurpersoCom/qwentts.cpp)** и **[Serveurperso/Qwen3-TTS-GGUF](https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF)** — движок на C++ и GGUF-кванты; **[siriusfreak](https://huggingface.co/siriusfreak/qwen3-tts-12hz-1.7b-ru-stress-cf)** — LoRA русских ударений.
 - **[Supertone](https://huggingface.co/Supertone)** — Supertonic 3; **[askurios8/supertonic-3-int8](https://huggingface.co/askurios8/supertonic-3-int8)** — его экспорт в int8.
@@ -325,7 +325,7 @@ cd desktop && npm install && npx tauri build            # 3) оболочка (T
 - **[NVIDIA](https://huggingface.co/nvidia)** — Parakeet-TDT, Nemotron 3.5 ASR и Nemotron 3 Diarization; разделение говорящих через [altunenes/parakeet-rs](https://github.com/altunenes/parakeet-rs).
 - **[handy-computer / transcribe.cpp](https://github.com/handy-computer/transcribe.cpp)** — движок transcribe.cpp и GGUF Parakeet-TDT, Parakeet Ultra и Nemotron 3.5.
 - **[Silero](https://github.com/snakers4/silero-vad)** — Silero VAD v6 ([istupakov/silero-vad-onnx](https://huggingface.co/istupakov/silero-vad-onnx)); **[Ceva-IP / DPDFNet](https://huggingface.co/Ceva-IP/DPDFNet)** — шумоподавление.
-- **[Systran / faster-whisper](https://github.com/SYSTRAN/faster-whisper)** и **[Purfview](https://github.com/Purfview/whisper-standalone-win)** — Whisper и его автономная сборка.
+- **[nyra health / CrisperWhisper 2.0 turbo](https://huggingface.co/nyralabs/CrisperWhisper2.0_turbo)** — распознавание Whisper со временем слов; **[0xShug0 / audio.cpp](https://github.com/0xShug0/audio.cpp)** — движок, в котором работают Higgs Audio v3 и CrisperWhisper.
 - **[chenmozhijin / BSRoformer.cpp](https://github.com/chenmozhijin/BSRoformer.cpp)** и **[GaboxR67](https://huggingface.co/GaboxR67)** — отделение голоса.
 - **[WeSpeaker](https://huggingface.co/Wespeaker/wespeaker-voxceleb-resnet34-LM)** — похожесть голоса; **[Google Gemma](https://huggingface.co/google)** и **[llama.cpp](https://github.com/ggml-org/llama.cpp)** — режиссёр.
 - **[ONNX Runtime](https://github.com/microsoft/onnxruntime)**, **[FFmpeg](https://ffmpeg.org)**, **[Tauri](https://tauri.app)**, **[ort](https://github.com/pykeio/ort)** и библиотеки NVIDIA CUDA.
@@ -367,7 +367,8 @@ cd desktop && npm install && npx tauri build            # 3) оболочка (T
 | transcribe.cpp | MIT |  |
 | Silero VAD | MIT |  |
 | DPDFNet (Ceva) | Apache-2.0 |  |
-| Модели Whisper и faster-whisper | MIT |  |
+| CrisperWhisper 2.0 turbo (nyra health) | MIT для кода; nyra health Non-Commercial Research License для весов и того, что они выдают | Только некоммерческое использование; для коммерческого нужна лицензия nyra health |
+| audio.cpp | Apache-2.0 |  |
 | Mel-Band Roformer voc_fv6, GGUF | На страницах моделей лицензия не указана | Спросите авторов перед коммерческим использованием |
 | WeSpeaker ResNet34-LM | CC-BY-4.0 | Упоминайте WeSpeaker |
 | Gemma-4 12B (Google) | Условия Gemma | Прочтите их |

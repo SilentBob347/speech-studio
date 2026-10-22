@@ -28,11 +28,13 @@ export default function EngineSelect({ value, onChange, inherit, inheritEngine, 
   const engines = useEngines() ?? [];
   const { listing } = useVoices();
   const isPreset = voice ? engines.some((e) => e.presets.some((p) => p.id === voice)) : false;
-  const swap = (e: EngineCaps): string | undefined => {
+  const swap = (e: EngineCaps): string | null | undefined => {
     const library = !!voice && !isPreset;
     const fits = e.presets.some((p) => p.id === voice) || (library && e.clone !== "none") || (!voice && !e.needs_voice);
     if (fits) return undefined;
-    return e.presets[0]?.id ?? (!voice && e.needs_voice ? defaultLibraryVoice(listing, lang, e.ref_text_required) ?? undefined : undefined);
+    if (e.presets[0]) return e.presets[0].id;
+    if (!voice && e.needs_voice) return defaultLibraryVoice(listing, lang, e.ref_text_required) ?? undefined;
+    return isPreset && !e.needs_voice ? null : undefined;
   };
   /** An engine that speaks only library voices while the voice in use is another engine's own one. */
   const needsLibrary = (e: EngineCaps) => e.needs_voice && !e.presets.length && isPreset;

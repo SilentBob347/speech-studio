@@ -9,12 +9,12 @@ single-page UI (`frontend/`).
 - Do not add Python or Node.js to the runtime path. Node is for building the UI only; nothing of
   the shipped app may need it. The Python code of the first era (`backend/`, `dub-engine/`) is
   legacy and is not a reference for behaviour.
-- The model stack is fixed: Parakeet-TDT v3 (int8 ONNX) and Whisper-Faster for recognition,
-  Nemotron 3 Diarization (Streaming Sortformer v3) for diarization, Gemma-4 12B (GGUF) through llama-server for translation and
-  vision, Higgs Audio v3 through `audiocpp_engine.dll` for voice, Mel-Band Roformer through
-  BSRoformer.cpp for separation, PP-OCR (ONNX) for on-screen text, SCRFD / LVFace / anime_face /
-  CCIP / WeSpeaker for casting. Do not swap a model, a quantization or an engine without the
-  maintainer's agreement; a proposal goes into an issue.
+- The model stack is fixed: Parakeet-TDT v3, Parakeet Ultra and Nemotron 3.5 (GGUF Q8_0 through transcribe.cpp)
+  and CrisperWhisper 2.0 turbo (audiocpp_server) for recognition, Nemotron 3 Diarization (Streaming Sortformer v3,
+  ONNX) for diarization, Higgs Audio v3 (audiocpp_server), Fish Audio Drama 3 (drama-rs), Qwen3-TTS (qwentts.cpp)
+  and Supertonic 3 (ONNX) for voice, RUAccent for Russian stress, Gemma-4 12B (GGUF) through llama-server for the
+  director, Mel-Band Roformer through BSRoformer.cpp for separation, WeSpeaker for voice similarity. Do not swap a
+  model, a quantization or an engine without the maintainer's agreement; a proposal goes into an issue.
 - One engine per stage. When a stage fails it degrades (diarization becomes a single speaker) and
   says so; there is no silent second engine behind it.
 - Each stage picks its device on its own (`sep_backend`, `diar_backend`, `asr_backend`: GPU, CPU,

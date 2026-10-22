@@ -132,7 +132,7 @@ Des exemples de tous les moteurs et voix, avec l’accentuation russe avant et a
 
 Sur un même ordinateur : RTX 4090 (24 Go) sous Windows 11, Speech Studio tel qu’il s’installe.
 
-**Doublage** — Speech Studio 0.2.0, le même texte russe de 17 secondes, la deuxième exécution de chaque moteur (modèle chargé) ; le premier son est le délai avant que l’audio commence dans la fenêtre, la mémoire vidéo le pic pendant la lecture.
+**Doublage** — Speech Studio 0.2.0, le même texte russe de 17 secondes, la deuxième exécution de chaque moteur (modèle chargé) ; Higgs — dans le moteur audio.cpp le 22.10, trois exécutions, premier son non mesuré ; le premier son est le délai avant que l’audio commence dans la fenêtre, la mémoire vidéo le pic pendant la lecture.
 
 | Moteur | Plus rapide que le temps réel | Premier son | Streaming | Téléchargement | Mémoire vidéo |
 |---|---|---|---|---|---|
@@ -140,16 +140,16 @@ Sur un même ordinateur : RTX 4090 (24 Go) sous Windows 11, Speech Studio tel qu
 | Qwen3-TTS | 12× | 19 ms | pendant qu’il parle | 2,2 Go | 3,1 Go |
 | Qwen3-TTS + ru stress LoRA | 10× | 26 ms | pendant qu’il parle | 2,3 Go | 3,5 Go |
 | Fish Audio Drama 3 | 7,0× | 326 ms | pendant qu’il parle | 21,4 Go | 21,9 Go |
-| Higgs Audio v3 | 2,3× | 1,0 s | pendant qu’il parle | 5,3 Go | 18,1 Go |
+| Higgs Audio v3 | 3,4× | — | pendant qu’il parle | 5,3 Go | ~7 Go |
 
-**Reconnaissance** — Speech Studio 0.2.1 (Whisper — 0.2.4), un enregistrement russe de 5 minutes d’une seule voix (299,7 s) dans Listening sans séparer les locuteurs, chargement du modèle compris ; le modèle libère la mémoire vidéo à la fin de la tâche.
+**Reconnaissance** — Speech Studio 0.2.1 (CrisperWhisper — moteur audio.cpp le 22.10 : un enregistrement russe de 625,8 s, chargement du moteur compris ; sur le processeur et sa mémoire vidéo non mesurés), un enregistrement russe de 5 minutes d’une seule voix (299,7 s) dans Listening sans séparer les locuteurs, chargement du modèle compris ; le modèle libère la mémoire vidéo à la fin de la tâche.
 
 | Modèle | Sur la carte | Sur le processeur | Langues | Téléchargement | Mémoire vidéo |
 |---|---|---|---|---|---|
 | Parakeet TDT v3 | 96× (3,1 s) | 33× (9,2 s) | 25 | 0,7 Go | 1,2 Go |
 | Parakeet Ultra | 73× (4,1 s) | 33× (9,2 s) | 25 | 0,7 Go | 1,0 Go |
 | Nemotron 3.5 | 73× (4,1 s) | 29× (10,3 s) | 28 | 0,7 Go | 1,0 Go |
-| Whisper large-v3-turbo | 19× (15,4 s) | 2,2× (134 s) | 99 | 1,6 Go | 1,6 Go |
+| CrisperWhisper 2.0 turbo | 96× (6,5 s) | — | 99 | 1,6 Go | — |
 
 **Live** — un tour de conversation.
 
@@ -317,7 +317,7 @@ Les contributeurs sont les bienvenus : portages vers **GPU AMD / Intel, macOS ou
 
 ## Remerciements
 
-- **[Boson AI](https://huggingface.co/bosonai)** — Higgs Audio v3, et **[drbaph / Higgs-Audio-v3-Studio](https://huggingface.co/drbaph/Higgs-Audio-v3-Studio)** — ses quantifications GGUF et le moteur natif.
+- **[Boson AI](https://huggingface.co/bosonai)** — Higgs Audio v3, et **[drbaph / Higgs-Audio-v3-Studio](https://huggingface.co/drbaph/Higgs-Audio-v3-Studio)** — ses quantifications GGUF.
 - **[Fish Audio](https://fish.audio)** — Drama 3 ; **[apiplant/drama-q4](https://huggingface.co/apiplant/drama-q4)** — ses poids Q4 ; **[drama-rs](https://github.com/timoncool/drama-rs)** — le moteur Rust/CUDA.
 - **[Équipe Qwen](https://huggingface.co/Qwen)** — Qwen3-TTS ; **[ServeurpersoCom / qwentts.cpp](https://github.com/ServeurpersoCom/qwentts.cpp)** et **[Serveurperso/Qwen3-TTS-GGUF](https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF)** — le moteur C++ et les quantifications GGUF ; **[siriusfreak](https://huggingface.co/siriusfreak/qwen3-tts-12hz-1.7b-ru-stress-cf)** — la LoRA d’accent tonique russe.
 - **[Supertone](https://huggingface.co/Supertone)** — Supertonic 3 ; **[askurios8/supertonic-3-int8](https://huggingface.co/askurios8/supertonic-3-int8)** — son export int8.
@@ -325,7 +325,7 @@ Les contributeurs sont les bienvenus : portages vers **GPU AMD / Intel, macOS ou
 - **[NVIDIA](https://huggingface.co/nvidia)** — Parakeet-TDT, Nemotron 3.5 ASR et Nemotron 3 Diarization ; la diarisation via [altunenes/parakeet-rs](https://github.com/altunenes/parakeet-rs).
 - **[handy-computer / transcribe.cpp](https://github.com/handy-computer/transcribe.cpp)** — le moteur transcribe.cpp et les GGUF de Parakeet-TDT, Parakeet Ultra et Nemotron 3.5.
 - **[Silero](https://github.com/snakers4/silero-vad)** — Silero VAD v6 ([istupakov/silero-vad-onnx](https://huggingface.co/istupakov/silero-vad-onnx)) ; **[Ceva-IP / DPDFNet](https://huggingface.co/Ceva-IP/DPDFNet)** — réduction de bruit.
-- **[Systran / faster-whisper](https://github.com/SYSTRAN/faster-whisper)** et **[Purfview](https://github.com/Purfview/whisper-standalone-win)** — Whisper et son build autonome.
+- **[nyra health / CrisperWhisper 2.0 turbo](https://huggingface.co/nyralabs/CrisperWhisper2.0_turbo)** — reconnaissance Whisper avec le temps des mots ; **[0xShug0 / audio.cpp](https://github.com/0xShug0/audio.cpp)** — le moteur où tournent Higgs Audio v3 et CrisperWhisper.
 - **[chenmozhijin / BSRoformer.cpp](https://github.com/chenmozhijin/BSRoformer.cpp)** et **[GaboxR67](https://huggingface.co/GaboxR67)** — séparation de la voix.
 - **[WeSpeaker](https://huggingface.co/Wespeaker/wespeaker-voxceleb-resnet34-LM)** — ressemblance de voix ; **[Google Gemma](https://huggingface.co/google)** et **[llama.cpp](https://github.com/ggml-org/llama.cpp)** — le réalisateur.
 - **[ONNX Runtime](https://github.com/microsoft/onnxruntime)**, **[FFmpeg](https://ffmpeg.org)**, **[Tauri](https://tauri.app)**, **[ort](https://github.com/pykeio/ort)** et les bibliothèques NVIDIA CUDA.
@@ -367,7 +367,8 @@ Le code de l’application est sous [MIT](LICENSE). **Les modèles non** : chacu
 | transcribe.cpp | MIT |  |
 | Silero VAD | MIT |  |
 | DPDFNet (Ceva) | Apache-2.0 |  |
-| Modèles Whisper et faster-whisper | MIT |  |
+| CrisperWhisper 2.0 turbo (nyra health) | MIT pour le code ; nyra health Non-Commercial Research License pour les poids et ce qu’ils produisent | Usage non commercial uniquement ; l’usage commercial demande une licence de nyra health |
+| audio.cpp | Apache-2.0 |  |
 | Mel-Band Roformer voc_fv6, GGUF | Aucune licence indiquée sur les pages des modèles | Demandez aux auteurs avant un usage commercial |
 | WeSpeaker ResNet34-LM | CC-BY-4.0 | Citez WeSpeaker |
 | Gemma-4 12B (Google) | Conditions de Gemma | Lisez-les |

@@ -1066,6 +1066,25 @@ fn synth_scope(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Valu
         }
         return Err(t!("speech-no-voice-blocks", blocks = blocks));
     }
+    let library = crate::voices::list(&p.voices_dir).0;
+    let unknown: Vec<String> = project
+        .blocks()
+        .enumerate()
+        .filter(|(_, b)| wanted.contains(&b.id) && !b.hidden)
+        .filter_map(|(n, b)| {
+            let engine = crate::engines::get(project.engine_of(b))?;
+            let voice = project.voice_of(b)?;
+            let missing = engine.clone != "none" && !engine.presets.iter().any(|x| x.id == voice) && !library.iter().any(|x| x.name == voice);
+            missing.then(|| format!("{} «{}» ({voice})", n + 1, sp::visible_snippet(&b.text)))
+        })
+        .collect();
+    if !unknown.is_empty() {
+        let mut blocks = unknown.iter().take(10).cloned().collect::<Vec<_>>().join(", ");
+        if unknown.len() > 10 {
+            blocks.push_str(", …");
+        }
+        return Err(t!("speech-unknown-voice-blocks", blocks = blocks));
+    }
     if project.settings.auto_stress && wanted.iter().any(|id| project.blocks().any(|b| &b.id == id && crate::engines::stress::is_russian(&b.text, project.lang_of(b)))) {
         crate::app::ensure_components(&p.repo_root, &[crate::engines::stress::COMPONENT, "onnxruntime"], &|ev| progress(ev))?;
     }

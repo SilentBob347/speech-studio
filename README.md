@@ -132,7 +132,7 @@ Examples of every engine and voice, with Russian stress before and after, are on
 
 On one computer: RTX 4090 (24 GB) under Windows 11, Speech Studio as it installs.
 
-**Voicing** — Speech Studio 0.2.0, the same 17-second Russian text, the second run of each engine (its model loaded); first sound is the time until audio starts in the window, video memory the peak while speaking.
+**Voicing** — Speech Studio 0.2.0, the same 17-second Russian text, the second run of each engine (its model loaded); Higgs — in the audio.cpp engine on 22.10, three runs, first sound not measured; first sound is the time until audio starts in the window, video memory the peak while speaking.
 
 | Engine | Faster than real time | First sound | Streaming | Download | Video memory |
 |---|---|---|---|---|---|
@@ -140,16 +140,16 @@ On one computer: RTX 4090 (24 GB) under Windows 11, Speech Studio as it installs
 | Qwen3-TTS | 12× | 19 ms | as it speaks | 2.2 GB | 3.1 GB |
 | Qwen3-TTS + ru stress LoRA | 10× | 26 ms | as it speaks | 2.3 GB | 3.5 GB |
 | Fish Audio Drama 3 | 7.0× | 326 ms | as it speaks | 21.4 GB | 21.9 GB |
-| Higgs Audio v3 | 2.3× | 1.0 s | as it speaks | 5.3 GB | 18.1 GB |
+| Higgs Audio v3 | 3.4× | — | as it speaks | 5.3 GB | ~7 GB |
 
-**Recognition** — Speech Studio 0.2.1 (Whisper — 0.2.4), one 5-minute Russian recording of one speaker (299.7 s) in Listening without telling speakers apart, the model loading included; the model leaves video memory when the job ends.
+**Recognition** — Speech Studio 0.2.1 (CrisperWhisper — the audio.cpp engine on 22.10: a 625.8-second Russian recording, the engine loading included, on the processor and its video memory not measured), one 5-minute Russian recording of one speaker (299.7 s) in Listening without telling speakers apart, the model loading included; the model leaves video memory when the job ends.
 
 | Model | On the card | On the processor | Languages | Download | Video memory |
 |---|---|---|---|---|---|
 | Parakeet TDT v3 | 96× (3.1 s) | 33× (9.2 s) | 25 | 0.7 GB | 1.2 GB |
 | Parakeet Ultra | 73× (4.1 s) | 33× (9.2 s) | 25 | 0.7 GB | 1.0 GB |
 | Nemotron 3.5 | 73× (4.1 s) | 29× (10.3 s) | 28 | 0.7 GB | 1.0 GB |
-| Whisper large-v3-turbo | 19× (15.4 s) | 2.2× (134 s) | 99 | 1.6 GB | 1.6 GB |
+| CrisperWhisper 2.0 turbo | 96× (6.5 s) | — | 99 | 1.6 GB | — |
 
 **Live** — one turn of a conversation.
 
@@ -317,7 +317,7 @@ Collaborators are very welcome: ports to **AMD / Intel GPUs, macOS or Linux**, f
 
 ## Credits
 
-- **[Boson AI](https://huggingface.co/bosonai)** — Higgs Audio v3, and **[drbaph / Higgs-Audio-v3-Studio](https://huggingface.co/drbaph/Higgs-Audio-v3-Studio)** — its GGUF quants and the native engine.
+- **[Boson AI](https://huggingface.co/bosonai)** — Higgs Audio v3, and **[drbaph / Higgs-Audio-v3-Studio](https://huggingface.co/drbaph/Higgs-Audio-v3-Studio)** — its GGUF quants.
 - **[Fish Audio](https://fish.audio)** — Drama 3; **[apiplant/drama-q4](https://huggingface.co/apiplant/drama-q4)** — its Q4 weights; **[drama-rs](https://github.com/timoncool/drama-rs)** — the Rust/CUDA engine.
 - **[Qwen team](https://huggingface.co/Qwen)** — Qwen3-TTS; **[ServeurpersoCom / qwentts.cpp](https://github.com/ServeurpersoCom/qwentts.cpp)** and **[Serveurperso/Qwen3-TTS-GGUF](https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF)** — the C++ engine and the GGUF quants; **[siriusfreak](https://huggingface.co/siriusfreak/qwen3-tts-12hz-1.7b-ru-stress-cf)** — the Russian stress LoRA.
 - **[Supertone](https://huggingface.co/Supertone)** — Supertonic 3; **[askurios8/supertonic-3-int8](https://huggingface.co/askurios8/supertonic-3-int8)** — its int8 export.
@@ -325,7 +325,7 @@ Collaborators are very welcome: ports to **AMD / Intel GPUs, macOS or Linux**, f
 - **[NVIDIA](https://huggingface.co/nvidia)** — Parakeet-TDT, Nemotron 3.5 ASR and Nemotron 3 Diarization; the diarization through [altunenes/parakeet-rs](https://github.com/altunenes/parakeet-rs).
 - **[handy-computer / transcribe.cpp](https://github.com/handy-computer/transcribe.cpp)** — the transcribe.cpp engine and the GGUF of Parakeet-TDT, Parakeet Ultra and Nemotron 3.5.
 - **[Silero](https://github.com/snakers4/silero-vad)** — Silero VAD v6 ([istupakov/silero-vad-onnx](https://huggingface.co/istupakov/silero-vad-onnx)); **[Ceva-IP / DPDFNet](https://huggingface.co/Ceva-IP/DPDFNet)** — noise suppression.
-- **[Systran / faster-whisper](https://github.com/SYSTRAN/faster-whisper)** and **[Purfview](https://github.com/Purfview/whisper-standalone-win)** — Whisper and its standalone build.
+- **[nyra health / CrisperWhisper 2.0 turbo](https://huggingface.co/nyralabs/CrisperWhisper2.0_turbo)** — Whisper recognition with word times; **[0xShug0 / audio.cpp](https://github.com/0xShug0/audio.cpp)** — the engine Higgs Audio v3 and CrisperWhisper run in.
 - **[chenmozhijin / BSRoformer.cpp](https://github.com/chenmozhijin/BSRoformer.cpp)** and **[GaboxR67](https://huggingface.co/GaboxR67)** — voice separation.
 - **[WeSpeaker](https://huggingface.co/Wespeaker/wespeaker-voxceleb-resnet34-LM)** — voice similarity; **[Google Gemma](https://huggingface.co/google)** and **[llama.cpp](https://github.com/ggml-org/llama.cpp)** — the director.
 - **[ONNX Runtime](https://github.com/microsoft/onnxruntime)**, **[FFmpeg](https://ffmpeg.org)**, **[Tauri](https://tauri.app)**, **[ort](https://github.com/pykeio/ort)** and the NVIDIA CUDA libraries.
@@ -367,7 +367,8 @@ The app code is [MIT](LICENSE). **The models are not**: each keeps its own licen
 | transcribe.cpp | MIT |  |
 | Silero VAD | MIT |  |
 | DPDFNet (Ceva) | Apache-2.0 |  |
-| Whisper models and faster-whisper | MIT |  |
+| CrisperWhisper 2.0 turbo (nyra health) | MIT for its code; nyra health Non-Commercial Research License for the weights and what they output | Non-commercial use only; commercial use needs a license from nyra health |
+| audio.cpp | Apache-2.0 |  |
 | Mel-Band Roformer voc_fv6, GGUF | No license stated on the model pages | Ask the authors before commercial use |
 | WeSpeaker ResNet34-LM | CC-BY-4.0 | Credit WeSpeaker |
 | Gemma-4 12B (Google) | Gemma terms | Read them |

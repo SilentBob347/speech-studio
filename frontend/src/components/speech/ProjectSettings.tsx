@@ -96,6 +96,7 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
               if (stale(p.settings.voice)) p.settings.voice = null;
               for (const speaker of Object.keys(p.cast)) if (stale(p.cast[speaker])) delete p.cast[speaker];
               for (const b of p.chapters.flatMap((c) => c.blocks)) if (stale(b.voice)) b.voice = null;
+              for (const l of Object.keys(p.settings.lang_voices ?? {})) if (stale(p.settings.lang_voices?.[l])) p.settings.lang_voices![l] = "";
               if (own.length && (!p.settings.voice || (next?.clone === "none" && !own.some((v) => v.id === p.settings.voice)))) p.settings.voice = own[0].id;
               if (next?.needs_voice && !own.length && !p.settings.voice) p.settings.voice = defaultLibraryVoice(listing, p.settings.lang, next.ref_text_required);
             })} className={field}>

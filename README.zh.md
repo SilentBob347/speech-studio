@@ -132,7 +132,7 @@ Speech Studio 打开时，会在 `http://127.0.0.1:8797/mcp` 提供 MCP：Claude
 
 同一台电脑：RTX 4090（24 GB）、Windows 11，安装版 Speech Studio。
 
-**配音**——Speech Studio 0.2.0，同一段 17 秒的俄语文本，每个引擎第二次运行（模型已加载）；首个声音指窗口中开始出声的时间，显存为朗读时的峰值。
+**配音**——Speech Studio 0.2.0，同一段 17 秒的俄语文本，每个引擎第二次运行（模型已加载）；Higgs 为 22.10 在 audio.cpp 引擎中运行三次，首个声音未测；首个声音指窗口中开始出声的时间，显存为朗读时的峰值。
 
 | 引擎 | 比实时快 | 首个声音 | 流式 | 下载 | 显存 |
 |---|---|---|---|---|---|
@@ -140,16 +140,16 @@ Speech Studio 打开时，会在 `http://127.0.0.1:8797/mcp` 提供 MCP：Claude
 | Qwen3-TTS | 12× | 19 毫秒 | 边说边出 | 2.2 GB | 3.1 GB |
 | Qwen3-TTS + ru stress LoRA | 10× | 26 毫秒 | 边说边出 | 2.3 GB | 3.5 GB |
 | Fish Audio Drama 3 | 7.0× | 326 毫秒 | 边说边出 | 21.4 GB | 21.9 GB |
-| Higgs Audio v3 | 2.3× | 1.0 秒 | 边说边出 | 5.3 GB | 18.1 GB |
+| Higgs Audio v3 | 3.4× | — | 边说边出 | 5.3 GB | ~7 GB |
 
-**识别**——Speech Studio 0.2.1（Whisper 为 0.2.4），在 Listening 中识别同一段 5 分钟单人俄语录音（299.7 秒，不区分说话人），含模型加载时间；任务结束后模型释放显存。
+**识别**——Speech Studio 0.2.1（CrisperWhisper 为 22.10 的 audio.cpp 引擎：625.8 秒俄语录音，含引擎加载；处理器上的速度和显存未测），在 Listening 中识别同一段 5 分钟单人俄语录音（299.7 秒，不区分说话人），含模型加载时间；任务结束后模型释放显存。
 
 | 模型 | 显卡 | 处理器 | 语言数 | 下载 | 显存 |
 |---|---|---|---|---|---|
 | Parakeet TDT v3 | 96× (3.1 秒) | 33× (9.2 秒) | 25 | 0.7 GB | 1.2 GB |
 | Parakeet Ultra | 73× (4.1 秒) | 33× (9.2 秒) | 25 | 0.7 GB | 1.0 GB |
 | Nemotron 3.5 | 73× (4.1 秒) | 29× (10.3 秒) | 28 | 0.7 GB | 1.0 GB |
-| Whisper large-v3-turbo | 19× (15.4 秒) | 2.2× (134 秒) | 99 | 1.6 GB | 1.6 GB |
+| CrisperWhisper 2.0 turbo | 96× (6.5 秒) | — | 99 | 1.6 GB | — |
 
 **Live**——对话中的一个来回。
 
@@ -317,7 +317,7 @@ Linux x86-64 的 .deb 和 AppImage 为**实验性**：同一份代码，配上�
 
 ## 致谢
 
-- **[Boson AI](https://huggingface.co/bosonai)**——Higgs Audio v3；**[drbaph / Higgs-Audio-v3-Studio](https://huggingface.co/drbaph/Higgs-Audio-v3-Studio)**——其 GGUF 量化和原生引擎。
+- **[Boson AI](https://huggingface.co/bosonai)**——Higgs Audio v3；**[drbaph / Higgs-Audio-v3-Studio](https://huggingface.co/drbaph/Higgs-Audio-v3-Studio)**——其 GGUF 量化。
 - **[Fish Audio](https://fish.audio)**——Drama 3；**[apiplant/drama-q4](https://huggingface.co/apiplant/drama-q4)**——Q4 权重；**[drama-rs](https://github.com/timoncool/drama-rs)**——Rust/CUDA 引擎。
 - **[Qwen 团队](https://huggingface.co/Qwen)**——Qwen3-TTS；**[ServeurpersoCom / qwentts.cpp](https://github.com/ServeurpersoCom/qwentts.cpp)** 和 **[Serveurperso/Qwen3-TTS-GGUF](https://huggingface.co/Serveurperso/Qwen3-TTS-GGUF)**——C++ 引擎和 GGUF 量化；**[siriusfreak](https://huggingface.co/siriusfreak/qwen3-tts-12hz-1.7b-ru-stress-cf)**——俄语重音 LoRA。
 - **[Supertone](https://huggingface.co/Supertone)**——Supertonic 3；**[askurios8/supertonic-3-int8](https://huggingface.co/askurios8/supertonic-3-int8)**——int8 导出。
@@ -325,7 +325,7 @@ Linux x86-64 的 .deb 和 AppImage 为**实验性**：同一份代码，配上�
 - **[NVIDIA](https://huggingface.co/nvidia)**——Parakeet-TDT、Nemotron 3.5 ASR 和 Nemotron 3 Diarization；说话人分离通过 [altunenes/parakeet-rs](https://github.com/altunenes/parakeet-rs)。
 - **[handy-computer / transcribe.cpp](https://github.com/handy-computer/transcribe.cpp)**——transcribe.cpp 引擎以及 Parakeet-TDT、Parakeet Ultra 和 Nemotron 3.5 的 GGUF。
 - **[Silero](https://github.com/snakers4/silero-vad)**——Silero VAD v6（[istupakov/silero-vad-onnx](https://huggingface.co/istupakov/silero-vad-onnx)）；**[Ceva-IP / DPDFNet](https://huggingface.co/Ceva-IP/DPDFNet)**——降噪。
-- **[Systran / faster-whisper](https://github.com/SYSTRAN/faster-whisper)** 和 **[Purfview](https://github.com/Purfview/whisper-standalone-win)**——Whisper 及其独立构建。
+- **[nyra health / CrisperWhisper 2.0 turbo](https://huggingface.co/nyralabs/CrisperWhisper2.0_turbo)**——带词时间的 Whisper 识别；**[0xShug0 / audio.cpp](https://github.com/0xShug0/audio.cpp)**——运行 Higgs Audio v3 和 CrisperWhisper 的引擎。
 - **[chenmozhijin / BSRoformer.cpp](https://github.com/chenmozhijin/BSRoformer.cpp)** 和 **[GaboxR67](https://huggingface.co/GaboxR67)**——人声分离。
 - **[WeSpeaker](https://huggingface.co/Wespeaker/wespeaker-voxceleb-resnet34-LM)**——声音相似度；**[Google Gemma](https://huggingface.co/google)** 和 **[llama.cpp](https://github.com/ggml-org/llama.cpp)**——导演。
 - **[ONNX Runtime](https://github.com/microsoft/onnxruntime)**、**[FFmpeg](https://ffmpeg.org)**、**[Tauri](https://tauri.app)**、**[ort](https://github.com/pykeio/ort)** 以及 NVIDIA CUDA 库。
@@ -367,7 +367,8 @@ Linux x86-64 的 .deb 和 AppImage 为**实验性**：同一份代码，配上�
 | transcribe.cpp | MIT |  |
 | Silero VAD | MIT |  |
 | DPDFNet（Ceva） | Apache-2.0 |  |
-| Whisper 模型和 faster-whisper | MIT |  |
+| CrisperWhisper 2.0 turbo（nyra health） | 代码为 MIT；权重及其输出为 nyra health Non-Commercial Research License | 仅限非商业使用；商业使用需获得 nyra health 的许可 |
+| audio.cpp | Apache-2.0 |  |
 | Mel-Band Roformer voc_fv6、GGUF | 模型页面未注明许可证 | 商业使用前请询问作者 |
 | WeSpeaker ResNet34-LM | CC-BY-4.0 | 需注明 WeSpeaker |
 | Gemma-4 12B（Google） | Gemma 条款 | 请阅读 |

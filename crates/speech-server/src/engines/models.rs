@@ -146,7 +146,7 @@ pub fn is_selection_key(key: &str) -> bool {
         "tts" | "asr" | "mt" | "sep" | "asr_engine"
             // Backend КАЖДОЙ локальной стадии независимо (auto|gpu|cpu): любой движок на любой инстанс.
             // gpu = CUDA, cpu = без NVIDIA. sep=сепарация(BSRoformer CUDA/CPU-сборка), diar=диаризация
-            // (Sortformer onnx CUDA-EP/CPU), asr=локальный ASR (Parakeet onnx / Whisper CTranslate2).
+            // (Sortformer onnx CUDA-EP/CPU), asr=локальный ASR (transcribe.cpp / CrisperWhisper в audiocpp_server).
             | "local_backend" | "sep_backend" | "diar_backend" | "asr_backend"
             | "gpu_index"       // карта NVIDIA по порядку PCI (как nvidia-smi); "auto" — как решит драйвер; со следующего запуска
             // Лимиты RAM (видимые контролы в настройках, НЕ авто-магия): против OOM на слабой памяти.
@@ -155,7 +155,7 @@ pub fn is_selection_key(key: &str) -> bool {
             | "higgs_ref_secs"  // длина реф-клипа клона голоса (меньше = меньше prefill Higgs; <12с спасает 32ГБ)
             | "bench"           // пер-стадийный бенчмарк (bench.json + ⏱ в журнале); галка в настройках, ВЫКЛ по умолчанию
             | "duck_on"         // дакинг фона под дубляжом (приглушать фон под речью); ВЫКЛ по умолчанию — не всем нужен
-            | "qc_asr"          // "1" -> авто-проверка услышанного текста через Whisper ASR; "0" -> выкл (быстрый синтез)
+            | "qc_asr"          // "1" -> авто-проверка услышанного текста распознаванием; "0" -> выкл (быстрый синтез)
             | "qc_duration"     // "1" -> строгий контроль длительности/растяжения; "0" -> без ограничений
             | "multitake"       // "1" -> генерировать 3 дубля каждой фразы и выбирать лучший по таймингу; "0" -> один дубль (быстро)
             | "breath_on"       // "1" -> авто-вставка легких вдохов в паузах между фразами; "0" -> выкл
@@ -190,7 +190,7 @@ pub fn is_selection_key(key: &str) -> bool {
             | "or_tts_model"    // id TTS-модели OpenRouter (напр. "openai/gpt-4o-mini-tts")
             | "or_tts_voice"    // голос по умолчанию для облачного TTS (напр. "alloy")
             | "or_tts_autocast" // БЕТА: автокастинг голосов по полу спикера (муж->муж/жен->жен); ВКЛ по умолчанию
-            | "or_asr_on"       // "1" -> транскрипция (ASR) через OpenRouter вместо локального Parakeet/Whisper
+            | "or_asr_on"       // "1" -> транскрипция (ASR) через OpenRouter вместо локального распознавателя
             | "or_asr"          // id STT-модели OpenRouter (напр. "openai/whisper-large-v3")
             | "or_concurrency"  // число параллельных облачных запросов (чанки в N потоков; OpenRouter ~50 конкур.)
             // Прокси (режим, тип, адрес) меняется только через /engine/proxy/settings: там пароль уходит в хранилище
