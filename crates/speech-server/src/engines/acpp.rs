@@ -2,6 +2,7 @@
 //! backend): CrisperWhisper recognition and Higgs Audio v3 voicing, with the models on disk now. The same server and
 //! layout as Dub Studio's, so a model of one program serves the other.
 
+use crate::engines::hw::CudaBuild;
 use acpp_server::{AcppError, Backend, Flow, ModelEntry, Server, ServerConfig, SpeechRequest, VoiceRef};
 use serde_json::{Map, Value};
 use std::path::{Path, PathBuf};
@@ -20,13 +21,42 @@ const READY_WITHIN: Duration = Duration::from_secs(60);
 /// The longest wait for the next piece of a phrase; the first one also waits for Higgs to load.
 const SPEECH_STALL: Duration = Duration::from_secs(120);
 
-/// The server program: env SPEECH_STUDIO_AUDIOCPP_SERVER, else `tools/audiocpp/audiocpp_server`.
+/// The build of the server for this card: CUDA 13, else CUDA 12.9 (Maxwell to Volta, drivers 525-579); a machine
+/// whose card runs neither (or that has none) takes the CUDA 13 build for its processor backend.
+pub fn build() -> CudaBuild {
+    crate::engines::hw::gpu_report().cuda_build.unwrap_or(CudaBuild::Cuda13)
+}
+
+/// The folder of a build under the program folder.
+pub fn build_dir(build: CudaBuild) -> &'static str {
+    match build {
+        CudaBuild::Cuda13 => "tools/audiocpp",
+        CudaBuild::Cuda12 => "tools/audiocpp-cuda12",
+    }
+}
+
+/// The CUDA libraries the build's program needs at start and where the runtime component puts them (cudart is
+/// linked into the CUDA 13 build); without them Windows refuses to start it (0xC0000135).
+pub fn libraries(build: CudaBuild) -> &'static [&'static str] {
+    match (build, cfg!(windows)) {
+        (CudaBuild::Cuda13, true) => &["models/higgs-engine/cublas64_13.dll", "models/higgs-engine/cublasLt64_13.dll", "models/higgs-engine/cufft64_12.dll"],
+        (CudaBuild::Cuda12, true) => &[
+            "models/cuda12-runtime/cudart64_12.dll",
+            "models/cuda12-runtime/cublas64_12.dll",
+            "models/cuda12-runtime/cublasLt64_12.dll",
+            "models/cuda12-runtime/cufft64_11.dll",
+        ],
+        (_, false) => &[],
+    }
+}
+
+/// The server program: env SPEECH_STUDIO_AUDIOCPP_SERVER, else the program of this card's build.
 pub fn exe(repo_root: &Path) -> PathBuf {
     if let Some(p) = std::env::var_os("SPEECH_STUDIO_AUDIOCPP_SERVER") {
         return PathBuf::from(p);
     }
     let name = if cfg!(windows) { "audiocpp_server.exe" } else { "audiocpp_server" };
-    repo_root.join("tools").join("audiocpp").join(name)
+    repo_root.join(build_dir(build())).join(name)
 }
 
 pub fn backend(stage_backend: &str) -> Backend {
@@ -87,6 +117,12 @@ pub fn server(repo_root: &Path, models_root: &Path, backend: Backend, model: &st
     if !config.exe.is_file() {
         return Err(t!("acpp-no-server", path = config.exe.display().to_string()));
     }
+    if std::env::var_os("SPEECH_STUDIO_AUDIOCPP_SERVER").is_none() {
+        let missing: Vec<&str> = libraries(build()).iter().copied().filter(|rel| !repo_root.join(rel).is_file()).collect();
+        if !missing.is_empty() {
+            return Err(t!("acpp-no-libraries", files = missing.join(", ")));
+        }
+    }
     if !config.models.iter().any(|m| m.id == model) {
         return Err(t!("acpp-no-model", model = model.to_string()));
     }
@@ -118,13 +154,13 @@ pub struct Higgs {
 }
 
 impl Higgs {
-    /// On the card when it can run CUDA 13, else on the processor.
+    /// On the card when it runs a CUDA build of the server (13 or 12.9), else on the processor.
     pub fn load(repo_root: &Path, models_root: &Path) -> Result<Higgs, String> {
         let gguf = higgs_gguf(models_root);
         if !gguf.is_file() {
             return Err(t!("render-higgs-model-missing", path = gguf.display().to_string()));
         }
-        let backend = if crate::engines::hw::gpu_report().cuda13_ok { Backend::Cuda } else { Backend::Cpu };
+        let backend = if crate::engines::hw::gpu_report().cuda_build.is_some() { Backend::Cuda } else { Backend::Cpu };
         let server = server(repo_root, models_root, backend, HIGGS)?;
         let rate = server.speech_rate(HIGGS).map_err(|e| localize(&e))?;
         Ok(Higgs { server, rate, cancel: AtomicBool::new(false) })

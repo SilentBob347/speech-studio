@@ -1185,6 +1185,7 @@ record-test-other = Hay otra grabación en curso, no una prueba de micrófono.
 record-test-none = Todavía no se ha probado el micrófono.
 setup-comp-crisperwhisper-purpose = Reconocimiento de voz en 99 idiomas con marcas de tiempo, más allá de los 25 europeos de Parakeet. Licencia: nyra health Non-Commercial (LICENSE.md junto a los pesos)
 acpp-no-server = El motor audio.cpp no está instalado ({ $path }): descárgalo en Ajustes → Modelos
+acpp-no-libraries = El motor audio.cpp no puede arrancar: faltan sus bibliotecas CUDA ({ $files }). Descárgalas en Ajustes → Modelos
 acpp-no-model = El modelo «{ $model }» del motor audio.cpp no está descargado: descárgalo en Ajustes → Modelos
 acpp-error = motor audio.cpp: { $error }
 asr-crisperwhisper-no-vulkan = CrisperWhisper no tiene versión para Vulkan: elige «CPU» o «GPU (CUDA)» para el reconocimiento en Ajustes → Modelos, o Parakeet o Nemotron, que funcionan con Vulkan.

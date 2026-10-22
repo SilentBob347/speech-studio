@@ -124,7 +124,7 @@ pub fn higgs(repo_root: &Path, models_root: &Path) -> Result<Tts, String> {
     }
     *slot = None;
     let gpu = crate::engines::hw::gpu_report();
-    if gpu.nvidia && !gpu.cuda13_ok {
+    if gpu.nvidia && gpu.cuda_build.is_none() {
         let card = gpu.summary().unwrap_or_else(|| "-".to_string());
         return Err(match gpu.reason {
             Some("gpu_old") => t!("render-higgs-gpu-old", card = card, min = gpu.min_compute.clone()),

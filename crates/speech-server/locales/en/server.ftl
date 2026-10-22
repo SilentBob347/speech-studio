@@ -1191,6 +1191,7 @@ record-test-other = Another recording is running, not a microphone test.
 record-test-none = There has been no microphone test yet.
 setup-comp-crisperwhisper-purpose = Speech recognition in 99 languages with timestamps, beyond Parakeet's 25 European ones. Licence: nyra health Non-Commercial (LICENSE.md beside the weights)
 acpp-no-server = The audio.cpp engine is not installed ({ $path }): download it in Settings → Models
+acpp-no-libraries = The audio.cpp engine cannot start: its CUDA libraries are missing ({ $files }). Download them in Settings → Models
 acpp-no-model = The model «{ $model }» of the audio.cpp engine is not downloaded: download it in Settings → Models
 acpp-error = audio.cpp engine: { $error }
 asr-crisperwhisper-no-vulkan = CrisperWhisper has no Vulkan build: choose «CPU» or «GPU (CUDA)» for recognition in Settings → Models, or Parakeet or Nemotron, which run on Vulkan.

@@ -1212,6 +1212,7 @@ record-test-other = Сейчас идёт другая запись, а не п�
 record-test-none = Проверки микрофона ещё не было.
 setup-comp-crisperwhisper-purpose = Распознавание речи на 99 языках с метками слов, сверх 25 европейских у Parakeet. Лицензия: nyra health Non-Commercial (LICENSE.md рядом с весами)
 acpp-no-server = Движок audio.cpp не установлен ({ $path }): скачайте его в «Настройки → Модели»
+acpp-no-libraries = Движок audio.cpp не запустится: нет его библиотек CUDA ({ $files }). Скачайте их в «Настройки → Модели»
 acpp-no-model = Модель «{ $model }» движка audio.cpp не скачана: скачайте её в «Настройки → Модели»
 acpp-error = движок audio.cpp: { $error }
 asr-crisperwhisper-no-vulkan = У CrisperWhisper нет сборки под Vulkan: выберите для распознавания «CPU» или «GPU (CUDA)» в «Настройки → Модели» либо Parakeet или Nemotron, они работают на Vulkan.

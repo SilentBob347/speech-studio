@@ -47,11 +47,14 @@ pub fn ensure_library_path(repo_root: &Path) {
 /// чтобы `Command::new("ffmpeg")` и подобные находили их без перезапуска после автозакачки. Вызывается
 /// один раз при старте сервера (main.rs / Tauri-shell). Идемпотентно: не дублирует уже присутствующие.
 pub fn augment_path_for_tools(repo_root: &Path) {
-    let dirs = [
+    let mut dirs = vec![
         repo_root.join("tools").join("ffmpeg"),
         repo_root.join("tools").join("llama"),
         repo_root.join("models").join("higgs-engine"),
     ];
+    if crate::engines::hw::gpu_report().cuda_build == Some(crate::engines::hw::CudaBuild::Cuda12) {
+        dirs.push(repo_root.join("models").join("cuda12-runtime"));
+    }
     let sep = if cfg!(windows) { ";" } else { ":" };
     let cur = std::env::var("PATH").unwrap_or_default();
     let mut prefix = String::new();
