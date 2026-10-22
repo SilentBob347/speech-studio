@@ -184,6 +184,7 @@ pub fn drama(models_root: &Path) -> Result<Tts, String> {
     if !crate::models::drama_installed(models_root) {
         return Err(t!("render-drama-missing"));
     }
+    dub_tcpp::cpu_floor("Drama 3")?;
     let e = drama::DramaEngine::load_limited(&crate::models::drama_dll(models_root), &[], &models_root.join(crate::models::DRAMA_TTS), DRAMA_MAX_LEN, limit)
         .map_err(|e| t!("render-drama-load-failed", error = e.to_string()))?;
     let e = Arc::new(e);
@@ -250,6 +251,7 @@ pub fn qwen(models_root: &Path, clone: bool, stress: bool) -> Result<Tts, String
         });
     }
     cuda13_ready()?;
+    dub_tcpp::cpu_floor("Qwen3-TTS")?;
     let e = Arc::new(crate::qwen_tts::Engine::load(models_root, &quant, clone || stress, stress).map_err(|e| t!("render-qwen-load-failed", error = e))?);
     *slot = Some((key, Tts::Qwen(e.clone())));
     touch();
@@ -286,6 +288,7 @@ pub fn qwen_design(models_root: &Path) -> Result<Tts, String> {
         return Err(t!("voice-design-missing"));
     }
     cuda13_ready()?;
+    dub_tcpp::cpu_floor("Qwen3-TTS")?;
     let e = Arc::new(crate::qwen_tts::Engine::load_design(models_root, &quant).map_err(|e| t!("render-qwen-load-failed", error = e))?);
     *slot = Some((key, Tts::Qwen(e.clone())));
     touch();

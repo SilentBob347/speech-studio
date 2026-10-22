@@ -278,7 +278,7 @@ pub async fn select_model(State(st): State<AppState>, Json(body): Json<Value>) -
         }
         return Json(crate::models::public_selection(&st.models_root)).into_response();
     }
-    // Форма 2: {"id":"whisper-small"} — id компонента манифеста -> набор слотов (активация при скачивании
+    // Форма 2: {"id":"crisperwhisper-turbo"} — id компонента манифеста -> набор слотов (активация при скачивании
     // и переключение варианта). Пустой набор -> неизвестный компонент.
     let id = body.get("id").and_then(Value::as_str).unwrap_or("");
     let pairs = crate::models::component_selection(id);

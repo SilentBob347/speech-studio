@@ -55,7 +55,7 @@ pub struct Settings {
     pub separate: bool,
     /// Скрывать галлюцинации распознавателя.
     pub filter: bool,
-    /// Подсказка распознавателю: тема и термины записи. Уходит только в Whisper (`--initial_prompt`), вместе с
+    /// Подсказка распознавателю: тема и термины записи. Уходит только в CrisperWhisper (текст контекста), вместе с
     /// написаниями из исправлений.
     pub prompt: String,
     /// Убрать шум (DPDFNet) перед распознаванием; `denoise_db` — предел подавления, 0 — без предела.
@@ -74,7 +74,7 @@ impl Default for Settings {
 /// Предел шумоподавления по умолчанию: речь остаётся живой, фон уходит заметно.
 pub const DENOISE_DB: f64 = 18.0;
 
-/// Подсказка Whisper: текст из настроек и, через запятую, верные написания из исправлений (без повторов).
+/// Подсказка CrisperWhisper: текст из настроек и, через запятую, верные написания из исправлений (без повторов).
 pub fn whisper_prompt(project: &ListenProject) -> Option<String> {
     let mut terms: Vec<&str> = Vec::new();
     for f in &project.fixes {

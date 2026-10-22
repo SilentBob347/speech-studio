@@ -264,7 +264,7 @@ fn shape(name: &str, args: &Value, value: Value) -> Value {
         "settings_get" => json!({
             "settings": value["selection"],
             "choices": {
-                "asr_engine": value["asr_engines"], "whisper_model": value["whisper_models"], "whisper_compute": value["whisper_computes"],
+                "asr_engine": value["asr_engines"],
                 "llama_ubatch": value["llama_ubatches"], "higgs_ref_secs": value["higgs_ref_secs_opts"],
                 "local_backend": ["auto", "gpu", "cpu"], "sep_backend": ["auto", "gpu", "cpu"], "diar_backend": ["auto", "gpu", "cpu"], "asr_backend": ["auto", "gpu", "cpu"],
             },
@@ -844,13 +844,13 @@ fn tools() -> &'static [Tool] {
             },
             Tool {
                 name: "models_select",
-                description: "Use a downloaded variant for its stage (id from models_status): a quantisation of Higgs (higgs, higgs-q6_k, higgs-q4_k_m), of Gemma (gemma, gemma-q5_0, gemma-q6_k, gemma-q8_0) or of the separator (roformer, roformer-q5, roformer-q4), or a speech recogniser (parakeet, parakeet-ultra, asr-gguf-nemotron, whisper-tiny ... whisper-large-v3-turbo). Applies from the next job, no restart.",
+                description: "Use a downloaded variant for its stage (id from models_status): a quantisation of Higgs (higgs, higgs-q6_k, higgs-q4_k_m), of Gemma (gemma, gemma-q5_0, gemma-q6_k, gemma-q8_0) or of the separator (roformer, roformer-q5, roformer-q4), or a speech recogniser (parakeet, parakeet-ultra, asr-gguf-nemotron, crisperwhisper-turbo). Applies from the next job, no restart.",
                 schema: || id_only("id", "component id from models_status"),
                 call: |args| post("/engine/select".into(), json!({ "id": text(args, "id")? })),
             },
             Tool {
                 name: "settings_get",
-                description: "The studio's settings and the values each takes: the model variant of each stage (tts, mt, sep, asr, asr_engine, whisper_model, whisper_compute, whisper_device), where each local stage runs (local_backend, sep_backend, diar_backend, asr_backend: auto, gpu, cpu), the voicing switches (qc_asr, qc_duration, multitake, breath_on, speech_rate_on, emo_ref_on, duck_on, auto_shorten: rewrite the translation of lines that do not fit their slot and voice them again during a render, lead_into_silence: a line that does not fit starts up to a second earlier, into the silence before it, instead of being sped up; off by default), the memory limits (llama_ubatch, higgs_ref_secs), who translates and who reads frames (llm_provider, vision_provider: local = the studio's Gemma, server = a local OpenAI-compatible server at srv_url with the models srv_llm and srv_vision, openrouter = the cloud with or_llm and or_vision), the other cloud stages through OpenRouter (or_tts_on, or_tts_model, or_tts_voice, or_tts_autocast, or_asr_on, or_asr, or_concurrency), whether the proxy is on (proxy_on; proxy_settings_set sets its address) and the stage benchmark (bench). The OpenRouter key is never shown: or_key_set says whether there is one.",
+                description: "The studio's settings and the values each takes: the model variant of each stage (tts, mt, sep, asr, asr_engine: parakeet, nemotron or whisper = CrisperWhisper 2.0 turbo), where each local stage runs (local_backend, sep_backend, diar_backend: auto, gpu, cpu; asr_backend: auto, gpu, vulkan, cpu), the voicing switches (qc_asr, qc_duration, multitake, breath_on, speech_rate_on, emo_ref_on, duck_on, auto_shorten: rewrite the translation of lines that do not fit their slot and voice them again during a render, lead_into_silence: a line that does not fit starts up to a second earlier, into the silence before it, instead of being sped up; off by default), the memory limits (llama_ubatch, higgs_ref_secs), who translates and who reads frames (llm_provider, vision_provider: local = the studio's Gemma, server = a local OpenAI-compatible server at srv_url with the models srv_llm and srv_vision, openrouter = the cloud with or_llm and or_vision), the other cloud stages through OpenRouter (or_tts_on, or_tts_model, or_tts_voice, or_tts_autocast, or_asr_on, or_asr, or_concurrency), whether the proxy is on (proxy_on; proxy_settings_set sets its address) and the stage benchmark (bench). The OpenRouter key is never shown: or_key_set says whether there is one.",
                 schema: nothing,
                 call: |_| get("/engine/capabilities".into()),
             },

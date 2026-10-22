@@ -79,6 +79,8 @@ pub fn is_provided_by_the_system(name: &str) -> bool {
         || name.starts_with("ext-ms-win-")
         // Библиотека самого драйвера NVIDIA: по правилам NVIDIA не распространяется, её ставит драйвер.
         || name == "nvcuda.dll"
+        // the Vulkan loader comes with every current graphics driver (NVIDIA, AMD, Intel)
+        || name == "vulkan-1.dll"
         || [
             "kernel32.dll", "kernelbase.dll", "ntdll.dll", "user32.dll", "gdi32.dll", "advapi32.dll", "shell32.dll",
             "shlwapi.dll", "ole32.dll", "oleaut32.dll", "combase.dll", "ws2_32.dll", "crypt32.dll", "bcrypt.dll",
@@ -105,6 +107,9 @@ pub const ENTRY_POINTS: &[(&str, &str)] = &[
     ("llama", "tools/llama/ggml-cuda.dll"),
     ("higgs-engine", "models/higgs-engine/audiocpp_engine.dll"),
     ("drama3", "models/drama-engine/drama_engine.dll"),
+    ("transcribe-engine", "models/transcribe-engine/transcribe_engine.dll"),
+    ("transcribe-engine-cpu", "models/transcribe-engine-cpu/transcribe_engine.dll"),
+    ("transcribe-engine-vulkan", "models/transcribe-engine-vulkan/transcribe_engine.dll"),
     ("qwen3-tts-engine", "models/qwen3-tts/qwen.dll"),
     ("qwen3-tts-engine", "models/qwen3-tts/ggml-cuda.dll"),
     ("onnxruntime", "models/runtime/onnxruntime-win-x64-1.28.2/lib/onnxruntime.dll"),
@@ -120,9 +125,6 @@ pub const ENTRY_POINTS: &[(&str, &str)] = &[
     ("bsroformer-engine", "tools/bsroformer/ggml-cuda.dll"),
     ("bsroformer-engine-cpu", "tools/bsroformer-cpu/bs_roformer-cli.exe"),
     ("ffmpeg", "tools/ffmpeg/ffmpeg.exe"),
-    ("whisper-cuda", "tools/whisper/cublas64_11.dll"),
-    ("whisper-cuda", "tools/whisper/cudnn_ops_infer64_8.dll"),
-    ("whisper-cuda", "tools/whisper/cudnn_cnn_infer64_8.dll"),
 ];
 
 /// Итог проверки одной точки входа.
@@ -228,8 +230,8 @@ mod tests {
 
     /// Библиотеки, которые точка входа берёт из ЧУЖОГО компонента: (кто грузит, DLL, кто её ставит, грузится ли
     /// она LoadLibrary'ем во время работы). Таблицу импорта сняли с настоящих архивов
-    /// (scripts/check-dll-imports.ps1, dumpbin /DEPENDENTS); cuDNN и cuFFT CUDA-провайдер onnxruntime, а cuBLAS и
-    /// cuDNN 8 — CTranslate2 внутри whisper-faster.exe грузят сами, в таблице импорта их нет.
+    /// (scripts/check-dll-imports.ps1, dumpbin /DEPENDENTS); cuDNN и cuFFT CUDA-провайдер onnxruntime грузит сам,
+    /// в таблице импорта их нет.
     const CROSS_COMPONENT: &[(&str, &str, &str, bool)] = &[
         ("llama", "cublas64_13.dll", "cuda-runtime", false),
         ("llama", "cublasLt64_13.dll", "cuda-runtime", false),

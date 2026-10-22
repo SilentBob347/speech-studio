@@ -6,6 +6,11 @@ release notes on GitHub are taken from the release's section.
 
 ## Unreleased
 
+### Changed
+
+- **Whisper is CrisperWhisper 2.0 turbo in the audio.cpp engine**, as in Dub Studio: 99 languages with word times, the language of Auto heard by VoxLingua107, the Listening prompt passed to it. Faster-Whisper, its six models and its CUDA 11 libraries are gone, and this program's copies of them are removed at start (a model folder shared with another program loses only its link).
+- **Recognition runs on Vulkan** on an AMD or Intel card and on an NVIDIA card CUDA 13 does not run on (Auto), and Vulkan can be chosen by hand in Settings → Models → Recognition; before, such a computer recognised on the processor.
+
 ### Fixed
 
 - **Recognition no longer closes the program on processors without AVX-512** (Intel Core before the 11th generation and the 12th–14th, most AMD before Zen 4): transcribe.cpp engine-0.1.3 is built for AVX2, FMA and F16C instead of the build machine's own instructions, and a processor without them gets a message instead of a crash. The take check, a voice's reference text, cloning from a long reference and Listening all went through it.
@@ -16,6 +21,9 @@ release notes on GitHub are taken from the release's section.
 - **Checking the SHA-256 after a download moves the bar** (bytes checked of the bytes to check) instead of leaving it at 100 %; a failure inside the download thread ends the download with its cause instead of leaving it spinning.
 - **A synthesis that timed out or hung names its engine.**
 - **The director's verbatim check takes full-width digits and letters (３, Ａ) as the ordinary ones.**
+- **Drama 3, Qwen3-TTS and the separator check the processor before they load** (AVX2, FMA, F16C, BMI2) and name what is missing instead of closing the program.
+- **Cleaning a voice works in a folder with Cyrillic or other non-ASCII letters in its path**, and a separator failure shows its error line.
+- **The diagnostics check the transcribe.cpp builds' libraries too.**
 - **Stop ends the engines a job started at once** (separator, llama-server, ffmpeg, yt-dlp): on Windows they were ended through taskkill, which waits as long as WMI hangs, so a stopped job could keep running to its end.
 - **An edited reference text is used at once**: the piece cut from a voice was kept by the audio's size and date alone, so a corrected text or new word timings came in only after the audio changed.
 

@@ -204,7 +204,7 @@ fn listen(choice: crate::models::AsrChoice, models_root: &Path, lang: &str, from
     };
     // samples of `audio` the stream already has
     let mut streamed = 0usize;
-    let mut asr = crate::models::build_engine(&choice, None);
+    let mut asr = crate::models::build_engine(&choice, None)?;
     let work = tempfile::Builder::new().prefix("live-").tempdir().map_err(|e| e.to_string())?;
     let mut pending: Vec<f32> = Vec::new();
     let mut offset = at;

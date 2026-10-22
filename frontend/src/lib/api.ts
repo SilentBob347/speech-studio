@@ -169,9 +169,9 @@ export const slot = (sel: Selection | undefined, key: string): string | undefine
 export type Capabilities = {
   device: string; tts_quant: string; asr_model: string; asr_label: string; ffmpeg: boolean;
   languages: string[]; voice_modes: string[]; models?: ModelStack;
-  // Выбор ASR-движка (active.json): движок parakeet|whisper + модель/квант Whisper.
+  // Выбор ASR-движка (active.json): parakeet | nemotron | whisper (CrisperWhisper).
   selection?: Selection;
-  asr_engines?: string[]; whisper_models?: string[]; whisper_computes?: string[];
+  asr_engines?: string[];
   // Видимые лимиты RAM (настройки): prefill-батч Gemma + длина реф-клипа клона.
   llama_ubatches?: string[]; higgs_ref_secs_opts?: string[];
 };

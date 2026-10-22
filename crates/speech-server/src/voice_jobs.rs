@@ -80,6 +80,7 @@ pub fn clean(p: &VoicePaths, name: &str, progress: &dyn Fn(Value)) -> Result<Val
     // the separator takes 44.1 kHz only and refuses a voice recorded at 48 or 24 kHz
     crate::media::extract_audio(&audio, &wav, 44_100, 2)?;
     let stems = work.path().join("stems");
+    dub_tcpp::cpu_floor("BSRoformer")?;
     let res = dub_sep::separate(&wav, &stems, &cli, &model).map_err(|e| e.localize())?;
     lib::replace_with_cleaned(&p.voices_dir, name, &res.vocals)?;
     Ok(json!({ "name": name, "cleaned": true }))

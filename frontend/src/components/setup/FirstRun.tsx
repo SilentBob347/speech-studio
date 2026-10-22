@@ -29,14 +29,12 @@ const QUANT_GROUP: Record<string, string> = {
   roformer: "roformer", "roformer-q5": "roformer", "roformer-q4": "roformer",
   "qwen3-tts": "qwen3", "qwen3-tts-q8_0": "qwen3",
   "qwen3-tts-design": "qwen3design", "qwen3-tts-design-q8_0": "qwen3design",
-  "whisper-tiny": "whisper", "whisper-base": "whisper", "whisper-small": "whisper", "whisper-medium": "whisper",
-  "whisper-large-v3": "whisper", "whisper-large-v3-turbo": "whisper",
 };
 
 // Engines, runtimes and helper models: the studio takes them for the models chosen and for this computer's card, so they
 // are not a choice on this screen.
 const SERVICE = new Set([
-  "higgs-engine", "qwen3-tts-engine", "transcribe-engine", "transcribe-engine-cpu", "whisper-engine", "whisper-cuda",
+  "higgs-engine", "qwen3-tts-engine", "transcribe-engine", "transcribe-engine-cpu", "transcribe-engine-vulkan",
   "langid", "silero-vad", "bsroformer-engine", "bsroformer-engine-cpu", "llama", "onnxruntime", "onnxruntime-gpu",
   "ffmpeg", "cuda-runtime", "cudnn", "vcruntime",
 ]);
@@ -51,8 +49,16 @@ function needs(id: string, s: SetupStatus): string[] {
   };
   if (id.startsWith("higgs")) return ["higgs-engine"];
   if (id.startsWith("qwen3-tts")) return ["qwen3-tts-engine"];
-  if (id.startsWith("parakeet") || id === "asr-gguf-nemotron") return [build("transcribe-engine", "transcribe-engine-cpu"), "langid", "silero-vad"];
-  if (QUANT_GROUP[id] === "whisper") return s.gpu?.nvidia ? ["whisper-engine", "whisper-cuda"] : ["whisper-engine"];
+  if (id.startsWith("parakeet") || id === "asr-gguf-nemotron") {
+    // the build the server owes for this computer (CUDA, Vulkan or the processor)
+    const owed = ["transcribe-engine", "transcribe-engine-vulkan", "transcribe-engine-cpu"].find((x) => s.components.find((c) => c.id === x)?.requirement === "required");
+    return [owed ?? build("transcribe-engine", "transcribe-engine-cpu"), "langid", "silero-vad"];
+  }
+  if (id === "crisperwhisper-turbo") {
+    // «auto» is heard by VoxLingua107 on the transcribe.cpp build the server owes for this computer
+    const owed = ["transcribe-engine", "transcribe-engine-vulkan", "transcribe-engine-cpu"].find((x) => s.components.find((c) => c.id === x)?.requirement === "required");
+    return [owed ?? build("transcribe-engine", "transcribe-engine-cpu"), "langid"];
+  }
   if (id.startsWith("roformer")) return [build("bsroformer-engine", "bsroformer-engine-cpu")];
   if (id.startsWith("gemma")) return ["llama"];
   return [];
@@ -125,7 +131,7 @@ export default function FirstRun() {
     c.delivery === "bundled" ? t("setup.reinstallHint") : c.delivery === "external" ? t("setup.external") : "";
   const GROUP_LABEL: Record<string, string> = {
     higgs: t("setup.grpHiggs"), gemma: t("setup.grpGemma"), parakeet: t("setup.grpParakeet"), roformer: t("setup.grpRoformer"),
-    qwen3: t("setup.grpQwen"), qwen3design: t("setup.grpQwenDesign"), whisper: t("setup.grpWhisper"),
+    qwen3: t("setup.grpQwen"), qwen3design: t("setup.grpQwenDesign"),
   };
   const pickOne = (id: string | null, group: string) => setSel((prev) => {   // radio внутри семейства: выбрать этот квант, снять остальные того же семейства
     const n = new Set(prev);

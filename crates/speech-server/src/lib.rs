@@ -86,6 +86,7 @@ mod listen_api;
 mod listen_jobs;
 mod listen_project;
 mod transcript_out;
+mod acpp;
 mod tts_host;
 mod url_import;
 mod vad;
@@ -318,6 +319,7 @@ impl AppState {
         let web_root = spa::find_web_root(&repo_root);
         let mroot = models_root(&repo_root);
         setup::remove_retired(&mroot);
+        setup::remove_retired_whisper(&repo_root);
         match credentials::migrate_legacy_selection(&mroot) {
             Ok(moved) if moved.openrouter_key || moved.proxy_password => {
                 tracing::info!("secrets moved from active.json to the secret store: {moved:?}")
@@ -664,12 +666,9 @@ async fn capabilities(State(st): State<AppState>) -> Json<Value> {
         "ffmpeg": ffmpeg,
         "languages": langs,
         "modes": ["speech","listening"],
-        // Выбор ASR: движок (parakeet|nemotron|whisper), модель Whisper, квант Whisper (compute_type).
+        // ASR: parakeet | nemotron | whisper (CrisperWhisper 2.0 turbo).
         "selection": sel,
         "asr_engines": ["parakeet","nemotron","whisper"],
-        "whisper_models": ["tiny","base","small","medium","large-v3","large-v3-turbo"],
-        // Кванты Whisper (compute_type): float16 / int8_float16 задействуют Tensor Cores на CUDA GPU.
-        "whisper_computes": ["int8","int8_float16","int8_float32"],
         // Видимые лимиты RAM (настройки, не авто-магия): против OOM на слабой памяти. "0" = авто (дефолт).
         "llama_ubatches": ["0","512","256","128"],      // prefill-батч Gemma (меньше = меньше RAM)
         "higgs_ref_secs_opts": ["12","8","6","4"],       // длина реф-клипа клона (сек; <12 спасает 32ГБ)
@@ -880,16 +879,6 @@ pub(crate) fn ensure_job_components(
                 need.push(id.to_string());
             }
         }
-    }
-    // Whisper на GPU: CTranslate2 требует cuBLAS12 + cuDNN8 РЯДОМ с whisper-faster.exe (наш ONNX-стек
-    // выше — CUDA 13, whisper'у не подходит). Без них whisper молча идёт на CPU. Тянем их только когда
-    // движок ASR = Whisper И стадия ASR на GPU.
-    let asr_whisper = models::load_selection(models_root)
-        .get("asr_engine")
-        .and_then(|v| v.as_str())
-        == Some("whisper");
-    if asr_whisper && models::stage_backend(models_root, "asr_backend") == "gpu" && missing("whisper-cuda") {
-        need.push("whisper-cuda".to_string());
     }
     // Диаризация (дубляж/транскрипт) → модель Nemotron 3 Diarization. Её сбой закачки не валит джобу:
     // анализ штатно деградирует в single-speaker и пишет об этом в журнал (см. analyze::run).

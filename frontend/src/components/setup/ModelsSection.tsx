@@ -28,10 +28,9 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
   const { t } = useTranslation();
   const errText = useDownloadErrorText();
   const gpuReasonText = useGpuReasonText();
-  // Выбор ASR-движка (parakeet|whisper) + квант Whisper (compute) — из capabilities.selection.
+  // Выбор ASR-движка (parakeet | nemotron | whisper = CrisperWhisper) — из capabilities.selection.
   const [cap, setCap] = useState<Capabilities | null>(null);
   const [asrEngine, setAsrEngine] = useState<string>("parakeet");
-  const [whisperCompute, setWhisperCompute] = useState<string>("int8");
   const [dramaVram, setDramaVram] = useState<string>("0");
   // Сохранения по очереди: при быстрой смене (стрелками) последним на сервер приходит последнее значение.
   const dramaSaves = useRef<Promise<unknown>>(Promise.resolve());
@@ -46,7 +45,6 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
   const loadCap = () => api.capabilities().then((c) => {
     setCap(c);
     setAsrEngine(slot(c.selection, "asr_engine") ?? "parakeet");
-    setWhisperCompute(slot(c.selection, "whisper_compute") ?? "int8");
     setDramaVram(slot(c.selection, "drama_vram_gb") || "0");
   }).catch(() => {});
   // Статус компонентов + фоновая закачка (опрос, пока она идёт). Скачанный вариант становится активным на
@@ -60,7 +58,8 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
   useEffect(() => { loadCap(); }, []);
   const selv = (k: string) => slot(cap?.selection, k) ?? "";
   const hasOrKey = cap?.selection?.or_key_set === true;
-  const setSel = (k: string, v: string) => api.setSelection(k, v).then(loadCap).catch(() => {});
+  // the status follows too: which engine build and which components a choice owes is the server's answer
+  const setSel = (k: string, v: string) => api.setSelection(k, v).then(() => Promise.all([loadCap(), refreshStatus()])).catch(() => {});
   // Голоса выбранной облачной TTS-модели (пол/возраст/русский) для дропдауна + предупреждения о русском.
   const ttsProvider = slot(cap?.selection, "tts_provider") ?? (selv("or_tts_on") === "1" ? "openrouter" : "local");
   const orTtsModel = slot(cap?.selection, ttsProvider === "google" ? "google_tts_model" : "or_tts_model") ?? "";
@@ -235,7 +234,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
     const gpuOff = !status.gpu.cuda13Ok;
     return (
       <div className="flex gap-1 mb-1.5">
-        {([["auto", t("settings.auto")], ["gpu", "GPU (CUDA)"], ["cpu", "CPU"]] as const).map(([id, label]) => (
+        {(k === "asr_backend" ? [["auto", t("settings.auto")], ["gpu", "GPU (CUDA)"], ["vulkan", "Vulkan"], ["cpu", "CPU"]] as const : [["auto", t("settings.auto")], ["gpu", "GPU (CUDA)"], ["cpu", "CPU"]] as const).map(([id, label]) => (
           <button key={id} onClick={() => setSel(k, id)} disabled={id === "gpu" && gpuOff && cur !== "gpu"}
             title={id === "gpu" && gpuOff ? gpuReasonText(status.gpu) : undefined}
             className={`flex-1 px-2 py-1.5 rounded-md text-[12px] font-medium border transition-colors ${cur === id ? "border-[var(--color-accent)] bg-[color-mix(in_oklab,var(--color-accent)_14%,transparent)] text-[var(--color-text)]" : "border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-text)]"} disabled:opacity-40`}>{label}</button>
@@ -334,9 +333,9 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
       </>)}
       {group(t("settings.roleText"), <>{rowOf("ruaccent")}{rowOf("ruaccent-omograph-big")}</>)}
       {group(t("settings.roleAsr"), <>
-        {/* Модель ASR — одна кнопка на модель: Parakeet-TDT и Nemotron 3.5 на transcribe.cpp, Whisper на whisper-faster, OpenRouter (облако). */}
+        {/* Модель ASR — одна кнопка на модель: Parakeet-TDT и Nemotron 3.5 на transcribe.cpp, CrisperWhisper в audiocpp_server, OpenRouter (облако). */}
         <div className="flex gap-1 mb-1.5">
-          {[{ id: "parakeet", label: "Parakeet-TDT", cloud: false }, { id: "nemotron", label: "Nemotron 3.5", cloud: false }, { id: "whisper", label: "Whisper", cloud: false }, { id: "openrouter", label: "OpenRouter", cloud: true }].map((e) => {
+          {[{ id: "parakeet", label: "Parakeet-TDT", cloud: false }, { id: "nemotron", label: "Nemotron 3.5", cloud: false }, { id: "whisper", label: "CrisperWhisper", cloud: false }, { id: "openrouter", label: "OpenRouter", cloud: true }].map((e) => {
             const asrCloud = selv("or_asr_on") === "1";
             const active = e.cloud ? asrCloud : (!asrCloud && asrEngine === e.id);
             const dis = e.cloud && !hasOrKey;
@@ -357,31 +356,17 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
           </div>
         ) : asrEngine === "parakeet" ? (
           <>
-            {get("transcribe-engine-cpu")?.requirement === "required" ? rowOf("transcribe-engine-cpu") : rowOf("transcribe-engine")}
+            {rowOf(["transcribe-engine", "transcribe-engine-vulkan", "transcribe-engine-cpu"].find((x) => get(x)?.requirement === "required") ?? "transcribe-engine")}
             {variantPicker("Parakeet-TDT 0.6B v3", ["parakeet", "parakeet-ultra"], ASR_VARIANT_I18N)}
           </>
         ) : asrEngine === "nemotron" ? (
           <>
-            {get("transcribe-engine-cpu")?.requirement === "required" ? rowOf("transcribe-engine-cpu") : rowOf("transcribe-engine")}
+            {rowOf(["transcribe-engine", "transcribe-engine-vulkan", "transcribe-engine-cpu"].find((x) => get(x)?.requirement === "required") ?? "transcribe-engine")}
             {rowOf("asr-gguf-nemotron")}
           </>
         ) : (
           <>
-            {rowOf("whisper-engine")}
-            {variantPicker(t("settings.whisperModel"), ["whisper-tiny", "whisper-base", "whisper-small", "whisper-medium", "whisper-large-v3", "whisper-large-v3-turbo"])}
-            {/* Квант Whisper (compute_type) — точность/скорость вычислений, без отдельной скачки. */}
-            <div className="px-2.5 py-2 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border)]">
-              <div className="flex items-center gap-2.5">
-                <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-[var(--color-accent)]" />
-                <div className="min-w-0 flex-1">
-                  <div className="text-[12px] font-medium truncate">{t("settings.whisperCompute")} <Hint text={t("settings.whisperComputeHint")} /></div>
-                </div>
-                <select value={whisperCompute} onChange={(e) => { setWhisperCompute(e.target.value); api.setSelection("whisper_compute", e.target.value).catch(() => {}); }}
-                  className="shrink-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[11px] mono focus:border-[var(--color-accent)] focus:outline-none">
-                  {(cap?.whisper_computes ?? ["int8", "int8_float16", "float16", "int8_float32", "float32"]).map((q) => <option key={q} value={q}>{q}</option>)}
-                </select>
-              </div>
-            </div>
+            {rowOf("crisperwhisper-turbo")}
           </>
         )}
         {rowOf("silero-vad")}

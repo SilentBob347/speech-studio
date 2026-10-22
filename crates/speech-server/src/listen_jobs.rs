@@ -74,7 +74,7 @@ fn engine_for(p: &ListenPaths, project: &ListenProject, lang: &str) -> Result<En
     }
     let choice = crate::models::resolve_asr_choice(&p.repo_root, &p.models_root, &sel);
     match &choice {
-        crate::models::AsrChoice::Whisper { .. } => Ok(Engine::Local(choice, "whisper")),
+        crate::models::AsrChoice::CrisperWhisper { .. } => Ok(Engine::Local(choice, "whisper")),
         _ if picked == "whisper" => Err(if for_lang { t!("listen-whisper-for-lang", lang = lang.to_string()) } else { t!("listen-whisper-missing") }),
         crate::models::AsrChoice::Ggml { build, model, .. } => {
             if !crate::tcpp_asr::installed(&p.models_root, *build, model) {
@@ -204,6 +204,7 @@ fn separate(p: &ListenPaths, src: &Path, work: &Path) -> Result<PathBuf, String>
     let hq = work.join("mix-44k.wav");
     crate::media::extract_audio(src, &hq, 44_100, 2)?;
     let stems = work.join("stems");
+    dub_tcpp::cpu_floor("BSRoformer")?;
     let res = dub_sep::separate(&hq, &stems, &cli, &model).map_err(|e| e.localize())?;
     let clean = work.join("vocals16.wav");
     crate::media::to_16k_mono(&res.vocals, &clean)?;
@@ -225,6 +226,7 @@ pub fn separate_to(repo_root: &Path, models_root: &Path, src: &Path, out: &Path,
     let work = tempfile::Builder::new().prefix("separate-").tempdir().map_err(|e| e.to_string())?;
     let hq = work.path().join("mix-44k.wav");
     crate::media::extract_audio(src, &hq, 44_100, 2)?;
+    dub_tcpp::cpu_floor("BSRoformer")?;
     let res = dub_sep::separate(&hq, &work.path().join("stems"), &cli, &model).map_err(|e| e.localize())?;
     std::fs::create_dir_all(out).map_err(|e| format!("{}: {e}", out.display()))?;
     let vocals = out.join("vocals.flac");
@@ -252,7 +254,7 @@ fn diarize(p: &ListenPaths, wav: &Path, speakers: u8) -> Result<Vec<dub_asr::Tur
 /// Распознать по кускам, на которые запись режут паузы (Silero VAD): тишина не идёт в распознаватель, а длинная
 /// запись не грузится в него целиком.
 #[allow(clippy::too_many_arguments)]
-fn recognise_by_pauses(p: &ListenPaths, choice: &crate::models::AsrChoice, wav: &Path, work: &Path, lang: &str, vad: &crate::vad::VadConfig, prompt: Option<String>, progress: &dyn Fn(Value)) -> Result<Vec<dub_asr::Segment>, String> {
+fn recognise_by_pauses(p: &ListenPaths, choice: &crate::models::AsrChoice, wav: &Path, work: &Path, lang: &str, vad: &crate::vad::VadConfig, progress: &dyn Fn(Value)) -> Result<Vec<dub_asr::Segment>, String> {
     if !crate::vad::installed(&p.models_root) {
         return Err(t!("vad-missing"));
     }
@@ -266,7 +268,7 @@ fn recognise_by_pauses(p: &ListenPaths, choice: &crate::models::AsrChoice, wav: 
     if windows.is_empty() {
         return Err(t!("listen-no-speech", threshold = format!("{:.2}", vad.threshold)));
     }
-    let mut asr = crate::models::build_engine(choice, prompt);
+    let mut asr = crate::models::build_engine(choice, None)?;
     let mut all = Vec::new();
     for (k, &(a, b)) in windows.iter().enumerate() {
         step(progress, t!("listen-step-asr-piece", n = (k + 1) as i64, total = windows.len() as i64), 45 + (k * 40 / windows.len().max(1)) as i64);
@@ -292,10 +294,10 @@ fn recognise(p: &ListenPaths, engine: &Engine, wav: &Path, work: &Path, s: &lp::
     let lines = match engine {
         Engine::Local(choice, _) => {
             std::env::set_var("DUB_ASR_BACKEND", crate::models::stage_backend(&p.models_root, "asr_backend"));
-            // Whisper windows a long recording itself; the others get it in pieces cut at pauses
+            // CrisperWhisper windows a long recording itself; the others get it in pieces cut at pauses
             let segments = match choice {
-                crate::models::AsrChoice::Whisper { .. } => crate::models::build_engine(choice, prompt).transcribe(wav, lang).map_err(|e| e.localize())?,
-                crate::models::AsrChoice::Ggml { .. } => recognise_by_pauses(p, choice, wav, work, lang, &s.vad, prompt, progress)?,
+                crate::models::AsrChoice::CrisperWhisper { .. } => crate::models::build_engine(choice, prompt)?.transcribe(wav, lang).map_err(|e| e.localize())?,
+                crate::models::AsrChoice::Ggml { .. } => recognise_by_pauses(p, choice, wav, work, lang, &s.vad, progress)?,
             };
             dub_asr::split_at_speaker_turns(segments, turns)
                 .into_iter()
@@ -459,7 +461,7 @@ pub fn transcribe(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Resul
         }
     }
     let by = match &engine {
-        Engine::Local(crate::models::AsrChoice::Whisper { model, .. }, _) => format!("whisper:{model}"),
+        Engine::Local(crate::models::AsrChoice::CrisperWhisper { .. }, _) => "whisper:crisperwhisper-2.0-turbo".to_string(),
         Engine::Local(_, tag) => tag.to_string(),
         Engine::Cloud(model) => format!("openrouter:{model}"),
         Engine::Fal(model) => format!("fal:{model}"),
