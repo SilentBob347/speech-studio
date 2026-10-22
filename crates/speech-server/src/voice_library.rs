@@ -204,22 +204,27 @@ pub fn apply_patch(card: &mut VoiceCard, patch: &Value) -> Result<(), String> {
     Ok(())
 }
 
-/// Транскрипт рефа: `<имя>.txt`, а у голосов войспака бывает и `<имя>.MP3.txt`.
+/// Транскрипт рефа: `<имя>.txt`, а у голосов войспака бывает и `<имя>.MP3.txt` и `<имя>.lab`.
 pub fn read_transcript(dir: &Path, name: &str) -> Option<String> {
     let direct = std::iter::once(dir.join(format!("{name}.txt")));
     let doubled = AUDIO_EXTS.iter().flat_map(|e| [dir.join(format!("{name}.{e}.txt")), dir.join(format!("{name}.{}.txt", e.to_ascii_uppercase()))]);
-    direct.chain(doubled).find_map(|p| std::fs::read_to_string(p).ok()).map(|t| t.trim().to_string()).filter(|t| !t.is_empty())
+    let lab = std::iter::once(dir.join(format!("{name}.lab")));
+    direct.chain(doubled).chain(lab).find_map(|p| std::fs::read_to_string(p).ok()).map(|t| t.trim().to_string()).filter(|t| !t.is_empty())
 }
 
-/// Транскрипт рефа: пустой текст убирает файл (движок клонирует без текста рефа).
+/// Транскрипт рефа: пустой текст убирает файл (движок клонирует без текста рефа) вместе с `.lab` войспака, который
+/// иначе вернул бы старый текст.
 pub fn write_transcript(dir: &Path, name: &str, text: &str) -> Result<(), String> {
     let p = dir.join(format!("{name}.txt"));
     let text = text.trim();
     if text.is_empty() {
-        return match std::fs::remove_file(&p) {
-            Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(format!("{}: {e}", p.display())),
-            _ => Ok(()),
-        };
+        for p in [p, dir.join(format!("{name}.lab"))] {
+            match std::fs::remove_file(&p) {
+                Err(e) if e.kind() != std::io::ErrorKind::NotFound => return Err(format!("{}: {e}", p.display())),
+                _ => {}
+            }
+        }
+        return Ok(());
     }
     write_atomic(&p, text.as_bytes())
 }
@@ -264,7 +269,7 @@ pub fn list(dir: &Path) -> (Vec<Voice>, Vec<(String, String)>) {
 
 /// Файлы голоса и их суффиксы после имени (`.wav`, `.words.json`, `.MP3.txt` …), в папке и в `.originals`.
 fn sidecars(dir: &Path, name: &str) -> Vec<(PathBuf, String)> {
-    let mut suffixes: Vec<String> = AUDIO_EXTS.iter().chain(PHOTO_EXTS.iter()).chain(["txt", "json", "words.json"].iter()).map(|e| format!(".{e}")).collect();
+    let mut suffixes: Vec<String> = AUDIO_EXTS.iter().chain(PHOTO_EXTS.iter()).chain(["txt", "lab", "json", "words.json"].iter()).map(|e| format!(".{e}")).collect();
     suffixes.extend(AUDIO_EXTS.iter().flat_map(|e| [format!(".{e}.txt"), format!(".{}.txt", e.to_ascii_uppercase())]));
     let mut all = Vec::new();
     for folder in [dir.to_path_buf(), dir.join(ORIGINALS)] {
@@ -414,12 +419,16 @@ pub fn write_words(dir: &Path, name: &str, words: &[crate::ref_pick::Word]) -> R
     write_atomic(&dir.join(format!("{name}.words.json")), text.as_bytes())
 }
 
-/// Сохранить текст и тайминги до правки рефа в `.originals` (только первые, как и звук).
+/// Сохранить текст и тайминги до правки рефа в `.originals` (только первые, как и звук); текст войспака из `.lab`
+/// сохраняется как `.txt`.
 fn keep_original_text(dir: &Path, name: &str) -> Result<(), String> {
     let originals = dir.join(ORIGINALS);
     std::fs::create_dir_all(&originals).map_err(|e| format!("{}: {e}", originals.display()))?;
     for suffix in [".txt", ".words.json"] {
-        let src = dir.join(format!("{name}{suffix}"));
+        let mut src = dir.join(format!("{name}{suffix}"));
+        if suffix == ".txt" && !src.is_file() {
+            src = dir.join(format!("{name}.lab"));
+        }
         let keep = originals.join(format!("{name}{suffix}"));
         if src.is_file() && !keep.is_file() {
             std::fs::copy(&src, &keep).map_err(|e| format!("{}: {e}", keep.display()))?;
@@ -633,6 +642,20 @@ mod tests {
         voice(d.path(), "RU_Female_Cheburashka", "mp3");
         std::fs::write(d.path().join("RU_Female_Cheburashka.MP3.txt"), "Я Чебурашка").unwrap();
         assert_eq!(read_transcript(d.path(), "RU_Female_Cheburashka").as_deref(), Some("Я Чебурашка"));
+    }
+
+    #[test]
+    fn a_pack_transcript_in_a_lab_file_is_found_and_follows_the_voice() {
+        let d = tempfile::tempdir().unwrap();
+        voice(d.path(), "English_Female", "wav");
+        std::fs::write(d.path().join("English_Female.lab"), "In the ancient land of Eldoria\n").unwrap();
+        assert_eq!(read_transcript(d.path(), "English_Female").as_deref(), Some("In the ancient land of Eldoria"));
+        write_transcript(d.path(), "English_Female", "Edited").unwrap();
+        assert_eq!(read_transcript(d.path(), "English_Female").as_deref(), Some("Edited"), "the person's text comes first");
+        rename(d.path(), "English_Female", "Narrator").unwrap();
+        assert!(d.path().join("Narrator.lab").is_file());
+        write_transcript(d.path(), "Narrator", "").unwrap();
+        assert_eq!(read_transcript(d.path(), "Narrator"), None, "a cleared text does not come back from the pack's file");
     }
 
     #[test]

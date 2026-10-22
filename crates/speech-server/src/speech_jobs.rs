@@ -364,6 +364,19 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
         let vp = crate::voice_jobs::VoicePaths { repo_root: p.repo_root.clone(), models_root: p.models_root.clone(), voices_dir: p.voices_dir.clone() };
         crate::voice_jobs::ensure_words(&vp, v, limit)?;
     }
+    let reference = match (own_ref, continued, voice.as_deref().filter(|_| clones)) {
+        (Some(r), _, _) => Some(own_reference(&p.workspace.join(pid), r, limit)?),
+        (None, Some((src, take)), _) => Some(continuation_ref(&takes_dir(p, pid), take, &src.text)?),
+        (None, None, Some(v)) => Some(tts_host::prepare_ref(&p.voices_dir, v, limit, n)?),
+        (None, None, None) => None,
+    };
+    if drama && reference.as_ref().is_some_and(|(_, text)| text.as_deref().is_none_or(|t| t.trim().is_empty())) {
+        return Err(match voice.as_deref().filter(|_| own_ref.is_none()) {
+            Some(v) if crate::voice_library::read_transcript(&p.voices_dir, v).is_some() => t!("drama-voice-no-piece", name = v.to_string(), secs = format!("{limit:.0}")),
+            Some(v) => t!("drama-voice-no-text", name = v.to_string()),
+            None => t!("render-drama-no-ref-text"),
+        });
+    }
     let engine = if drama {
         tts_host::drama(&p.models_root)?
     } else if own == crate::supertonic::ENGINE {
@@ -372,12 +385,6 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
         tts_host::qwen(&p.models_root, preset.is_none(), own == crate::qwen_tts::ENGINE_STRESS)?
     } else {
         tts_host::engine(&higgs_config(p))?
-    };
-    let reference = match (own_ref, continued, voice.as_deref().filter(|_| clones)) {
-        (Some(r), _, _) => Some(own_reference(&p.workspace.join(pid), r, limit)?),
-        (None, Some((src, take)), _) => Some(continuation_ref(&takes_dir(p, pid), take, &src.text)?),
-        (None, None, Some(v)) => Some(tts_host::prepare_ref(&p.voices_dir, v, limit, n)?),
-        (None, None, None) => None,
     };
     let lang = match project.lang_of(b) {
         "auto" => "",
