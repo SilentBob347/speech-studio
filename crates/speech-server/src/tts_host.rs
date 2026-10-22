@@ -1,18 +1,15 @@
 //! Модель озвучки на весь процесс — Higgs Audio или Drama 3, одна на видеокарте: загрузка при первом синтезе,
 //! выгрузка по команде (перед другой тяжёлой моделью). Синтез — в отдельном потоке под сторожем: отмена задачи и
 //! таймаут доходят до движка, зависший вызов DLL называется прямо. У Higgs нет своего потолка длины, поэтому
-//! `max_new_tokens` считается по ожидаемой длине фразы; дефектный дубль (разнос, обрыв, тишина, гул) повторяется
+//! `max_tokens` считается по ожидаемой длине фразы; дефектный дубль (разнос, обрыв, тишина, гул) повторяется
 //! с другой температурой, потому что сид движок может не учитывать.
 
 use std::path::{Path, PathBuf};
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use audiocpp::AudiocppEngine;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-
-use crate::localize::Localize;
 
 const GUARD_GRACE_SECS: u64 = 20;
 pub const ENGINE_STUCK: &str = "ENGINE_STUCK";
@@ -21,25 +18,10 @@ const TOKENS_PER_SEC: f64 = 75.0;
 /// Движок принимает сид как небольшое беззнаковое целое.
 pub const SEED_RANGE: u64 = 1 << 31;
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct HiggsConfig {
-    pub dll: PathBuf,
-    pub model_root: PathBuf,
-    pub quant: String,
-    pub backend: String,
-    pub threads: i32,
-}
-
-impl HiggsConfig {
-    fn key(&self) -> String {
-        format!("{}|{}|{}|{}", self.dll.display(), self.model_root.display(), self.quant, self.backend)
-    }
-}
-
 /// Модель на видеокарте: одна на процесс — Higgs или Drama 3 (Drama 3 занимает почти всю карту 24 ГБ).
 #[derive(Clone)]
 pub enum Tts {
-    Higgs(Arc<AudiocppEngine>),
+    Higgs(Arc<crate::acpp::Higgs>),
     Drama(Arc<drama::DramaEngine>),
     Supertonic(Arc<crate::supertonic::Model>),
     Qwen(Arc<crate::qwen_tts::Engine>),
@@ -129,35 +111,29 @@ pub fn watch_idle(models_root: PathBuf) {
         .expect("tts idle watcher thread");
 }
 
-/// Загруженный Higgs под эту конфигурацию; другая конфигурация или Drama 3 выгружаются.
-pub fn engine(cfg: &HiggsConfig) -> Result<Tts, String> {
+/// Higgs на сервере audio.cpp в выбранном кванте; другой квант или другая модель озвучки выгружаются.
+pub fn higgs(repo_root: &Path, models_root: &Path) -> Result<Tts, String> {
+    let key = format!("{}:{}", crate::acpp::HIGGS, crate::acpp::higgs_gguf(models_root).display());
     let mut slot = host();
-    if let Some((key, Tts::Higgs(e))) = slot.as_ref() {
-        if *key == cfg.key() && e.is_model_loaded() {
+    if let Some((k, Tts::Higgs(e))) = slot.as_ref() {
+        if *k == key {
             touch();
             return Ok(Tts::Higgs(e.clone()));
         }
     }
     *slot = None;
-    if cfg.backend == "cuda" {
-        let gpu = crate::hw::gpu_report();
-        if !gpu.cuda13_ok {
-            let card = gpu.summary().unwrap_or_else(|| "-".to_string());
-            return Err(match gpu.reason {
-                Some("gpu_old") => t!("render-higgs-gpu-old", card = card, min = gpu.min_compute.clone()),
-                Some("driver_old") => t!("render-higgs-driver-old", card = card, min = gpu.min_driver),
-                _ => t!("render-higgs-no-gpu", card = card),
-            });
-        }
+    let gpu = crate::hw::gpu_report();
+    if gpu.nvidia && !gpu.cuda13_ok {
+        let card = gpu.summary().unwrap_or_else(|| "-".to_string());
+        return Err(match gpu.reason {
+            Some("gpu_old") => t!("render-higgs-gpu-old", card = card, min = gpu.min_compute.clone()),
+            Some("driver_old") => t!("render-higgs-driver-old", card = card, min = gpu.min_driver),
+            _ => t!("render-higgs-no-gpu", card = card),
+        });
     }
-    if !cfg.dll.is_file() {
-        return Err(t!("tts-engine-missing", path = cfg.dll.display().to_string()));
-    }
-    let e = Arc::new(AudiocppEngine::load(&cfg.dll).map_err(|e| t!("render-higgs-load-failed", error = e.localize()))?);
-    e.load_model(&cfg.model_root, &cfg.backend, 0, cfg.threads, Some(cfg.quant.as_str()))
-        .map_err(|e| t!("render-higgs-model-failed", error = e.localize()))?;
-    tracing::info!("voicing: Higgs Audio v3 {} on {}", cfg.quant, cfg.backend);
-    *slot = Some((cfg.key(), Tts::Higgs(e.clone())));
+    let e = Arc::new(crate::acpp::Higgs::load(repo_root, models_root)?);
+    tracing::info!("voicing: Higgs Audio v3 {} on audiocpp_server {:?}", crate::acpp::higgs_gguf(models_root).display(), e.backend());
+    *slot = Some((key, Tts::Higgs(e.clone())));
     touch();
     Ok(Tts::Higgs(e))
 }
@@ -307,10 +283,7 @@ pub fn unload() {
 }
 
 pub fn loaded() -> bool {
-    host().as_ref().is_some_and(|(_, e)| match e {
-        Tts::Higgs(h) => h.is_model_loaded(),
-        Tts::Drama(_) | Tts::Supertonic(_) | Tts::Qwen(_) => true,
-    })
+    host().is_some()
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -529,22 +502,18 @@ fn run_guarded(engine: &Tts, call: Call, timeout: Duration, live: Option<Arc<cra
         // an engine that does not stream gives the window the whole take once it is done
         let mut streamed = false;
         let r = match (&eng, rw) {
-            (Tts::Higgs(e), rw) if live.is_some() && e.engine().supports_streaming() => {
-                streamed = true;
-                let phrase = live.clone().expect("checked above");
-                let audio: audiocpp::AudioChunkCallback = Arc::new(move |sr, _, _, samples, _| phrase.chunk(samples, sr as u32));
-                let progress: audiocpp::ProgressCallback = Arc::new(|_, _, _| {});
-                serde_json::from_str::<Value>(&op).map_err(|e| e.to_string()).and_then(|opts| {
-                    match rw {
-                        Some(rw) => e.engine().generate_voice_clone_stream(&t, &rw.to_string_lossy(), rt.as_deref(), &opts, progress, audio),
-                        None => e.engine().generate_tts_stream(&t, &opts, progress, audio),
-                    }
-                    .map(|res| (res.samples, res.sample_rate))
-                    .map_err(|e| e.localize())
+            (Tts::Higgs(e), rw) => {
+                streamed = live.is_some();
+                let sr = e.sample_rate();
+                serde_json::from_str::<serde_json::Map<String, Value>>(&op).map_err(|e| e.to_string()).and_then(|opts| {
+                    e.speak(&t, rw.as_deref(), rt.as_deref(), opts, &mut |piece| {
+                        if let Some(phrase) = &live {
+                            phrase.chunk(piece, sr);
+                        }
+                    })
+                    .map(|samples| (samples, sr as i32))
                 })
             }
-            (Tts::Higgs(e), Some(rw)) => e.voice_clone(&t, &rw.to_string_lossy(), rt.as_deref(), &op).map_err(|e| e.localize()),
-            (Tts::Higgs(e), None) => e.tts(&t, &op).map_err(|e| e.localize()),
             (Tts::Drama(e), Some(rw)) => match rt.as_deref().filter(|t| !t.trim().is_empty()) {
                 Some(rt) => {
                     let sr = e.sample_rate();
@@ -678,9 +647,8 @@ pub fn synth(engine: &Tts, req: &Request) -> Result<Synth, String> {
             "temperature": temperature,
             "top_k": req.params.top_k,
             "top_p": req.params.top_p,
-            "max_new_tokens": cap,
-            "ras_win_len": 7,
-            "return_audio_in_tokens": true,
+            "max_tokens": cap,
+            "allow_incomplete_generation": true,
             "seed": seed,
         })
         .to_string();

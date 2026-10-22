@@ -9,6 +9,7 @@ release notes on GitHub are taken from the release's section.
 ### Changed
 
 - **Whisper is CrisperWhisper 2.0 turbo in the audio.cpp engine**, as in Dub Studio: 99 languages with word times, the language of Auto heard by VoxLingua107, the Listening prompt passed to it. Faster-Whisper, its six models and its CUDA 11 libraries are gone, and this program's copies of them are removed at start (a model folder shared with another program loses only its link).
+- **Higgs Audio v3 runs in the audio.cpp server** that CrisperWhisper runs in, as in Dub Studio, instead of its own engine library.
 - **Recognition runs on Vulkan** on an AMD or Intel card and on an NVIDIA card CUDA 13 does not run on (Auto), and Vulkan can be chosen by hand in Settings → Models → Recognition; before, such a computer recognised on the processor.
 
 ### Fixed
@@ -23,6 +24,7 @@ release notes on GitHub are taken from the release's section.
 - **The director's verbatim check takes full-width digits and letters (３, Ａ) as the ordinary ones.**
 - **Drama 3, Qwen3-TTS and the separator check the processor before they load** (AVX2, FMA, F16C, BMI2) and name what is missing instead of closing the program.
 - **Cleaning a voice works in a folder with Cyrillic or other non-ASCII letters in its path**, and a separator failure shows its error line.
+- **Higgs voices in a data folder with Cyrillic or other non-ASCII letters in its path**: its engine library could not open such a path and said the model folder does not exist.
 - **The diagnostics check the transcribe.cpp builds' libraries too.**
 - **Stop ends the engines a job started at once** (separator, llama-server, ffmpeg, yt-dlp): on Windows they were ended through taskkill, which waits as long as WMI hangs, so a stopped job could keep running to its end.
 - **An edited reference text is used at once**: the piece cut from a voice was kept by the audio's size and date alone, so a corrected text or new word timings came in only after the audio changed.

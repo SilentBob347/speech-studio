@@ -139,10 +139,6 @@ pub struct AppState {
     pub bsroformer_cli: PathBuf,
     /// GGUF модель сепарации. Env SPEECH_STUDIO_BSROFORMER_MODEL, иначе <repo>/models/bsroformer/voc_fv6-Q8_0.gguf.
     pub bsroformer_model: PathBuf,
-    /// Higgs audiocpp_engine.dll (TTS). Env SPEECH_STUDIO_HIGGS_DLL, иначе <models>/higgs-engine/audiocpp_engine.dll.
-    pub higgs_dll: PathBuf,
-    /// Каталог весов Higgs (q8_0). Env SPEECH_STUDIO_HIGGS_MODEL, иначе <models>/higgs-q8_0.
-    pub higgs_model_root: PathBuf,
     /// Каталог bundled-шрифтов субтитров. Env SPEECH_STUDIO_FONTS_DIR, иначе <repo>/fonts.
     pub fonts_dir: PathBuf,
     /// Корень моделей (для OCR: <root>/ocr/…). Env SPEECH_STUDIO_MODELS_ROOT, иначе <repo>/models.
@@ -339,12 +335,6 @@ impl AppState {
             .map(|d| PathBuf::from(d).join(dub_sep::ENGINE_CLI_FILE))
             .unwrap_or_else(|_| dub_sep::engine_dir(&repo_root).join(dub_sep::ENGINE_CLI_FILE));
         let bsroformer_model = dub_sep::model_path(&repo_root);
-        let higgs_dll = std::env::var("SPEECH_STUDIO_HIGGS_DLL")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| mroot.join("higgs-engine").join(if cfg!(windows) { "audiocpp_engine.dll" } else { "libaudiocpp_engine.so" }));
-        let higgs_model_root = std::env::var("SPEECH_STUDIO_HIGGS_MODEL")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| mroot.join("higgs-q8_0"));
         let fonts_dir = std::env::var("SPEECH_STUDIO_FONTS_DIR")
             .map(PathBuf::from)
             .unwrap_or_else(|_| repo_root.join("fonts"));
@@ -363,8 +353,6 @@ impl AppState {
             llama_bin,
             bsroformer_cli,
             bsroformer_model,
-            higgs_dll,
-            higgs_model_root,
             fonts_dir,
             models_root: mroot,
             voices_dir,

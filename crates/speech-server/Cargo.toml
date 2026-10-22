@@ -19,7 +19,6 @@ dub-captions = { git = "https://github.com/timoncool/dub-studio", rev = "a8acc51
 dub-sep = { git = "https://github.com/timoncool/dub-studio", rev = "a8acc515ad6e0da626bfc45853b0b42ea474c228" }
 dub-faces = { git = "https://github.com/timoncool/dub-studio", rev = "a8acc515ad6e0da626bfc45853b0b42ea474c228" }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
-audiocpp = { git = "https://github.com/timoncool/dub-studio", rev = "a8acc515ad6e0da626bfc45853b0b42ea474c228" }
 drama = { git = "https://github.com/timoncool/dub-studio", rev = "a8acc515ad6e0da626bfc45853b0b42ea474c228" }
 hound = "3"
 axum = { version = "0.8", features = ["multipart"] }

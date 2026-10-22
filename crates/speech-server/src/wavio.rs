@@ -1,6 +1,5 @@
 //! Мини WAV I/O для сборки таймлайна дубляжа (assemble.timeline): чтение WAV в mono f32 + запись
-//! mono f32. Higgs отдаёт PCM f32 через audiocpp::encode_wav (PCM16 WAV) — hound читает оба формата,
-//! стерео сводим в mono усреднением (как s.mean(axis=1) в питоне).
+//! mono f32. hound читает PCM16 и float WAV, стерео сводим в mono усреднением.
 
 use hound::{SampleFormat, WavReader, WavSpec, WavWriter};
 use std::path::Path;

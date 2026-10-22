@@ -28,8 +28,6 @@ pub fn paths(st: &AppState) -> SpeechPaths {
         workspace: st.workspace.clone(),
         voices_dir: st.voices_dir.clone(),
         models_root: st.models_root.clone(),
-        higgs_dll: st.higgs_dll.clone(),
-        threads: st.opts.num_threads,
     }
 }
 

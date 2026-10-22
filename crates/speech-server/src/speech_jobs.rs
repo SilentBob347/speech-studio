@@ -10,7 +10,7 @@ use serde_json::{json, Value};
 
 use crate::speech_project::{self as sp, Block, SpeechProject, Take};
 use crate::speech_text::{self as stx, Piece};
-use crate::tts_host::{self, HiggsConfig};
+use crate::tts_host;
 
 pub const SR: u32 = 24_000;
 
@@ -20,8 +20,6 @@ pub struct SpeechPaths {
     pub workspace: PathBuf,
     pub voices_dir: PathBuf,
     pub models_root: PathBuf,
-    pub higgs_dll: PathBuf,
-    pub threads: i32,
 }
 
 /// Loads what voicing `engine` with `voice` in `lang` takes before its first phrase: the engine as that phrase will
@@ -54,7 +52,7 @@ fn load(p: &SpeechPaths, engine: &str, voice: Option<&str>, lang: &str) -> Resul
     } else if crate::qwen_tts::is_engine(engine) {
         tts_host::qwen(&p.models_root, clones, engine == crate::qwen_tts::ENGINE_STRESS)?;
     } else if engine == "higgs" {
-        tts_host::engine(&higgs_config(p))?;
+        tts_host::higgs(&p.repo_root, &p.models_root)?;
     }
     if matches!(lang, "ru" | "auto" | "") && crate::stress::installed(&p.repo_root) {
         crate::stress::shared(&p.models_root)?;
@@ -62,11 +60,9 @@ fn load(p: &SpeechPaths, engine: &str, voice: Option<&str>, lang: &str) -> Resul
     Ok(())
 }
 
-pub fn higgs_config(p: &SpeechPaths) -> HiggsConfig {
-    let sel = crate::models::load_selection(&p.models_root);
-    let (model_root, quant) = crate::models::resolve_tts(&p.models_root, &sel);
-    let backend = if crate::hw::gpu_report().nvidia { "cuda" } else { "cpu" };
-    HiggsConfig { dll: p.higgs_dll.clone(), model_root, quant, backend: backend.into(), threads: p.threads }
+/// The Higgs quantization the settings pick.
+pub fn higgs_quant(p: &SpeechPaths) -> String {
+    crate::models::resolve_tts(&p.models_root, &crate::models::load_selection(&p.models_root)).1
 }
 
 pub fn ref_limit(models_root: &Path) -> f64 {
@@ -123,7 +119,7 @@ pub(crate) fn engine_tag(p: &SpeechPaths, project: &SpeechProject, engine: &str)
     } else if crate::qwen_tts::is_engine(&engine) {
         format!("{}:{}", engine, crate::models::qwen_quant(&p.models_root))
     } else {
-        format!("higgs:{}", higgs_config(p).quant)
+        format!("higgs:{}", higgs_quant(p))
     }
 }
 
@@ -384,7 +380,7 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
     } else if crate::qwen_tts::is_engine(own) {
         tts_host::qwen(&p.models_root, preset.is_none(), own == crate::qwen_tts::ENGINE_STRESS)?
     } else {
-        tts_host::engine(&higgs_config(p))?
+        tts_host::higgs(&p.repo_root, &p.models_root)?
     };
     let lang = match project.lang_of(b) {
         "auto" => "",
@@ -661,7 +657,7 @@ pub fn try_rule(p: &SpeechPaths, pid: &str, phrase: &str, rule: crate::pron_dict
     for (name, entries) in [("before", Vec::new()), ("after", vec![rule])] {
         let stress = project.settings.auto_stress && crate::stress::is_russian(&b.text, project.lang_of(&b));
         let read = crate::prep::prepare(&b.text, &prep_opts(p, &project, project.lang_of(&b), project.engine_of(&b), Some(voice_of.as_str()).filter(|v| !v.is_empty()), &entries, stress)).map_err(|e| t!("stress-failed", detail = e))?.text;
-        let made_of = format!("{read}|{voice_of}|{}|{}|{}", project.engine_of(&b), higgs_config(p).quant, serde_json::to_string(project.params_of(&b)).unwrap_or_default());
+        let made_of = format!("{read}|{voice_of}|{}|{}|{}", project.engine_of(&b), higgs_quant(p), serde_json::to_string(project.params_of(&b)).unwrap_or_default());
         let file = format!("{}.flac", &blake3::hash(made_of.as_bytes()).to_hex()[..20]);
         let path = dir.join(&file);
         if !path.is_file() {
@@ -2244,7 +2240,7 @@ mod tests {
     #[test]
     fn export_check_names_a_changed_take_file_and_a_take_too_long_for_its_cue() {
         let root = tempfile::tempdir().unwrap();
-        let p = SpeechPaths { repo_root: root.path().into(), workspace: root.path().join("ws"), voices_dir: root.path().join("voices"), models_root: root.path().join("models"), higgs_dll: root.path().join("none.dll"), threads: 1 };
+        let p = SpeechPaths { repo_root: root.path().into(), workspace: root.path().join("ws"), voices_dir: root.path().join("voices"), models_root: root.path().join("models") };
         let block = |id: &str| Block { id: id.into(), speaker: "A".into(), text: "Текст.".into(), ..Default::default() };
         let mut project = SpeechProject::default();
         project.chapters = vec![sp::Chapter { id: "c".into(), title: String::new(), blocks: vec![block("a"), block("b"), block("c"), block("d")] }];
