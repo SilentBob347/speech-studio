@@ -234,7 +234,7 @@ impl Downloads {
                 }
                 Err(e) => {
                     tracing::warn!("download {:?}: {} ({})", job.ids, e.detail, e.code);
-                    crate::app::hub::setup_failed(&e.code);
+                    crate::app::hub::setup_failed(e.code, &job.ids, &e.detail);
                     job.status = DownloadStatus::Failed;
                     job.error_code = Some(e.code.to_string());
                     job.error = Some(e.detail);

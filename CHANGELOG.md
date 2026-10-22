@@ -23,6 +23,7 @@ release notes on GitHub are taken from the release's section.
 
 ### Fixed
 
+- **A failed download tells the anonymous statistics which component failed and on which site** (for example `network asr-gguf-nemotron huggingface.co`), so a cause behind "network" can be found; nothing about the computer or the person is added.
 - **A recording of only silence is not saved as a voice**: when the system keeps the microphone closed or it is muted, recording a voice ends with what to check instead of a voice that recognition later finds empty.
 - **The director splits a chapter without blank lines into pieces the model can hold**: a book whose paragraphs are separated by single line breaks went to the model as one piece, which overran a local model's context or cut its answer short; a long paragraph now splits by lines, a long line by sentences (Chinese and Japanese full stops too), a sentence by its last space.
 - **Out of video memory in the Higgs engine says what to do**: a lighter quantization, a shorter block or closing the programs on the card, instead of the engine's line alone.
