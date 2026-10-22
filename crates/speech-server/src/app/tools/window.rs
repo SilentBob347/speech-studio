@@ -313,20 +313,6 @@ async fn announce_route(method: &Method, path: &str, pid: Option<&str>, actor: &
 
 // ---------------------------------------------------------------- the tools
 
-/// A tool's schema without the project and the answer's format: the window works on the project
-/// it has open.
-fn like(name: &str, optional: &[&str]) -> Value {
-    let tool = super::tools().iter().find(|tool| tool.name == name).unwrap_or_else(|| panic!("{name} is a tool"));
-    let mut schema = (tool.schema)();
-    if let Some(fields) = schema["properties"].as_object_mut() {
-        fields.remove("pid");
-        fields.remove("response_format");
-    }
-    let required: Vec<Value> = schema["required"].as_array().into_iter().flatten().filter(|field| *field != "pid" && !optional.contains(&field.as_str().unwrap_or_default())).cloned().collect();
-    schema["required"] = Value::Array(required);
-    schema
-}
-
 /// The tools that work in the studio's window, in front of the user.
 pub(super) fn tools() -> Vec<Tool> {
     vec![

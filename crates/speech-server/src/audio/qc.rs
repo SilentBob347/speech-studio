@@ -44,6 +44,7 @@ pub struct Check {
 }
 
 /// Every defect a check can find in a take, each named by `qc-issue-<code>` in the catalogues.
+#[cfg(test)]
 pub const ISSUES: [&str; 13] = ["tail", "stretched", "gap", "repeat", "noise", "garbled", "runaway", "cutoff", "silence", "hum", "click", "clipping", "whistle"];
 
 /// The defects in the interface's language, for a message.

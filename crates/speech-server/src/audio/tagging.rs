@@ -7,10 +7,9 @@
 use std::path::Path;
 
 use lofty::config::{ParseOptions, WriteOptions};
-use lofty::file::{FileType, TaggedFileExt};
+use lofty::file::FileType;
 use lofty::picture::{MimeType, Picture, PictureType};
 use lofty::prelude::{Accessor, ItemKey, TagExt};
-use lofty::probe::Probe;
 use lofty::tag::Tag;
 
 /// What a player should show for one track.
@@ -30,13 +29,6 @@ pub struct TrackTags {
 /// The formats the studio tags: the ones its tracks are kept in.
 pub fn taggable(path: &Path) -> bool {
     matches!(FileType::from_path(path), Some(FileType::Mpeg | FileType::Flac | FileType::Wav))
-}
-
-/// Whether the file's own tag names the track. A FLAC always has a comment
-/// block, holding at least the encoder's name, so a block alone is not a tag.
-pub fn is_tagged(path: &Path) -> anyhow::Result<bool> {
-    let file = Probe::open(path)?.options(ParseOptions::new().read_properties(false)).read()?;
-    Ok(file.primary_tag().is_some_and(|tag| tag.title().is_some()))
 }
 
 /// The tempo field of a tag: ID3 keeps a whole number in TBPM, Vorbis comments a BPM.
@@ -132,6 +124,15 @@ pub fn write_chapters(path: &Path, chapters: &[(f64, f64, String)]) -> anyhow::R
 #[cfg(test)]
 mod tests {
     use super::*;
+    use lofty::file::TaggedFileExt;
+    use lofty::probe::Probe;
+
+    /// Whether the file's own tag names the track. A FLAC always has a comment
+    /// block, holding at least the encoder's name, so a block alone is not a tag.
+    fn is_tagged(path: &Path) -> anyhow::Result<bool> {
+        let file = Probe::open(path)?.options(ParseOptions::new().read_properties(false)).read()?;
+        Ok(file.primary_tag().is_some_and(|tag| tag.title().is_some()))
+    }
 
     fn sample(extension: &str) -> std::path::PathBuf {
         let path = std::env::temp_dir().join(format!("studio-tag-{}.{extension}", uuid::Uuid::new_v4()));

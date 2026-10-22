@@ -55,11 +55,6 @@ fn now_ms() -> u64 {
         .unwrap_or(0)
 }
 
-/// Пометить в SSE, что стадия взята из чекпоинта: {"type":"progress","stage":..,"resumed":true,..}.
-pub fn emit_resumed(progress: &dyn Fn(Value), stage: &str, msg: &str) {
-    progress(json!({ "stage": stage, "msg": msg, "resumed": true }));
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum JobKind {
     Analyze,
@@ -439,13 +434,6 @@ pub fn check_cancelled() -> Result<(), String> {
     } else {
         Ok(())
     }
-}
-
-/// Обновить job.json джобы этого потока (пока запись принадлежит ей).
-pub fn update_record(f: impl FnOnce(&mut job_store::JobRecord)) -> Result<(), String> {
-    let ctl = current().ok_or("the thread is not bound to a job")?;
-    let (dir, id) = ctl.store.as_ref().ok_or("the job has no job.json")?;
-    job_store::update_owned(dir, id, f)
 }
 
 fn child_hook(pid: u32, alive: bool) {

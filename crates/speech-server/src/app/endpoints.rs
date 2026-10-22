@@ -228,32 +228,6 @@ pub async fn openrouter_voices(Query(q): Query<HashMap<String, String>>) -> Resp
     Json(json!({ "voices": voices, "supportsRussian": ru })).into_response()
 }
 
-// ─── PATCH /engine/opts ─────────────────────────────────────────────────────
-// Свап слота модели (asr/tts/llm/vision) в рантайме. У порта OPTS иммутабелен внутри AppState
-// (Arc<EngineOpts>), а модели резолвятся путями из окружения/дефолтов — рантайм-свап без пересоздания
-// стейта не предусмотрен архитектурой (в отличие от питоновского живого OPTS). Валидируем вход как
-// питон (непустые строки -> 400 иначе) и возвращаем ТЕКУЩИЙ стек — контракт формы {models:{...}}
-// соблюдён; фактический свап слота — вне scope порта (модель-стек задаётся при старте сервера).
-pub async fn set_opts(State(st): State<AppState>, Json(edit): Json<Value>) -> Response {
-    for key in ["asr", "tts", "llm", "vision"] {
-        if let Some(v) = edit.get(key) {
-            let ok = v.as_str().map(|s| !s.trim().is_empty()).unwrap_or(false);
-            if !ok {
-                return (StatusCode::BAD_REQUEST, format!("{key:?} must be a non-empty path"))
-                    .into_response();
-            }
-        }
-    }
-    let o = &st.opts;
-    Json(json!({ "models": {
-        "asr": o.asr_model,
-        "llm": o.mt_model_path.to_string_lossy(),
-        "vision": o.mmproj_path.to_string_lossy(),
-        "tts": o.tts_model,
-    }}))
-    .into_response()
-}
-
 // ─── POST /engine/select ────────────────────────────────────────────────────
 // Выбрать активный вариант модели (квант) для движка. Тело: {"id":"higgs-q6_k"} — id компонента из
 // манифеста настроек. Пишем models/active.json; резолв при следующей генерации подхватит выбор без

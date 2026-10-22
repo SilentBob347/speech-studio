@@ -79,7 +79,6 @@ fn strip_marks(text: &str, removed: &mut Removed) -> String {
 /// Units a power follows: «м²», «км²», «см³».
 const UNITS: [&str; 14] = ["м", "см", "мм", "км", "дм", "дюйм", "фут", "m", "cm", "mm", "km", "dm", "ft", "in"];
 
-pub const FORMATS: [&str; 8] = ["epub", "fb2", "pdf", "docx", "html", "htm", "md", "txt"];
 
 static SPACES: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"[ \t\u{a0}\u{2009}\u{202f}]+").expect("spaces"));
 static BLANKS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\n{3,}").expect("blanks"));

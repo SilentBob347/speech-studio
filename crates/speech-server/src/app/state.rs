@@ -7,7 +7,6 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::response::Response;
 use dub_core::EngineOpts;
-use dub_core::Project;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -117,13 +116,4 @@ impl AppState {
         Ok(d)
     }
 
-    fn load_project(&self, pid: &str) -> Result<Project, Response> {
-        let d = self.proj_dir(pid)?;
-        let f = d.join("project.json");
-        if !f.is_file() {
-            return Err((StatusCode::CONFLICT, "project not analyzed yet").into_response());
-        }
-        let text = std::fs::read_to_string(&f).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response())?;
-        Project::from_json(&text).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response())
-    }
 }

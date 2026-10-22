@@ -41,50 +41,6 @@ pub fn read_mono_f32_head(path: &Path, frames: usize) -> Result<(Vec<f32>, u32),
     Ok((mono, spec.sample_rate))
 }
 
-fn peaks_args(video: &Path) -> Vec<std::ffi::OsString> {
-    let mut a: Vec<std::ffi::OsString> = vec!["-v".into(), "quiet".into(), "-i".into(), video.into()];
-    a.extend(["-vn", "-af", crate::audio::media::SYNC_AF, "-ac", "1", "-ar", "8000", "-f", "s16le", "-"].map(Into::into));
-    a
-}
-
-/// Даунсэмпл-пики аудио для WaveformTimeline. Порт app.py._compute_peaks: ffmpeg -> s16le 8kHz mono,
-/// N бакетов, в каждом max(|amp|)/max_amp, округление до 3 знаков. CPU, вне GPU-воркера. Сбой ffmpeg
-/// или тишина -> пустой список (как питон — не отравляем кэш).
-pub fn waveform_peaks(video: &Path, n: usize) -> Vec<f64> {
-    #[cfg(windows)]
-    const FFMPEG: &str = "ffmpeg.exe";
-    #[cfg(not(windows))]
-    const FFMPEG: &str = "ffmpeg";
-    let out = std::process::Command::new(FFMPEG).args(peaks_args(video)).output();
-    let bytes = match out {
-        Ok(o) if o.status.success() => o.stdout,
-        _ => return Vec::new(),
-    };
-    // s16le -> i16 сэмплы.
-    let samples: Vec<f32> = bytes
-        .chunks_exact(2)
-        .map(|c| i16::from_le_bytes([c[0], c[1]]) as f32)
-        .collect();
-    if samples.is_empty() {
-        return Vec::new();
-    }
-    let max_amp = samples.iter().fold(1.0f32, |m, &s| m.max(s.abs()));
-    let nb = n.min(samples.len()).max(1);
-    // np.array_split: первые (len % nb) бакетов на 1 длиннее.
-    let base = samples.len() / nb;
-    let rem = samples.len() % nb;
-    let mut peaks = Vec::with_capacity(nb);
-    let mut i = 0;
-    for b in 0..nb {
-        let len = base + if b < rem { 1 } else { 0 };
-        let slice = &samples[i..i + len];
-        i += len;
-        let mx = slice.iter().fold(0.0f32, |m, &s| m.max(s.abs()));
-        peaks.push(((mx / max_amp) as f64 * 1000.0).round() / 1000.0);
-    }
-    peaks
-}
-
 /// Записать mono f32 -> WAV IEEE-float32.
 pub fn write_mono_f32(path: &Path, data: &[f32], sample_rate: u32) -> Result<(), String> {
     let spec = WavSpec {
@@ -103,10 +59,4 @@ pub fn write_mono_f32(path: &Path, data: &[f32], sample_rate: u32) -> Result<(),
 
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn waveform_reads_audio_by_its_timestamps() {
-        let args = super::peaks_args(std::path::Path::new("in.mp4"));
-        let af = args.iter().position(|a| a == "-af").expect("-af");
-        assert!(args[af + 1].to_string_lossy().starts_with(crate::audio::media::SYNC_AF));
-    }
 }

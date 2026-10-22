@@ -6,11 +6,14 @@
 /// kind, phrase, how it is read (normalised and stress-marked).
 const CORPUS: &str = include_str!("../../data/ru_hard_corpus.tsv");
 
+#[cfg(test)]
 pub const KINDS: [&str; 6] = ["homograph", "yo", "stress", "number", "abbr", "mixed"];
 
 pub struct Phrase {
+    #[cfg_attr(not(test), allow(dead_code))]
     pub kind: &'static str,
     pub text: &'static str,
+    #[cfg_attr(not(test), allow(dead_code))]
     pub read: &'static str,
 }
 

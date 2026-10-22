@@ -6,9 +6,7 @@
 use std::sync::LazyLock;
 
 use dub_core::glossary::{apply_pronunciation, GlossaryEntry};
-use dub_core::Project;
 use regex::Regex;
-use serde_json::Value;
 
 /// Почему фраза не озвучивается: только звуки/музыка в разметке или ни одного слова.
 pub const SKIP_SOUND_ONLY: &str = "sound_only";
@@ -161,31 +159,6 @@ pub fn tts_text(tgt: &str, src: &str, lang: &str, glossary: &[GlossaryEntry]) ->
 fn loops_in(s: &str) -> bool {
     collapse_loops(s) != s
 }
-
-/// Показ в окне и в project_get: `tts_skip` у фраз, которые не озвучиваются, и `tts_text` у фраз, чей текст
-/// для синтеза отличается от показанного. Не хранится — считается при чтении.
-pub fn annotate(proj: &mut Project) {
-    let glossary = dub_core::glossary::for_target(&proj.glossary, &proj.tgt_lang);
-    let lang = proj.tgt_lang.clone();
-    for s in &mut proj.segments {
-        s.extra.remove("tts_skip");
-        s.extra.remove("tts_text");
-        if s.tgt_text.trim().is_empty() {
-            continue;
-        }
-        let t = tts_text(&s.tgt_text, &s.src_text, &lang, &glossary);
-        match t.skip {
-            Some(reason) => {
-                s.extra.insert("tts_skip".into(), Value::String(reason.into()));
-            }
-            None if t.text != s.tgt_text.split_whitespace().collect::<Vec<_>>().join(" ") => {
-                s.extra.insert("tts_text".into(), Value::String(t.text));
-            }
-            None => {}
-        }
-    }
-}
-
 
 #[cfg(test)]
 mod tests {

@@ -248,7 +248,7 @@ pub fn qwen(models_root: &Path, clone: bool, stress: bool) -> Result<Tts, String
     }
     let build = qwen_build(models_root)?;
     let e = Arc::new(crate::engines::qwen_tts::Engine::load(models_root, build, &quant, clone || stress, stress).map_err(|e| t!("render-qwen-load-failed", error = e))?);
-    tracing::info!("voicing: Qwen3-TTS {talker} {quant} on {}", crate::engines::qwen_tts::device(build));
+    tracing::info!("voicing: Qwen3-TTS {talker} {quant} on {} ({})", crate::engines::qwen_tts::device(build), e.version());
     *slot = Some((key, Tts::Qwen(e.clone())));
     touch();
     Ok(Tts::Qwen(e))
@@ -307,10 +307,6 @@ pub fn unload() {
     if let Some((_, e)) = host().take() {
         e.cancel();
     }
-}
-
-pub fn loaded() -> bool {
-    host().is_some()
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -484,7 +480,6 @@ pub struct Synth {
     pub sr: i32,
     pub seed: u64,
     pub temperature: f64,
-    pub attempts: u32,
     pub defects: Vec<&'static str>,
     pub seconds: f64,
 }
@@ -702,10 +697,10 @@ pub fn synth(engine: &Tts, req: &Request) -> Result<Synth, String> {
         let (samples, sr) = run_guarded(engine, call, timeout, req.live.clone())?;
         let seconds = started.elapsed().as_secs_f64();
         if aloud {
-            return Ok(Synth { samples, sr, seed, temperature, attempts: 1, defects, seconds });
+            return Ok(Synth { samples, sr, seed, temperature, defects, seconds });
         }
         match defect(&samples, sr, chars, req.lang) {
-            None => return Ok(Synth { samples, sr, seed, temperature, attempts: attempt + 1, defects, seconds }),
+            None => return Ok(Synth { samples, sr, seed, temperature, defects, seconds }),
             Some(kind) => defects.push(kind),
         }
     }

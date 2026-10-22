@@ -5,7 +5,6 @@ use serde_json::{json, Value};
 
 use crate::listening::project::ListenProject;
 
-pub const FORMATS: &[&str] = &["srt", "vtt", "ass", "txt", "json"];
 
 pub struct Opts {
     pub speakers: bool,

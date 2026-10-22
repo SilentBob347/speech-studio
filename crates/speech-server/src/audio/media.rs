@@ -15,31 +15,10 @@ const FFMPEG: &str = "ffmpeg";
 #[cfg(not(windows))]
 const FFPROBE: &str = "ffprobe";
 
-/// Сводка probe: длительность/размер/fps/кодек первого видеопотока. Зеркало api._meta().
+/// Сводка probe: длительность файла.
 #[derive(Debug, Clone, Default)]
 pub struct MediaMeta {
     pub duration: f64,
-    pub width: i64,
-    pub height: i64,
-    pub fps: f64,
-    pub src_codec: String,
-}
-
-fn parse_fps(r: &str) -> f64 {
-    // r_frame_rate вида "30000/1001".
-    let mut it = r.split('/');
-    match (it.next(), it.next()) {
-        (Some(n), Some(d)) => {
-            let n: f64 = n.parse().unwrap_or(0.0);
-            let d: f64 = d.parse().unwrap_or(0.0);
-            if d != 0.0 {
-                n / d
-            } else {
-                0.0
-            }
-        }
-        _ => 0.0,
-    }
 }
 
 /// ffprobe -show_format -show_streams (json) -> MediaMeta. Ошибка если нет видеопотока/длительности.
@@ -93,26 +72,7 @@ pub fn probe(input: &Path) -> Result<MediaMeta, String> {
                 .and_then(|d| d.parse::<f64>().ok())
         })
         .ok_or_else(|| t!("media-no-duration"))?;
-    let width = vstream.and_then(|s| s.get("width")).and_then(|w| w.as_i64()).unwrap_or(0);
-    let height = vstream.and_then(|s| s.get("height")).and_then(|h| h.as_i64()).unwrap_or(0);
-    let fps = vstream
-        .and_then(|s| s.get("r_frame_rate"))
-        .and_then(|r| r.as_str())
-        .map(parse_fps)
-        .unwrap_or(0.0);
-    let src_codec = vstream
-        .or(astream)
-        .and_then(|s| s.get("codec_name"))
-        .and_then(|c| c.as_str())
-        .unwrap_or("")
-        .to_string();
-    Ok(MediaMeta {
-        duration,
-        width,
-        height,
-        fps,
-        src_codec,
-    })
+    Ok(MediaMeta { duration })
 }
 
 /// Первый фильтр каждого извлечения звука, которое идёт в синхронные стадии (ASR, диаризация, сепарация,

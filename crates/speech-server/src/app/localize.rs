@@ -234,21 +234,6 @@ mod tests {
     }
 }
 
-/// ffmpeg отказывает в NVENC строкой «...nvidia driver for nvenc is 610.00 or newer»: версия драйвера,
-/// которой не хватает, — чтобы сказать человеку, что обновить, а не показывать хвост лога.
-fn nvenc_driver_needed(tail: &str) -> Option<String> {
-    let lower = tail.to_ascii_lowercase();
-    let at = lower.find("driver for nvenc is ")? + "driver for nvenc is ".len();
-    let version: String = lower[at..].chars().take_while(|c| c.is_ascii_digit() || *c == '.').collect();
-    (!version.is_empty() && lower[at + version.len()..].trim_start().starts_with("or newer")).then_some(version)
-}
-
 #[cfg(test)]
 mod nvenc_tests {
-    #[test]
-    fn an_old_driver_for_nvenc_names_the_version_needed() {
-        let tail = "[h264_nvenc] The minimum required Nvidia driver for nvenc is 610.00 or newer [vost#0:0/h264_nvenc] Error while opening encoder";
-        assert_eq!(super::nvenc_driver_needed(tail).as_deref(), Some("610.00"));
-        assert_eq!(super::nvenc_driver_needed("Error while opening encoder"), None);
-    }
 }

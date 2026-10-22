@@ -127,9 +127,6 @@ pub const CUDA13_DRIVER: u32 = 580;
 pub const CUDA13_OLDEST: (u32, u32) = (7, 5);
 /// cuDriverGetVersion драйвера, поддерживающего CUDA 13.0 (1000 * major + 10 * minor).
 const CUDA13_DRIVER_API: u32 = 13_000;
-/// Second builds on CUDA 12.9 (SASS 5.2-12.0a, no PTX) for the cards and drivers CUDA 13 left behind: from Maxwell
-/// (compute capability 5.2) on a driver of the CUDA 12 branch (525+); minor version compatibility runs 12.9 there.
-pub const CUDA12_DRIVER: u32 = 525;
 pub const CUDA12_OLDEST: (u32, u32) = (5, 2);
 const CUDA12_DRIVER_API: u32 = 12_000;
 

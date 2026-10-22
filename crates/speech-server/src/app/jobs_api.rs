@@ -14,7 +14,6 @@ use serde_json::json;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::convert::Infallible;
-use std::path::Path;
 
 #[cfg(test)]
 mod tests;
@@ -28,22 +27,6 @@ pub(crate) fn enqueue_error(e: jobs::EnqueueError) -> Response {
         )
             .into_response(),
         jobs::EnqueueError::Store(e) => (StatusCode::INTERNAL_SERVER_ERROR, format!("job.json: {e}")).into_response(),
-    }
-}
-
-/// Начало тела джобы проекта: убрать недописанные временные файлы прошлого (упавшего) процесса.
-pub(super) fn clean_partials(dir: &Path) {
-    let mut n = dub_core::atomic::cleanup_stale(dir) + dub_core::atomic::cleanup_stale(&dir.join("stems"));
-    // Джобы идут по одной, поэтому недописанная сепарация на старте джобы — остаток оборванного прогона.
-    let stems_part = dub_sep::part_dir(&dir.join("stems"));
-    if stems_part.is_dir() {
-        match std::fs::remove_dir_all(&stems_part) {
-            Ok(()) => n += 1,
-            Err(e) => eprintln!("[jobs] {}: {e}", stems_part.display()),
-        }
-    }
-    if n > 0 {
-        eprintln!("[jobs] {}: unfinished files removed: {n}", dir.display());
     }
 }
 

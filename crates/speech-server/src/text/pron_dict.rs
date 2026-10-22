@@ -128,7 +128,7 @@ pub fn expand(caps: &Captures<'_, str>, template: &str) -> String {
     let mut out = String::new();
     let mut mode = Mode::None;
     let mut next: Option<bool> = None;
-    let mut push = |s: &str, out: &mut String, mode: Mode, next: &mut Option<bool>| {
+    let push = |s: &str, out: &mut String, mode: Mode, next: &mut Option<bool>| {
         for ch in s.chars() {
             let ch: String = match (next.take(), mode) {
                 (Some(true), _) => ch.to_uppercase().collect(),

@@ -5,7 +5,6 @@
 pub(crate) mod acpp;
 pub(crate) mod asr;
 pub(crate) mod denoise;
-pub(crate) mod bench;
 pub(crate) mod hw;
 pub(crate) mod models;
 pub(crate) mod presets;
