@@ -4,6 +4,21 @@ What changed, newest first. Dates are release dates; the app is versioned by its
 build. Every change a user can see is written here in the commit that makes it, and the
 release notes on GitHub are taken from the release's section.
 
+## Unreleased
+
+### Fixed
+
+- **Assistant streaming.** Text remains intact across network packets, malformed model events report errors, and provider-reported costs are retained when a stream fails.
+- **Assistant tool batches.** A batch cannot bypass the chat's tool restrictions and start a recursive assistant request.
+- **Link import retries.** A failed Listening-project import preserves the downloaded media for retry and cleans up the unfinished project directory.
+- **Stress model errors.** Missing, malformed or non-finite RUAccent outputs now report an error instead of panicking or silently skipping stress marks.
+- **Dictionary import errors.** Malformed multipart uploads now report an error even when an earlier part contained a valid dictionary.
+- **Noise suppression errors.** Invalid DPDFNet metadata or output sizes now return an error instead of panicking during processing.
+- **DLL diagnostics.** Malformed import addresses and unsupported PE headers report an error instead of panicking or passing the check.
+- **Credential saves.** Failed key and proxy password replacements clean up their temporary files and preserve the previous value.
+- **Reliable file saves.** Concurrent saves of a voice's card, transcript and image no longer share a temporary file.
+  Failed writes and blocked replacements preserve the previous file.
+
 ## 0.2.0 — 2026-10-20
 
 ### Live

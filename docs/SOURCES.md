@@ -19,12 +19,12 @@ Taken from `timoncool/dub-studio` at `11f909a8e798d56f5f43e0b7ae959d77a05a1866`.
 
 | Here | There | How it differs |
 |---|---|---|
-| `crates/speech-server/src/` (`bench`, `cloud_voices` + `voice_db.json`, `credentials`, `dll_imports`, `downloads`, `guard`, `hw`, `i18n`, `job_store`, `jobs`, `limiter`, `llm_provider`, `localize`, `media`, `models`, `openrouter`, `presets`, `process_group`, `record`, `secrets_api`, `service`, `spa`, `studio_settings`, `subimport`, `tts_text`, `tts_trim`, `url_import`, `wavio`, `ytdlp`) | `crates/dub-server/src/` | names, environment variables (`SPEECH_STUDIO_*`) and port 8797; a link makes a Listening project |
-| `crates/speech-server/src/lib.rs` | `crates/dub-server/src/lib.rs` | the router of the skeleton: no dubbing routes |
+| `crates/speech-server/src/` (`engines/bench.rs`, `integrations/cloud_voices.rs` + `integrations/voice_db.json`, `platform/credentials.rs`, `platform/dll_imports.rs`, `app/downloads.rs`, `app/engine_setup.rs`, `app/asr.rs`, `engines/asr.rs`, `setup/installed.rs`, `setup/selection.rs`, `app/guard.rs`, `engines/hw.rs`, `i18n`, `jobs/store.rs`, `jobs.rs`, `jobs/limiter.rs`, `app/llm_provider.rs`, `app/localize.rs`, `audio/media.rs`, `engines/models.rs`, `integrations/openrouter.rs`, `engines/presets.rs`, `platform/process_group.rs`, `voices/record.rs`, `app/secrets_api.rs`, `app/service.rs`, `app/spa.rs`, `app/studio_settings.rs`, `text/subimport.rs`, `text/tts.rs`, `audio/trim.rs`, `integrations/url_import.rs`, `audio/wavio.rs`, `integrations/ytdlp.rs`) | `crates/dub-server/src/` | names, environment variables (`SPEECH_STUDIO_*`) and port 8797; a link makes a Listening project |
+| `crates/speech-server/src/app/{router,bootstrap,state,runtime}.rs`, `app/*_api.rs`, `app/files.rs` | `crates/dub-server/src/lib.rs` | the skeleton router and startup split by responsibility; no dubbing routes; `lib.rs` keeps the desktop embedding exports |
 | `crates/speech-server/src/setup.rs` | `crates/dub-server/src/setup.rs` | no casting and OCR components; WeSpeaker is a component of its own; Gemma and llama.cpp are optional |
-| `crates/speech-server/src/endpoints.rs`, `google_tts.rs` | same files | only what the skeleton calls; the rest returns with its stage |
-| `crates/speech-server/src/hub.rs` | `crates/dub-server/src/hub.rs` | app id `speech`, `track` for the router |
-| `crates/speech-server/src/mcp.rs`, `mcp/window.rs` | `crates/dub-server/src/mcp.rs`, `mcp/window.rs` | Speech and Listening tools; `editor_open`, `editor_state`, `editor_select` instead of Dub's editor |
+| `crates/speech-server/src/app/endpoints.rs`, `crates/speech-server/src/integrations/google_tts.rs` | same files | only what the skeleton calls; the rest returns with its stage |
+| `crates/speech-server/src/app/hub.rs` | `crates/dub-server/src/hub.rs` | app id `speech`, `track` for the router |
+| `crates/speech-server/src/mcp.rs`, `app/tools.rs`, `app/tools/window.rs` | `crates/dub-server/src/mcp.rs`, `mcp/window.rs` | Speech and Listening tools; `editor_open`, `editor_state`, `editor_select` instead of Dub's editor |
 | `crates/speech-server/locales/` | `crates/dub-server/locales/` | the component texts of voicing and recognition |
 | `desktop/` | `desktop/` | identifier `com.speechstudio.desktop`, its own updater key, empty installer hooks |
 | `frontend/src/components/` (`AgentPanel`, `ConfirmDialog`, `DownloadProgress`, `GoogleTts`, `GpuNotice`, `HubBars`, `HubTelemetryPreview`, `LlmProviders`, `ModelsFolder`, `OpenRouterKey`, `OpenRouterModelSelect`, `ProxySection`, `RemoveComponent`, `ResourceMonitor`, `ServerOffline`, `WhatsNew`, `YtDlpTool`, `settings/*`) | `frontend/src/components/` | `LlmProviders` keeps one stage, the script assistant |
@@ -37,15 +37,15 @@ Taken from `timoncool/dub-studio` at `11f909a8e798d56f5f43e0b7ae959d77a05a1866`.
 
 | Here | There (`timoncool/YuE2-Studio` at `ce206f1ac5089daecead8d5cfccc60f533db78b3`) | How it differs |
 |---|---|---|
-| `crates/speech-server/src/tagging.rs` | `crates/music-server/src/tagging.rs` | without the genre and tempo read from a song's caption |
-| FLAC and MP3 export in `speech_jobs.rs` (`audio_post::encode`, then `tagging::write_tags`) | the song store in `crates/music-server/src/lib.rs` | mono speech goes in as both channels; MP3 at 192 kbps, 44.1 kHz for ACX, else 48 kHz |
+| `crates/speech-server/src/audio/tagging.rs` | `crates/music-server/src/tagging.rs` | without the genre and tempo read from a song's caption |
+| FLAC and MP3 export in `speech/jobs.rs` (`audio_post::encode`, then `tagging::write_tags`) | the song store in `crates/music-server/src/lib.rs` | mono speech goes in as both channels; MP3 at 192 kbps, 44.1 kHz for ACX, else 48 kHz |
 
 ## Patterns from VideoSOS
 
 | Here | There (`timoncool/videosos` at `29b47ce7f0dfcf7601415a099687556e79fe9b43`) |
 |---|---|
 | the mode switch of `frontend/src/components/shell/TopBar.tsx` | `frontend/src/features/editor/components/workspace-switcher.tsx` |
-| `crates/speech-server/src/journal.rs` (a JSONL file instead of SQLite) | `crates/vs-server/src/journal.rs` |
-| `crates/speech-server/src/chat.rs`, `chat_tools` / `chat_call` / `run_tool` of `mcp.rs` | `crates/vs-server/src/chat.rs`, `mcp.rs` |
-| `crates/speech-server/src/mcp/assistant.rs` (`assistant_requests_wait`, `assistant_request_answer`) | `crates/vs-server/src/mcp.rs` |
+| `crates/speech-server/src/app/journal.rs` (a JSONL file instead of SQLite) | `crates/vs-server/src/journal.rs` |
+| `crates/speech-server/src/integrations/chat.rs`, `app/chat.rs`, `chat_tools` / `chat_call` / `run_tool` of `app/tools.rs` | `crates/vs-server/src/chat.rs`, `mcp.rs` |
+| `crates/speech-server/src/app/tools/assistant.rs` (`assistant_requests_wait`, `assistant_request_answer`) | `crates/vs-server/src/mcp.rs` |
 | `frontend/src/lib/chat.ts`, `frontend/src/components/AssistantPanel.tsx` | `frontend/src/features/studio/services/chat.ts`, `components/chat-panel.tsx` |

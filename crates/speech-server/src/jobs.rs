@@ -9,6 +9,9 @@
 //! Отмена выполняемой джобы кооперативная: тело проверяет флаг (`check_cancelled`) между стадиями и
 //! сегментами, а дочерние процессы джобы (учтённые через `dub_core::proc`) убиваются сразу.
 
+pub(crate) mod store;
+pub(crate) mod limiter;
+
 use serde_json::{json, Value};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet, VecDeque};
@@ -18,7 +21,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{broadcast, oneshot, Mutex};
 
-use crate::job_store;
+use crate::jobs::store as job_store;
 
 /// Функция джобы: получает колбэк прогресса (msg + произвольные поля), возвращает JSON-результат.
 pub type JobFn = Box<dyn FnOnce(ProgressFn) -> Result<Value, String> + Send + 'static>;
@@ -218,6 +221,28 @@ impl JobStatus {
 
     fn terminal(self) -> bool {
         matches!(self, JobStatus::Done | JobStatus::Error | JobStatus::Cancelled)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct JobCompletion {
+    pub job_id: String,
+    pub kind: JobKind,
+    pub status: JobStatus,
+    pub error: Option<String>,
+    pub pid: Option<String>,
+}
+
+type CompletionObserver = Arc<dyn Fn(&JobCompletion) + Send + Sync>;
+
+fn notify_completion(observer: Option<&CompletionObserver>, completion: &JobCompletion) {
+    let Some(observer) = observer else { return };
+    // The job is already committed; an observer must not abort result delivery.
+    if let Err(panic) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| observer(completion))) {
+        let cause = panic.downcast_ref::<String>().map(String::as_str)
+            .or_else(|| panic.downcast_ref::<&str>().copied())
+            .unwrap_or("non-string panic");
+        tracing::error!(job_id = %completion.job_id, "job completion observer panicked: {cause}");
     }
 }
 
@@ -541,6 +566,17 @@ pub struct JobQueue {
 impl JobQueue {
     /// Создать очередь и запустить единственный воркер.
     pub fn new() -> Self {
+        Self::start(None)
+    }
+
+    /// Observes work that ran, after its terminal event and before result delivery.
+    /// Queued cancellations never reach the worker and do not notify this observer.
+    /// Runs synchronously outside the queue lock; the worker continues when it returns.
+    pub(crate) fn with_completion_observer(observer: impl Fn(&JobCompletion) + Send + Sync + 'static) -> Self {
+        Self::start(Some(Arc::new(observer)))
+    }
+
+    fn start(observer: Option<CompletionObserver>) -> Self {
         dub_core::proc::set_hook(child_hook);
         dub_core::proc::set_carry(carry_current);
         let inner: Arc<Mutex<Inner>> = Arc::new(Mutex::new(Inner::default()));
@@ -579,45 +615,61 @@ impl JobQueue {
                 .unwrap_or_else(|e| Err(format!("job panicked: {e}")));
                 let cancelled = ctl.is_cancelled() && res.is_err();
 
-                let mut g = worker_inner.lock().await;
-                g.running = None;
-                let mut drop_frame = false;
-                if let Some(j) = g.jobs.get_mut(&job_id) {
-                    j.finished_at = Some(now_ms());
-                    j.finished = Some(Instant::now());
-                    let (status, err, ev) = if cancelled {
-                        (JobStatus::Cancelled, None, json!({ "type": "cancelled" }))
-                    } else {
-                        match &res {
-                            Ok(v) => {
-                                if kind != JobKind::Frame {
-                                    j.result = Some(v.clone());
-                                }
-                                let ev = if kind == JobKind::Frame {
-                                    json!({ "type": "done" })
-                                } else {
-                                    json!({ "type": "done", "result": v })
-                                };
-                                (JobStatus::Done, None, ev)
-                            }
-                            Err(e) => {
-                                j.error = Some(e.clone());
-                                (JobStatus::Error, Some(e.clone()), json!({ "type": "error", "error": e }))
-                            }
-                        }
-                    };
-                    j.status = status;
-                    ctl.finish(status, err.as_deref(), ev);
-                    crate::hub::job_ended(kind, status, err.as_deref(), j.pid.as_deref());
-                    if let Some(sender) = j.result_sender.take() {
-                        let delivered = if cancelled {
-                            sender.send(Err(CANCELLED.to_string()))
+                let (completion, sender) = {
+                    let mut g = worker_inner.lock().await;
+                    g.running = None;
+                    if let Some(j) = g.jobs.get_mut(&job_id) {
+                        j.finished_at = Some(now_ms());
+                        j.finished = Some(Instant::now());
+                        let (status, err, ev) = if cancelled {
+                            (JobStatus::Cancelled, None, json!({ "type": "cancelled" }))
                         } else {
-                            sender.send(res)
+                            match &res {
+                                Ok(v) => {
+                                    if kind != JobKind::Frame {
+                                        j.result = Some(v.clone());
+                                    }
+                                    let ev = if kind == JobKind::Frame {
+                                        json!({ "type": "done" })
+                                    } else {
+                                        json!({ "type": "done", "result": v })
+                                    };
+                                    (JobStatus::Done, None, ev)
+                                }
+                                Err(e) => {
+                                    j.error = Some(e.clone());
+                                    (JobStatus::Error, Some(e.clone()), json!({ "type": "error", "error": e }))
+                                }
+                            }
                         };
-                        drop_frame = kind == JobKind::Frame && delivered.is_err();
+                        j.status = status;
+                        ctl.finish(status, err.as_deref(), ev);
+                        let completion = JobCompletion {
+                            job_id: job_id.clone(),
+                            kind,
+                            status,
+                            error: err,
+                            pid: j.pid.clone(),
+                        };
+                        (Some(completion), j.result_sender.take())
+                    } else {
+                        (None, None)
                     }
+                };
+                if let Some(completion) = &completion {
+                    notify_completion(observer.as_ref(), completion);
                 }
+                let drop_frame = if let Some(sender) = sender {
+                    let delivered = if cancelled {
+                        sender.send(Err(CANCELLED.to_string()))
+                    } else {
+                        sender.send(res)
+                    };
+                    kind == JobKind::Frame && delivered.is_err()
+                } else {
+                    false
+                };
+                let mut g = worker_inner.lock().await;
                 if drop_frame {
                     g.jobs.remove(&job_id); // ожидающий кадра ушёл по таймауту — хранить нечего
                 }
@@ -677,10 +729,10 @@ impl JobQueue {
     }
 
     /// Поставить джобу в очередь; вернуть job_id. Персистентная джоба сначала пишет job.json. Её сохранения
-    /// проекта — автора запроса, который её поставил (mcp::carry_job).
+    /// проекта — автора запроса, который её поставил (app::context::carry_job).
     pub async fn enqueue(&self, meta: JobMeta, fn_: JobFn) -> Result<String, EnqueueError> {
         let job_id = self.insert(meta, None).await?;
-        let _ = self.submit_tx.send((job_id.clone(), crate::mcp::carry_job(fn_)));
+        let _ = self.submit_tx.send((job_id.clone(), Box::new(crate::app::carry_job(fn_))));
         Ok(job_id)
     }
 
@@ -692,7 +744,7 @@ impl JobQueue {
     ) -> Result<(String, oneshot::Receiver<Result<Value, String>>), EnqueueError> {
         let (res_tx, res_rx) = oneshot::channel();
         let job_id = self.insert(meta, Some(res_tx)).await?;
-        let _ = self.submit_tx.send((job_id.clone(), crate::mcp::carry_job(fn_)));
+        let _ = self.submit_tx.send((job_id.clone(), Box::new(crate::app::carry_job(fn_))));
         Ok((job_id, res_rx))
     }
 
@@ -799,6 +851,9 @@ impl Default for JobQueue {
 pub fn is_terminal_event(ev: &Value) -> bool {
     matches!(ev.get("type").and_then(Value::as_str), Some("done" | "error" | "cancelled"))
 }
+
+#[cfg(test)]
+mod completion_tests;
 
 #[cfg(test)]
 mod tests {
