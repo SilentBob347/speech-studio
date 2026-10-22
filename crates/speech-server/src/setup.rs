@@ -558,51 +558,37 @@ mod platform {
         markers: &[Marker { rel: "models/transcribe-engine-cpu/libtranscribe_engine.dylib", expect: 9_918_736 }],
     };
 
-    // Qwen3-TTS (timoncool/qwentts.cpp, branch studio, scripts/build-engine-linux-docker.sh): libqwen.so with its ggml
-    // libraries and libgomp, one archive a build, each with the codec; RUNPATH $ORIGIN, ../higgs-engine (CUDA 13
-    // runtime) and ../cuda12-runtime.
+    // Qwen3-TTS (timoncool/qwentts.cpp, branch studio, ABI 7, scripts/build-engine-linux-docker.sh, Ubuntu 22.04):
+    // libqwen.so with ggml, its CPU backend and libgomp, and the backend module of each other device beside it
+    // (GGML_BACKEND_DL); RUNPATH $ORIGIN, ../higgs-engine (CUDA 13 runtime) and ../cuda12-runtime.
     #[cfg(target_os = "linux")]
-    pub const QWEN_CUDA13: Parts = Parts {
-        size: super::QWEN_CODEC.size + 130_364_711,
-        files: &[super::QWEN_CODEC, FileSpec { url: "https://github.com/timoncool/qwentts.cpp/releases/download/engine-0.1.1/qwen-linux-cuda13-x64.tar.gz", dest_rel: "models/qwen3-tts/_engine.tar.gz", size: 130_364_711, sha256: "43ebd6b8bfc8533d2c62e297d01e108349cd9de7f0a0c8792cc940140da04fd4", extract: Extract::Flat }],
-        markers: &[Marker { rel: super::QWEN_CODEC.dest_rel, expect: super::QWEN_CODEC.size }, Marker { rel: "models/qwen3-tts/libqwen.so", expect: 0 }, Marker { rel: "models/qwen3-tts/libggml-cuda.so.0", expect: 0 }],
-    };
-    #[cfg(target_os = "linux")]
-    pub const QWEN_CUDA12: Parts = Parts {
-        size: super::QWEN_CODEC.size + 158_294_591,
-        files: &[super::QWEN_CODEC, FileSpec { url: "https://github.com/timoncool/qwentts.cpp/releases/download/engine-0.1.1/qwen-linux-cuda12-x64.tar.gz", dest_rel: "models/qwen3-tts-cuda12/_engine.tar.gz", size: 158_294_591, sha256: "5a2edac432281219d5678310de216c25e63db5a0a80b90ba9b9fb6901df30c2e", extract: Extract::Flat }],
-        markers: &[Marker { rel: super::QWEN_CODEC.dest_rel, expect: super::QWEN_CODEC.size }, Marker { rel: "models/qwen3-tts-cuda12/libqwen.so", expect: 0 }, Marker { rel: "models/qwen3-tts-cuda12/libggml-cuda.so.0", expect: 0 }],
+    pub const QWEN_ENGINE: Parts = Parts {
+        size: super::QWEN_CODEC.size + 1_235_196,
+        files: &[super::QWEN_CODEC, FileSpec { url: "https://github.com/timoncool/qwentts.cpp/releases/download/engine-0.2.0/qwen-linux-x64.tar.gz", dest_rel: "models/qwen3-tts/_engine.tar.gz", size: 1_235_196, sha256: "a2a5a4d355f8e4e58e87130f075c035aa0c62d0e43cec31da7c0c87c22880e8a", extract: Extract::Flat }],
+        markers: &[Marker { rel: super::QWEN_CODEC.dest_rel, expect: super::QWEN_CODEC.size }, Marker { rel: "models/qwen3-tts/libqwen.so", expect: 675_808 }, Marker { rel: "models/qwen3-tts/libggml-cpu.so", expect: 1_272_208 }],
     };
     #[cfg(target_os = "linux")]
     pub const QWEN_VULKAN: Parts = Parts {
-        size: super::QWEN_CODEC.size + 14_324_145,
-        files: &[super::QWEN_CODEC, FileSpec { url: "https://github.com/timoncool/qwentts.cpp/releases/download/engine-0.1.1/qwen-linux-vulkan-x64.tar.gz", dest_rel: "models/qwen3-tts-vulkan/_engine.tar.gz", size: 14_324_145, sha256: "a4d8fd14471b84771812267ac8c1d606f52879a74018ed3c3106dedcb48321c2", extract: Extract::Flat }],
-        markers: &[Marker { rel: super::QWEN_CODEC.dest_rel, expect: super::QWEN_CODEC.size }, Marker { rel: "models/qwen3-tts-vulkan/libqwen.so", expect: 0 }, Marker { rel: "models/qwen3-tts-vulkan/libggml-vulkan.so.0", expect: 0 }],
+        size: 42_242_640,
+        files: &[FileSpec { url: "https://github.com/timoncool/qwentts.cpp/releases/download/engine-0.2.0/libggml-vulkan-linux-x64.so", dest_rel: "models/qwen3-tts/libggml-vulkan.so", size: 42_242_640, sha256: "efce535b0ba4a3d7803ab2ec75f0a1a06693fb44699baebbdd61dbc032c2177d", extract: Extract::None }],
+        markers: &[Marker { rel: "models/qwen3-tts/libggml-vulkan.so", expect: 42_242_640 }],
     };
     #[cfg(target_os = "linux")]
-    pub const QWEN_CPU: Parts = Parts {
-        size: super::QWEN_CODEC.size + 1_225_965,
-        files: &[super::QWEN_CODEC, FileSpec { url: "https://github.com/timoncool/qwentts.cpp/releases/download/engine-0.1.1/qwen-linux-cpu-x64.tar.gz", dest_rel: "models/qwen3-tts-cpu/_engine.tar.gz", size: 1_225_965, sha256: "5196bbd89ffadf03bbeabaa44cd15bbaefa14b099548a43a43f4d62ea274ba4f", extract: Extract::Flat }],
-        markers: &[Marker { rel: super::QWEN_CODEC.dest_rel, expect: super::QWEN_CODEC.size }, Marker { rel: "models/qwen3-tts-cpu/libqwen.so", expect: 0 }, Marker { rel: "models/qwen3-tts-cpu/libggml-cpu.so.0", expect: 0 }],
+    pub const QWEN_CUDA13: Parts = Parts {
+        size: 157_457_144,
+        files: &[FileSpec { url: "https://github.com/timoncool/qwentts.cpp/releases/download/engine-0.2.0/libggml-cuda13-linux-x64.so", dest_rel: "models/qwen3-tts/libggml-cuda.so", size: 157_457_144, sha256: "ded156c13202ed4a27647eccde8ec7e30b139e5e948f8d98a9f67f0d8494d6eb", extract: Extract::None }],
+        markers: &[Marker { rel: "models/qwen3-tts/libggml-cuda.so", expect: 157_457_144 }],
     };
-    /// The download of a build of Qwen3-TTS.
     #[cfg(target_os = "linux")]
-    pub fn qwen_parts(build: acpp_server::asset::Build) -> &'static Parts {
-        match build {
-            acpp_server::asset::Build::Cuda13 => &QWEN_CUDA13,
-            acpp_server::asset::Build::Cuda12 => &QWEN_CUDA12,
-            acpp_server::asset::Build::Vulkan => &QWEN_VULKAN,
-            acpp_server::asset::Build::Cpu => &QWEN_CPU,
-        }
-    }
+    pub const QWEN_CUDA12: Parts = Parts {
+        size: 181_025_560,
+        files: &[FileSpec { url: "https://github.com/timoncool/qwentts.cpp/releases/download/engine-0.2.0/libggml-cuda12-linux-x64.so", dest_rel: "models/qwen3-tts/libggml-cuda.so", size: 181_025_560, sha256: "bb4123ff8521c38ecf7704e71d2ee2814ae21704d44240b9489033ce56474837", extract: Extract::None }],
+        markers: &[Marker { rel: "models/qwen3-tts/libggml-cuda.so", expect: 181_025_560 }],
+    };
     // macOS has no build of Qwen3-TTS yet: the component brings the codec alone and the engine stays unavailable with
     // its reason.
-    #[cfg(not(target_os = "linux"))]
-    pub const QWEN_CODEC_ONLY: Parts = Parts { size: super::QWEN_CODEC.size, files: &[super::QWEN_CODEC], markers: &[Marker { rel: super::QWEN_CODEC.dest_rel, expect: super::QWEN_CODEC.size }] };
-    #[cfg(not(target_os = "linux"))]
-    pub fn qwen_parts(_build: acpp_server::asset::Build) -> &'static Parts {
-        &QWEN_CODEC_ONLY
-    }
+    #[cfg(target_os = "macos")]
+    pub const QWEN_ENGINE: Parts = Parts { size: super::QWEN_CODEC.size, files: &[super::QWEN_CODEC], markers: &[Marker { rel: super::QWEN_CODEC.dest_rel, expect: super::QWEN_CODEC.size }] };
 
     // BSRoformer.cpp v0.1.0 (timoncool/BSRoformer.cpp studio-0.1.0, scripts/release-linux-cuda-docker.sh): Ubuntu
     // 22.04, libgomp beside the program, RUNPATH $ORIGIN, ../../models/higgs-engine and ../../models/cuda12-runtime;
@@ -1499,7 +1485,7 @@ pub fn manifest() -> Vec<Component> {
     }
     // Qwen3-TTS's backend modules, fetched when voicing is set to their device: Vulkan, and the CUDA one of this
     // computer's card (macOS has no build of Qwen3-TTS yet)
-    #[cfg(windows)]
+    #[cfg(not(target_os = "macos"))]
     {
         all.push(Component {
             id: "qwen3-tts-vulkan",
