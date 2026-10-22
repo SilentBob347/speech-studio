@@ -273,7 +273,7 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
             className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]" />
         </label>
         <label className="text-[11px] text-[var(--color-muted)]">{t("speech.blockEngine")}
-          <EngineSelect value={block.engine ?? null} projectEngine={projectEngine} inheritEngine={speakerEngine ?? projectEngine} voice={voice} onChange={(e, v) => a.patch(v === undefined ? { engine: e } : { engine: e, voice: v })}
+          <EngineSelect value={block.engine ?? null} projectEngine={projectEngine} inheritEngine={speakerEngine ?? projectEngine} voice={voice} lang={block.lang ?? ""} onChange={(e, v) => a.patch(v === undefined ? { engine: e } : { engine: e, voice: v })}
             inherit={speakerEngine ? t("speech.engineAsSpeaker") : t("speech.engineAsProject")} label={t("speech.blockEngine")}
             className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]" />
         </label>

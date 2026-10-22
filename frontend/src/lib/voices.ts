@@ -16,7 +16,15 @@ export function rememberVoice(name: string): void {
   try { localStorage.setItem(RECENT, JSON.stringify([name, ...recentVoices().filter((v) => v !== name)].slice(0, 5))); } catch { /* the list stays as it was */ }
 }
 
-export const errorText = (e: unknown) => (e instanceof ApiError ? e.detail || e.code : e instanceof Error ? e.message : String(e));
+/** The library voice an engine that only clones starts with: in the project's language, a favourite first, then one of
+ * the pack; an engine that needs the reference text takes only voices that have it. Null when the library has none. */
+export function defaultLibraryVoice(listing: VoiceListing | null, lang: string, needsText: boolean): string | null {
+  const fit = (listing?.voices ?? []).filter((v) => v.card.kind !== "preset" && (!needsText || !!v.transcript?.trim()) && (!lang || lang === "auto" || v.card.lang === lang));
+  const rank = (v: VoiceEntry) => (v.card.favorite ? 0 : v.card.source === "pack" ? 1 : 2);
+  return [...fit].sort((a, b) => rank(a) - rank(b))[0]?.name ?? null;
+}
+
+export const errorText =(e: unknown) => (e instanceof ApiError ? e.detail || e.code : e instanceof Error ? e.message : String(e));
 
 /** The voice library, read again whenever the studio says the voices changed. */
 export function useVoices(): { listing: VoiceListing | null; error: string | null; reload: () => void; patch: (v: VoiceEntry) => void } {

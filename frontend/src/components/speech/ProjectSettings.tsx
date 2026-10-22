@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { Dices, X } from "lucide-react";
 import { CLOUD_ENGINES, useEngines } from "../../lib/engines";
@@ -15,6 +16,8 @@ import GoogleTts from "../GoogleTts";
 import { api } from "../../lib/api";
 import { openSettings } from "../../lib/settingsNav";
 import Hint from "../Hint";
+import VoiceLibrary from "../voices/VoiceLibrary";
+import { defaultLibraryVoice, useVoices } from "../../lib/voices";
 
 const RU_MARK = "RU";
 
@@ -44,6 +47,8 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
   const continuable = engine?.continuation ?? false;
   const [cloudVoices, setCloudVoices] = useState<{ name: string; gender: string; ru: boolean }[]>([]);
   const [hasKey, setHasKey] = useState<boolean | null>(null);
+  const { listing } = useVoices();
+  const [library, setLibrary] = useState(false);
   const set = (f: (p: SpeechProject) => void) => onChange((p) => { f(p); return p; });
   const [studioGoogle, setStudioGoogle] = useState<{ model: string; mode: string }>({ model: "", mode: "standard" });
   const voiceModel = s.engine === "google" ? s.cloud_model || studioGoogle.model : s.cloud_model;
@@ -92,11 +97,21 @@ export default function ProjectSettings({ project, onChange, onClose }: { projec
               for (const speaker of Object.keys(p.cast)) if (stale(p.cast[speaker])) delete p.cast[speaker];
               for (const b of p.chapters.flatMap((c) => c.blocks)) if (stale(b.voice)) b.voice = null;
               if (own.length && (!p.settings.voice || (next?.clone === "none" && !own.some((v) => v.id === p.settings.voice)))) p.settings.voice = own[0].id;
+              if (next?.needs_voice && !own.length && !p.settings.voice) p.settings.voice = defaultLibraryVoice(listing, p.settings.lang, next.ref_text_required);
             })} className={field}>
               {(engines ?? []).map((en) => <option key={en.id} value={en.id} disabled={!!en.unavailable && en.id !== s.engine}>{en.name}{en.unavailable ? ` — ${t("speech.engineUnavailable")}` : ""}</option>)}
             </select>
           </label>
           {engine?.unavailable && <p role="alert" className="text-[11px] text-[var(--color-warn)]">{engine.unavailable}</p>}
+          {!engine?.unavailable && engine?.needs_voice && !engine.presets.length && !s.voice && (
+            <p className="text-[11px] text-[var(--color-warn)]">{t("speech.engineNeedsLibraryVoice")}{" "}
+              <button onClick={() => setLibrary(true)} className="underline hover:text-[var(--color-text)]">{t("voice.packTitle")}</button>
+            </p>
+          )}
+          {library && createPortal(
+            <div className="relative z-[70]">
+              <VoiceLibrary onClose={() => setLibrary(false)} onPick={(name) => { set((p) => { p.settings.voice = name; }); setLibrary(false); }} />
+            </div>, document.body)}
           {!engine?.unavailable && engines?.some((en) => en.unavailable) && (
             <p className="text-[11px] text-[var(--color-muted)]">{engines.filter((en) => en.unavailable).map((en) => `${en.name}: ${en.unavailable}`).join(" ")}</p>
           )}

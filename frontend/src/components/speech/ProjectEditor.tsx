@@ -746,7 +746,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
               <span className="flex items-baseline gap-1.5"><span className="font-semibold" style={{ color: tintOf(s) }}>{s}</span><span className="text-[10px] tabnum text-[var(--color-muted)]">{t("speech.castBlocks", { n: blocks.filter((b) => b.speaker === s && !b.hidden).length })}</span><Hint text={t("hint.castCard")} /></span>
               <VoicePicker engine={project.cast_engines?.[s] || project.settings.engine} value={project.cast[s] ?? null} onChange={(v) => castVoice(s, v)} inherit={t("speech.voiceAsProject")} label={t("speech.voiceFor", { speaker: s })}
                 className="mt-1 w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-2 py-1.5 text-[12px]" />
-              <EngineSelect value={project.cast_engines?.[s] ?? null} projectEngine={project.settings.engine} inheritEngine={project.settings.engine} voice={project.cast[s] || project.settings.voice || null}
+              <EngineSelect value={project.cast_engines?.[s] ?? null} projectEngine={project.settings.engine} inheritEngine={project.settings.engine} voice={project.cast[s] || project.settings.voice || null} lang={project.settings.lang}
                 onChange={(e, v) => edit((p) => { const all = { ...(p.cast_engines ?? {}) }; if (e) all[s] = e; else delete all[s]; p.cast_engines = all; if (v) p.cast[s] = v; else if (v === null) delete p.cast[s]; return p; })}
                 inherit={t("speech.engineAsProject")} label={t("speech.engineFor", { speaker: s })}
                 className="mt-1 w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-2 py-1 text-[11px] text-[var(--color-muted)]" />
