@@ -47,6 +47,7 @@ downloads-interrupted = закачка оборвалась вместе с пр
 downloads-nothing-to-download = нет скачиваемых компонентов среди выбранных id
 downloads-busy = закачка уже идёт
 downloads-thread-failed = поток закачки не запустился: { $error }
+downloads-panicked = закачка остановилась на внутренней ошибке: { $error }
 timing-words-not-recognized = пословные тайминги дубляжа не распознаны для { $count } { $count ->
     [one] фразы
     [few] фраз
@@ -568,8 +569,8 @@ render-mp4-companion-failed = mp4-компаньон не собран ({ $error
 render-done = готово -> { $path }
 render-dub-audio-done = дуб-аудио готово
 render-synth-thread-ended = поток синтеза завершился без результата
-render-synth-timeout = таймаут синтеза >{ $seconds }с — отменён, движок свободен
-render-engine-stuck = синтез не отменяется >{ $seconds }с — рендер прерван (движок завис в DLL)
+render-synth-timeout = { $engine }: таймаут синтеза >{ $seconds }с — отменён, движок свободен
+render-engine-stuck = { $engine }: синтез не отменяется >{ $seconds }с — рендер прерван (движок завис в DLL)
 render-higgs-load-failed = загрузка Higgs DLL: { $error }
 render-higgs-gpu-old = Локальный голос Higgs не запустится на { $card }: ему нужна NVIDIA начиная с Turing (compute capability { $min }, GTX 16 и RTX 20 и новее). Выберите голос «Google · напрямую» или «Через OpenRouter».
 render-higgs-driver-old = Локальному голосу Higgs нужен драйвер NVIDIA { $min } или новее, а стоит старее: { $card }. Обновите драйвер или выберите голос «Google · напрямую» или «Через OpenRouter».

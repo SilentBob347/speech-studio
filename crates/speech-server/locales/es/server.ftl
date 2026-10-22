@@ -44,6 +44,7 @@ downloads-interrupted = la descarga se interrumpió al cerrarse la aplicación; 
 downloads-nothing-to-download = ninguno de los id seleccionados es un componente descargable
 downloads-busy = ya hay una descarga en curso
 downloads-thread-failed = el hilo de descarga no se inició: { $error }
+downloads-panicked = la descarga se detuvo por un error interno: { $error }
 timing-words-not-recognized = no se reconocieron los tiempos por palabra del doblaje en { $count } { $count ->
     [one] frase
    *[other] frases
@@ -548,8 +549,8 @@ render-mp4-companion-failed = no se generó el mp4 complementario ({ $error }); 
 render-done = listo -> { $path }
 render-dub-audio-done = el audio doblado está listo
 render-synth-thread-ended = el hilo de síntesis terminó sin resultado
-render-synth-timeout = la síntesis superó { $seconds } s; cancelada, el motor está libre
-render-engine-stuck = la síntesis no se cancela tras { $seconds } s; el render se detuvo (el motor se colgó en la DLL)
+render-synth-timeout = { $engine }: la síntesis superó { $seconds } s; cancelada, el motor está libre
+render-engine-stuck = { $engine }: la síntesis no se cancela tras { $seconds } s; el render se detuvo (el motor se colgó en la DLL)
 render-higgs-load-failed = cargando la DLL de Higgs: { $error }
 render-higgs-gpu-old = La voz local de Higgs no puede funcionar en { $card }: necesita una NVIDIA desde Turing (compute capability { $min }, GTX 16 y RTX 20 o más nuevas). Elige la voz «Google · directo» o «Mediante OpenRouter».
 render-higgs-driver-old = La voz local de Higgs necesita el controlador NVIDIA { $min } o más nuevo, y este es anterior: { $card }. Actualiza el controlador o elige la voz «Google · directo» o «Mediante OpenRouter».

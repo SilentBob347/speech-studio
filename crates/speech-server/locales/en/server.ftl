@@ -44,6 +44,7 @@ downloads-interrupted = the download stopped when the app closed; what was fetch
 downloads-nothing-to-download = none of the selected ids is a downloadable component
 downloads-busy = a download is already running
 downloads-thread-failed = the download thread did not start: { $error }
+downloads-panicked = the download stopped on an internal error: { $error }
 timing-words-not-recognized = word timings of the dub were not recognized for { $count } { $count ->
     [one] line
    *[other] lines
@@ -548,8 +549,8 @@ render-mp4-companion-failed = the mp4 companion was not built ({ $error }); the 
 render-done = done -> { $path }
 render-dub-audio-done = the dub audio is ready
 render-synth-thread-ended = the synthesis thread ended without a result
-render-synth-timeout = synthesis timed out after >{ $seconds }s; cancelled, the engine is free
-render-engine-stuck = synthesis does not cancel after >{ $seconds }s; the render is stopped (the engine hung in the DLL)
+render-synth-timeout = { $engine }: synthesis timed out after >{ $seconds }s; cancelled, the engine is free
+render-engine-stuck = { $engine }: synthesis does not cancel after >{ $seconds }s; the render is stopped (the engine hung in the DLL)
 render-higgs-load-failed = loading the Higgs DLL: { $error }
 render-higgs-gpu-old = The local Higgs voice cannot run on { $card }: it needs an NVIDIA card from Turing on (compute capability { $min }, GTX 16 and RTX 20 or newer). Choose the "Google · direct" or "OpenRouter" voice.
 render-higgs-driver-old = The local Higgs voice needs NVIDIA driver { $min } or newer, and this one is older: { $card }. Update the driver or choose the "Google · direct" or "OpenRouter" voice.

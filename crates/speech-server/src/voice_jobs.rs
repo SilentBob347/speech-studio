@@ -77,7 +77,8 @@ pub fn clean(p: &VoicePaths, name: &str, progress: &dyn Fn(Value)) -> Result<Val
     let work = work_dir(&p.voices_dir, name, "clean")?;
     let wav = work.path().join("mix.wav");
     progress(json!({ "type": "progress", "stage": "voice_clean", "msg": t!("voice-cleaning", name = name.to_string()) }));
-    crate::media::to_wav(&audio, &wav)?;
+    // the separator takes 44.1 kHz only and refuses a voice recorded at 48 or 24 kHz
+    crate::media::extract_audio(&audio, &wav, 44_100, 2)?;
     let stems = work.path().join("stems");
     let res = dub_sep::separate(&wav, &stems, &cli, &model).map_err(|e| e.localize())?;
     lib::replace_with_cleaned(&p.voices_dir, name, &res.vocals)?;

@@ -284,6 +284,13 @@ impl JobCtl {
         };
         obj.insert("type".into(), json!("progress"));
         let stage = obj.get("stage").and_then(Value::as_str).map(str::to_string);
+        // each new step goes to the log: after a crash its last line says where the work was
+        if let Some(msg) = obj.get("msg").and_then(Value::as_str).filter(|m| !m.is_empty()) {
+            let before = self.last.lock().unwrap_or_else(|p| p.into_inner()).as_ref().and_then(|l| l.get("msg").and_then(Value::as_str).map(str::to_string));
+            if before.as_deref() != Some(msg) {
+                tracing::info!("[{}] {msg}", stage.as_deref().unwrap_or("job"));
+            }
+        }
         self.publish_last(Value::Object(obj));
         if let Some(stage) = stage {
             self.note_stage(&stage);
@@ -601,6 +608,7 @@ impl JobQueue {
                                 (JobStatus::Done, None, ev)
                             }
                             Err(e) => {
+                                tracing::warn!("[ERROR] job {job_id} ({kind:?}) failed: {e}");
                                 j.error = Some(e.clone());
                                 (JobStatus::Error, Some(e.clone()), json!({ "type": "error", "error": e }))
                             }

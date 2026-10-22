@@ -396,6 +396,7 @@ pub fn run() {
         Err(e) => layout::fatal(&e),
     };
     let repo_root = placed.server_root;
+    speech_server::diagnostics::log_to_file(&repo_root);
     speech_server::ensure_library_path(&repo_root);
     setup_server_env(&repo_root);
     // Маршрут прокси до проверки обновлений: сервер ставит его в своём потоке, без гарантии, что раньше.

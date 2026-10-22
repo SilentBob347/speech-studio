@@ -99,9 +99,11 @@ pub fn write_podcast(llm: &ChatClient, topic: &str, speakers: &[Speaker], lang: 
     Ok(lines)
 }
 
-/// Буквы и цифры текста в нижнем регистре — для сверки дословности.
+/// Буквы и цифры текста в нижнем регистре — для сверки дословности; полноширинные знаки (１, Ａ) приведены к обычным
+/// (NFKC): модель, переписавшая их обычными, слов не меняла.
 fn letters(text: &str) -> String {
-    text.chars().filter(|c| c.is_alphanumeric()).flat_map(char::to_lowercase).map(|c| if c == 'ё' { 'е' } else { c }).collect()
+    use unicode_normalization::UnicodeNormalization;
+    text.nfkc().filter(|c| c.is_alphanumeric()).flat_map(char::to_lowercase).map(|c| if c == 'ё' { 'е' } else { c }).collect()
 }
 
 /// Куски главы по границам абзацев (абзац длиннее куска идёт целиком отдельно).
@@ -402,6 +404,7 @@ mod tests {
         assert_eq!(parts.len(), 2, "two long paragraphs do not share a chunk, the short one joins the second");
         assert_eq!(letters("Ёлка, сказал он."), letters("елка — сказал он"));
         assert_ne!(letters("Ёлка, сказал он."), letters("Ёлка, он."));
+        assert_eq!(letters("他买了３本书，ＯＫ。"), letters("他买了3本书, ok."), "full-width digits and letters are the same text");
     }
 
     #[test]

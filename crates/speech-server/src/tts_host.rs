@@ -56,6 +56,15 @@ impl Tts {
         }
     }
 
+    fn name(&self) -> &'static str {
+        match self {
+            Tts::Higgs(_) => "Higgs Audio v3",
+            Tts::Drama(_) => "Drama 3",
+            Tts::Supertonic(_) => "Supertonic 3",
+            Tts::Qwen(_) => "Qwen3-TTS",
+        }
+    }
+
     fn in_use(&self) -> bool {
         match self {
             Tts::Higgs(e) => Arc::strong_count(e) > 1,
@@ -599,10 +608,10 @@ fn run_guarded(engine: &Tts, call: Call, timeout: Duration, live: Option<Arc<cra
     engine.cancel();
     match rx.recv_timeout(Duration::from_secs(GUARD_GRACE_SECS)) {
         Ok(_) if cancelled => Err(crate::jobs::CANCELLED.to_string()),
-        Ok(_) => Err(t!("render-synth-timeout", seconds = timeout.as_secs())),
+        Ok(_) => Err(t!("render-synth-timeout", engine = engine.name(), seconds = timeout.as_secs())),
         Err(_) => {
             unload();
-            Err(format!("{ENGINE_STUCK}: {}", t!("render-engine-stuck", seconds = timeout.as_secs() + GUARD_GRACE_SECS)))
+            Err(format!("{ENGINE_STUCK}: {}", t!("render-engine-stuck", engine = engine.name(), seconds = timeout.as_secs() + GUARD_GRACE_SECS)))
         }
     }
 }

@@ -2707,22 +2707,33 @@ fn download_whole(
 
 /// Потоковый SHA-256 файла блоками по 1 МиБ. None — остановлено (stop): пауза не ждёт конца хэширования 12 ГБ.
 pub(crate) fn sha256_file(path: &Path, stop: &dyn Fn() -> bool) -> std::io::Result<Option<String>> {
+    sha256_file_with(path, stop, &|_| {})
+}
+
+/// `sha256_file`, сообщающий `hashed` (сколько байт файла уже прочитано) каждые 64 МиБ и в конце.
+fn sha256_file_with(path: &Path, stop: &dyn Fn() -> bool, hashed: &dyn Fn(u64)) -> std::io::Result<Option<String>> {
     use sha2::{Digest, Sha256};
     let mut file = File::open(path)?;
     let mut digest = Sha256::new();
     let mut buf = vec![0u8; 1 << 20];
     let mut blocks = 0u32;
+    let mut read = 0u64;
     loop {
         let n = file.read(&mut buf)?;
         if n == 0 {
             break;
         }
         digest.update(&buf[..n]);
+        read += n as u64;
         blocks += 1;
-        if blocks.is_multiple_of(64) && stop() {
-            return Ok(None);
+        if blocks.is_multiple_of(64) {
+            hashed(read);
+            if stop() {
+                return Ok(None);
+            }
         }
     }
+    hashed(read);
     Ok(Some(digest.finalize().iter().map(|b| format!("{b:02x}")).collect(),
     ))
 }
@@ -2732,9 +2743,25 @@ fn discard_part(part: &Path) {
     let _ = std::fs::remove_file(done_manifest_path(part));
 }
 
+/// Ход проверки SHA-256: `done` из `total` байт проверяемых файлов, имя того, что проверяется сейчас.
+fn verify_progress(progress: &ProgressCb, f: &FileSpec, done: u64, total: u64) {
+    let pct = if total > 0 { (done as f64 / total as f64 * 100.0).min(100.0) } else { 0.0 };
+    progress(json!({
+        "stage": "download",
+        "phase": "verify",
+        "file": f.dest_rel,
+        "msg": t!("setup-verifying", file = f.dest_rel),
+        "downloaded": done,
+        "total": total,
+        "speed_bps": 0,
+        "pct": pct,
+    }));
+}
+
 /// Проверить скачанный .part (размер и SHA-256 против закреплённых) и опубликовать: прямой файл — rename в
 /// финал, архив — распаковка + запись об установке. Несовпадение — .part удаляется, следующая попытка с нуля.
-fn publish(repo_root: &Path, f: &FileSpec, part: &Path, cancel: &dyn Fn() -> bool, progress: &ProgressCb,
+/// `checked` — сколько байт из `check_total` уже проверено до этого файла: полоса идёт по проверке, а не стоит на 100 %.
+fn publish(repo_root: &Path, f: &FileSpec, part: &Path, cancel: &dyn Fn() -> bool, progress: &ProgressCb, checked: u64, check_total: u64,
 ) -> Result<(), DlError> {
     let size = file_len(part);
     if size != f.size {
@@ -2744,9 +2771,8 @@ fn publish(repo_root: &Path, f: &FileSpec, part: &Path, cancel: &dyn Fn() -> boo
             t!("setup-size-mismatch", file = f.dest_rel, got = size, want = f.size),
         ));
     }
-    progress(json!({ "stage": "download", "phase": "verify", "file": f.dest_rel, "msg": t!("setup-verifying", file = f.dest_rel) }),
-    );
-    let hash = sha256_file(part, cancel).map_err(|e| DlError::new("io", t!("common-read", path = part.display().to_string(), error = e.to_string())))?;
+    let hashed = |n: u64| verify_progress(progress, f, checked + n, check_total);
+    let hash = sha256_file_with(part, cancel, &hashed).map_err(|e| DlError::new("io", t!("common-read", path = part.display().to_string(), error = e.to_string())))?;
     let Some(hash) = hash else { return Err(cancelled());
     };
     if hash != f.sha256 {
@@ -2859,9 +2885,8 @@ fn fetch_components(
             if f.extract == Extract::None {
                 let dest = repo_root.join(f.dest_rel);
                 if file_ok(&dest, f.size) {
-                    progress(json!({ "stage": "download", "phase": "verify", "file": f.dest_rel, "msg": t!("setup-verifying", file = f.dest_rel) }),
-                    );
-                    let hash = sha256_file(&dest, cancel).map_err(|e| {
+                    let hashed = |n: u64| verify_progress(progress, f, n, f.size);
+                    let hash = sha256_file_with(&dest, cancel, &hashed).map_err(|e| {
                         DlError::new("io", t!("common-read", path = dest.display().to_string(), error = e.to_string()))
                     })?;
                     match hash {
@@ -2898,7 +2923,7 @@ fn fetch_components(
         )
     })?;
 
-    progress(json!({ "msg": t!("setup-downloading"), "stage": "download", "phase": "download" }));
+    progress(json!({ "msg": t!("setup-downloading"), "stage": "download", "phase": "download", "downloaded": 0, "total": 0 }));
 
     // Чанки всех файлов в ОДНУ очередь; счётчик прогресса — на КАЖДЫЙ компонент (comp_done[ci]).
     enum Task {
@@ -3072,8 +3097,12 @@ fn fetch_components(
 
     // Проверка и публикация каждого файла; удачные публикуются, даже если соседний не сошёлся.
     let mut first_err: Option<DlError> = None;
+    let check_total: u64 = planned.iter().map(|p| p.f.size).sum();
+    let mut checked = 0u64;
     for p in &planned {
-        match publish(repo_root, p.f, &p.part, cancel, progress) {
+        let result = publish(repo_root, p.f, &p.part, cancel, progress, checked, check_total);
+        checked += p.f.size;
+        match result {
             Ok(()) => {}
             Err(e) if e.code == CANCELLED => return Err(e),
             Err(e) => {

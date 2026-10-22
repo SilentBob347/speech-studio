@@ -10,6 +10,11 @@ release notes on GitHub are taken from the release's section.
 
 - **Voices of the pack with their text in a `.lab` file have their reference text** (English_Female, Arabic_Female and six more): the studio read only `.txt`, so Drama 3 refused them for a missing transcript and the studio tried to recognise text it already had.
 - **Drama 3 says which voice lacks its reference text and where to add it** (Voice library → Reference text, or Recognise the reference text), and does so before loading the model; a long voice with no piece of whole words up to the reference length is named as such.
+- **Cleaning a voice works on any sample rate**: a voice recorded at 48 or 24 kHz went to the separator as it was, and the separator, which takes 44.1 kHz only, failed with exit code 1.
+- **The log is kept on disk and survives a crash** (`logs/speech-studio.log` in the data folder, the previous one beside it as `speech-studio.old.log` past 8 MB): every step of a job, every failed job with its whole error, a panic of any thread and, on Windows, an exception that ends the process with its code and the module it came from. *Report a problem* packs both files.
+- **Checking the SHA-256 after a download moves the bar** (bytes checked of the bytes to check) instead of leaving it at 100 %; a failure inside the download thread ends the download with its cause instead of leaving it spinning.
+- **A synthesis that timed out or hung names its engine.**
+- **The director's verbatim check takes full-width digits and letters (３, Ａ) as the ordinary ones.**
 
 ## 0.2.0 — 2026-10-20
 

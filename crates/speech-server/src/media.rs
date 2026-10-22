@@ -630,16 +630,6 @@ pub fn has_audio(input: &Path) -> bool {
         .unwrap_or(false)
 }
 
-/// Сконвертировать аудио в PCM 16-bit WAV (стерео). Финальный формат аудио-режима (вход без видео):
-/// пачка WAV -> пачка озвученных WAV. Микс приходит несжатым float, здесь только квантование в 16 бит.
-pub fn to_wav(src: &Path, dst: &Path) -> Result<(), String> {
-    run_ff(&[
-        OsStr::new("-y"), OsStr::new("-i"), src.as_os_str(),
-        OsStr::new("-af"), OsStr::new("aformat=channel_layouts=stereo"),
-        OsStr::new("-c:a"), OsStr::new("pcm_s16le"), dst.as_os_str(),
-    ])
-}
-
 fn cut_args(src: &Path, dst: &Path, start: f64, end: f64, sr: u32, ac: u32) -> Vec<OsString> {
     let (ss, to, ar, ac) = (format!("{start:.3}"), format!("{end:.3}"), sr.to_string(), ac.to_string());
     os_args(&[
