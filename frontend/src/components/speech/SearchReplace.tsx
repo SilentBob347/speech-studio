@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronUp, Replace, X } from "lucide-react";
 import type { Block } from "../../lib/speech";
@@ -18,10 +18,12 @@ function compile(find: string, regex: boolean, cased: boolean): Found {
 }
 
 /** Find and replace over the project's blocks; with a regex, $1 in the replacement inserts a group. Replaced blocks go stale by themselves. */
-export default function SearchReplace({ blocks, onReplace, onJump, onClose }: {
+export default function SearchReplace({ blocks, onReplace, onJump, onFound, onClose }: {
   blocks: Block[];
   onReplace: (changes: Record<string, string>) => void;
   onJump: (id: string) => void;
+  /** What the blocks highlight: the pattern and the block the last jump went to. */
+  onFound: (re: RegExp | null, current: string | null) => void;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -40,6 +42,8 @@ export default function SearchReplace({ blocks, onReplace, onJump, onClose }: {
     });
   }, [blocks, re]);
   const total = hits.reduce((s, h) => s + h.n, 0);
+  const current = hits.length ? hits[Math.min(at, hits.length - 1)].id : null;
+  useEffect(() => onFound(re, current), [re, current, onFound]);
   const jump = (dir: 1 | -1) => {
     if (!hits.length) return;
     const next = (at + dir + hits.length) % hits.length;

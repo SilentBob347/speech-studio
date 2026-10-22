@@ -80,6 +80,8 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   const [exporting, setExporting] = useState(false);
   const [dictionary, setDictionary] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [found, setFound] = useState<{ re: RegExp | null; current: string | null }>({ re: null, current: null });
+  const onFound = useCallback((re: RegExp | null, current: string | null) => setFound({ re, current }), []);
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [musicOpen, setMusicOpen] = useState(false);
   const [history, setHistory] = useState(false);
@@ -720,7 +722,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
       )}
       {musicOpen && <MusicDialog pid={pid} tracks={(project.tracks ?? []).map((tr) => ({ id: tr.id, name: tr.name }))} flush={flush} onClose={() => setMusicOpen(false)} onDone={() => { setMusicOpen(false); reload(); }} />}
       {searching && (
-        <SearchReplace blocks={blocks} onClose={() => setSearching(false)}
+        <SearchReplace blocks={blocks} onClose={() => { setSearching(false); setFound({ re: null, current: null }); }} onFound={onFound}
           onJump={(id) => document.getElementById(`block-${id}`)?.scrollIntoView({ block: "center", behavior: "smooth" })}
           onReplace={(changes) => edit((p) => { for (const b of blockList(p)) if (changes[b.id] !== undefined) b.text = changes[b.id]; return p; })} />
       )}
@@ -812,7 +814,8 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
                   const note = notes[b.id];
                   return <BlockRow key={b.id} pid={pid} engine={engineOf(project, b)} projectEngine={project.settings.engine} projectLang={project.settings.lang} speakerEngine={project.cast_engines?.[b.speaker] || null} voice={voiceOf(project, b)} block={b} index={index} state={stateOf(b)} fit={project.status?.[b.id]?.fit} rendering={rendering} playing={playing === b.id} playingTake={playing === b.id ? playingTake : null} playhead={playing === b.id ? audio : undefined} simple={simple} variants={variantsFor(b)} inheritedParams={(project.settings.one_voice ? undefined : project.cast_params?.[b.speaker]) ?? project.settings.params} tint={tintOf(b.speaker)}
                     stressing={!!stressing?.includes(b.id)} doubts={note && note.text === b.text ? note.words : []}
-                    selected={selected.includes(b.id)} selecting={selected.length > 0} open={panel === b.id} side={wide ? side : null} a={actions(b)} />;
+                    selected={selected.includes(b.id)} selecting={selected.length > 0} open={panel === b.id} side={wide ? side : null} a={actions(b)}
+                    found={found.re} foundHere={found.current === b.id} />;
                 })}
               </ol>
             </section>

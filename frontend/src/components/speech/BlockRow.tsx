@@ -99,7 +99,7 @@ function useSpokenWord(audio: React.RefObject<HTMLAudioElement | null> | undefin
   return word;
 }
 
-function AutoText({ value, onCommit, label, inputRef, stale, locked, reading }: { value: string; onCommit: (v: string) => void; label: string; inputRef: React.RefObject<HTMLTextAreaElement | null>; stale: boolean; locked: boolean; reading: [number, number] | null }) {
+function AutoText({ value, onCommit, label, inputRef, stale, locked, reading, found, foundHere }: { value: string; onCommit: (v: string) => void; label: string; inputRef: React.RefObject<HTMLTextAreaElement | null>; stale: boolean; locked: boolean; reading: [number, number] | null; found: RegExp | null; foundHere: boolean }) {
   const [draft, setDraft] = useState(value);
   const [seen, setSeen] = useState(value);
   if (value !== seen) { setSeen(value); setDraft(value); }
@@ -118,7 +118,11 @@ function AutoText({ value, onCommit, label, inputRef, stale, locked, reading }: 
     const timer = window.setTimeout(() => onCommit(draft), 700);
     return () => window.clearTimeout(timer);
   }, [draft, value, onCommit]);
-  const marks = useMemo(() => [...cues(draft), ...(reading && draft === value ? [{ kind: "read" as const, from: reading[0], to: reading[1] }] : [])], [draft, value, reading]);
+  const marks = useMemo(() => [
+    ...cues(draft),
+    ...(reading && draft === value ? [{ kind: "read" as const, from: reading[0], to: reading[1] }] : []),
+    ...(found ? [...draft.matchAll(found)].filter((m) => m[0].length > 0).map((m) => ({ kind: "found" as const, from: m.index ?? 0, to: (m.index ?? 0) + m[0].length })) : []),
+  ], [draft, value, reading, found]);
   const area = (
     <textarea ref={inputRef} value={draft} rows={1} aria-label={label} spellCheck readOnly={locked}
       onChange={(e) => setDraft(e.target.value)} onBlur={(e) => { const typed = e.currentTarget.value; if (typed !== value) onCommit(typed); }}
@@ -129,6 +133,7 @@ function AutoText({ value, onCommit, label, inputRef, stale, locked, reading }: 
       {marks.length > 0 && <div aria-hidden className="absolute inset-0 pointer-events-none whitespace-pre-wrap [overflow-wrap:break-word] text-[14px] leading-relaxed text-transparent">
         {spans(draft, marks).map((s, k) => {
           if (s.kinds.includes("read")) return <span key={k} className="rounded-sm" style={{ background: "color-mix(in srgb, var(--color-accent) 35%, transparent)" }}>{s.text}</span>;
+          if (s.kinds.includes("found")) return <span key={k} className={`rounded-sm ${foundHere ? "bg-[color-mix(in_oklab,var(--color-warn)_45%,transparent)]" : "bg-[color-mix(in_oklab,var(--color-warn)_20%,transparent)]"}`}>{s.text}</span>;
           const kind = s.kinds[s.kinds.length - 1];
           return kind
             ? <span key={k} className="rounded-sm underline decoration-2 underline-offset-[5px]" style={{ textDecorationColor: `var(--color-cue-${kind})`, background: `color-mix(in srgb, var(--color-cue-${kind}) 20%, transparent)` }}>{s.text}</span>
@@ -191,7 +196,10 @@ function sentenceStart(value: string, cursor: number): number {
   return start;
 }
 
-export default function BlockRow({ pid, engine, projectEngine, projectLang, speakerEngine, voice, block, index, state, fit, rendering, playing, playingTake, playhead, simple, variants, inheritedParams, tint, stressing, doubts, selected, selecting, open, side, a }: {
+export default function BlockRow({ pid, engine, projectEngine, projectLang, speakerEngine, voice, block, index, state, fit, rendering, playing, playingTake, playhead, simple, variants, inheritedParams, tint, stressing, doubts, selected, selecting, open, side, a, found = null, foundHere = false }: {
+  /** The project search's pattern, highlighted in the text; foundHere: the block the search last went to. */
+  found?: RegExp | null;
+  foundHere?: boolean;
   pid: string;
   /** The engine that voices this block (its own, its speaker's or the project's). */
   engine: string;
@@ -261,7 +269,7 @@ export default function BlockRow({ pid, engine, projectEngine, projectLang, spea
   const shown: BlockState | "rendering" = rendering ? "rendering" : state;
   const icon = "p-1.5 rounded-md text-[var(--color-muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface-2)] disabled:opacity-30";
   const panel = (
-    <div data-mcp-row={side ? `panel of block ${index + 1} ${block.speaker || "-"}` : undefined} className={`@container space-y-2 ${side ? "p-3" : "mx-2 mb-2 sm:ml-[8.25rem] rounded-lg bg-[var(--color-surface-2)]/60 border border-[var(--color-border)] p-2.5"}`}>
+    <div data-mcp-row={side ? `panel of block ${index + 1} ${block.speaker || "-"}` : undefined} className={`@container space-y-2 ${side ? "p-3" : "mx-2 mb-2 sm:ml-[10.25rem] rounded-lg bg-[var(--color-surface-2)]/60 border border-[var(--color-border)] p-2.5"}`}>
       {side && (
         <div className="flex items-center gap-2 pb-1 border-b border-[var(--color-border)]">
           <span className="text-[12px] tabnum text-[var(--color-muted)]">{t("speech.blockN", { n: index + 1 })}</span>
@@ -408,30 +416,33 @@ export default function BlockRow({ pid, engine, projectEngine, projectLang, spea
           <input type="checkbox" checked={selected} onChange={() => undefined} onClick={(e) => a.select(e.shiftKey)} {...named(t("speech.selectBlock"))}
             className={`w-3.5 h-3.5 accent-[var(--color-accent)] ${selecting || selected ? "" : "pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 focus-visible:opacity-100"}`} />
         </div>
-        <div className="min-w-0 pt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 sm:block sm:w-28 sm:shrink-0 sm:space-y-1">
-          <input list="speech-speakers" value={block.speaker} onChange={(e) => a.patch({ speaker: e.target.value })} aria-label={t("speech.speaker")}
-            className="w-32 sm:w-full bg-transparent text-[12px] font-semibold truncate focus:outline-none rounded px-1 -mx-1 focus:bg-[var(--color-surface-2)]" style={{ color: tint }} />
-          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] text-[var(--color-muted)]">
+        <div className="min-w-0 pt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 sm:block sm:w-36 sm:shrink-0 sm:space-y-1">
+          <div className="flex items-baseline gap-1.5 min-w-0">
+            <span aria-hidden className="w-7 shrink-0 text-right text-[12px] mono tabnum text-[var(--color-muted)]">{index + 1}</span>
+            <input list="speech-speakers" value={block.speaker} onChange={(e) => a.patch({ speaker: e.target.value })} aria-label={t("speech.speaker")}
+              className="min-w-0 w-32 sm:w-full bg-transparent text-[12px] font-semibold truncate focus:outline-none rounded px-1 -mx-1 focus:bg-[var(--color-surface-2)]" style={{ color: tint }} />
+          </div>
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 sm:pl-[2.125rem] text-[10px] text-[var(--color-muted)]">
             <span className={`w-2 h-2 rounded-full shrink-0 ${STATE_DOT[shown]}`} title={t(`speech.state_${shown}`)} />
             <span>{t(`speech.state_${shown}`)}</span>
             {block.review && <span className={`px-1 rounded ${block.review === "approved" ? "text-[var(--color-accent)]" : "text-[var(--color-warn)]"}`} title={t(`review.${block.review}Hint`)}>{t(`review.${block.review}`)}</span>}
             {take && <span className="mono tabnum ml-auto">{take.duration.toFixed(1)}{t("settings.sec")}</span>}
           </div>
           {block.start != null && block.end != null && (
-            <Tip text={t("speech.cueHint")} className="flex"><div className="flex items-center gap-1 text-[10px] mono tabnum text-[var(--color-muted)]">
+            <Tip text={t("speech.cueHint")} className="flex"><div className="flex items-center gap-1 sm:pl-[2.125rem] text-[10px] mono tabnum text-[var(--color-muted)]">
               <span>{cueTime(block.start)}–{cueTime(block.end)}</span>
               {fit && fit !== "fits" && <span className={`px-1 rounded ${fit === "tight" ? "text-[var(--color-warn)]" : "text-[#ff8f8f]"}`} title={t(`speech.fit_${fit}`)}>{fit === "tight" ? "≈" : "!"}</span>}
             </div></Tip>
           )}
           {(block.marker || block.note) && (
-            <div className="flex items-center gap-1 text-[10px] text-[var(--color-muted)]" title={block.note || undefined}>
+            <div className="flex items-center gap-1 sm:pl-[2.125rem] text-[10px] text-[var(--color-muted)]" title={block.note || undefined}>
               {block.marker && <span className="w-2 h-2 rounded-sm shrink-0" style={{ background: MARKERS[block.marker] }} />}
               {block.note && <span className="truncate italic">{block.note}</span>}
             </div>
           )}
         </div>
         <div className="col-span-3 order-last min-w-0 sm:order-none sm:flex-1">
-          <AutoText value={block.text} onCommit={a.setText} label={t("speech.blockText", { n: index + 1 })} inputRef={text} stale={state === "stale"} locked={block.review === "approved"} reading={reading} />
+          <AutoText value={block.text} onCommit={a.setText} label={t("speech.blockText", { n: index + 1 })} inputRef={text} stale={state === "stale"} locked={block.review === "approved"} reading={reading} found={found} foundHere={foundHere} />
           <CueList text={text} value={block.text} locked={block.review === "approved"} onChange={a.setText} />
           {doubts.length > 0 && (
             <div className="mt-1 flex flex-wrap items-center gap-1 text-[11px]">
