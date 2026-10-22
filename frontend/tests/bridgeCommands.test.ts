@@ -5,8 +5,8 @@ import { listSources } from "./scanHardcoded";
 import { BUILT_IN_COMMANDS } from "../src/lib/mcpBridge";
 
 const SERVER = join(import.meta.dirname, "..", "..", "crates", "speech-server", "src");
-const WINDOW_TOOLS = readFileSync(join(SERVER, "mcp", "window.rs"), "utf8");
-const TOOLS = readFileSync(join(SERVER, "mcp.rs"), "utf8");
+const WINDOW_TOOLS = readFileSync(join(SERVER, "app", "tools", "window.rs"), "utf8");
+const TOOLS = readFileSync(join(SERVER, "app", "tools", "catalog.rs"), "utf8");
 
 /** Each tool of the window: its name and the command it asks the page for. */
 const windowTools = [...WINDOW_TOOLS.matchAll(/name: "((?:ui|editor|player)_\w+)",[\s\S]*?call: \|args\| window\("(\w+)"/g)].map((m) => ({ name: m[1], command: m[2] }));
