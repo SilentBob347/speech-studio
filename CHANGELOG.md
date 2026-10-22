@@ -8,6 +8,7 @@ release notes on GitHub are taken from the release's section.
 
 ### Fixed
 
+- **Recognition no longer closes the program on processors without AVX-512** (Intel Core before the 11th generation and the 12th–14th, most AMD before Zen 4): transcribe.cpp engine-0.1.3 is built for AVX2, FMA and F16C instead of the build machine's own instructions, and a processor without them gets a message instead of a crash. The take check, a voice's reference text, cloning from a long reference and Listening all went through it.
 - **Voices of the pack with their text in a `.lab` file have their reference text** (English_Female, Arabic_Female and six more): the studio read only `.txt`, so Drama 3 refused them for a missing transcript and the studio tried to recognise text it already had.
 - **Drama 3 says which voice lacks its reference text and where to add it** (Voice library → Reference text, or Recognise the reference text), and does so before loading the model; a long voice with no piece of whole words up to the reference length is named as such.
 - **Cleaning a voice works on any sample rate**: a voice recorded at 48 or 24 kHz went to the separator as it was, and the separator, which takes 44.1 kHz only, failed with exit code 1.
