@@ -106,21 +106,87 @@ fn letters(text: &str) -> String {
     text.nfkc().filter(|c| c.is_alphanumeric()).flat_map(char::to_lowercase).map(|c| if c == 'ё' { 'е' } else { c }).collect()
 }
 
-/// Куски главы по границам абзацев (абзац длиннее куска идёт целиком отдельно).
+/// Куски главы по границам абзацев, не длиннее `CHUNK_CHARS`: абзац длиннее куска делится по строкам, строка — по
+/// концам предложений, предложение — по пробелу у границы.
 pub fn chunks(text: &str) -> Vec<String> {
+    let mut units: Vec<String> = Vec::new();
+    for para in text.split("\n\n").map(str::trim).filter(|p| !p.is_empty()) {
+        if para.chars().count() <= CHUNK_CHARS {
+            units.push(para.to_string());
+            continue;
+        }
+        for line in para.lines().map(str::trim).filter(|l| !l.is_empty()) {
+            if line.chars().count() <= CHUNK_CHARS {
+                units.push(line.to_string());
+            } else {
+                units.extend(sentences(line).into_iter().flat_map(|s| hard_split(&s)));
+            }
+        }
+    }
     let mut out: Vec<String> = Vec::new();
     let mut cur = String::new();
-    for para in text.split("\n\n").map(str::trim).filter(|p| !p.is_empty()) {
-        if !cur.is_empty() && cur.chars().count() + para.chars().count() > CHUNK_CHARS {
+    for unit in units {
+        if !cur.is_empty() && cur.chars().count() + unit.chars().count() > CHUNK_CHARS {
             out.push(std::mem::take(&mut cur));
         }
         if !cur.is_empty() {
             cur.push_str("\n\n");
         }
-        cur.push_str(para);
+        cur.push_str(&unit);
     }
     if !cur.is_empty() {
         out.push(cur);
+    }
+    out
+}
+
+/// Предложения строки: конец — `.!?…` с закрывающими кавычками и пробелом после, или `。！？` сразу.
+fn sentences(line: &str) -> Vec<String> {
+    const ENDS: &[char] = &['.', '!', '?', '…'];
+    const WIDE_ENDS: &[char] = &['。', '！', '？'];
+    const CLOSERS: &[char] = &['"', '\'', '»', '”', '’', ')', '」', '』'];
+    let chars: Vec<char> = line.chars().collect();
+    let mut out = Vec::new();
+    let mut start = 0;
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+        if ENDS.contains(&c) || WIDE_ENDS.contains(&c) {
+            let mut end = i + 1;
+            while end < chars.len() && (CLOSERS.contains(&chars[end]) || ENDS.contains(&chars[end]) || WIDE_ENDS.contains(&chars[end])) {
+                end += 1;
+            }
+            if WIDE_ENDS.contains(&c) || end == chars.len() || chars[end].is_whitespace() {
+                let s: String = chars[start..end].iter().collect::<String>().trim().to_string();
+                if !s.is_empty() {
+                    out.push(s);
+                }
+                start = end;
+            }
+            i = end;
+        } else {
+            i += 1;
+        }
+    }
+    let rest: String = chars[start..].iter().collect::<String>().trim().to_string();
+    if !rest.is_empty() {
+        out.push(rest);
+    }
+    out
+}
+
+/// Текст длиннее куска — по последнему пробелу до границы, без пробелов — по самой границе.
+fn hard_split(text: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut rest: Vec<char> = text.chars().collect();
+    while rest.len() > CHUNK_CHARS {
+        let cut = rest[..CHUNK_CHARS].iter().rposition(|c| c.is_whitespace()).filter(|&p| p > 0).unwrap_or(CHUNK_CHARS);
+        out.push(rest[..cut].iter().collect::<String>().trim().to_string());
+        rest = rest[cut..].to_vec();
+    }
+    let tail: String = rest.iter().collect::<String>().trim().to_string();
+    if !tail.is_empty() {
+        out.push(tail);
     }
     out
 }
@@ -405,6 +471,24 @@ mod tests {
         assert_eq!(letters("Ёлка, сказал он."), letters("елка — сказал он"));
         assert_ne!(letters("Ёлка, сказал он."), letters("Ёлка, он."));
         assert_eq!(letters("他买了３本书，ＯＫ。"), letters("他买了3本书, ok."), "full-width digits and letters are the same text");
+    }
+
+    #[test]
+    fn a_chapter_without_blank_lines_still_goes_in_chunks_that_keep_every_word() {
+        let line = "他说了一句话。".repeat(250);
+        let text = format!("{line}\n{line}\n{line}");
+        let parts = chunks(&text);
+        assert!(parts.len() >= 3, "lines of one paragraph split: {}", parts.len());
+        assert!(parts.iter().all(|p| p.chars().count() <= CHUNK_CHARS));
+        assert_eq!(letters(&parts.concat()), letters(&text));
+        let long = "Una frase corta. ".repeat(400);
+        let parts = chunks(&long);
+        assert!(parts.len() >= 3 && parts.iter().all(|p| p.chars().count() <= CHUNK_CHARS));
+        assert_eq!(letters(&parts.concat()), letters(&long));
+        let solid = "字".repeat(6000);
+        let parts = chunks(&solid);
+        assert_eq!(parts.len(), 3);
+        assert_eq!(parts.concat(), solid);
     }
 
     #[test]

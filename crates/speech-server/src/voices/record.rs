@@ -247,6 +247,15 @@ pub fn stop_only(path: &std::path::Path) -> Result<std::path::PathBuf, String> {
     }
 }
 
+/// Below −60 dBFS over the whole take: a microphone the system keeps closed or a muted one writes zeros, not an error.
+pub const SILENT_PEAK: f32 = 0.001;
+
+/// The loudest sample of a recorded WAV, 0..1.
+pub fn peak(path: &std::path::Path) -> Result<f32, String> {
+    let mut r = hound::WavReader::open(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    Ok(r.samples::<i16>().filter_map(Result::ok).fold(0f32, |m, s| m.max((s as f32 / i16::MAX as f32).abs())))
+}
+
 // Пак голосов VibeVoice (HF) закреплён коммитом: размер и SHA-256 (lfs.oid) — этой ревизии.
 const VOICE_PACK_URL: &str = "https://huggingface.co/datasets/nerualdreming/VibeVoice/resolve/5c884b3cbdc932c39a5167951c4072120e1a0310/voice-pack.zip";
 const VOICE_PACK_SIZE: u64 = 104_685_334;

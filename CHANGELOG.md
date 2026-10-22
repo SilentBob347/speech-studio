@@ -23,6 +23,10 @@ release notes on GitHub are taken from the release's section.
 
 ### Fixed
 
+- **A recording of only silence is not saved as a voice**: when the system keeps the microphone closed or it is muted, recording a voice ends with what to check instead of a voice that recognition later finds empty.
+- **The director splits a chapter without blank lines into pieces the model can hold**: a book whose paragraphs are separated by single line breaks went to the model as one piece, which overran a local model's context or cut its answer short; a long paragraph now splits by lines, a long line by sentences (Chinese and Japanese full stops too), a sentence by its last space.
+- **Out of video memory in the Higgs engine says what to do**: a lighter quantization, a shorter block or closing the programs on the card, instead of the engine's line alone.
+- **Drama 3 says when its video memory limit is the cause**: a limit set by hand that leaves its expert cache no room is named with the setting, and a card filled by other programs is said as such, instead of the engine's numbers alone.
 - **Recognition no longer closes the program on processors without AVX-512** (Intel Core before the 11th generation and the 12th–14th, most AMD before Zen 4): transcribe.cpp engine-0.1.3 is built for AVX2, FMA and F16C instead of the build machine's own instructions, and a processor without them gets a message instead of a crash. The take check, a voice's reference text, cloning from a long reference and Listening all went through it.
 - **Voices of the pack with their text in a `.lab` file have their reference text** (English_Female, Arabic_Female and six more): the studio read only `.txt`, so Drama 3 refused them for a missing transcript and the studio tried to recognise text it already had.
 - **Drama 3 says which voice lacks its reference text and where to add it** (Voice library → Reference text, or Recognise the reference text), and does so before loading the model; a long voice with no piece of whole words up to the reference length is named as such.

@@ -142,8 +142,21 @@ pub fn unload(ids: &[&str]) {
 pub fn localize(e: &AcppError) -> String {
     match e {
         AcppError::Cancelled => crate::jobs::CANCELLED.to_string(),
-        other => t!("acpp-error", error = other.to_string()),
+        other => {
+            let error = other.to_string();
+            if out_of_memory(&error) {
+                t!("acpp-out-of-memory", error = error)
+            } else {
+                t!("acpp-error", error = error)
+            }
+        }
     }
+}
+
+/// ggml names a graph or buffer it could not place in video memory this way.
+fn out_of_memory(error: &str) -> bool {
+    let e = error.to_ascii_lowercase();
+    e.contains("failed to allocate") || e.contains("out of memory") || e.contains("cudamalloc")
 }
 
 /// Higgs Audio v3 on the server; dropping it frees its memory there.
@@ -206,5 +219,17 @@ impl Higgs {
 impl Drop for Higgs {
     fn drop(&mut self) {
         unload(&[HIGGS]);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::out_of_memory;
+
+    #[test]
+    fn a_graph_ggml_cannot_place_reads_as_out_of_memory() {
+        assert!(out_of_memory("audiocpp_server answered 500 (internal): failed to allocate Higgs TTS AR prefill graph"));
+        assert!(out_of_memory("cudaMalloc(1048576): CUDA error 2 (out of memory)"));
+        assert!(!out_of_memory("audiocpp_server sent nothing for 120 s"));
     }
 }

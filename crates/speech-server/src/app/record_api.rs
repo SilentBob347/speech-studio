@@ -131,6 +131,14 @@ pub(super) async fn record_stop(State(st): State<AppState>, body: Option<Json<Va
         Ok(Err(e)) => return (StatusCode::BAD_REQUEST, Json(json!({ "error": "record_failed", "detail": e }))).into_response(),
         Err(e) => return join_failure(e),
     };
+    match record::peak(&path) {
+        Ok(p) if p < record::SILENT_PEAK => {
+            let _ = std::fs::remove_file(&path);
+            return (StatusCode::BAD_REQUEST, Json(json!({ "error": "record_silent", "detail": t!("record-silent") }))).into_response();
+        }
+        Ok(_) => {}
+        Err(e) => return internal_error(e),
+    }
     let Some(name) = path.file_stem().and_then(|s| s.to_str()).map(str::to_string) else {
         return internal_error(format!("{}: no name", path.display()));
     };

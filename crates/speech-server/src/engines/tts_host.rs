@@ -164,12 +164,24 @@ pub fn drama(models_root: &Path) -> Result<Tts, String> {
     }
     dub_tcpp::cpu_floor("Drama 3")?;
     let e = drama::DramaEngine::load_limited(&crate::engines::models::drama_dll(models_root), &[], &models_root.join(crate::engines::models::DRAMA_TTS), DRAMA_MAX_LEN, limit)
-        .map_err(|e| t!("render-drama-load-failed", error = e.to_string()))?;
+        .map_err(|e| drama_load_error(&e.to_string(), limit))?;
     let e = Arc::new(e);
     tracing::info!("voicing: Drama 3 on CUDA, VRAM limit {limit} MB (0: auto)");
     *slot = Some((want, Tts::Drama(e.clone())));
     touch();
     Ok(Tts::Drama(e))
+}
+
+/// The expert cache gets what the limit leaves after Drama's own weights: a hand limit at or under them, or a card other
+/// programs filled while Drama loaded, leaves it nothing, and the engine's numbers alone do not say which setting to move.
+fn drama_load_error(error: &str, limit_mb: u32) -> String {
+    if !error.contains("not enough VRAM for the expert cache") {
+        t!("render-drama-load-failed", error = error.to_string())
+    } else if limit_mb > 0 {
+        t!("render-drama-vram-limit-low", gb = (limit_mb / 1024).to_string(), error = error.to_string())
+    } else {
+        t!("render-drama-vram-busy", error = error.to_string())
+    }
 }
 
 
