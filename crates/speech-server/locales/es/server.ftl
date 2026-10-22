@@ -673,8 +673,8 @@ render-speaker-ref-unchecked = referencia del hablante { $speaker }: «{ $text }
 ## Setup: components
 
 setup-comp-higgs-purpose = Da voz al texto, clona una voz a partir de una muestra corta y transmite emociones
-setup-comp-higgs-engine-name = Motor de voz Higgs
-setup-comp-higgs-engine-purpose = El programa que ejecuta el modelo de voz
+setup-comp-higgs-engine-name = Motor de voz y reconocimiento (audio.cpp)
+setup-comp-higgs-engine-purpose = El programa que ejecuta la locución de Higgs y el reconocimiento de CrisperWhisper
 setup-comp-gemma-purpose = El director: escribe un pódcast sobre un tema y asigna voces a los personajes de un libro
 setup-comp-gemma-q5-0-purpose = El asistente de guion, más preciso que q4_0
 setup-comp-gemma-q6-k-purpose = El asistente de guion, aún más preciso

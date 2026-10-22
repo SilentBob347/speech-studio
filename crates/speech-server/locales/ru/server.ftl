@@ -683,8 +683,8 @@ render-speaker-ref-unchecked = реф спикера { $speaker }: «{ $text }»
 ## Setup: components
 
 setup-comp-higgs-purpose = Озвучивает текст, клонирует голос по короткому образцу и передаёт эмоции
-setup-comp-higgs-engine-name = Движок озвучки Higgs
-setup-comp-higgs-engine-purpose = Программа, которая запускает модель озвучки
+setup-comp-higgs-engine-name = Движок озвучки и распознавания (audio.cpp)
+setup-comp-higgs-engine-purpose = Программа, которая запускает озвучку Higgs и распознавание CrisperWhisper
 setup-comp-gemma-purpose = Режиссёр: пишет подкаст на тему и раздаёт голоса персонажам книги
 setup-comp-gemma-q5-0-purpose = Помощник по сценарию, точнее варианта q4_0
 setup-comp-gemma-q6-k-purpose = Помощник по сценарию, ещё точнее

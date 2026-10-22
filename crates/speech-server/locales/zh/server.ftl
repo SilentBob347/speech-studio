@@ -511,8 +511,8 @@ render-speaker-ref-unchecked = 说话人 { $speaker } 的参考：“{ $text }�
 ## Setup: components
 
 setup-comp-higgs-purpose = 为文本配音，用短样本克隆声音并传达情绪
-setup-comp-higgs-engine-name = Higgs 配音引擎
-setup-comp-higgs-engine-purpose = 运行配音模型的程序
+setup-comp-higgs-engine-name = 配音与识别引擎（audio.cpp）
+setup-comp-higgs-engine-purpose = 运行 Higgs 配音和 CrisperWhisper 识别的程序
 setup-comp-gemma-purpose = 导演：按主题撰写播客，并为书中角色分配声音
 setup-comp-gemma-q5-0-purpose = 脚本助手，比 q4_0 更准确
 setup-comp-gemma-q6-k-purpose = 脚本助手，更加准确

@@ -212,12 +212,15 @@ mod platform {
     // GitHub: deno 2.9.7 (denoland/deno) — JS-рантайм, без которого yt-dlp не решает задачи YouTube (yt-dlp-ejs уже внутри
     // yt-dlp.exe; вики yt-dlp EJS: deno не ниже 2.3.0).
     const GH_DENO: &str = "https://github.com/denoland/deno/releases/download/v2.9.7/deno-x86_64-pc-windows-msvc.zip";
+    // audiocpp_server (timoncool/audio.cpp, branch studio, efc92120): Higgs and CrisperWhisper. CUDA 13, sm 75/80/86/
+    // 89/90/120a without PTX, cudart linked in; cuBLAS and cuFFT from cuda-runtime (models/higgs-engine on PATH); the
+    // VC++ runtime and vcomp140 beside it in the archive; on a computer without a card it runs on the CPU.
     pub const HIGGS_ENGINE: Parts = Parts {
-        size: 129_390_080,
+        size: 130_925_562,
         files: &[
-            FileSpec { url: "https://github.com/timoncool/Higgs-Ultimate/releases/download/engine-0.2.3-turing/audiocpp_engine.dll", dest_rel: "models/higgs-engine/audiocpp_engine.dll", size: 129_390_080, sha256: "c3608613bd54bdd41c85cc90412d4add67b928b07b32be24f26d91cb9626f46d", extract: Extract::None },
+            FileSpec { url: "https://github.com/timoncool/audio.cpp/releases/download/server-efc92120/audiocpp-server-win-cuda13-x64.zip", dest_rel: "tools/audiocpp/_server.zip", size: 130_925_562, sha256: "d50d4d6a86000b6a99e9d89354a034b61dcc07a79299f0608f6705dc604abbfb", extract: Extract::Flat },
         ],
-        markers: &[Marker { rel: "models/higgs-engine/audiocpp_engine.dll", expect: 129_390_080 }],
+        markers: &[Marker { rel: "tools/audiocpp/audiocpp_server.exe", expect: 0 }],
     };
 
     // Движок Drama 3 (C ABI форка timoncool/drama-rs, capi), CUDA 13.3, sm 75/80/86/89/90/100/120 без PTX:
@@ -2933,8 +2936,8 @@ fn write_entry(entry: &mut impl Read, out: &Path, mode: Option<u32>) -> Result<(
 
 // ═══════════════════════════════════════════════════════════════════════════
 /// Models of a former version that nothing reads any more (Speech Studio 0.1.0: Parakeet and Silero VAD on ONNX Runtime;
-/// 0.2.4: the Faster-Whisper models), under the models folder.
-const RETIRED: &[&str] = &["tdt", "tdt-ultra-int8", "silero-vad/silero_vad.onnx", "whisper"];
+/// 0.2.4: the Faster-Whisper models and the Higgs engine library, which audiocpp_server replaced), under the models folder.
+const RETIRED: &[&str] = &["tdt", "tdt-ultra-int8", "silero-vad/silero_vad.onnx", "whisper", "higgs-engine/audiocpp_engine.dll", "higgs-engine/audiocpp_engine.dll.json"];
 
 /// Removes the retired models, so they do not keep gigabytes that no row of the setup screen shows. A link (another
 /// program's folder linked in) loses only the link; a hard-linked file stays with the program that shares it.
