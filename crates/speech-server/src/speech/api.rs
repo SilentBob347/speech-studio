@@ -137,6 +137,8 @@ pub async fn create(State(st): State<AppState>, Json(body): Json<Value>) -> Resp
             project.settings.lang = l;
         }
         if let Some(e) = engine {
+            // the setup component's id names the same engine
+            let e = if e == crate::engines::supertonic::DIR { crate::engines::supertonic::ENGINE.to_string() } else { e };
             let Some(manifest) = crate::engines::get(&e) else {
                 return Err(t!("speech-engine-unknown", engine = e));
             };
