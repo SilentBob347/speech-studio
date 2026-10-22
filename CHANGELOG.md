@@ -25,6 +25,7 @@ release notes on GitHub are taken from the release's section.
 - **Drama 3, Qwen3-TTS and the separator check the processor before they load** (AVX2, FMA, F16C, BMI2) and name what is missing instead of closing the program.
 - **Cleaning a voice works in a folder with Cyrillic or other non-ASCII letters in its path**, and a separator failure shows its error line.
 - **Higgs voices in a data folder with Cyrillic or other non-ASCII letters in its path**: its engine library could not open such a path and said the model folder does not exist.
+- **An engine left over from an earlier version is downloaded again**: an engine or program counts as installed only when its SHA-256 is the pinned one, not when a file of its name and size is there (a build with other processor flags can be the same size).
 - **The diagnostics check the transcribe.cpp builds' libraries too.**
 - **Stop ends the engines a job started at once** (separator, llama-server, ffmpeg, yt-dlp): on Windows they were ended through taskkill, which waits as long as WMI hangs, so a stopped job could keep running to its end.
 - **An edited reference text is used at once**: the piece cut from a voice was kept by the audio's size and date alone, so a corrected text or new word timings came in only after the audio changed.
