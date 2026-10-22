@@ -81,6 +81,7 @@ pub fn clean(p: &VoicePaths, name: &str, progress: &dyn Fn(Value)) -> Result<Val
     crate::media::extract_audio(&audio, &wav, 44_100, 2)?;
     let stems = work.path().join("stems");
     dub_tcpp::cpu_floor("BSRoformer")?;
+    tracing::info!("separation: {} ({})", cli.display(), crate::models::stage_backend(&p.models_root, "sep_backend"));
     let res = dub_sep::separate(&wav, &stems, &cli, &model).map_err(|e| e.localize())?;
     lib::replace_with_cleaned(&p.voices_dir, name, &res.vocals)?;
     Ok(json!({ "name": name, "cleaned": true }))

@@ -156,6 +156,7 @@ pub fn engine(cfg: &HiggsConfig) -> Result<Tts, String> {
     let e = Arc::new(AudiocppEngine::load(&cfg.dll).map_err(|e| t!("render-higgs-load-failed", error = e.localize()))?);
     e.load_model(&cfg.model_root, &cfg.backend, 0, cfg.threads, Some(cfg.quant.as_str()))
         .map_err(|e| t!("render-higgs-model-failed", error = e.localize()))?;
+    tracing::info!("voicing: Higgs Audio v3 {} on {}", cfg.quant, cfg.backend);
     *slot = Some((cfg.key(), Tts::Higgs(e.clone())));
     touch();
     Ok(Tts::Higgs(e))
@@ -188,6 +189,7 @@ pub fn drama(models_root: &Path) -> Result<Tts, String> {
     let e = drama::DramaEngine::load_limited(&crate::models::drama_dll(models_root), &[], &models_root.join(crate::models::DRAMA_TTS), DRAMA_MAX_LEN, limit)
         .map_err(|e| t!("render-drama-load-failed", error = e.to_string()))?;
     let e = Arc::new(e);
+    tracing::info!("voicing: Drama 3 on CUDA, VRAM limit {limit} MB (0: auto)");
     *slot = Some((want, Tts::Drama(e.clone())));
     touch();
     Ok(Tts::Drama(e))
@@ -218,6 +220,7 @@ pub fn supertonic(models_root: &Path) -> Result<Tts, String> {
         });
     }
     let e = Arc::new(crate::supertonic::Model::load(models_root, gpu.nvidia).map_err(|e| t!("render-supertonic-load-failed", error = e))?);
+    tracing::info!("voicing: Supertonic 3 on ONNX Runtime {}", if gpu.nvidia { "CUDA" } else { "CPU" });
     *slot = Some((crate::supertonic::ENGINE.to_string(), Tts::Supertonic(e.clone())));
     touch();
     Ok(Tts::Supertonic(e))
@@ -253,6 +256,7 @@ pub fn qwen(models_root: &Path, clone: bool, stress: bool) -> Result<Tts, String
     cuda13_ready()?;
     dub_tcpp::cpu_floor("Qwen3-TTS")?;
     let e = Arc::new(crate::qwen_tts::Engine::load(models_root, &quant, clone || stress, stress).map_err(|e| t!("render-qwen-load-failed", error = e))?);
+    tracing::info!("voicing: Qwen3-TTS {talker} {quant} on CUDA");
     *slot = Some((key, Tts::Qwen(e.clone())));
     touch();
     Ok(Tts::Qwen(e))

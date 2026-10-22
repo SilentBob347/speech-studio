@@ -205,6 +205,7 @@ fn separate(p: &ListenPaths, src: &Path, work: &Path) -> Result<PathBuf, String>
     crate::media::extract_audio(src, &hq, 44_100, 2)?;
     let stems = work.join("stems");
     dub_tcpp::cpu_floor("BSRoformer")?;
+    tracing::info!("separation: {} ({})", cli.display(), crate::models::stage_backend(&p.models_root, "sep_backend"));
     let res = dub_sep::separate(&hq, &stems, &cli, &model).map_err(|e| e.localize())?;
     let clean = work.join("vocals16.wav");
     crate::media::to_16k_mono(&res.vocals, &clean)?;
@@ -227,6 +228,7 @@ pub fn separate_to(repo_root: &Path, models_root: &Path, src: &Path, out: &Path,
     let hq = work.path().join("mix-44k.wav");
     crate::media::extract_audio(src, &hq, 44_100, 2)?;
     dub_tcpp::cpu_floor("BSRoformer")?;
+    tracing::info!("separation: {} ({})", cli.display(), crate::models::stage_backend(models_root, "sep_backend"));
     let res = dub_sep::separate(&hq, &work.path().join("stems"), &cli, &model).map_err(|e| e.localize())?;
     std::fs::create_dir_all(out).map_err(|e| format!("{}: {e}", out.display()))?;
     let vocals = out.join("vocals.flac");
@@ -239,6 +241,9 @@ pub fn separate_to(repo_root: &Path, models_root: &Path, src: &Path, out: &Path,
 
 fn diarize(p: &ListenPaths, wav: &Path, speakers: u8) -> Result<Vec<dub_asr::Turn>, String> {
     std::env::set_var("DUB_ASR_BACKEND", crate::models::stage_backend(&p.models_root, "diar_backend"));
+    if speakers != 1 {
+        tracing::info!("diarization: Nemotron 3 Diarization on ONNX Runtime {}", if crate::models::stage_backend(&p.models_root, "diar_backend") == "gpu" { "CUDA" } else { "CPU" });
+    }
     let turns = match speakers {
         1 => return Ok(Vec::new()),
         0 => dub_asr::turns(wav, &p.sortformer_onnx, 0.8, 2.5).map_err(|e| e.localize())?,
