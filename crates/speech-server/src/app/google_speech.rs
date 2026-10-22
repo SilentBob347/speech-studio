@@ -49,18 +49,17 @@ pub fn setup(models_root: &Path, model: &str, voice: &str) -> Result<Setup, Stri
         "" => sel.get("google_tts_model").and_then(Value::as_str).unwrap_or("").trim().to_string(),
         m => m.to_string(),
     };
-    if model.is_empty() {
-        return Err(t!("google-no-model"));
-    }
-    if voice.trim().is_empty() {
-        return Err(t!("google-no-voice"));
-    }
+    let model = if model.is_empty() { crate::integrations::google_tts::DEFAULT_MODEL.to_string() } else { model };
+    let voice = match voice.trim() {
+        "" => crate::integrations::cloud_voices::default_voice(&model).ok_or_else(|| t!("google-no-voice"))?,
+        v => v,
+    };
     let mode = match sel.get("google_tts_mode").and_then(Value::as_str) {
         Some("batch") => Mode::Batch,
         Some("auto") => Mode::Auto,
         _ => Mode::Standard,
     };
-    Ok(Setup { model, voice: voice.trim().to_string(), mode })
+    Ok(Setup { model, voice: voice.to_string(), mode })
 }
 
 fn client() -> Result<crate::integrations::google_tts::Client, String> {
@@ -498,8 +497,9 @@ mod tests {
     #[test]
     fn setup_needs_a_model_and_a_voice_and_prefers_the_project_model() {
         let root = tempfile::tempdir().unwrap();
-        assert!(setup(root.path(), "", "Kore").is_err());
-        assert!(setup(root.path(), "gemini-3.8-flash-lite-tts", " ").is_err());
+        assert_eq!(setup(root.path(), "", "Kore").unwrap().model, crate::integrations::google_tts::DEFAULT_MODEL);
+        let default_voice = crate::integrations::cloud_voices::default_voice("gemini-3.8-flash-lite-tts").unwrap();
+        assert_eq!(setup(root.path(), "gemini-3.8-flash-lite-tts", " ").unwrap().voice, default_voice);
         let s = setup(root.path(), "gemini-3.8-flash-lite-tts", " Kore ").unwrap();
         assert_eq!((s.model.as_str(), s.voice.as_str(), s.mode), ("gemini-3.8-flash-lite-tts", "Kore", Mode::Standard));
     }

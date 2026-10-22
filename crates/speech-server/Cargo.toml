@@ -48,7 +48,7 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "std"
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "rustls", "stream"] }
 # Многопоточная (aria2-style) загрузка byte-range'ами через ureq (метод Higgs-Ultimate). HF Xet-CAS отдаёт
 # 206 на Range-запросы с ureq-UA (reqwest/curl-UA душит 403). Параллельные диапазоны сатурируют канал HF CDN.
-ureq = { version = "3", features = ["socks-proxy"] }   # socks-proxy: без него socks5:// паникует «Enable feature socks-proxy»
+ureq = { version = "3", features = ["socks-proxy", "platform-verifier"] }   # socks-proxy: без него socks5:// паникует «Enable feature socks-proxy»
 zip = { version = "8", default-features = false, features = ["deflate"] }
 csv = "1.4"
 text2num = "2.8"

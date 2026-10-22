@@ -2102,7 +2102,10 @@ fn dl_agent() -> Result<ureq::Agent, DlError> {
     let mut cfg = ureq::Agent::config_builder()
         .http_status_as_error(false)
         .timeout_connect(Some(Duration::from_secs(30)))
-        .timeout_recv_response(Some(Duration::from_secs(60)));
+        .timeout_recv_response(Some(Duration::from_secs(60)))
+        // certificates by the system's store, as reqwest does: a proxy or antivirus that re-signs HTTPS with its own
+        // root installed in Windows is trusted there, not in the bundled webpki roots
+        .tls_config(ureq::tls::TlsConfig::builder().root_certs(ureq::tls::RootCerts::PlatformVerifier).build());
     // Маршрут прокси для Hugging Face, откуда идут модели (свой / как в Windows / напрямую). ureq не спрашивает
     // прокси на каждый запрос, поэтому агент строится на каждую закачку — смена прокси действует со следующей.
     if let Some(url) = dub_llm::net::proxy_url_for("https://huggingface.co/") {

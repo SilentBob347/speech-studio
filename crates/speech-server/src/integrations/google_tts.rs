@@ -360,6 +360,9 @@ mod tests {
     }
 }
 
+/// The Gemini voice model a studio starts with.
+pub const DEFAULT_MODEL: &str = "gemini-3.8-flash-lite-tts";
+
 pub(crate) fn is_model_id(value: &str) -> bool {
     !value.is_empty() && value.bytes().all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b))
 }

@@ -52,6 +52,11 @@ pub fn model_supports_russian(model: &str) -> Option<bool> {
     db().get(catalog_model(model)).map(|m| m.supports_russian)
 }
 
+/// The voice a model starts with when none is chosen: its first adult voice in the catalog.
+pub fn default_voice(model: &str) -> Option<&'static str> {
+    list(model)?.iter().find(|v| v.age != "child" && v.age != "teen").map(|v| v.name.as_str())
+}
+
 /// Список голосов модели с метаданными (для дропдауна в UI). Нет в справочнике -> None.
 pub fn list(model: &str) -> Option<&'static Vec<VoiceMeta>> {
     db().get(catalog_model(model)).map(|m| &m.voices)
