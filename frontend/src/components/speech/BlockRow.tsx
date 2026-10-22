@@ -191,11 +191,13 @@ function sentenceStart(value: string, cursor: number): number {
   return start;
 }
 
-export default function BlockRow({ pid, engine, projectEngine, speakerEngine, voice, block, index, state, fit, rendering, playing, playingTake, playhead, simple, variants, inheritedParams, tint, stressing, doubts, selected, selecting, open, side, a }: {
+export default function BlockRow({ pid, engine, projectEngine, projectLang, speakerEngine, voice, block, index, state, fit, rendering, playing, playingTake, playhead, simple, variants, inheritedParams, tint, stressing, doubts, selected, selecting, open, side, a }: {
   pid: string;
   /** The engine that voices this block (its own, its speaker's or the project's). */
   engine: string;
   projectEngine: string;
+  /** The project's language: a block without its own speaks it. */
+  projectLang: string;
   speakerEngine: string | null;
   /** The voice this block speaks with, its own or inherited. */
   voice: string | null;
@@ -273,7 +275,7 @@ export default function BlockRow({ pid, engine, projectEngine, speakerEngine, vo
             className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]" />
         </label>
         <label className="text-[11px] text-[var(--color-muted)]">{t("speech.blockEngine")}
-          <EngineSelect value={block.engine ?? null} projectEngine={projectEngine} inheritEngine={speakerEngine ?? projectEngine} voice={voice} lang={block.lang ?? ""} onChange={(e, v) => a.patch(v === undefined ? { engine: e } : { engine: e, voice: v })}
+          <EngineSelect value={block.engine ?? null} projectEngine={projectEngine} inheritEngine={speakerEngine ?? projectEngine} voice={voice} lang={block.lang || projectLang} onChange={(e, v) => a.patch(v === undefined ? { engine: e } : { engine: e, voice: v })}
             inherit={speakerEngine ? t("speech.engineAsSpeaker") : t("speech.engineAsProject")} label={t("speech.blockEngine")}
             className="mt-1 w-full bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px]" />
         </label>

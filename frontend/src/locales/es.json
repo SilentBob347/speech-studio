@@ -932,6 +932,7 @@
     "trimReset": "Entera otra vez"
   },
   "speech": {
+    "engineNeedsLibraryVoice": "Este motor solo habla con una voz clonada: elige una en la",
     "projectSettings": "Ajustes del proyecto",
     "baseVoice": "Voz base del motor",
     "pickVoice": "Elija una voz",

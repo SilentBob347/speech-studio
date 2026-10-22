@@ -932,6 +932,7 @@
     "trimReset": "恢复完整"
   },
   "speech": {
+    "engineNeedsLibraryVoice": "此引擎只能使用克隆的声音：请在以下位置选择一个——",
     "projectSettings": "项目设置",
     "baseVoice": "引擎基础声音",
     "pickVoice": "请选择声音",

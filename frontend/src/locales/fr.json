@@ -932,6 +932,7 @@
     "trimReset": "Remettre en entier"
   },
   "speech": {
+    "engineNeedsLibraryVoice": "Ce moteur ne parle qu'avec une voix clonée : choisissez-en une dans la",
     "projectSettings": "Réglages du projet",
     "baseVoice": "Voix de base du moteur",
     "pickVoice": "Choisissez une voix",

@@ -24,7 +24,7 @@ export function defaultLibraryVoice(listing: VoiceListing | null, lang: string, 
   return [...fit].sort((a, b) => rank(a) - rank(b))[0]?.name ?? null;
 }
 
-export const errorText =(e: unknown) => (e instanceof ApiError ? e.detail || e.code : e instanceof Error ? e.message : String(e));
+export const errorText = (e: unknown) => (e instanceof ApiError ? e.detail || e.code : e instanceof Error ? e.message : String(e));
 
 /** The voice library, read again whenever the studio says the voices changed. */
 export function useVoices(): { listing: VoiceListing | null; error: string | null; reload: () => void; patch: (v: VoiceEntry) => void } {
