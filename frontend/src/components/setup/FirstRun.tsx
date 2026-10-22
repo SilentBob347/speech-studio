@@ -33,11 +33,13 @@ const QUANT_GROUP: Record<string, string> = {
 
 // Engines, runtimes and helper models: the studio takes them for the models chosen and for this computer's card, so they
 // are not a choice on this screen.
-const SERVICE = new Set([
+const SERVICE_IDS = new Set([
   "higgs-engine", "qwen3-tts-engine", "transcribe-engine", "transcribe-engine-cpu", "transcribe-engine-vulkan",
   "langid", "silero-vad", "bsroformer-engine", "bsroformer-engine-cpu", "llama", "onnxruntime", "onnxruntime-gpu",
-  "ffmpeg", "cuda-runtime", "cudnn", "vcruntime",
+  "ffmpeg", "cuda-runtime", "cuda12-runtime", "cudnn", "vcruntime",
 ]);
+// the other builds of the audio.cpp server and of Qwen3-TTS, fetched when a stage is set to their device
+const isService = (id: string) => SERVICE_IDS.has(id) || /^(audiocpp|qwen3-tts)-(cuda13|cuda12|vulkan|cpu)$/.test(id);
 
 /** The service parts a chosen model runs on; of two builds of one engine, the one the server asks for on this computer. */
 function needs(id: string, s: SetupStatus): string[] {
@@ -121,7 +123,7 @@ export default function FirstRun() {
   const fetchIds = new Set<string>(sel);
   if (status) for (const id of sel) needs(id, status).forEach((x) => fetchIds.add(x));
   const selectedComps = status ? status.components.filter((c) => fetchIds.has(c.id) && c.delivery === "download" && !c.installed) : [];
-  const serviceComps = selectedComps.filter((c) => SERVICE.has(c.id));
+  const serviceComps = selectedComps.filter((c) => isService(c.id));
   const selectedBytes = selectedComps.reduce((a, c) => a + Math.max(0, c.size - c.bytesOnDisk), 0);
   const selectedSpace = selectedComps.reduce((a, c) => a + c.spaceNeeded, 0);
   const noSpace = status?.freeBytes != null && selectedSpace > status.freeBytes;
@@ -139,7 +141,7 @@ export default function FirstRun() {
     if (id) n.add(id);
     return n;
   });
-  const comps = (status?.components ?? []).filter((c) => !SERVICE.has(c.id) && !(c.delivery === "external" && c.installed));
+  const comps = (status?.components ?? []).filter((c) => !isService(c.id) && !(c.delivery === "external" && c.installed));
   const gseen = new Set<string>();
   type SetupRow = { kind: "one"; c: SetupComponent } | { kind: "group"; group: string; members: SetupComponent[] };
   const rows: SetupRow[] = comps.flatMap((c): SetupRow[] => {   // одиночные компоненты + по одной группе квантов (на первом её члене)

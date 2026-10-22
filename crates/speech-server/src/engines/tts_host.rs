@@ -186,11 +186,15 @@ fn drama_load_error(error: &str, limit_mb: u32) -> String {
 
 
 /// Загруженный Supertonic 3: на видеокарте NVIDIA через CUDA onnxruntime (она должна подойти, иначе ошибка с причиной,
-/// не тихий процессор), на машине без NVIDIA — на процессоре.
+/// не тихий процессор), на машине без NVIDIA и при устройстве озвучки «CPU» или «Vulkan» (у onnxruntime его нет) — на
+/// процессоре.
 pub fn supertonic(models_root: &Path) -> Result<Tts, String> {
+    let gpu = crate::engines::hw::gpu_report();
+    let on_card = gpu.nvidia && !matches!(crate::engines::models::server_choice(models_root, "tts_backend"), "cpu" | "vulkan");
+    let key = format!("{}:{}", crate::engines::supertonic::ENGINE, if on_card { "cuda" } else { "cpu" });
     let mut slot = host();
-    if let Some((key, Tts::Supertonic(e))) = slot.as_ref() {
-        if key == crate::engines::supertonic::ENGINE {
+    if let Some((k, Tts::Supertonic(e))) = slot.as_ref() {
+        if *k == key {
             touch();
             return Ok(Tts::Supertonic(e.clone()));
         }
@@ -199,8 +203,7 @@ pub fn supertonic(models_root: &Path) -> Result<Tts, String> {
     if !crate::engines::supertonic::installed(models_root) {
         return Err(t!("render-supertonic-missing"));
     }
-    let gpu = crate::engines::hw::gpu_report();
-    if gpu.nvidia && !gpu.cuda13_ok {
+    if on_card && !gpu.cuda13_ok {
         let card = gpu.summary().unwrap_or_else(|| "-".to_string());
         return Err(match gpu.reason {
             Some("gpu_old") => t!("render-higgs-gpu-old", card = card, min = gpu.min_compute.clone()),
@@ -208,9 +211,9 @@ pub fn supertonic(models_root: &Path) -> Result<Tts, String> {
             _ => t!("render-higgs-no-gpu", card = card),
         });
     }
-    let e = Arc::new(crate::engines::supertonic::Model::load(models_root, gpu.nvidia).map_err(|e| t!("render-supertonic-load-failed", error = e))?);
-    tracing::info!("voicing: Supertonic 3 on ONNX Runtime {}", if gpu.nvidia { "CUDA" } else { "CPU" });
-    *slot = Some((crate::engines::supertonic::ENGINE.to_string(), Tts::Supertonic(e.clone())));
+    let e = Arc::new(crate::engines::supertonic::Model::load(models_root, on_card).map_err(|e| t!("render-supertonic-load-failed", error = e))?);
+    tracing::info!("voicing: Supertonic 3 on ONNX Runtime {}", if on_card { "CUDA" } else { "CPU" });
+    *slot = Some((key, Tts::Supertonic(e.clone())));
     touch();
     Ok(Tts::Supertonic(e))
 }

@@ -408,7 +408,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
         {backendTabs("diar_backend")}
         {rowOf("sortformer")}
       </>)}
-      {group(t("settings.roleRuntime"), <>{rowOf("onnxruntime")}{(selv("diar_backend") === "gpu" || selv("asr_backend") === "gpu") && rowOf("onnxruntime-gpu")}{(selv("diar_backend") === "gpu" || selv("asr_backend") === "gpu") && rowOf("cudnn")}{rowOf("ffmpeg")}{rowOf("cuda-runtime")}{rowOf("vcruntime")}</>)}
+      {group(t("settings.roleRuntime"), <>{rowOf("onnxruntime")}{(selv("diar_backend") === "gpu" || selv("asr_backend") === "gpu") && rowOf("onnxruntime-gpu")}{(selv("diar_backend") === "gpu" || selv("asr_backend") === "gpu") && rowOf("cudnn")}{rowOf("ffmpeg")}{rowOf("cuda-runtime")}{rowOf("cuda12-runtime")}{rowOf("vcruntime")}</>)}
       <YtDlpTool installed={!!get("ytdlp")?.installed} row={rowOf("ytdlp")} />
       {/* Производительность / экономия RAM — ВИДИМЫЕ контролы (не авто-магия): против OOM на слабой памяти. */}
       {group(t("settings.perfTitle"), <>

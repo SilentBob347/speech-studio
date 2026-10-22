@@ -183,6 +183,8 @@ pub fn localize(e: &AcppError) -> String {
             let error = other.to_string();
             if out_of_memory(&error) {
                 t!("acpp-out-of-memory", error = error)
+            } else if error.contains(" backend requested but ") {
+                t!("acpp-no-device", error = error)
             } else {
                 t!("acpp-error", error = error)
             }
