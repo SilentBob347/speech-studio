@@ -234,7 +234,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
     const gpuOff = !status.gpu.cuda13Ok;
     return (
       <div className="flex gap-1 mb-1.5">
-        {(k === "asr_backend" ? [["auto", t("settings.auto")], ["gpu", "GPU (CUDA)"], ["vulkan", "Vulkan"], ["cpu", "CPU"]] as const : [["auto", t("settings.auto")], ["gpu", "GPU (CUDA)"], ["cpu", "CPU"]] as const).map(([id, label]) => (
+        {(k === "asr_backend" && selv("asr_engine") !== "whisper" ? [["auto", t("settings.auto")], ["gpu", "GPU (CUDA)"], ["vulkan", "Vulkan"], ["cpu", "CPU"]] as const : [["auto", t("settings.auto")], ["gpu", "GPU (CUDA)"], ["cpu", "CPU"]] as const).map(([id, label]) => (
           <button key={id} onClick={() => setSel(k, id)} disabled={id === "gpu" && gpuOff && cur !== "gpu"}
             title={id === "gpu" && gpuOff ? gpuReasonText(status.gpu) : undefined}
             className={`flex-1 px-2 py-1.5 rounded-md text-[12px] font-medium border transition-colors ${cur === id ? "border-[var(--color-accent)] bg-[color-mix(in_oklab,var(--color-accent)_14%,transparent)] text-[var(--color-text)]" : "border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-text)]"} disabled:opacity-40`}>{label}</button>

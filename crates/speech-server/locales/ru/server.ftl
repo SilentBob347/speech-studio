@@ -1215,3 +1215,4 @@ setup-comp-crisperwhisper-purpose = Распознавание речи на 99 
 acpp-no-server = Движок audio.cpp не установлен ({ $path }): скачайте его в «Настройки → Модели»
 acpp-no-model = Модель «{ $model }» движка audio.cpp не скачана: скачайте её в «Настройки → Модели»
 acpp-error = движок audio.cpp: { $error }
+asr-crisperwhisper-no-vulkan = У CrisperWhisper нет сборки под Vulkan: выберите для распознавания «CPU» или «GPU (CUDA)» в «Настройки → Модели» либо Parakeet или Nemotron, они работают на Vulkan.

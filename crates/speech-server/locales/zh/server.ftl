@@ -987,3 +987,4 @@ setup-comp-crisperwhisper-purpose = 支持 99 种语言的语音识别（含词�
 acpp-no-server = 未安装 audio.cpp 引擎（{ $path }）：请在 设置 → 模型 中下载
 acpp-no-model = 未下载 audio.cpp 引擎的模型「{ $model }」：请在 设置 → 模型 中下载
 acpp-error = audio.cpp 引擎：{ $error }
+asr-crisperwhisper-no-vulkan = CrisperWhisper 没有 Vulkan 版本：请在“设置 → 模型”中为识别选择「CPU」或「GPU (CUDA)」，或选择可在 Vulkan 上运行的 Parakeet 或 Nemotron。

@@ -1188,3 +1188,4 @@ setup-comp-crisperwhisper-purpose = Reconnaissance vocale en 99 langues avec hor
 acpp-no-server = Le moteur audio.cpp n’est pas installé ({ $path }) : téléchargez-le dans Réglages → Modèles
 acpp-no-model = Le modèle « { $model } » du moteur audio.cpp n’est pas téléchargé : téléchargez-le dans Réglages → Modèles
 acpp-error = moteur audio.cpp : { $error }
+asr-crisperwhisper-no-vulkan = CrisperWhisper n’a pas de version Vulkan : choisissez « CPU » ou « GPU (CUDA) » pour la reconnaissance dans Paramètres → Modèles, ou Parakeet ou Nemotron, qui tournent sur Vulkan.

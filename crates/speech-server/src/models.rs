@@ -709,6 +709,9 @@ pub fn build_engine(choice: &AsrChoice, prompt: Option<String>) -> Result<Box<dy
     match choice {
         AsrChoice::Ggml { models_root, build, model } => Ok(Box::new(Unloading(dub_asr::tcpp::TcppEngine::new(models_root, *build, model)))),
         AsrChoice::CrisperWhisper { repo_root, models_root, backend, build } => {
+            if pick(&load_selection(models_root), "asr_backend") == Some("vulkan") {
+                return Err(t!("asr-crisperwhisper-no-vulkan"));
+            }
             let server = crate::acpp::server(repo_root, models_root, crate::acpp::backend(backend), crate::acpp::CRISPERWHISPER)?;
             let language = dub_asr::acpp::Language::Whisper {
                 engine_dir: dub_asr::tcpp::engine_dir(models_root, *build),
