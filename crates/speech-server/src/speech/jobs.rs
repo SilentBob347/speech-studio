@@ -1051,6 +1051,21 @@ fn synth_scope(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Valu
             return Err(t!("speech-lang-unsupported", lang = project.lang_of(b).to_uppercase(), engine = engine.name.to_string()));
         }
     }
+    // one error naming every block that cannot be voiced, before any model loads
+    let silent: Vec<String> = project
+        .blocks()
+        .enumerate()
+        .filter(|(_, b)| wanted.contains(&b.id) && !b.hidden && project.voice_of(b).is_none())
+        .filter(|(_, b)| crate::engines::get(project.engine_of(b)).is_some_and(|e| e.needs_voice))
+        .map(|(n, b)| format!("{} «{}»", n + 1, sp::visible_snippet(&b.text)))
+        .collect();
+    if !silent.is_empty() {
+        let mut blocks = silent.iter().take(10).cloned().collect::<Vec<_>>().join(", ");
+        if silent.len() > 10 {
+            blocks.push_str(", …");
+        }
+        return Err(t!("speech-no-voice-blocks", blocks = blocks));
+    }
     if project.settings.auto_stress && wanted.iter().any(|id| project.blocks().any(|b| &b.id == id && crate::engines::stress::is_russian(&b.text, project.lang_of(b)))) {
         crate::app::ensure_components(&p.repo_root, &[crate::engines::stress::COMPONENT, "onnxruntime"], &|ev| progress(ev))?;
     }

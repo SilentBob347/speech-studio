@@ -981,6 +981,7 @@ dict-bad-pattern = El patrón de una entrada del diccionario tiene un error: { $
 dict-import-unknown = { $name } no es un diccionario de Balabolka (.dic, .rex o .bxd)
 speech-engine-unknown = Motor de síntesis desconocido: { $engine }
 speech-lang-unsupported = { $engine } no habla { $lang }: elige otro idioma o Automático en los ajustes del proyecto
+speech-no-voice-blocks = Estos bloques no tienen voz y su motor solo habla con una voz de la biblioteca: { $blocks }. Elige una voz para el proyecto, el hablante o el bloque.
 speechproj-not-a-package = No es un archivo de proyecto de Speech Studio (.speechproj)
 speechproj-bad-path = El archivo de proyecto tiene una ruta fuera de su carpeta: { $path }
 speechproj-bad-manifest = La descripción del archivo de proyecto está dañada: { $detail }

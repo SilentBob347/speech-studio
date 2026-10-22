@@ -10,6 +10,7 @@ release notes on GitHub are taken from the release's section.
 
 - **Whisper is CrisperWhisper 2.0 turbo in the audio.cpp engine**, as in Dub Studio: 99 languages with word times, the language of Auto heard by VoxLingua107, the Listening prompt passed to it. Faster-Whisper, its six models and its CUDA 11 libraries are gone, and this program's copies of them are removed at start (a model folder shared with another program loses only its link).
 - **Higgs Audio v3 runs in the audio.cpp server** that CrisperWhisper runs in, as in Dub Studio, instead of its own engine library.
+- **Voicing names every block that has no voice before any model loads**, when the engine of those blocks speaks only with a library voice, instead of failing block by block.
 - **An engine that only clones gets a voice to start with**: Drama 3 or Qwen3-TTS with Russian stress chosen for a project, speaker or block that has no voice takes a library voice of its language (a favourite first, then one of the pack; for Drama 3 one with its reference text), and Project settings say so with a link to the voice library when the library has none.
 - **Recognition runs on Vulkan** on an AMD or Intel card and on an NVIDIA card CUDA 13 does not run on (Auto), and Vulkan can be chosen by hand in Settings → Models → Recognition; before, such a computer recognised on the processor.
 
