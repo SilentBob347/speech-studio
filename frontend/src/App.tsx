@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
-import { api } from "./lib/api";
+import { api, SELECTION_CHANGED } from "./lib/api";
 import { useStore } from "./store";
 import { hubChanged, setTelemetry, useHubState } from "./lib/studioHub";
 import { HubBars } from "./components/HubBars";
@@ -40,12 +40,15 @@ export default function App() {
   const [capOffline, setCapOffline] = useState(false);
   useEffect(() => {
     if (stage !== "ready") return;
-    api.capabilities().then((c) => {
+    const load = () => api.capabilities().then((c) => {
       const rest = [`ASR ${c.asr_label}`];
       if (c.models?.llm) rest.push(`LLM ${modelName(c.models.llm)}`);
       setCap({ device: c.device, tts: c.models?.tts ? `${c.models.tts}${c.tts_quant ? ` ${c.tts_quant}` : ""}` : "", rest });
       setCapOffline(false);
     }).catch(() => setCapOffline(true));
+    load();
+    window.addEventListener(SELECTION_CHANGED, load);
+    return () => window.removeEventListener(SELECTION_CHANGED, load);
   }, [stage]);
   const tts = mode === "speech" && speechEngine ? speechEngine : cap?.tts;
   const capText = cap ? [cap.device, ...(tts ? [`TTS ${tts}`] : []), ...cap.rest].join(" · ") : "";

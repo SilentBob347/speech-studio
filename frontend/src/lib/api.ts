@@ -389,6 +389,13 @@ export const llmProviderOf = (sel: Selection | undefined, stage: "llm" | "vision
   return v === "server" || v === "openrouter" || v === "agent" ? v : "local";
 };
 
+/** Fired after the server took a new engine, model or device choice. */
+export const SELECTION_CHANGED = "speech:selection-changed";
+const selectionChanged = (s: Selection): Selection => {
+  window.dispatchEvent(new Event(SELECTION_CHANGED));
+  return s;
+};
+
 export const api = {
   capabilities: () => getJson<Capabilities>("/engine/capabilities"),
   setupStatus: () => getJson<SetupStatus>("/setup/status"),
@@ -402,9 +409,9 @@ export const api = {
   setOpts: (edit: Partial<ModelStack>) =>
     fetch(`${BASE}/engine/opts`, { method: "PATCH", headers: JSON_HEADERS, body: JSON.stringify(edit) }).then(j<{ models: ModelStack }>),
   // Сделать вариант модели (квант) активным: id компонента настроек -> пишет models/active.json на бэке.
-  selectModel: (id: string) => postJson<Selection>("/engine/select", { id }),
+  selectModel: (id: string) => postJson<Selection>("/engine/select", { id }).then(selectionChanged),
   // Прямая установка слота выбора (движок/модель/квант ASR) без скачивания: {key,value} -> active.json.
-  setSelection: (key: string, value: string) => postJson<Selection>("/engine/select", { key, value }),
+  setSelection: (key: string, value: string) => postJson<Selection>("/engine/select", { key, value }).then(selectionChanged),
   // Облачные модели (OpenRouter): проверка ключа + фильтрованный каталог по модальности (llm/vision/tts).
   openrouterVerify: (key: string) => postJson<{ ok: boolean; data?: { label?: string; limit?: number; usage?: number }; error?: unknown }>("/engine/openrouter/verify", { key }),
   // Ключ OpenRouter: сервер отдаёт только «задан ли» и источник; PUT сначала проверяет ключ в OpenRouter.
