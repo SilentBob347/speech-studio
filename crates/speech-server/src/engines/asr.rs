@@ -7,9 +7,22 @@ use std::path::{Path, PathBuf};
 pub enum AsrChoice {
     /// A GGUF model run by transcribe.cpp on the GPU.
     Ggml { models_root: PathBuf, build: crate::engines::tcpp_asr::Build, model: &'static crate::engines::tcpp_asr::Model },
-    /// CrisperWhisper 2.0 turbo in the studio's audiocpp_server on the recognition backend; the language of «auto» is
-    /// heard by VoxLingua107 on the transcribe.cpp build of that backend.
-    CrisperWhisper { repo_root: PathBuf, models_root: PathBuf, backend: &'static str, build: crate::engines::tcpp_asr::Build },
+    /// CrisperWhisper 2.0 turbo in the studio's audiocpp_server on the build of the recognition device (`choice`, see
+    /// `acpp::build_for`); the language of «auto» is heard by VoxLingua107 on the transcribe.cpp build of that device.
+    CrisperWhisper { repo_root: PathBuf, models_root: PathBuf, choice: &'static str, build: crate::engines::tcpp_asr::Build },
+    /// A model of transcribe.cpp's catalogue (Parakeet TDT v3, Nemotron 3.5) run by the studio's audiocpp_server on the build of the
+    /// recognition device, reading the same GGUF; Live streams it through transcribe.cpp's `build`.
+    Server { repo_root: PathBuf, models_root: PathBuf, choice: &'static str, build: crate::engines::tcpp_asr::Build, model: &'static crate::engines::tcpp_asr::Model },
+}
+
+/// What the window names as the device of a server build.
+fn server_device(choice: &str) -> &'static str {
+    match crate::engines::acpp::build_for(choice) {
+        Ok(acpp_server::asset::Build::Cuda13 | acpp_server::asset::Build::Cuda12) => "CUDA",
+        Ok(acpp_server::asset::Build::Vulkan) => "Vulkan",
+        Ok(acpp_server::asset::Build::Cpu) => "CPU",
+        Err(_) => "CUDA",
+    }
 }
 
 impl AsrChoice {
@@ -30,14 +43,19 @@ impl AsrChoice {
                 };
                 format!("{} {quant} ({on})", model.name)
             }
-            AsrChoice::CrisperWhisper { backend, .. } => format!("CrisperWhisper 2.0 turbo ({})", if *backend == "cpu" { "CPU" } else { "CUDA" }),
+            AsrChoice::CrisperWhisper { choice, .. } => format!("CrisperWhisper 2.0 turbo ({})", server_device(choice)),
+            AsrChoice::Server { model, choice, .. } => {
+                let quant = model.file.trim_end_matches(".gguf").rsplit('-').next().unwrap_or(model.file);
+                format!("{} {quant} (audio.cpp, {})", model.name, server_device(choice))
+            }
         }
     }
 
     pub fn describe(&self) -> String {
         match self {
             AsrChoice::Ggml { model, .. } => format!("transcribe.cpp ({})", model.file),
-            AsrChoice::CrisperWhisper { backend, .. } => format!("CrisperWhisper 2.0 turbo (intended, {backend})"),
+            AsrChoice::CrisperWhisper { choice, .. } => format!("CrisperWhisper 2.0 turbo (intended, {choice})"),
+            AsrChoice::Server { model, .. } => format!("audiocpp_server ({})", model.file),
         }
     }
 
@@ -46,7 +64,7 @@ impl AsrChoice {
         lang.is_empty()
             || lang == "auto"
             || match self {
-                AsrChoice::Ggml { model, .. } => crate::engines::tcpp_asr::knows(model, lang),
+                AsrChoice::Ggml { model, .. } | AsrChoice::Server { model, .. } => crate::engines::tcpp_asr::knows(model, lang),
                 AsrChoice::CrisperWhisper { .. } => {
                     let primary = lang.split(['-', '_']).next().unwrap_or("").to_ascii_lowercase();
                     acpp_server::language::whisper_code(&primary).is_ok()
@@ -80,12 +98,12 @@ impl dub_asr::AsrEngine for Unloading {
     }
 }
 
-/// CrisperWhisper of a job: its weights leave the card when the job lets the recogniser go, the server stays.
-struct ServerUnloading(dub_asr::acpp::AcppAsr);
+/// A recogniser in the server of a job: its weights leave the card when the job lets it go, the server stays.
+struct ServerUnloading(dub_asr::acpp::AcppAsr, &'static str);
 
 impl Drop for ServerUnloading {
     fn drop(&mut self) {
-        crate::engines::acpp::unload(&[crate::engines::acpp::CRISPERWHISPER]);
+        crate::engines::acpp::unload(&[self.1]);
     }
 }
 
@@ -110,16 +128,21 @@ pub fn build_engine(choice: &AsrChoice, prompt: Option<String>) -> Result<Box<dy
     tracing::info!("recognition: {} [{}]", choice.label(), choice.describe());
     match choice {
         AsrChoice::Ggml { models_root, build, model } => Ok(Box::new(Unloading(dub_asr::tcpp::TcppEngine::new(models_root, *build, model)))),
-        AsrChoice::CrisperWhisper { repo_root, models_root, backend, build } => {
-            if crate::engines::models::load_selection(models_root).get("asr_backend").and_then(|v| v.as_str()) == Some("vulkan") {
-                return Err(t!("asr-crisperwhisper-no-vulkan"));
-            }
-            let server = crate::engines::acpp::server(repo_root, models_root, crate::engines::acpp::backend(backend), crate::engines::acpp::CRISPERWHISPER)?;
+        AsrChoice::CrisperWhisper { repo_root, models_root, choice, build } => {
+            let id = crate::engines::acpp::CRISPERWHISPER;
+            let server = crate::engines::acpp::server(repo_root, models_root, crate::engines::acpp::build_for(choice)?, id)?;
             let language = dub_asr::acpp::Language::Whisper {
                 engine_dir: dub_asr::tcpp::engine_dir(models_root, *build),
                 langid: dub_asr::tcpp::helper_path(models_root, &dub_asr::tcpp::LANGID),
             };
-            Ok(Box::new(ServerUnloading(dub_asr::acpp::AcppAsr::new(server, crate::engines::acpp::CRISPERWHISPER, language).with_prompt(prompt))))
+            Ok(Box::new(ServerUnloading(dub_asr::acpp::AcppAsr::new(server, id, language).with_prompt(prompt), id)))
+        }
+        AsrChoice::Server { repo_root, models_root, choice, model, .. } => {
+            let id = model.id;
+            // Nemotron is told the language; Parakeet finds it itself
+            let language = if id == crate::engines::acpp::NEMOTRON { dub_asr::acpp::Language::Told } else { dub_asr::acpp::Language::Own };
+            let server = crate::engines::acpp::server(repo_root, models_root, crate::engines::acpp::build_for(choice)?, id)?;
+            Ok(Box::new(ServerUnloading(dub_asr::acpp::AcppAsr::new(server, id, language), id)))
         }
     }
 }

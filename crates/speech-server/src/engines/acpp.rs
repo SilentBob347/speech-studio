@@ -1,8 +1,9 @@
 //! The studio's audiocpp_server (audio.cpp, through Dub Studio's crate `acpp-server`: `SERVERS`, one process per
-//! backend): CrisperWhisper recognition and Higgs Audio v3 voicing, with the models on disk now. The same server and
+//! build): CrisperWhisper, Parakeet TDT v3 and Nemotron 3.5 recognition and Higgs Audio v3 voicing, with the models on disk now. The same server and
 //! layout as Dub Studio's, so a model of one program serves the other.
 
 use crate::engines::hw::CudaBuild;
+use acpp_server::asset::Build;
 use acpp_server::{AcppError, Backend, Flow, ModelEntry, Server, ServerConfig, SpeechRequest, VoiceRef};
 use serde_json::{Map, Value};
 use std::path::{Path, PathBuf};
@@ -12,6 +13,12 @@ use std::time::Duration;
 
 pub const CRISPERWHISPER: &str = "crisperwhisper";
 pub const HIGGS: &str = "higgs";
+pub const NEMOTRON: &str = "nemotron";
+pub const PARAKEET: &str = "parakeet-v3";
+
+/// The models of transcribe.cpp's catalogue the server runs, reading their GGUF in place: Parakeet TDT v3 and Nemotron
+/// 3.5. Parakeet Ultra stays on transcribe.cpp: audio.cpp does not read its built-in VAD head.
+pub const SERVER_ASR: [&str; 2] = [PARAKEET, NEMOTRON];
 
 /// The CrisperWhisper folder under the models root (the Hugging Face repository as it is; audio.cpp reads the folder).
 pub const CRISPERWHISPER_DIR: &str = "crisperwhisper2-turbo";
@@ -21,46 +28,70 @@ const READY_WITHIN: Duration = Duration::from_secs(60);
 /// The longest wait for the next piece of a phrase; the first one also waits for Higgs to load.
 const SPEECH_STALL: Duration = Duration::from_secs(120);
 
-/// The build of the server for this card: CUDA 13, else CUDA 12.9 (Maxwell to Volta, drivers 525-579); a machine
-/// whose card runs neither (or that has none) takes the CUDA 13 build for its processor backend.
-pub fn build() -> CudaBuild {
-    crate::engines::hw::gpu_report().cuda_build.unwrap_or(CudaBuild::Cuda13)
-}
-
-/// The folder of a build under the program folder.
-pub fn build_dir(build: CudaBuild) -> &'static str {
-    match build {
-        CudaBuild::Cuda13 => "tools/audiocpp",
-        CudaBuild::Cuda12 => "tools/audiocpp-cuda12",
+/// The build of the server a backend choice runs: `cpu`; `vulkan`; `gpu` (the card's CUDA build: 13, else 12.9); or
+/// «auto»: the card's CUDA build, else Vulkan on a card of another make, else the processor. An NVIDIA card runs Vulkan
+/// only when it is chosen. An error when the card is chosen and it runs neither CUDA build.
+pub fn build_for(choice: &str) -> Result<Build, String> {
+    let report = crate::engines::hw::gpu_report();
+    let cuda = report.cuda_build.map(|b| match b {
+        CudaBuild::Cuda13 => Build::Cuda13,
+        CudaBuild::Cuda12 => Build::Cuda12,
+    });
+    match choice {
+        "cpu" => Ok(Build::Cpu),
+        "vulkan" => Ok(Build::Vulkan),
+        "gpu" | "cuda" => cuda.ok_or_else(|| t!("acpp-no-cuda-build")),
+        _ => Ok(cuda.unwrap_or_else(|| {
+            let other_make = crate::engines::hw::display_adapter().is_some_and(|name| !name.to_ascii_lowercase().contains("nvidia"));
+            if other_make { Build::Vulkan } else { Build::Cpu }
+        })),
     }
 }
 
-/// The CUDA libraries the build's program needs at start and where the runtime component puts them (cudart is
-/// linked into the CUDA 13 build); without them Windows refuses to start it (0xC0000135).
-pub fn libraries(build: CudaBuild) -> &'static [&'static str] {
-    match (build, cfg!(windows)) {
-        (CudaBuild::Cuda13, true) => &["models/higgs-engine/cublas64_13.dll", "models/higgs-engine/cublasLt64_13.dll", "models/higgs-engine/cufft64_12.dll"],
-        (CudaBuild::Cuda12, true) => &[
-            "models/cuda12-runtime/cudart64_12.dll",
-            "models/cuda12-runtime/cublas64_12.dll",
-            "models/cuda12-runtime/cublasLt64_12.dll",
-            "models/cuda12-runtime/cufft64_11.dll",
-        ],
-        (_, false) => &[],
-    }
+/// The build «auto» runs on this computer.
+pub fn build() -> Build {
+    build_for("auto").expect("auto always names a build")
 }
 
-/// The server program: env SPEECH_STUDIO_AUDIOCPP_SERVER, else the program of this card's build.
-pub fn exe(repo_root: &Path) -> PathBuf {
+/// The server program of a build: env SPEECH_STUDIO_AUDIOCPP_SERVER, else `tools/<build folder>` of the program.
+pub fn exe(repo_root: &Path, build: Build) -> PathBuf {
     if let Some(p) = std::env::var_os("SPEECH_STUDIO_AUDIOCPP_SERVER") {
         return PathBuf::from(p);
     }
     let name = if cfg!(windows) { "audiocpp_server.exe" } else { "audiocpp_server" };
-    repo_root.join(build_dir(build())).join(name)
+    repo_root.join("tools").join(build.folder()).join(name)
 }
 
-pub fn backend(stage_backend: &str) -> Backend {
-    if stage_backend == "cpu" { Backend::Cpu } else { Backend::Cuda }
+/// The component that downloads a build: `higgs-engine` is the build «auto» runs here, the others are fetched when a
+/// stage is set to them.
+pub fn component(build: Build) -> &'static str {
+    if build == crate::engines::acpp::build() {
+        return "higgs-engine";
+    }
+    match build {
+        Build::Cuda13 => "audiocpp-cuda13",
+        Build::Cuda12 => "audiocpp-cuda12",
+        Build::Vulkan => "audiocpp-vulkan",
+        Build::Cpu => "audiocpp-cpu",
+    }
+}
+
+/// The CUDA runtime component a build needs, if any.
+pub fn runtime_component(build: Build) -> Option<&'static str> {
+    match build {
+        Build::Cuda13 => Some("cuda-runtime"),
+        Build::Cuda12 => Some("cuda12-runtime"),
+        Build::Vulkan | Build::Cpu => None,
+    }
+}
+
+/// The CUDA libraries a CUDA build imports that are in none of the places they come to: beside the program, the CUDA
+/// 13 runtime component (`models/higgs-engine`), the CUDA 12.9 one (`models/cuda12-runtime`).
+pub fn missing_libraries(repo_root: &Path, build: Build) -> Vec<&'static str> {
+    let beside = repo_root.join("tools").join(build.folder());
+    let cuda13 = repo_root.join("models").join("higgs-engine");
+    let cuda12 = repo_root.join("models").join("cuda12-runtime");
+    acpp_server::asset::missing_libraries(build, &[&beside, &cuda13, &cuda12])
 }
 
 /// The CrisperWhisper folder: env SPEECH_STUDIO_CRISPERWHISPER (a copy kept elsewhere, read only), else
@@ -91,34 +122,40 @@ fn models(models_root: &Path) -> Vec<ModelEntry> {
     if higgs.is_file() {
         out.push(ModelEntry::higgs_tts(HIGGS, &higgs));
     }
+    // the transcribe.cpp GGUFs, which audio.cpp reads in place
+    for id in SERVER_ASR {
+        let Some(model) = crate::engines::tcpp_asr::model(id) else { continue };
+        let gguf = dub_asr::tcpp::model_path(models_root, model);
+        if gguf.is_file() {
+            out.push(if id == NEMOTRON { ModelEntry::nemotron_asr(id, &gguf) } else { ModelEntry::parakeet_tdt(id, &gguf) });
+        }
+    }
     out
 }
 
-fn config(repo_root: &Path, models_root: &Path, backend: Backend) -> ServerConfig {
-    let name = match backend {
-        Backend::Cuda => "cuda",
-        Backend::Cpu => "cpu",
-    };
+fn config(repo_root: &Path, models_root: &Path, build: Build) -> ServerConfig {
     ServerConfig {
-        exe: exe(repo_root),
-        backend,
+        exe: exe(repo_root, build),
+        backend: build.backend(),
         device: 0,
         threads: std::thread::available_parallelism().map(|n| n.get() as u32).unwrap_or(8).min(16),
         models: models(models_root),
-        data_dir: repo_root.join("logs").join(format!("audiocpp_server-{name}")),
+        data_dir: repo_root.join("logs").join(build.folder()),
         log: false,
     }
 }
 
-/// The running server of this backend carrying `model`: the one there is, or a new one in its place when the models
-/// on disk changed or the process ended. An error when `model` is not on disk or the program is missing.
-pub fn server(repo_root: &Path, models_root: &Path, backend: Backend, model: &str) -> Result<Arc<Server>, String> {
-    let config = config(repo_root, models_root, backend);
+/// The running server of this build carrying `model`: the one there is, or a new one in its place when the models
+/// on disk changed or the process ended. An error, before the program starts, when the processor lacks the build's
+/// floor, the program or its CUDA libraries are missing, or `model` is not on disk.
+pub fn server(repo_root: &Path, models_root: &Path, build: Build, model: &str) -> Result<Arc<Server>, String> {
+    dub_tcpp::cpu_floor("audio.cpp")?;
+    let config = config(repo_root, models_root, build);
     if !config.exe.is_file() {
         return Err(t!("acpp-no-server", path = config.exe.display().to_string()));
     }
     if std::env::var_os("SPEECH_STUDIO_AUDIOCPP_SERVER").is_none() {
-        let missing: Vec<&str> = libraries(build()).iter().copied().filter(|rel| !repo_root.join(rel).is_file()).collect();
+        let missing = missing_libraries(repo_root, build);
         if !missing.is_empty() {
             return Err(t!("acpp-no-libraries", files = missing.join(", ")));
         }
@@ -127,7 +164,7 @@ pub fn server(repo_root: &Path, models_root: &Path, backend: Backend, model: &st
         return Err(t!("acpp-no-model", model = model.to_string()));
     }
     let server = acpp_server::SERVERS.get(&config, READY_WITHIN, &|_| {}).map_err(|e| localize(&e))?;
-    tracing::info!("audiocpp_server {} ({backend:?}) carries {:?}", server.pid(), config.models.iter().map(|m| m.id.as_str()).collect::<Vec<_>>());
+    tracing::info!("audiocpp_server {} ({build:?}) carries {:?}", server.pid(), config.models.iter().map(|m| m.id.as_str()).collect::<Vec<_>>());
     Ok(server)
 }
 
@@ -167,14 +204,15 @@ pub struct Higgs {
 }
 
 impl Higgs {
-    /// On the card when it runs a CUDA build of the server (13 or 12.9), else on the processor.
+    /// On the build of the voicing device chosen in the settings (`tts_backend`, else `local_backend`; «auto» — see
+    /// [`build_for`]).
     pub fn load(repo_root: &Path, models_root: &Path) -> Result<Higgs, String> {
         let gguf = higgs_gguf(models_root);
         if !gguf.is_file() {
             return Err(t!("render-higgs-model-missing", path = gguf.display().to_string()));
         }
-        let backend = if crate::engines::hw::gpu_report().cuda_build.is_some() { Backend::Cuda } else { Backend::Cpu };
-        let server = server(repo_root, models_root, backend, HIGGS)?;
+        let build = build_for(crate::engines::models::server_choice(models_root, "tts_backend"))?;
+        let server = server(repo_root, models_root, build, HIGGS)?;
         let rate = server.speech_rate(HIGGS).map_err(|e| localize(&e))?;
         Ok(Higgs { server, rate, cancel: AtomicBool::new(false) })
     }

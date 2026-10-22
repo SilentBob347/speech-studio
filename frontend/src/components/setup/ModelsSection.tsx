@@ -227,14 +227,16 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
 
   // Тумблер движка «локально | OpenRouter» — тот же вид, что переключатель Parakeet|Whisper в группе ASR.
   const orRowCls = "px-2.5 py-2 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border)]";
-  // На чём считать стадию (устройство): Авто / GPU (CUDA) / CPU — свои табы в каждом разделе, по
-  // аналогии с провайдерами. Независимый ключ на стадию (sep_backend / diar_backend / asr_backend).
+  // На чём считать стадию (устройство): Авто / GPU (CUDA) / Vulkan / CPU — свои табы в каждом разделе, по
+  // аналогии с провайдерами. Независимый ключ на стадию (tts_backend / sep_backend / diar_backend / asr_backend).
+  // Озвучка и распознавание идут на audio.cpp и transcribe.cpp, у которых есть сборки Vulkan и CUDA 12.9.
   const backendTabs = (k: string) => {
     const cur = selv(k) || "auto";
-    const gpuOff = !status.gpu.cuda13Ok;
+    const vulkan = k === "asr_backend" || k === "tts_backend";
+    const gpuOff = vulkan ? !status.gpu.cudaBuild : !status.gpu.cuda13Ok;
     return (
       <div className="flex gap-1 mb-1.5">
-        {(k === "asr_backend" && selv("asr_engine") !== "whisper" ? [["auto", t("settings.auto")], ["gpu", "GPU (CUDA)"], ["vulkan", "Vulkan"], ["cpu", "CPU"]] as const : [["auto", t("settings.auto")], ["gpu", "GPU (CUDA)"], ["cpu", "CPU"]] as const).map(([id, label]) => (
+        {(vulkan ? [["auto", t("settings.auto")], ["gpu", "GPU (CUDA)"], ["vulkan", "Vulkan"], ["cpu", "CPU"]] as const : [["auto", t("settings.auto")], ["gpu", "GPU (CUDA)"], ["cpu", "CPU"]] as const).map(([id, label]) => (
           <button key={id} onClick={() => setSel(k, id)} disabled={id === "gpu" && gpuOff && cur !== "gpu"}
             title={id === "gpu" && gpuOff ? gpuReasonText(status.gpu) : undefined}
             className={`flex-1 px-2 py-1.5 rounded-md text-[12px] font-medium border transition-colors ${cur === id ? "border-[var(--color-accent)] bg-[color-mix(in_oklab,var(--color-accent)_14%,transparent)] text-[var(--color-text)]" : "border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-text)]"} disabled:opacity-40`}>{label}</button>
@@ -316,6 +318,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
           </div>
         ) : (
           <>
+            {backendTabs("tts_backend")}
             {variantPicker("Higgs Audio v3", ["higgs", "higgs-q6_k", "higgs-q4_k_m"])}
             {rowOf("higgs-engine")}
             {rowOf("drama3")}

@@ -14,18 +14,20 @@ fn asr_preparation_uses_its_stage_backend_instead_of_other_stages() {
         root.path(),
         json!({"local_backend":"gpu", "asr_backend":"cpu", "sep_backend":"gpu", "diar_backend":"gpu"}),
     );
-    assert_eq!(
-        missing_parts(root.path(), &models, "parakeet"),
-        ["transcribe-engine-cpu", "parakeet"]
-    );
+    // Parakeet v3 runs in the server's processor build
+    let cpu = crate::engines::acpp::component(acpp_server::asset::Build::Cpu).to_string();
+    assert_eq!(missing_parts(root.path(), &models, "parakeet"), ["parakeet".to_string(), cpu]);
     selection(
         root.path(),
         json!({"local_backend":"cpu", "asr_backend":"gpu", "sep_backend":"cpu", "diar_backend":"cpu"}),
     );
-    assert_eq!(
-        missing_parts(root.path(), &models, "whisper"),
-        ["crisperwhisper-turbo", "langid", "transcribe-engine", "cuda-runtime"]
-    );
+    // CrisperWhisper: its weights, the language id on transcribe.cpp, and the server build of the card with its runtime
+    let mut whisper: Vec<String> = ["crisperwhisper-turbo", "langid", "transcribe-engine"].map(String::from).to_vec();
+    if let Ok(build) = crate::engines::acpp::build_for("gpu") {
+        whisper.push(crate::engines::acpp::component(build).to_string());
+        whisper.extend(crate::engines::acpp::runtime_component(build).map(String::from));
+    }
+    assert_eq!(missing_parts(root.path(), &models, "whisper"), whisper);
 }
 
 #[test]
@@ -59,7 +61,7 @@ fn each_request_resolves_current_selection_without_changing_previous_specificati
     selection(root.path(), json!({"local_backend":"cpu", "asr":"ultra-int8"}));
     let second = choice(root.path(), &models, "en", "voice").unwrap();
     assert!(
-        matches!(first, crate::engines::asr::AsrChoice::Ggml {model, build: crate::engines::tcpp_asr::Build::Cpu, ..} if model.id == "parakeet-v3")
+        matches!(first, crate::engines::asr::AsrChoice::Server {model, choice: "cpu", ..} if model.id == "parakeet-v3")
     );
     assert!(
         matches!(second, crate::engines::asr::AsrChoice::Ggml {model, build: crate::engines::tcpp_asr::Build::Cpu, ..} if model.id == "parakeet-ultra")

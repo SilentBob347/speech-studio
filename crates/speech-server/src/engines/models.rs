@@ -148,6 +148,7 @@ pub fn is_selection_key(key: &str) -> bool {
             // gpu = CUDA, cpu = без NVIDIA. sep=сепарация(BSRoformer CUDA/CPU-сборка), diar=диаризация
             // (Sortformer onnx CUDA-EP/CPU), asr=локальный ASR (transcribe.cpp / CrisperWhisper в audiocpp_server).
             | "local_backend" | "sep_backend" | "diar_backend" | "asr_backend"
+            | "tts_backend"     // voicing engines in audiocpp_server (Higgs): auto|gpu|vulkan|cpu
             | "gpu_index"       // карта NVIDIA по порядку PCI (как nvidia-smi); "auto" — как решит драйвер; со следующего запуска
             // Лимиты RAM (видимые контролы в настройках, НЕ авто-магия): против OOM на слабой памяти.
             | "cloud_daily_limit_usd" // дневной лимит облака для агентов и программ, USD; 0 — без лимита
@@ -254,6 +255,22 @@ pub fn tcpp_build(mroot: &Path) -> crate::engines::tcpp_asr::Build {
         _ if crate::engines::hw::display_adapter().is_some() => Build::Vulkan,
         _ => Build::Cpu,
     }
+}
+
+/// The device the settings choose for a stage run in audiocpp_server (`asr_backend`, `local_backend`): the stage's own
+/// choice, else the common one — `cpu`, `vulkan`, `gpu` or `auto`; [`crate::engines::acpp::build_for`] turns it into
+/// the server's build.
+pub fn server_choice(mroot: &Path, key: &str) -> &'static str {
+    let sel = load_selection(mroot);
+    let choice = |k: &str| -> Option<&'static str> {
+        match pick(&sel, k) {
+            Some("cpu") => Some("cpu"),
+            Some("vulkan") => Some("vulkan"),
+            Some("gpu") | Some("cuda") => Some("gpu"),
+            _ => None,
+        }
+    };
+    choice(key).or_else(|| if key == "local_backend" { None } else { choice("local_backend") }).unwrap_or("auto")
 }
 
 /// Глобальный backend локальных стадий (обратная совместимость: пресеты/старые вызовы).
@@ -553,21 +570,30 @@ pub fn higgs_ref_secs(mroot: &Path) -> f64 {
     sel_num(mroot, "higgs_ref_secs").filter(|s| *s > 0.0 && *s <= 60.0).unwrap_or(12.0)
 }
 
-/// Резолв активного ASR: выбран движок whisper и CrisperWhisper скачан — CrisperWhisper на бэкенде стадии
-/// распознавания; иначе — модель transcribe.cpp из настроек (Nemotron или Parakeet в своём варианте), скачана она или
-/// нет: недостающую (и выбранный, но не скачанный CrisperWhisper) называет `asr_util::choice_of`.
+/// The active recogniser: Whisper chosen and CrisperWhisper downloaded — CrisperWhisper in audiocpp_server; Parakeet
+/// TDT v3 and Nemotron 3.5 — in audiocpp_server, reading transcribe.cpp's GGUF; Parakeet Ultra on transcribe.cpp. Both servers
+/// run the build of the recognition device. Whether the model is downloaded is `asr_util::choice_of`'s to say.
 pub fn resolve_asr_choice(repo_root: &Path, mroot: &Path, sel: &Value) -> AsrChoice {
     if pick(sel, "asr_engine") == Some("whisper") && crate::engines::acpp::crisperwhisper_installed(mroot) {
         return AsrChoice::CrisperWhisper {
             repo_root: repo_root.to_path_buf(),
             models_root: mroot.to_path_buf(),
-            backend: stage_backend(mroot, "asr_backend"),
+            choice: server_choice(mroot, "asr_backend"),
             build: tcpp_build(mroot),
         };
     }
     let model = crate::engines::tcpp_asr::chosen(pick(sel, "asr_engine").unwrap_or(""), pick(sel, "asr"))
         .or_else(|| crate::engines::tcpp_asr::model("parakeet-v3"))
         .expect("parakeet-v3 is in dub_asr::tcpp::MODELS");
+    if crate::engines::acpp::SERVER_ASR.contains(&model.id) {
+        return AsrChoice::Server {
+            repo_root: repo_root.to_path_buf(),
+            models_root: mroot.to_path_buf(),
+            choice: server_choice(mroot, "asr_backend"),
+            build: tcpp_build(mroot),
+            model,
+        };
+    }
     AsrChoice::Ggml { models_root: mroot.to_path_buf(), build: tcpp_build(mroot), model }
 }
 
@@ -732,7 +758,7 @@ mod asr_variant_tests {
 
     fn file_of(sel: Value) -> &'static str {
         match resolve_asr_choice(Path::new("."), Path::new("no-models"), &sel) {
-            AsrChoice::Ggml { model, .. } => model.file,
+            AsrChoice::Ggml { model, .. } | AsrChoice::Server { model, .. } => model.file,
             other => panic!("{}", other.describe()),
         }
     }

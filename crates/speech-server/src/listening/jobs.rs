@@ -87,6 +87,15 @@ fn engine_for(p: &ListenPaths, project: &ListenProject, lang: &str) -> Result<En
             }
             Ok(Engine::Local(choice.clone(), if model.id == "nemotron" { "nemotron" } else { "parakeet" }))
         }
+        crate::engines::models::AsrChoice::Server { model, .. } => {
+            if !dub_asr::tcpp::model_path(&p.models_root, model).is_file() {
+                return Err(t!("listen-gguf-missing", engine = model.name));
+            }
+            if !crate::engines::tcpp_asr::knows(model, lang) {
+                return Err(t!("listen-gguf-lang", engine = model.name, lang = lang.to_string()));
+            }
+            Ok(Engine::Local(choice.clone(), if model.id == "nemotron" { "nemotron" } else { "parakeet" }))
+        }
     }
 }
 
@@ -301,9 +310,11 @@ fn recognise(p: &ListenPaths, engine: &Engine, wav: &Path, work: &Path, s: &lp::
     let lines = match engine {
         Engine::Local(choice, _) => {
             std::env::set_var("DUB_ASR_BACKEND", crate::engines::models::stage_backend(&p.models_root, "asr_backend"));
-            // CrisperWhisper windows a long recording itself; the others get it in pieces cut at pauses
+            // the server's models window a long recording themselves; transcribe.cpp's get it in pieces cut at pauses
             let segments = match choice {
-                crate::engines::models::AsrChoice::CrisperWhisper { .. } => crate::engines::asr::build_engine(choice, prompt)?.transcribe(wav, lang).map_err(|e| e.localize())?,
+                crate::engines::models::AsrChoice::CrisperWhisper { .. } | crate::engines::models::AsrChoice::Server { .. } => {
+                    crate::engines::asr::build_engine(choice, prompt)?.transcribe(wav, lang).map_err(|e| e.localize())?
+                }
                 crate::engines::models::AsrChoice::Ggml { .. } => recognise_by_pauses(p, choice, wav, work, lang, &s.vad, progress)?,
             };
             dub_asr::split_at_speaker_turns(segments, turns)
@@ -413,7 +424,11 @@ pub fn transcribe(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Resul
     let mix = work.join("audio16.wav");
     crate::audio::media::to_16k_mono(&src, &mix)?;
     let studio_model = match &engine {
-        Engine::Local(crate::engines::models::AsrChoice::Ggml { model, .. }, _) if matches!(s.lang.as_str(), "" | "auto") => Some(*model),
+        Engine::Local(crate::engines::models::AsrChoice::Ggml { model, .. } | crate::engines::models::AsrChoice::Server { model, .. }, _)
+            if matches!(s.lang.as_str(), "" | "auto") =>
+        {
+            Some(*model)
+        }
         _ => None,
     };
     if let Some(model) = studio_model {

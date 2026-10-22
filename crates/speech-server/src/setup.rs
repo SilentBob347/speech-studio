@@ -212,31 +212,40 @@ mod platform {
     // GitHub: deno 2.9.7 (denoland/deno) — JS-рантайм, без которого yt-dlp не решает задачи YouTube (yt-dlp-ejs уже внутри
     // yt-dlp.exe; вики yt-dlp EJS: deno не ниже 2.3.0).
     const GH_DENO: &str = "https://github.com/denoland/deno/releases/download/v2.9.7/deno-x86_64-pc-windows-msvc.zip";
-    // audiocpp_server (timoncool/audio.cpp, branch studio, efc92120): Higgs and CrisperWhisper. CUDA 13, sm 75/80/86/
-    // 89/90/120a without PTX, cudart linked in; cuBLAS and cuFFT from cuda-runtime (models/higgs-engine on PATH); the
-    // VC++ runtime and vcomp140 beside it in the archive; on a computer without a card it runs on the CPU.
-    pub const HIGGS_ENGINE: Parts = Parts {
-        size: 130_925_562,
-        files: &[
-            FileSpec { url: "https://github.com/timoncool/audio.cpp/releases/download/server-efc92120/audiocpp-server-win-cuda13-x64.zip", dest_rel: "tools/audiocpp/_server.zip", size: 130_925_562, sha256: "d50d4d6a86000b6a99e9d89354a034b61dcc07a79299f0608f6705dc604abbfb", extract: Extract::Flat },
-        ],
+    // audiocpp_server (timoncool/audio.cpp, branch studio; acpp_server::asset): Higgs, CrisperWhisper and Nemotron. One
+    // archive a build: the program with the VC++ runtime and vcomp140; the CUDA builds take cuBLAS and cuFFT from
+    // cuda-runtime (CUDA 13) or cuda12-runtime (CUDA 12.9).
+    const fn server_file(asset: acpp_server::asset::Asset, archive: &'static str) -> FileSpec {
+        FileSpec { url: asset.url, dest_rel: archive, size: asset.size, sha256: asset.sha256, extract: Extract::Flat }
+    }
+    pub const SERVER_CUDA13: Parts = Parts {
+        size: acpp_server::asset::SERVER_WIN_CUDA13.size,
+        files: &[server_file(acpp_server::asset::SERVER_WIN_CUDA13, "tools/audiocpp/_server.zip")],
         markers: &[Marker { rel: "tools/audiocpp/audiocpp_server.exe", expect: 0 }],
     };
-    // The CUDA 12.9 build for the cards and drivers CUDA 13 left (SASS 5.2-12.0a, no PTX); its libraries come from
-    // cuda12-runtime.
-    pub const HIGGS_ENGINE_CUDA12: Parts = Parts {
-        size: 177_968_601,
-        files: &[
-            FileSpec { url: "https://github.com/timoncool/audio.cpp/releases/download/server-efc92120/audiocpp-server-win-cuda12-x64.zip", dest_rel: "tools/audiocpp-cuda12/_server.zip", size: 177_968_601, sha256: "db3a50f67948d1d703882efa4a587bc8fe89f1c7d46b1b04e86afd4d5054563e", extract: Extract::Flat },
-        ],
+    pub const SERVER_CUDA12: Parts = Parts {
+        size: acpp_server::asset::SERVER_WIN_CUDA12.size,
+        files: &[server_file(acpp_server::asset::SERVER_WIN_CUDA12, "tools/audiocpp-cuda12/_server.zip")],
         markers: &[Marker { rel: "tools/audiocpp-cuda12/audiocpp_server.exe", expect: 0 }],
     };
+    pub const SERVER_VULKAN: Parts = Parts {
+        size: acpp_server::asset::SERVER_WIN_VULKAN.size,
+        files: &[server_file(acpp_server::asset::SERVER_WIN_VULKAN, "tools/audiocpp-vulkan/_server.zip")],
+        markers: &[Marker { rel: "tools/audiocpp-vulkan/audiocpp_server.exe", expect: 0 }],
+    };
+    pub const SERVER_CPU: Parts = Parts {
+        size: acpp_server::asset::SERVER_WIN_CPU.size,
+        files: &[server_file(acpp_server::asset::SERVER_WIN_CPU, "tools/audiocpp-cpu/_server.zip")],
+        markers: &[Marker { rel: "tools/audiocpp-cpu/audiocpp_server.exe", expect: 0 }],
+    };
 
-    /// The audiocpp_server build of this card.
-    pub fn audiocpp_server() -> &'static Parts {
-        match crate::engines::acpp::build() {
-            crate::engines::hw::CudaBuild::Cuda13 => &HIGGS_ENGINE,
-            crate::engines::hw::CudaBuild::Cuda12 => &HIGGS_ENGINE_CUDA12,
+    /// The download of a build of the server.
+    pub fn server_parts(build: acpp_server::asset::Build) -> &'static Parts {
+        match build {
+            acpp_server::asset::Build::Cuda13 => &SERVER_CUDA13,
+            acpp_server::asset::Build::Cuda12 => &SERVER_CUDA12,
+            acpp_server::asset::Build::Vulkan => &SERVER_VULKAN,
+            acpp_server::asset::Build::Cpu => &SERVER_CPU,
         }
     }
 
@@ -389,19 +398,59 @@ mod platform {
 mod platform {
     use super::{Extract, FileSpec, Marker, Parts};
 
-    // Движок Higgs, собранный под Linux из исходника (timoncool/Higgs-Ultimate, sm 75/80/86/89/90/120a): RUNPATH
-    // $ORIGIN, CUDA-библиотеки берёт из своего каталога (их кладёт cuda-runtime).
-    pub const HIGGS_ENGINE: Parts = Parts {
-        size: 136_774_464,
-        files: &[
-            FileSpec { url: "https://github.com/timoncool/Higgs-Ultimate/releases/download/engine-0.2.3-turing/libaudiocpp_engine.so", dest_rel: "models/higgs-engine/libaudiocpp_engine.so", size: 136_774_464, sha256: "dae7b29111acf1e564f9afa541b2a4d360ba2cd6fc60eb4d5b8bdb9c04d722f6", extract: Extract::None },
-        ],
-        markers: &[Marker { rel: "models/higgs-engine/libaudiocpp_engine.so", expect: 136_774_464 }],
+    // audiocpp_server (timoncool/audio.cpp, branch studio; acpp_server::asset): Higgs, CrisperWhisper and Nemotron, one
+    // archive a build with libgomp beside the program; RUNPATH $ORIGIN, ../../models/higgs-engine (CUDA 13 runtime of
+    // cuda-runtime) and ../../models/cuda12-runtime (cuda12-runtime).
+    const fn server_file(asset: acpp_server::asset::Asset, archive: &'static str) -> FileSpec {
+        FileSpec { url: asset.url, dest_rel: archive, size: asset.size, sha256: asset.sha256, extract: Extract::Flat }
+    }
+    pub const SERVER_CUDA13: Parts = Parts {
+        size: acpp_server::asset::SERVER_LINUX_CUDA13.size,
+        files: &[server_file(acpp_server::asset::SERVER_LINUX_CUDA13, "tools/audiocpp/_server.tar.gz")],
+        markers: &[Marker { rel: "tools/audiocpp/audiocpp_server", expect: 0 }],
+    };
+    pub const SERVER_CUDA12: Parts = Parts {
+        size: acpp_server::asset::SERVER_LINUX_CUDA12.size,
+        files: &[server_file(acpp_server::asset::SERVER_LINUX_CUDA12, "tools/audiocpp-cuda12/_server.tar.gz")],
+        markers: &[Marker { rel: "tools/audiocpp-cuda12/audiocpp_server", expect: 0 }],
+    };
+    pub const SERVER_VULKAN: Parts = Parts {
+        size: acpp_server::asset::SERVER_LINUX_VULKAN.size,
+        files: &[server_file(acpp_server::asset::SERVER_LINUX_VULKAN, "tools/audiocpp-vulkan/_server.tar.gz")],
+        markers: &[Marker { rel: "tools/audiocpp-vulkan/audiocpp_server", expect: 0 }],
+    };
+    pub const SERVER_CPU: Parts = Parts {
+        size: acpp_server::asset::SERVER_LINUX_CPU.size,
+        files: &[server_file(acpp_server::asset::SERVER_LINUX_CPU, "tools/audiocpp-cpu/_server.tar.gz")],
+        markers: &[Marker { rel: "tools/audiocpp-cpu/audiocpp_server", expect: 0 }],
     };
 
-    pub fn audiocpp_server() -> &'static Parts {
-        &HIGGS_ENGINE
+    /// The download of a build of the server.
+    pub fn server_parts(build: acpp_server::asset::Build) -> &'static Parts {
+        match build {
+            acpp_server::asset::Build::Cuda13 => &SERVER_CUDA13,
+            acpp_server::asset::Build::Cuda12 => &SERVER_CUDA12,
+            acpp_server::asset::Build::Vulkan => &SERVER_VULKAN,
+            acpp_server::asset::Build::Cpu => &SERVER_CPU,
+        }
     }
+
+    // CUDA 12.9 runtime for the CUDA 12.9 build (manylinux wheels of the Windows component's versions: cudart 12.9.79,
+    // cuBLAS 12.9.2.10, cuFFT 11.4.1.4), in their own folder the build's RUNPATH names.
+    pub const CUDA12_RUNTIME: Parts = Parts {
+        size: 785_610_881,
+        files: &[
+            FileSpec { url: "https://files.pythonhosted.org/packages/bc/46/a92db19b8309581092a3add7e6fceb4c301a3fd233969856a8cbf042cd3c/nvidia_cuda_runtime_cu12-12.9.79-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", dest_rel: "models/cuda12-runtime/_cudart.whl", size: 3_493_179, sha256: "25bba2dfb01d48a9b59ca474a1ac43c6ebf7011f1b0b8cc44f54eb6ac48a96c3", extract: Extract::Libs },
+            FileSpec { url: "https://files.pythonhosted.org/packages/cb/c0/0a517bfe63ccd3b92eb254d264e28fca3c7cab75d07daea315250fb1bf73/nvidia_cublas_cu12-12.9.2.10-py3-none-manylinux_2_27_x86_64.whl", dest_rel: "models/cuda12-runtime/_cublas.whl", size: 581_240_110, sha256: "e4f53a8ca8c5d6e8c492d0d0a3d565ecb59a751b19cfdaa4f6da0ab2104c1702", extract: Extract::Libs },
+            FileSpec { url: "https://files.pythonhosted.org/packages/95/f4/61e6996dd20481ee834f57a8e9dca28b1869366a135e0d42e2aa8493bdd4/nvidia_cufft_cu12-11.4.1.4-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", dest_rel: "models/cuda12-runtime/_cufft.whl", size: 200_877_592, sha256: "c67884f2a7d276b4b80eb56a79322a95df592ae5e765cf1243693365ccab4e28", extract: Extract::Libs },
+        ],
+        markers: &[
+            Marker { rel: "models/cuda12-runtime/libcudart.so.12", expect: 0 },
+            Marker { rel: "models/cuda12-runtime/libcublas.so.12", expect: 0 },
+            Marker { rel: "models/cuda12-runtime/libcublasLt.so.12", expect: 0 },
+            Marker { rel: "models/cuda12-runtime/libcufft.so.11", expect: 0 },
+        ],
+    };
 
     // Движок Drama 3 (форк timoncool/drama-rs, capi/build-linux-docker.sh: CUDA 13.3, Ubuntu 22.04, sm 75/80/86/89/90/
     // 100/120): RUNPATH $ORIGIN и ../higgs-engine, где libcudart и libcublas ставит cuda-runtime.
@@ -685,9 +734,9 @@ pub fn manifest() -> Vec<Component> {
             purpose: t!("setup-comp-higgs-engine-purpose"),
             requirement: Requirement::Required,
             delivery: Delivery::Download,
-            size: platform::audiocpp_server().size,
-            files: platform::audiocpp_server().files,
-            markers: platform::audiocpp_server().markers,
+            size: platform::server_parts(crate::engines::acpp::build()).size,
+            files: platform::server_parts(crate::engines::acpp::build()).files,
+            markers: platform::server_parts(crate::engines::acpp::build()).markers,
             external_url: None,
         },
         Component {
@@ -752,7 +801,7 @@ pub fn manifest() -> Vec<Component> {
         },
         Component {
             id: "parakeet",
-            name: "Parakeet TDT 0.6B v3 (GGUF Q8_0, transcribe.cpp)".into(),
+            name: "Parakeet TDT 0.6B v3 (GGUF Q8_0)".into(),
             purpose: t!("setup-comp-parakeet-purpose"),
             requirement: Requirement::Required,
             delivery: Delivery::Download,
@@ -941,7 +990,7 @@ pub fn manifest() -> Vec<Component> {
         },
         Component {
             id: "asr-gguf-nemotron",
-            name: "Nemotron 3.5 ASR 0.6B (GGUF Q8_0, transcribe.cpp)".into(),
+            name: "Nemotron 3.5 ASR 0.6B (GGUF Q8_0)".into(),
             purpose: t!("setup-comp-asr-gguf-nemotron-purpose"),
             requirement: Requirement::Optional,
             delivery: Delivery::Download,
@@ -1260,8 +1309,33 @@ pub fn manifest() -> Vec<Component> {
     if !cfg!(windows) {
         all.retain(|c| c.id != "vcruntime");
     }
-    #[cfg(windows)]
-    if crate::engines::acpp::build() == crate::engines::hw::CudaBuild::Cuda12 {
+    // the server's other builds this computer can be set to, fetched when a stage is set to their device: the card's
+    // CUDA build, Vulkan and the processor
+    let card = crate::engines::acpp::build_for("gpu").ok();
+    for build in [acpp_server::asset::Build::Cuda13, acpp_server::asset::Build::Cuda12, acpp_server::asset::Build::Vulkan, acpp_server::asset::Build::Cpu] {
+        let cuda = matches!(build, acpp_server::asset::Build::Cuda13 | acpp_server::asset::Build::Cuda12);
+        if build == crate::engines::acpp::build() || (cuda && Some(build) != card) {
+            continue;
+        }
+        let parts = platform::server_parts(build);
+        all.push(Component {
+            id: crate::engines::acpp::component(build),
+            name: t!("setup-comp-audiocpp-build-name", build = match build {
+                acpp_server::asset::Build::Cuda13 => "CUDA 13",
+                acpp_server::asset::Build::Cuda12 => "CUDA 12.9",
+                acpp_server::asset::Build::Vulkan => "Vulkan",
+                acpp_server::asset::Build::Cpu => "CPU",
+            }),
+            purpose: t!("setup-comp-audiocpp-build-purpose"),
+            requirement: Requirement::Optional,
+            delivery: Delivery::Download,
+            size: parts.size,
+            files: parts.files,
+            markers: parts.markers,
+            external_url: None,
+        });
+    }
+    if crate::engines::acpp::build() == acpp_server::asset::Build::Cuda12 {
         all.push(Component {
             id: "cuda12-runtime",
             name: "CUDA 12.9 runtime (cudart + cuBLAS + cuFFT)".into(),
@@ -2991,8 +3065,18 @@ fn write_entry(entry: &mut impl Read, out: &Path, mode: Option<u32>) -> Result<(
 
 // ═══════════════════════════════════════════════════════════════════════════
 /// Models of a former version that nothing reads any more (Speech Studio 0.1.0: Parakeet and Silero VAD on ONNX Runtime;
-/// 0.2.4: the Faster-Whisper models and the Higgs engine library, which audiocpp_server replaced), under the models folder.
-const RETIRED: &[&str] = &["tdt", "tdt-ultra-int8", "silero-vad/silero_vad.onnx", "whisper", "higgs-engine/audiocpp_engine.dll", "higgs-engine/audiocpp_engine.dll.json"];
+/// 0.2.4: the Faster-Whisper models and the Higgs engine library on Windows and Linux, which audiocpp_server replaced),
+/// under the models folder.
+const RETIRED: &[&str] = &[
+    "tdt",
+    "tdt-ultra-int8",
+    "silero-vad/silero_vad.onnx",
+    "whisper",
+    "higgs-engine/audiocpp_engine.dll",
+    "higgs-engine/audiocpp_engine.dll.json",
+    "higgs-engine/libaudiocpp_engine.so",
+    "higgs-engine/libaudiocpp_engine.so.json",
+];
 
 /// Removes the retired models, so they do not keep gigabytes that no row of the setup screen shows. A link (another
 /// program's folder linked in) loses only the link; a hard-linked file stays with the program that shares it.

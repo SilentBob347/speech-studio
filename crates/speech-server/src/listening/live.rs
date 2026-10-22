@@ -197,9 +197,11 @@ fn listen(choice: crate::engines::models::AsrChoice, models_root: &Path, lang: &
     let label = choice.label();
     // Nemotron 3.5 is a streaming model: a phrase is recognised as it is spoken instead of again from its start
     let mut stream = match &choice {
-        crate::engines::models::AsrChoice::Ggml { models_root, build, model } if model.id == "nemotron" => Some(
-            dub_asr::tcpp::TcppStream::new(&dub_asr::tcpp::engine_dir(models_root, *build), &dub_asr::tcpp::model_path(models_root, model), lang)?,
-        ),
+        crate::engines::models::AsrChoice::Ggml { models_root, build, model } | crate::engines::models::AsrChoice::Server { models_root, build, model, .. }
+            if model.id == "nemotron" =>
+        {
+            Some(dub_asr::tcpp::TcppStream::new(&dub_asr::tcpp::engine_dir(models_root, *build), &dub_asr::tcpp::model_path(models_root, model), lang)?)
+        }
         _ => None,
     };
     // samples of `audio` the stream already has

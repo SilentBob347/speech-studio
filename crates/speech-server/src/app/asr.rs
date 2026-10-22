@@ -117,7 +117,7 @@ pub fn choice_of(repo_root: &Path, models_root: &Path, lang: &str, what: &str, e
     if !choice.knows(lang) {
         if !matches!(asked.as_str(), "" | "parakeet") {
             let name = match &choice {
-                crate::engines::models::AsrChoice::Ggml { model, .. } => model.name,
+                crate::engines::models::AsrChoice::Ggml { model, .. } | crate::engines::models::AsrChoice::Server { model, .. } => model.name,
                 crate::engines::models::AsrChoice::CrisperWhisper { .. } => "CrisperWhisper",
             };
             return Err(t!("listen-gguf-lang", engine = name, lang = lang.to_string()));
@@ -131,10 +131,14 @@ pub fn choice_of(repo_root: &Path, models_root: &Path, lang: &str, what: &str, e
         }
         return Ok(whisper);
     }
-    if let crate::engines::models::AsrChoice::Ggml { build, model, .. } = &choice {
-        if !crate::engines::tcpp_asr::installed(models_root, *build, model) {
+    match &choice {
+        crate::engines::models::AsrChoice::Ggml { build, model, .. } if !crate::engines::tcpp_asr::installed(models_root, *build, model) => {
             return Err(t!("listen-gguf-missing", engine = model.name));
         }
+        crate::engines::models::AsrChoice::Server { model, .. } if !dub_asr::tcpp::model_path(models_root, model).is_file() => {
+            return Err(t!("listen-gguf-missing", engine = model.name));
+        }
+        _ => {}
     }
     Ok(choice)
 }
@@ -148,7 +152,6 @@ pub fn missing_parts(repo_root: &Path, models_root: &Path, engine: &str) -> Vec<
             obj.insert("asr_engine".into(), json!(engine));
         }
     }
-    let gpu = crate::engines::models::stage_backend(models_root, "asr_backend") == "gpu";
     let mut ids: Vec<String> = Vec::new();
     if sel.get("asr_engine").and_then(serde_json::Value::as_str) == Some("whisper") {
         // its weights, and the language id (VoxLingua107) with the transcribe.cpp build it runs on for «auto»
@@ -156,13 +159,27 @@ pub fn missing_parts(repo_root: &Path, models_root: &Path, engine: &str) -> Vec<
             ids.push("crisperwhisper-turbo".to_string());
         }
         ids.extend(["langid".to_string(), crate::engines::models::tcpp_build(models_root).dir().to_string()]);
-        if gpu {
-            ids.push("cuda-runtime".to_string());
+        if let Ok(build) = crate::engines::acpp::build_for(crate::engines::models::server_choice(models_root, "asr_backend")) {
+            ids.push(crate::engines::acpp::component(build).to_string());
+            ids.extend(crate::engines::acpp::runtime_component(build).map(str::to_string));
         }
-    } else if let crate::engines::models::AsrChoice::Ggml { build, model, .. } = crate::engines::models::resolve_asr_choice(repo_root, models_root, &sel) {
-        ids.extend([build.dir().to_string(), model.component.to_string()]);
-        if matches!(build, crate::engines::tcpp_asr::Build::Cuda) {
-            ids.push("cuda-runtime".to_string());
+    } else {
+        match crate::engines::models::resolve_asr_choice(repo_root, models_root, &sel) {
+            crate::engines::models::AsrChoice::Ggml { build, model, .. } => {
+                ids.extend([build.dir().to_string(), model.component.to_string()]);
+                if matches!(build, crate::engines::tcpp_asr::Build::Cuda) {
+                    ids.push("cuda-runtime".to_string());
+                }
+            }
+            // the model, the server build of the recognition device and its CUDA runtime
+            crate::engines::models::AsrChoice::Server { model, choice, .. } => {
+                ids.push(model.component.to_string());
+                if let Ok(build) = crate::engines::acpp::build_for(choice) {
+                    ids.push(crate::engines::acpp::component(build).to_string());
+                    ids.extend(crate::engines::acpp::runtime_component(build).map(str::to_string));
+                }
+            }
+            crate::engines::models::AsrChoice::CrisperWhisper { .. } => {}
         }
     }
     let manifest = crate::setup::manifest();

@@ -24,7 +24,7 @@ mod summaries;
 mod window;
 
 use activity::*;
-pub(crate) use activity::{name_agent, seen, status};
+pub(crate) use activity::{agent_present, name_agent, seen, status};
 use catalog::*;
 pub(crate) use catalog::{annotations, resource};
 use routing::*;
