@@ -722,7 +722,9 @@ pub fn prepare_ref(voices: &Path, name: &str, limit: f64, take: u32) -> Result<(
     std::fs::create_dir_all(&cache).map_err(|e| format!("{}: {e}", cache.display()))?;
     let words = crate::voice_library::read_words(voices, name);
     let turn = if lib.card.rotate { take.saturating_sub(1) as usize } else { 0 };
-    let tag = blake3::hash(format!("{name}|{}|{stamp}|{limit:.1}|{}|{turn}", meta.len(), words.is_some()).as_bytes()).to_hex()[..16].to_string();
+    // the text and the word timings are in the key: a piece cut before they were edited or recognised again is stale
+    let timed = words.as_ref().map(|w| serde_json::to_string(w).unwrap_or_default()).unwrap_or_default();
+    let tag = blake3::hash(format!("{name}|{}|{stamp}|{limit:.1}|{turn}|{}|{timed}", meta.len(), lib.transcript.as_deref().unwrap_or("")).as_bytes()).to_hex()[..16].to_string();
     let wav = cache.join(format!("{tag}.wav"));
     let txt = cache.join(format!("{tag}.txt"));
     if wav.is_file() {

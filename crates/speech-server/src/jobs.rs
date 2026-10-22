@@ -351,8 +351,26 @@ impl JobCtl {
 }
 
 /// Убить процесс по pid (TerminateProcess на Windows). Pid берётся из учёта, пока хэндл процесса у
-/// владельца открыт, поэтому переиспользован другим процессом быть не может.
-fn kill_pid(pid: u32) -> bool {
+/// владельца открыт, поэтому переиспользован другим процессом быть не может. Не через sysinfo: на Windows он
+/// зовёт taskkill.exe, а тот висит там, где завис WMI, и отмена ждёт конца процесса.
+#[cfg(windows)]
+pub(crate) fn kill_pid(pid: u32) -> bool {
+    use windows_sys::Win32::Foundation::CloseHandle;
+    use windows_sys::Win32::System::Threading::{OpenProcess, TerminateProcess, PROCESS_TERMINATE};
+    // SAFETY: the handle is checked before use and closed after it.
+    unsafe {
+        let handle = OpenProcess(PROCESS_TERMINATE, 0, pid);
+        if handle.is_null() {
+            return false;
+        }
+        let killed = TerminateProcess(handle, 1) != 0;
+        CloseHandle(handle);
+        killed
+    }
+}
+
+#[cfg(not(windows))]
+pub(crate) fn kill_pid(pid: u32) -> bool {
     let p = sysinfo::Pid::from_u32(pid);
     let mut sys = sysinfo::System::new();
     sys.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[p]), true);

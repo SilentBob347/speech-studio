@@ -15,6 +15,8 @@ release notes on GitHub are taken from the release's section.
 - **Checking the SHA-256 after a download moves the bar** (bytes checked of the bytes to check) instead of leaving it at 100 %; a failure inside the download thread ends the download with its cause instead of leaving it spinning.
 - **A synthesis that timed out or hung names its engine.**
 - **The director's verbatim check takes full-width digits and letters (３, Ａ) as the ordinary ones.**
+- **Stop ends the engines a job started at once** (separator, llama-server, ffmpeg, yt-dlp): on Windows they were ended through taskkill, which waits as long as WMI hangs, so a stopped job could keep running to its end.
+- **An edited reference text is used at once**: the piece cut from a voice was kept by the audio's size and date alone, so a corrected text or new word timings came in only after the audio changed.
 
 ## 0.2.0 — 2026-10-20
 
