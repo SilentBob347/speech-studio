@@ -257,6 +257,23 @@ pub fn tcpp_build(mroot: &Path) -> crate::engines::tcpp_asr::Build {
     }
 }
 
+/// The name of a build, as the engines' folders and the separation crate name it.
+pub fn build_name(build: acpp_server::asset::Build) -> &'static str {
+    match build {
+        acpp_server::asset::Build::Cuda13 => "cuda13",
+        acpp_server::asset::Build::Cuda12 => "cuda12",
+        acpp_server::asset::Build::Vulkan => "vulkan",
+        acpp_server::asset::Build::Cpu => "cpu",
+    }
+}
+
+/// The separation engine's program for the separation device (`sep_backend`, see `acpp::build_for`): the card's CUDA
+/// build, Vulkan or the processor's.
+pub fn sep_cli(repo_root: &Path, mroot: &Path) -> Result<PathBuf, String> {
+    let build = crate::engines::acpp::build_for(server_choice(mroot, "sep_backend"))?;
+    Ok(dub_sep::engine_cli_of(repo_root, build_name(build)))
+}
+
 /// The device the settings choose for a stage run in audiocpp_server (`asr_backend`, `local_backend`): the stage's own
 /// choice, else the common one — `cpu`, `vulkan`, `gpu` or `auto`; [`crate::engines::acpp::build_for`] turns it into
 /// the server's build.

@@ -69,7 +69,7 @@ pub fn clean(p: &VoicePaths, name: &str, progress: &dyn Fn(Value)) -> Result<Val
     crate::engines::tts_host::make_room();
     crate::app::ensure_job_components(&p.repo_root, &p.models_root, false, false, &|ev| progress(ev))?;
     let sel = crate::engines::models::load_selection(&p.models_root);
-    let cli = dub_sep::engine_cli(&p.repo_root, crate::engines::models::stage_backend(&p.models_root, "sep_backend"));
+    let cli = crate::engines::models::sep_cli(&p.repo_root, &p.models_root)?;
     let model = crate::engines::models::resolve_sep(&p.models_root, &sel);
     if !cli.is_file() || !model.is_file() {
         return Err(t!("voice-clean-missing"));
@@ -173,7 +173,7 @@ pub fn design_keep(p: &VoicePaths, id: &str, k: u32, name: &str, description: &s
 /// Можно ли чистить голос сейчас: движок и модель Roformer на месте.
 pub fn clean_ready(p: &VoicePaths) -> bool {
     let sel = crate::engines::models::load_selection(&p.models_root);
-    dub_sep::engine_cli(&p.repo_root, crate::engines::models::stage_backend(&p.models_root, "sep_backend")).is_file()
+    crate::engines::models::sep_cli(&p.repo_root, &p.models_root).is_ok_and(|cli| cli.is_file())
         && crate::engines::models::resolve_sep(&p.models_root, &sel).is_file()
 }
 

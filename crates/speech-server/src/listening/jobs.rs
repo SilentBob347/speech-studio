@@ -207,7 +207,7 @@ fn join_words(words: &[Word]) -> String {
 fn separate(p: &ListenPaths, src: &Path, work: &Path) -> Result<PathBuf, String> {
     crate::engines::tts_host::make_room();
     let sel = crate::engines::models::load_selection(&p.models_root);
-    let cli = dub_sep::engine_cli(&p.repo_root, crate::engines::models::stage_backend(&p.models_root, "sep_backend"));
+    let cli = crate::engines::models::sep_cli(&p.repo_root, &p.models_root)?;
     let model = crate::engines::models::resolve_sep(&p.models_root, &sel);
     if !cli.is_file() || !model.is_file() {
         return Err(t!("listen-separate-missing"));
@@ -216,7 +216,7 @@ fn separate(p: &ListenPaths, src: &Path, work: &Path) -> Result<PathBuf, String>
     crate::audio::media::extract_audio(src, &hq, 44_100, 2)?;
     let stems = work.join("stems");
     dub_tcpp::cpu_floor("BSRoformer")?;
-    tracing::info!("separation: {} ({})", cli.display(), crate::engines::models::stage_backend(&p.models_root, "sep_backend"));
+    tracing::info!("separation: {}", cli.display());
     let res = dub_sep::separate(&hq, &stems, &cli, &model).map_err(|e| e.localize())?;
     let clean = work.join("vocals16.wav");
     crate::audio::media::to_16k_mono(&res.vocals, &clean)?;
@@ -229,7 +229,7 @@ pub fn separate_to(repo_root: &Path, models_root: &Path, src: &Path, out: &Path,
     crate::engines::tts_host::make_room();
     crate::app::ensure_job_components(repo_root, models_root, false, false, &|ev| progress(ev))?;
     let sel = crate::engines::models::load_selection(models_root);
-    let cli = dub_sep::engine_cli(repo_root, crate::engines::models::stage_backend(models_root, "sep_backend"));
+    let cli = crate::engines::models::sep_cli(repo_root, models_root)?;
     let model = crate::engines::models::resolve_sep(models_root, &sel);
     if !cli.is_file() || !model.is_file() {
         return Err(t!("listen-separate-missing"));

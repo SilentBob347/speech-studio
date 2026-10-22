@@ -6,6 +6,7 @@ use std::ffi::{c_char, c_void, CStr, CString};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use acpp_server::asset::Build;
 use libloading::Library;
 
 pub const ENGINE: &str = "qwen3-tts";
@@ -133,12 +134,20 @@ struct Api {
 
 /// The library, loaded once and kept for the life of the process: ggml's static initialiser refuses a second load
 /// at the address it had (its terminate handler would already be the one it installs), so freeing the library and
-/// loading it again aborts the process.
-static LOADED: std::sync::Mutex<Option<(Library, Api)>> = std::sync::Mutex::new(None);
+/// loading it again aborts the process. Every build names its ggml libraries alike, so another build cannot join it.
+static LOADED: std::sync::Mutex<Option<(PathBuf, Library, Api)>> = std::sync::Mutex::new(None);
+
+/// The folder of the build this process loaded, when it is not `dir`: another build waits for a restart.
+pub fn loaded_elsewhere(dir: &Path) -> Option<PathBuf> {
+    LOADED.lock().unwrap_or_else(|e| e.into_inner()).as_ref().map(|(d, _, _)| d.clone()).filter(|d| d != dir)
+}
 
 fn library(dir: &Path) -> Result<Api, String> {
     let mut loaded = LOADED.lock().unwrap_or_else(|e| e.into_inner());
-    if let Some((_, api)) = loaded.as_ref() {
+    if let Some((d, _, api)) = loaded.as_ref() {
+        if d != dir {
+            return Err(format!("qwen3-tts: the build in {} is loaded; another build loads after a restart", d.display()));
+        }
         return Ok(*api);
     }
     let lib = unsafe { Library::new(dir.join(LIBRARY)) }.map_err(|e| format!("{}: {e}", dir.join(LIBRARY).display()))?;
@@ -162,7 +171,7 @@ fn library(dir: &Path) -> Result<Api, String> {
             voice_ref_free: sym!("qt_voice_ref_free"),
         }
     };
-    *loaded = Some((lib, api));
+    *loaded = Some((dir.to_path_buf(), lib, api));
     Ok(api)
 }
 
@@ -198,6 +207,27 @@ pub fn dir(models_root: &Path) -> PathBuf {
     models_root.join(DIR)
 }
 
+/// The folder of a build of the library: CUDA 13 beside the weights, where former versions put it, the others in a
+/// folder of their own.
+pub fn lib_dir(models_root: &Path, build: Build) -> PathBuf {
+    match build {
+        Build::Cuda13 => dir(models_root),
+        Build::Cuda12 => models_root.join("qwen3-tts-cuda12"),
+        Build::Vulkan => models_root.join("qwen3-tts-vulkan"),
+        Build::Cpu => models_root.join("qwen3-tts-cpu"),
+    }
+}
+
+/// The build the voicing device of the settings runs Qwen on (`tts_backend`, see `acpp::build_for`).
+pub fn build(models_root: &Path) -> Result<Build, String> {
+    crate::engines::acpp::build_for(crate::engines::models::server_choice(models_root, "tts_backend"))
+}
+
+/// The library of that build is on disk.
+fn library_installed(models_root: &Path) -> bool {
+    build(models_root).is_ok_and(|b| lib_dir(models_root, b).join(LIBRARY).is_file())
+}
+
 pub fn is_engine(id: &str) -> bool {
     id == ENGINE || id == ENGINE_STRESS
 }
@@ -215,13 +245,12 @@ pub fn design_talker(models_root: &Path, quant: &str) -> PathBuf {
 
 /// The engine, its codec and the VoiceDesign talker of the quantisation are on disk.
 pub fn design_installed(models_root: &Path, quant: &str) -> bool {
-    let d = dir(models_root);
-    d.join(LIBRARY).is_file() && d.join(CODEC).is_file() && design_talker(models_root, quant).is_file()
+    library_installed(models_root) && dir(models_root).join(CODEC).is_file() && design_talker(models_root, quant).is_file()
 }
 
 pub fn installed(models_root: &Path, quant: &str, clone: bool, stress: bool) -> bool {
     let d = dir(models_root);
-    d.join(LIBRARY).is_file()
+    library_installed(models_root)
         && d.join(CODEC).is_file()
         && talker(models_root, quant, clone).is_some_and(|t| t.is_file())
         && (!stress || d.join(STRESS_LORA).is_file())
@@ -263,28 +292,29 @@ unsafe extern "C" fn cancel_trampoline(user: *mut c_void) -> bool {
 impl Engine {
     /// Loads the library (its CUDA libraries are found on PATH) and the talker of `quant`: Base when `clone`, else
     /// CustomVoice; `stress` adds the Russian stress adapter to the Base talker.
-    pub fn load(models_root: &Path, quant: &str, clone: bool, stress: bool) -> Result<Engine, String> {
+    pub fn load(models_root: &Path, build: Build, quant: &str, clone: bool, stress: bool) -> Result<Engine, String> {
         if stress && !clone {
             return Err("qwen3-tts: the stress adapter is trained on the Base talker".into());
         }
         let talker = talker(models_root, quant, clone).ok_or_else(|| format!("qwen3-tts: no quantisation {quant}"))?;
-        Engine::open(models_root, &talker, stress, if clone { "base" } else { "custom_voice" })
+        Engine::open(models_root, build, &talker, stress, if clone { "base" } else { "custom_voice" })
     }
 
     /// The VoiceDesign talker: a voice made from the description in `Say::instruct`, no speaker, no reference.
-    pub fn load_design(models_root: &Path, quant: &str) -> Result<Engine, String> {
-        Engine::open(models_root, &design_talker(models_root, quant), false, "voice_design")
+    pub fn load_design(models_root: &Path, build: Build, quant: &str) -> Result<Engine, String> {
+        Engine::open(models_root, build, &design_talker(models_root, quant), false, "voice_design")
     }
 
-    fn open(models_root: &Path, talker: &Path, stress: bool, expected: &str) -> Result<Engine, String> {
+    fn open(models_root: &Path, build: Build, talker: &Path, stress: bool, expected: &str) -> Result<Engine, String> {
         let d = dir(models_root);
+        let lib = lib_dir(models_root, build);
         // its ggml libraries sit beside it under names other engines' libraries could share: this folder comes first
         let path = std::env::var("PATH").unwrap_or_default();
-        if !std::env::split_paths(&path).any(|p| p == d) {
-            let joined = std::env::join_paths(std::iter::once(d.clone()).chain(std::env::split_paths(&path))).map_err(|e| e.to_string())?;
+        if !std::env::split_paths(&path).any(|p| p == lib) {
+            let joined = std::env::join_paths(std::iter::once(lib.clone()).chain(std::env::split_paths(&path))).map_err(|e| e.to_string())?;
             std::env::set_var("PATH", joined);
         }
-        let api = library(&d)?;
+        let api = library(&lib)?;
         let (t, c) = (cstring(&talker.to_string_lossy(), "talker path")?, cstring(&d.join(CODEC).to_string_lossy(), "codec path")?);
         let lora = if stress { Some(cstring(&d.join(STRESS_LORA).to_string_lossy(), "adapter path")?) } else { None };
         let mut p: InitParams = unsafe { std::mem::zeroed() };

@@ -242,16 +242,29 @@ pub fn qwen(models_root: &Path, clone: bool, stress: bool) -> Result<Tts, String
             (false, false) => t!("render-qwen-missing"),
         });
     }
-    cuda13_ready()?;
-    dub_tcpp::cpu_floor("Qwen3-TTS")?;
-    let e = Arc::new(crate::engines::qwen_tts::Engine::load(models_root, &quant, clone || stress, stress).map_err(|e| t!("render-qwen-load-failed", error = e))?);
-    tracing::info!("voicing: Qwen3-TTS {talker} {quant} on CUDA");
+    let build = qwen_build(models_root)?;
+    let e = Arc::new(crate::engines::qwen_tts::Engine::load(models_root, build, &quant, clone || stress, stress).map_err(|e| t!("render-qwen-load-failed", error = e))?);
+    tracing::info!("voicing: Qwen3-TTS {talker} {quant} on its {build:?} build");
     *slot = Some((key, Tts::Qwen(e.clone())));
     touch();
     Ok(Tts::Qwen(e))
 }
 
 /// Видеокарта и драйвер тянут CUDA 13 (сборка движков ggml); нет — ошибка с причиной.
+/// The build of Qwen for the voicing device, once the computer can run it: the processor's floor, the CUDA 13 card and
+/// driver for that build, and no other build already in this process (they share ggml's library names).
+fn qwen_build(models_root: &Path) -> Result<acpp_server::asset::Build, String> {
+    let build = crate::engines::qwen_tts::build(models_root)?;
+    dub_tcpp::cpu_floor("Qwen3-TTS")?;
+    if build == acpp_server::asset::Build::Cuda13 {
+        cuda13_ready()?;
+    }
+    if crate::engines::qwen_tts::loaded_elsewhere(&crate::engines::qwen_tts::lib_dir(models_root, build)).is_some() {
+        return Err(t!("render-qwen-restart-device"));
+    }
+    Ok(build)
+}
+
 fn cuda13_ready() -> Result<(), String> {
     let gpu = crate::engines::hw::gpu_report();
     if gpu.cuda13_ok {
@@ -280,9 +293,9 @@ pub fn qwen_design(models_root: &Path) -> Result<Tts, String> {
     if !crate::engines::qwen_tts::design_installed(models_root, &quant) {
         return Err(t!("voice-design-missing"));
     }
-    cuda13_ready()?;
-    dub_tcpp::cpu_floor("Qwen3-TTS")?;
-    let e = Arc::new(crate::engines::qwen_tts::Engine::load_design(models_root, &quant).map_err(|e| t!("render-qwen-load-failed", error = e))?);
+    let build = qwen_build(models_root)?;
+    let e = Arc::new(crate::engines::qwen_tts::Engine::load_design(models_root, build, &quant).map_err(|e| t!("render-qwen-load-failed", error = e))?);
+    tracing::info!("voicing: Qwen3-TTS voice design {quant} on its {build:?} build");
     *slot = Some((key, Tts::Qwen(e.clone())));
     touch();
     Ok(Tts::Qwen(e))
