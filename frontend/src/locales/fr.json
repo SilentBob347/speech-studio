@@ -105,6 +105,8 @@
     "pathsFailed": "Impossible d'obtenir le dossier de données : {{error}}",
     "theme": "Thème",
     "themeHint": "Sombre, clair ou comme le système",
+    "volume": "Volume du studio",
+    "volumeHint": "Tout ce que joue le studio : doublage, voix, enregistrements et sons",
     "theme_system": "Comme le système",
     "theme_dark": "Sombre",
     "theme_light": "Clair",

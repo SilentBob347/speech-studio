@@ -105,6 +105,8 @@
     "pathsFailed": "Não foi possível obter a pasta de dados: {{error}}",
     "theme": "Tema",
     "themeHint": "Escuro, claro ou como o sistema",
+    "volume": "Volume do estúdio",
+    "volumeHint": "Tudo o que o estúdio toca: locução, vozes, gravações e sons",
     "theme_system": "Como o sistema",
     "theme_dark": "Escuro",
     "theme_light": "Claro",

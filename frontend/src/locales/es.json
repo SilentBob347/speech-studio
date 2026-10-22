@@ -105,6 +105,8 @@
     "pathsFailed": "No se pudo obtener la carpeta de datos: {{error}}",
     "theme": "Tema",
     "themeHint": "Oscuro, claro o como el sistema",
+    "volume": "Volumen del estudio",
+    "volumeHint": "Todo lo que reproduce el estudio: locución, voces, grabaciones y sonidos",
     "theme_system": "Como el sistema",
     "theme_dark": "Oscuro",
     "theme_light": "Claro",

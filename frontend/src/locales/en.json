@@ -105,6 +105,8 @@
     "pathsFailed": "Couldn't get the data folder: {{error}}",
     "theme": "Theme",
     "themeHint": "Dark, light, or as the system is",
+    "volume": "Studio volume",
+    "volumeHint": "Everything the studio plays: voicing, voices, recordings and sounds",
     "theme_system": "As the system",
     "theme_dark": "Dark",
     "theme_light": "Light",

@@ -105,6 +105,8 @@
     "pathsFailed": "无法获取数据文件夹：{{error}}",
     "theme": "主题",
     "themeHint": "深色、浅色或跟随系统",
+    "volume": "工作室音量",
+    "volumeHint": "工作室播放的所有声音：配音、声音、录音和提示音",
     "theme_system": "跟随系统",
     "theme_dark": "深色",
     "theme_light": "浅色",

@@ -6,8 +6,10 @@ import App from "./App.tsx";
 import TalkWidget from "./components/talk/TalkWidget";
 import { startBridge } from "./lib/mcpBridge";
 import { applyTheme, savedTheme } from "./lib/theme";
+import { installMasterVolume } from "./lib/masterVolume";
 
 applyTheme(savedTheme());
+installMasterVolume();
 // the widget is a second window of the same studio, not one the agent drives
 const params = new URLSearchParams(window.location.search);
 const widget = params.has("widget");
