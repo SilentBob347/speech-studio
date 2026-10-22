@@ -1,0 +1,684 @@
+{
+  "baseline": "36af8a1",
+  "cases": [
+    {
+      "name": "markup-higgs",
+      "text": "<speak>Это **з+амок** <break time=\"300ms\"/> [[z a]] <laugh> [laughs] <whisper>тихо</whisper> <|emotion:anger|> <unknown>5 минут.</speak>",
+      "engine": "higgs",
+      "lang": "ru",
+      "prepared": {
+        "text": "Это **з+амок** [pause 300ms] [[z a]] <laugh> [laughs] <whisper>тихо</whisper> <|emotion:anger|> <unknown>пять минут.",
+        "engine_text": "Это замок z a тихо <|emotion:anger|> пять минут.",
+        "steps": [
+          {
+            "layer": "ssml",
+            "rule": "break",
+            "from": "<break time=\"300ms\"/>",
+            "to": "[pause 300ms]"
+          },
+          {
+            "layer": "normalizer",
+            "rule": "number",
+            "from": "5",
+            "to": "пять"
+          }
+        ],
+        "unknown": [
+          "laugh",
+          "laughs",
+          "whisper>тихо</whisper",
+          "unknown>пять"
+        ],
+        "ignored": {
+          "accent": true,
+          "phonemes": true,
+          "stress": true,
+          "unknown_tags": [
+            "<laugh>",
+            "<whisper>",
+            "</whisper>",
+            "<unknown>"
+          ]
+        },
+        "ignored_phonemes": [],
+        "broken": []
+      },
+      "fingerprint": "c8d75ed13253"
+    },
+    {
+      "name": "markup-drama3",
+      "text": "<speak>Это **з+амок** <break time=\"300ms\"/> [[z a]] <laugh> [laughs] <whisper>тихо</whisper> <|emotion:anger|> <unknown>5 минут.</speak>",
+      "engine": "drama3",
+      "lang": "ru",
+      "prepared": {
+        "text": "Это **з+амок** [pause 300ms] [[z a]] <laugh> [laughs] <whisper>тихо</whisper> <|emotion:anger|> <unknown>пять минут.",
+        "engine_text": "Это замок z a <laugh> [laughs] <whisper>тихо</whisper> <unknown>пять минут.",
+        "steps": [
+          {
+            "layer": "ssml",
+            "rule": "break",
+            "from": "<break time=\"300ms\"/>",
+            "to": "[pause 300ms]"
+          },
+          {
+            "layer": "normalizer",
+            "rule": "number",
+            "from": "5",
+            "to": "пять"
+          }
+        ],
+        "unknown": [
+          "laugh",
+          "laughs",
+          "whisper>тихо</whisper",
+          "unknown>пять"
+        ],
+        "ignored": {
+          "accent": true,
+          "phonemes": true,
+          "stress": true,
+          "unknown_tags": [
+            "<|emotion:anger|>"
+          ]
+        },
+        "ignored_phonemes": [],
+        "broken": []
+      },
+      "fingerprint": "c8d75ed13253"
+    },
+    {
+      "name": "markup-supertonic",
+      "text": "<speak>Это **з+амок** <break time=\"300ms\"/> [[z a]] <laugh> [laughs] <whisper>тихо</whisper> <|emotion:anger|> <unknown>5 минут.</speak>",
+      "engine": "supertonic",
+      "lang": "ru",
+      "prepared": {
+        "text": "Это **з+амок** [pause 300ms] [[z a]] <laugh> [laughs] <whisper>тихо</whisper> <|emotion:anger|> <unknown>пять минут.",
+        "engine_text": "Это за́мок z a <laugh> тихо пять минут.",
+        "steps": [
+          {
+            "layer": "ssml",
+            "rule": "break",
+            "from": "<break time=\"300ms\"/>",
+            "to": "[pause 300ms]"
+          },
+          {
+            "layer": "normalizer",
+            "rule": "number",
+            "from": "5",
+            "to": "пять"
+          }
+        ],
+        "unknown": [
+          "laugh",
+          "laughs",
+          "whisper>тихо</whisper",
+          "unknown>пять"
+        ],
+        "ignored": {
+          "accent": true,
+          "phonemes": true,
+          "stress": false,
+          "unknown_tags": [
+            "<whisper>",
+            "</whisper>",
+            "<|emotion:anger|>",
+            "<unknown>",
+            "[laughs]"
+          ]
+        },
+        "ignored_phonemes": [],
+        "broken": []
+      },
+      "fingerprint": "c8d75ed13253"
+    },
+    {
+      "name": "markup-qwen3-tts",
+      "text": "<speak>Это **з+амок** <break time=\"300ms\"/> [[z a]] <laugh> [laughs] <whisper>тихо</whisper> <|emotion:anger|> <unknown>5 минут.</speak>",
+      "engine": "qwen3-tts",
+      "lang": "ru",
+      "prepared": {
+        "text": "Это **з+амок** [pause 300ms] [[z a]] <laugh> [laughs] <whisper>тихо</whisper> <|emotion:anger|> <unknown>пять минут.",
+        "engine_text": "Это замок z a тихо пять минут.",
+        "steps": [
+          {
+            "layer": "ssml",
+            "rule": "break",
+            "from": "<break time=\"300ms\"/>",
+            "to": "[pause 300ms]"
+          },
+          {
+            "layer": "normalizer",
+            "rule": "number",
+            "from": "5",
+            "to": "пять"
+          }
+        ],
+        "unknown": [
+          "laugh",
+          "laughs",
+          "whisper>тихо</whisper",
+          "unknown>пять"
+        ],
+        "ignored": {
+          "accent": true,
+          "phonemes": true,
+          "stress": true,
+          "unknown_tags": [
+            "<laugh>",
+            "<whisper>",
+            "</whisper>",
+            "<|emotion:anger|>",
+            "<unknown>",
+            "[laughs]"
+          ]
+        },
+        "ignored_phonemes": [],
+        "broken": []
+      },
+      "fingerprint": "c8d75ed13253"
+    },
+    {
+      "name": "markup-qwen3-tts-ru",
+      "text": "<speak>Это **з+амок** <break time=\"300ms\"/> [[z a]] <laugh> [laughs] <whisper>тихо</whisper> <|emotion:anger|> <unknown>5 минут.</speak>",
+      "engine": "qwen3-tts-ru",
+      "lang": "ru",
+      "prepared": {
+        "text": "Это **з+амок** [pause 300ms] [[z a]] <laugh> [laughs] <whisper>тихо</whisper> <|emotion:anger|> <unknown>пять минут.",
+        "engine_text": "Это за́мок z a тихо пять минут.",
+        "steps": [
+          {
+            "layer": "ssml",
+            "rule": "break",
+            "from": "<break time=\"300ms\"/>",
+            "to": "[pause 300ms]"
+          },
+          {
+            "layer": "normalizer",
+            "rule": "number",
+            "from": "5",
+            "to": "пять"
+          }
+        ],
+        "unknown": [
+          "laugh",
+          "laughs",
+          "whisper>тихо</whisper",
+          "unknown>пять"
+        ],
+        "ignored": {
+          "accent": true,
+          "phonemes": true,
+          "stress": false,
+          "unknown_tags": [
+            "<laugh>",
+            "<whisper>",
+            "</whisper>",
+            "<|emotion:anger|>",
+            "<unknown>",
+            "[laughs]"
+          ]
+        },
+        "ignored_phonemes": [],
+        "broken": []
+      },
+      "fingerprint": "c8d75ed13253"
+    },
+    {
+      "name": "markup-openrouter",
+      "text": "<speak>Это **з+амок** <break time=\"300ms\"/> [[z a]] <laugh> [laughs] <whisper>тихо</whisper> <|emotion:anger|> <unknown>5 минут.</speak>",
+      "engine": "openrouter",
+      "lang": "ru",
+      "prepared": {
+        "text": "Это **з+амок** [pause 300ms] [[z a]] <laugh> [laughs] <whisper>тихо</whisper> <|emotion:anger|> <unknown>пять минут.",
+        "engine_text": "Это замок z a тихо <|emotion:anger|> пять минут.",
+        "steps": [
+          {
+            "layer": "ssml",
+            "rule": "break",
+            "from": "<break time=\"300ms\"/>",
+            "to": "[pause 300ms]"
+          },
+          {
+            "layer": "normalizer",
+            "rule": "number",
+            "from": "5",
+            "to": "пять"
+          }
+        ],
+        "unknown": [
+          "laugh",
+          "laughs",
+          "whisper>тихо</whisper",
+          "unknown>пять"
+        ],
+        "ignored": {
+          "accent": true,
+          "phonemes": true,
+          "stress": true,
+          "unknown_tags": [
+            "<laugh>",
+            "<whisper>",
+            "</whisper>",
+            "<unknown>"
+          ]
+        },
+        "ignored_phonemes": [],
+        "broken": []
+      },
+      "fingerprint": "c8d75ed13253"
+    },
+    {
+      "name": "markup-unregistered",
+      "text": "<speak>Это **з+амок** <break time=\"300ms\"/> [[z a]] <laugh> [laughs] <whisper>тихо</whisper> <|emotion:anger|> <unknown>5 минут.</speak>",
+      "engine": "unregistered",
+      "lang": "ru",
+      "prepared": {
+        "text": "Это **з+амок** [pause 300ms] [[z a]] <laugh> [laughs] <whisper>тихо</whisper> <|emotion:anger|> <unknown>пять минут.",
+        "engine_text": "Это замок z a тихо <|emotion:anger|> пять минут.",
+        "steps": [
+          {
+            "layer": "ssml",
+            "rule": "break",
+            "from": "<break time=\"300ms\"/>",
+            "to": "[pause 300ms]"
+          },
+          {
+            "layer": "normalizer",
+            "rule": "number",
+            "from": "5",
+            "to": "пять"
+          }
+        ],
+        "unknown": [
+          "laugh",
+          "laughs",
+          "whisper>тихо</whisper",
+          "unknown>пять"
+        ],
+        "ignored": {
+          "accent": true,
+          "phonemes": true,
+          "stress": true,
+          "unknown_tags": [
+            "<laugh>",
+            "<whisper>",
+            "</whisper>",
+            "<unknown>"
+          ]
+        },
+        "ignored_phonemes": [],
+        "broken": []
+      },
+      "fingerprint": "c8d75ed13253"
+    },
+    {
+      "name": "ordered-layers",
+      "text": "<speak>ИИ за <break time=\"200ms\"/> 5 минут [rate:0.8] прочтёт 2 книги.</speak>",
+      "entries": [
+        {
+          "id": "e1",
+          "find": "ИИ",
+          "say": "искусственный интеллект",
+          "case_sensitive": true
+        }
+      ],
+      "prepared": {
+        "text": "искусственный интеллект за [pause 200ms] пять минут [rate:0.8] прочтёт две книги.",
+        "engine_text": "искусственный интеллект за пять минут прочтёт две книги.",
+        "steps": [
+          {
+            "layer": "ssml",
+            "rule": "break",
+            "from": "<break time=\"200ms\"/>",
+            "to": "[pause 200ms]"
+          },
+          {
+            "layer": "dictionary",
+            "rule": "e1",
+            "from": "ИИ",
+            "to": "искусственный интеллект"
+          },
+          {
+            "layer": "normalizer",
+            "rule": "number",
+            "from": "5",
+            "to": "пять"
+          },
+          {
+            "layer": "normalizer",
+            "rule": "number",
+            "from": "2",
+            "to": "две"
+          }
+        ],
+        "unknown": [],
+        "ignored": {
+          "accent": false,
+          "phonemes": false,
+          "stress": false,
+          "unknown_tags": []
+        },
+        "ignored_phonemes": [],
+        "broken": []
+      },
+      "fingerprint": "aa8ca19617ed"
+    },
+    {
+      "name": "disabled-normalization",
+      "text": "ИИ за 5 минут.",
+      "normalize": false,
+      "entries": [
+        {
+          "id": "e1",
+          "find": "ИИ",
+          "say": "искусственный интеллект"
+        }
+      ],
+      "prepared": {
+        "text": "искусственный интеллект за 5 минут.",
+        "engine_text": "искусственный интеллект за 5 минут.",
+        "steps": [
+          {
+            "layer": "dictionary",
+            "rule": "e1",
+            "from": "ИИ",
+            "to": "искусственный интеллект"
+          }
+        ],
+        "unknown": [],
+        "ignored": {
+          "accent": false,
+          "phonemes": false,
+          "stress": false,
+          "unknown_tags": []
+        },
+        "ignored_phonemes": [],
+        "broken": []
+      },
+      "fingerprint": "6dd4e95800ec"
+    },
+    {
+      "name": "disabled-number-group",
+      "text": "У меня 5 книг и 2 яблока.",
+      "normalize_off": [
+        "numbers"
+      ],
+      "prepared": {
+        "text": "У меня 5 книг и 2 яблока.",
+        "engine_text": "У меня 5 книг и 2 яблока.",
+        "steps": [],
+        "unknown": [
+          "5",
+          "2"
+        ],
+        "ignored": {
+          "accent": false,
+          "phonemes": false,
+          "stress": false,
+          "unknown_tags": []
+        },
+        "ignored_phonemes": [],
+        "broken": []
+      },
+      "fingerprint": "c8d75ed13253"
+    },
+    {
+      "name": "english-skips-stress",
+      "text": "I have 5 apples [pause 300ms] and **2** pears.",
+      "lang": "en",
+      "stress": true,
+      "prepared": {
+        "text": "I have 5 apples [pause 300ms] and **2** pears.",
+        "engine_text": "I have 5 apples and 2 pears.",
+        "steps": [],
+        "unknown": [],
+        "ignored": {
+          "accent": true,
+          "phonemes": false,
+          "stress": false,
+          "unknown_tags": []
+        },
+        "ignored_phonemes": [],
+        "broken": []
+      },
+      "fingerprint": ""
+    },
+    {
+      "name": "scoped-priority",
+      "text": "NASA and cat",
+      "lang": "ru",
+      "engine": "qwen3-tts",
+      "voice": "Anna",
+      "entries": [
+        {
+          "id": "scoped",
+          "lang": "ru",
+          "voice": "Anna",
+          "engine": "qwen3-tts",
+          "find": "NASA",
+          "say": "НАСА"
+        },
+        {
+          "id": "global",
+          "find": "NASA",
+          "say": "global"
+        },
+        {
+          "id": "disabled",
+          "enabled": false,
+          "find": "cat",
+          "say": "dog"
+        }
+      ],
+      "prepared": {
+        "text": "НАСА and cat",
+        "engine_text": "НАСА and cat",
+        "steps": [
+          {
+            "layer": "dictionary",
+            "rule": "scoped",
+            "from": "NASA",
+            "to": "НАСА"
+          }
+        ],
+        "unknown": [
+          "and",
+          "cat"
+        ],
+        "ignored": {
+          "accent": false,
+          "phonemes": false,
+          "stress": false,
+          "unknown_tags": []
+        },
+        "ignored_phonemes": [],
+        "broken": []
+      },
+      "fingerprint": "44b15f0081b0"
+    },
+    {
+      "name": "phonemes-and-broken-rule",
+      "text": "cat iPhone",
+      "lang": "ru",
+      "entries": [
+        {
+          "id": "phonemes",
+          "kind": "phonemes",
+          "find": "cat",
+          "say": "k ae t"
+        },
+        {
+          "id": "broken",
+          "kind": "regex",
+          "find": "(",
+          "say": "bad"
+        }
+      ],
+      "prepared": {
+        "text": "cat iPhone",
+        "engine_text": "cat iPhone",
+        "steps": [],
+        "unknown": [
+          "cat",
+          "iPhone"
+        ],
+        "ignored": {
+          "accent": false,
+          "phonemes": false,
+          "stress": false,
+          "unknown_tags": []
+        },
+        "ignored_phonemes": [
+          "cat"
+        ],
+        "broken": [
+          [
+            "broken",
+            "(: Parsing error at position 5: Opening parenthesis without closing parenthesis"
+          ]
+        ]
+      },
+      "fingerprint": "92b3cd06a9de"
+    },
+    {
+      "name": "empty",
+      "text": "",
+      "prepared": {
+        "text": "",
+        "engine_text": "",
+        "steps": [],
+        "unknown": [],
+        "ignored": {
+          "accent": false,
+          "phonemes": false,
+          "stress": false,
+          "unknown_tags": []
+        },
+        "ignored_phonemes": [],
+        "broken": []
+      },
+      "fingerprint": ""
+    }
+  ],
+  "fingerprints": [
+    {
+      "engine": "higgs",
+      "stress": false,
+      "text": "Привет, мир",
+      "model": "tiny2",
+      "fingerprint": ""
+    },
+    {
+      "engine": "higgs",
+      "stress": false,
+      "text": "Привет, 5 книг",
+      "model": "tiny2",
+      "fingerprint": "c8d75ed13253"
+    },
+    {
+      "engine": "higgs",
+      "stress": true,
+      "text": "Привет, мир",
+      "model": "tiny2",
+      "fingerprint": ""
+    },
+    {
+      "engine": "higgs",
+      "stress": true,
+      "text": "Привет, 5 книг",
+      "model": "tiny2",
+      "fingerprint": "c8d75ed13253"
+    },
+    {
+      "engine": "supertonic",
+      "stress": false,
+      "text": "Привет, мир",
+      "model": "tiny2",
+      "fingerprint": ""
+    },
+    {
+      "engine": "supertonic",
+      "stress": false,
+      "text": "Привет, 5 книг",
+      "model": "tiny2",
+      "fingerprint": "c8d75ed13253"
+    },
+    {
+      "engine": "supertonic",
+      "stress": true,
+      "text": "Привет, мир",
+      "model": "tiny2",
+      "fingerprint": "bc89a2c7be6e"
+    },
+    {
+      "engine": "supertonic",
+      "stress": true,
+      "text": "Привет, 5 книг",
+      "model": "tiny2",
+      "fingerprint": "0ddd6a08ea4b"
+    },
+    {
+      "engine": "qwen3-tts-ru",
+      "stress": false,
+      "text": "Привет, мир",
+      "model": "tiny2",
+      "fingerprint": ""
+    },
+    {
+      "engine": "qwen3-tts-ru",
+      "stress": false,
+      "text": "Привет, 5 книг",
+      "model": "tiny2",
+      "fingerprint": "c8d75ed13253"
+    },
+    {
+      "engine": "qwen3-tts-ru",
+      "stress": true,
+      "text": "Привет, мир",
+      "model": "tiny2",
+      "fingerprint": "bc89a2c7be6e"
+    },
+    {
+      "engine": "qwen3-tts-ru",
+      "stress": true,
+      "text": "Привет, 5 книг",
+      "model": "tiny2",
+      "fingerprint": "0ddd6a08ea4b"
+    },
+    {
+      "engine": "unregistered",
+      "stress": false,
+      "text": "Привет, мир",
+      "model": "tiny2",
+      "fingerprint": ""
+    },
+    {
+      "engine": "unregistered",
+      "stress": false,
+      "text": "Привет, 5 книг",
+      "model": "tiny2",
+      "fingerprint": "c8d75ed13253"
+    },
+    {
+      "engine": "unregistered",
+      "stress": true,
+      "text": "Привет, мир",
+      "model": "tiny2",
+      "fingerprint": ""
+    },
+    {
+      "engine": "unregistered",
+      "stress": true,
+      "text": "Привет, 5 книг",
+      "model": "tiny2",
+      "fingerprint": "c8d75ed13253"
+    },
+    {
+      "engine": "supertonic",
+      "stress": true,
+      "text": "Привет, мир",
+      "model": "big_poetry",
+      "fingerprint": "d942db67bf52"
+    }
+  ]
+}

@@ -32,6 +32,16 @@ release notes on GitHub are taken from the release's section.
 - **The diagnostics check the transcribe.cpp builds' libraries too.**
 - **Stop ends the engines a job started at once** (separator, llama-server, ffmpeg, yt-dlp): on Windows they were ended through taskkill, which waits as long as WMI hangs, so a stopped job could keep running to its end.
 - **An edited reference text is used at once**: the piece cut from a voice was kept by the audio's size and date alone, so a corrected text or new word timings came in only after the audio changed.
+- **Assistant streaming.** Text remains intact across network packets, malformed model events report errors, and provider-reported costs are retained when a stream fails.
+- **Assistant tool batches.** A batch cannot bypass the chat's tool restrictions and start a recursive assistant request.
+- **Link import retries.** A failed Listening-project import preserves the downloaded media for retry and cleans up the unfinished project directory.
+- **Stress model errors.** Missing, malformed or non-finite RUAccent outputs now report an error instead of panicking or silently skipping stress marks.
+- **Dictionary import errors.** Malformed multipart uploads now report an error even when an earlier part contained a valid dictionary.
+- **Noise suppression errors.** Invalid DPDFNet metadata or output sizes now return an error instead of panicking during processing.
+- **DLL diagnostics.** Malformed import addresses and unsupported PE headers report an error instead of panicking or passing the check.
+- **Credential saves.** Failed key and proxy password replacements clean up their temporary files and preserve the previous value.
+- **Reliable file saves.** Concurrent saves of a voice's card, transcript and image no longer share a temporary file.
+  Failed writes and blocked replacements preserve the previous file.
 
 ## 0.2.0 — 2026-10-20
 

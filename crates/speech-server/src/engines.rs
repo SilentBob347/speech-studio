@@ -2,6 +2,20 @@
 //! запуска: языки (из карточки модели), параметры с типом, диапазоном и умолчанием, режимы сида, теги экспрессии,
 //! вид клона, продолжение, стриминг, что из разметки текста движок читает.
 
+pub(crate) mod acpp;
+pub(crate) mod asr;
+pub(crate) mod denoise;
+pub(crate) mod bench;
+pub(crate) mod hw;
+pub(crate) mod models;
+pub(crate) mod presets;
+pub(crate) mod qwen_tts;
+pub(crate) mod supertonic;
+pub(crate) mod stress;
+pub(crate) mod tcpp_asr;
+pub(crate) mod tts_host;
+pub(crate) mod vad;
+
 use serde::Serialize;
 
 #[derive(Serialize, Clone, Debug)]
@@ -96,8 +110,8 @@ pub fn higgs() -> Engine {
         ],
         seed_modes: &["random", "fixed", "inc", "dec"],
         tag_format: "<|{category}:{value}|>",
-        tags: crate::speech_text::HIGGS_TAGS.to_vec(),
-        sentence_tags: crate::speech_text::HIGGS_SENTENCE_TAGS,
+        tags: crate::text::adapter::HIGGS_TAGS.to_vec(),
+        sentence_tags: crate::text::adapter::HIGGS_SENTENCE_TAGS,
         glued_tags: &["sfx"],
         clone: "ref_text",
         continuation: true,
@@ -149,7 +163,7 @@ pub fn openrouter() -> Engine {
 /// рефу с текстом; видеокарты от 6 ГБ (см. `models::drama_unavailable`).
 pub fn drama() -> Engine {
     Engine {
-        id: crate::models::DRAMA_TTS,
+        id: crate::engines::models::DRAMA_TTS,
         name: "Drama 3",
         languages: &[],
         params: vec![
@@ -160,7 +174,7 @@ pub fn drama() -> Engine {
         ],
         seed_modes: &["random", "fixed", "inc", "dec"],
         tag_format: "[{value}]",
-        tags: crate::speech_text::DRAMA_TAGS.to_vec(),
+        tags: crate::text::adapter::DRAMA_TAGS.to_vec(),
         sentence_tags: &[],
         glued_tags: &[],
         clone: "ref_text",
@@ -185,27 +199,27 @@ pub fn drama() -> Engine {
 pub fn supertonic() -> Engine {
     let preset = |(id, description): &(&'static str, &'static str)| Preset { id, name: id, gender: if id.starts_with('F') { "female" } else { "male" }, native: "", description };
     Engine {
-        id: crate::supertonic::ENGINE,
+        id: crate::engines::supertonic::ENGINE,
         name: "Supertonic 3",
-        languages: crate::supertonic::LANGS,
+        languages: crate::engines::supertonic::LANGS,
         params: vec![
-            ParamSpec { key: "steps", kind: "int", min: 1.0, max: 32.0, step: 1.0, default: crate::supertonic::DEFAULT_STEPS as f64 },
-            ParamSpec { key: "speed", kind: "float", min: 0.5, max: 2.0, step: 0.05, default: crate::supertonic::DEFAULT_SPEED },
+            ParamSpec { key: "steps", kind: "int", min: 1.0, max: 32.0, step: 1.0, default: crate::engines::supertonic::DEFAULT_STEPS as f64 },
+            ParamSpec { key: "speed", kind: "float", min: 0.5, max: 2.0, step: 0.05, default: crate::engines::supertonic::DEFAULT_SPEED },
         ],
         seed_modes: &["random", "fixed", "inc", "dec"],
         tag_format: "<{value}>",
-        tags: crate::speech_text::SUPERTONIC_TAGS.to_vec(),
+        tags: crate::text::adapter::SUPERTONIC_TAGS.to_vec(),
         sentence_tags: &[],
         glued_tags: &[],
         clone: "none",
         continuation: false,
         streaming: false,
         deterministic_seed: true,
-        max_chars: crate::supertonic::MAX_CHARS,
+        max_chars: crate::engines::supertonic::MAX_CHARS,
         reads: Reads { stress: true, yo: true, phonemes: false, accent: false },
         direction: false,
         direction_presets_only: false,
-        presets: crate::supertonic::VOICE_DESCRIPTIONS.iter().map(preset).collect(),
+        presets: crate::engines::supertonic::VOICE_DESCRIPTIONS.iter().map(preset).collect(),
         needs_voice: false,
         ref_text_required: false,
         ref_max_secs: None,
@@ -218,9 +232,9 @@ pub fn supertonic() -> Engine {
 /// текстом (Base), десять языков; пометка блока идёт голосам модели указанием, как говорить. Сэмплинг по умолчанию — из портативки Qwen3-TTS_portable_rus (0,7 / 0,9).
 pub fn qwen() -> Engine {
     Engine {
-        id: crate::qwen_tts::ENGINE,
+        id: crate::engines::qwen_tts::ENGINE,
         name: "Qwen3-TTS",
-        languages: crate::qwen_tts::LANGS,
+        languages: crate::engines::qwen_tts::LANGS,
         params: vec![
             ParamSpec { key: "temperature", kind: "float", min: 0.05, max: 2.0, step: 0.05, default: 0.7 },
             ParamSpec { key: "top_k", kind: "int", min: 1.0, max: 500.0, step: 1.0, default: 50.0 },
@@ -240,7 +254,7 @@ pub fn qwen() -> Engine {
         reads: Reads { stress: false, yo: true, phonemes: false, accent: false },
         direction: true,
         direction_presets_only: true,
-        presets: crate::qwen_tts::SPEAKERS.iter().map(|(id, name, gender, native, description)| Preset { id, name, gender, native, description }).collect(),
+        presets: crate::engines::qwen_tts::SPEAKERS.iter().map(|(id, name, gender, native, description)| Preset { id, name, gender, native, description }).collect(),
         needs_voice: false,
         ref_text_required: false,
         ref_max_secs: None,
@@ -252,7 +266,7 @@ pub fn qwen() -> Engine {
 /// только клон голоса из библиотеки, ударение «+» доходит до модели знаком после гласной.
 pub fn qwen_stress() -> Engine {
     Engine {
-        id: crate::qwen_tts::ENGINE_STRESS,
+        id: crate::engines::qwen_tts::ENGINE_STRESS,
         name: "Qwen3-TTS · русские ударения",
         languages: &["ru"],
         presets: Vec::new(),
@@ -260,7 +274,7 @@ pub fn qwen_stress() -> Engine {
         direction: false,
         needs_voice: true,
         ref_text_required: false,
-        ref_max_secs: Some(crate::qwen_tts::STRESS_REF_SECS),
+        ref_max_secs: Some(crate::engines::qwen_tts::STRESS_REF_SECS),
         ..qwen()
     }
 }
@@ -316,13 +330,13 @@ pub fn all() -> Vec<Engine> {
 pub fn for_window(models_root: &std::path::Path) -> Vec<Engine> {
     let mut all = all();
     for e in all.iter_mut() {
-        if e.id == crate::models::DRAMA_TTS {
-            e.unavailable = crate::models::drama_unavailable(models_root).or_else(|| (!crate::models::drama_installed(models_root)).then(|| t!("render-drama-missing")));
-        } else if e.id == crate::supertonic::ENGINE && !crate::supertonic::installed(models_root) {
+        if e.id == crate::engines::models::DRAMA_TTS {
+            e.unavailable = crate::engines::models::drama_unavailable(models_root).or_else(|| (!crate::engines::models::drama_installed(models_root)).then(|| t!("render-drama-missing")));
+        } else if e.id == crate::engines::supertonic::ENGINE && !crate::engines::supertonic::installed(models_root) {
             e.unavailable = Some(t!("render-supertonic-missing"));
-        } else if e.id == crate::qwen_tts::ENGINE && !crate::qwen_tts::installed(models_root, &crate::models::qwen_quant(models_root), false, false) {
+        } else if e.id == crate::engines::qwen_tts::ENGINE && !crate::engines::qwen_tts::installed(models_root, &crate::engines::models::qwen_quant(models_root), false, false) {
             e.unavailable = Some(t!("render-qwen-missing"));
-        } else if e.id == crate::qwen_tts::ENGINE_STRESS && !crate::qwen_tts::installed(models_root, &crate::models::qwen_quant(models_root), true, true) {
+        } else if e.id == crate::engines::qwen_tts::ENGINE_STRESS && !crate::engines::qwen_tts::installed(models_root, &crate::engines::models::qwen_quant(models_root), true, true) {
             e.unavailable = Some(t!("render-qwen-stress-missing"));
         }
     }
