@@ -100,7 +100,7 @@ fn each_gpu_stage_requests_its_runtime_independently() {
             Ok(json!({}))
         })
         .unwrap();
-        let expected = vec!["cuda-runtime", "onnxruntime-gpu", "cudnn", "bsroformer-engine"];
+        let expected = vec!["cuda-runtime", "onnxruntime-gpu", "cudnn"];
         assert_eq!(calls.into_inner(), [expected], "{gpu_stage}");
     }
     let models = selection(

@@ -227,6 +227,7 @@ pub fn stage_backend(mroot: &Path, key: &str) -> &'static str {
     let pick_bk = |k: &str| -> Option<&'static str> {
         match pick(&sel, k) {
             Some("cpu") => Some("cpu"),
+            Some("vulkan") => Some("vulkan"),
             Some("gpu") | Some("cuda") => Some("gpu"),
             _ => None,
         }
@@ -272,6 +273,19 @@ pub fn build_name(build: acpp_server::asset::Build) -> &'static str {
 pub fn sep_cli(repo_root: &Path, mroot: &Path) -> Result<PathBuf, String> {
     let build = crate::engines::acpp::build_for(server_choice(mroot, "sep_backend"))?;
     Ok(dub_sep::engine_cli_of(repo_root, build_name(build)))
+}
+
+
+/// The components the separation device needs: its build of the separation engine and that build's CUDA runtime.
+pub fn sep_components(mroot: &Path) -> Result<Vec<&'static str>, String> {
+    let build = crate::engines::acpp::build_for(server_choice(mroot, "sep_backend"))?;
+    let engine = match build {
+        acpp_server::asset::Build::Cuda13 => "bsroformer-engine",
+        acpp_server::asset::Build::Cuda12 => "bsroformer-engine-cuda12",
+        acpp_server::asset::Build::Vulkan => "bsroformer-engine-vulkan",
+        acpp_server::asset::Build::Cpu => "bsroformer-engine-cpu",
+    };
+    Ok(std::iter::once(engine).chain(crate::engines::acpp::runtime_component(build)).collect())
 }
 
 /// The device the settings choose for a stage run in audiocpp_server (`asr_backend`, `local_backend`): the stage's own

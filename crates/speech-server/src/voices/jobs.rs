@@ -68,6 +68,7 @@ pub fn clean(p: &VoicePaths, name: &str, progress: &dyn Fn(Value)) -> Result<Val
     let audio = lib::audio_path(&p.voices_dir, name).ok_or_else(|| t!("voice-missing", name = name.to_string()))?;
     crate::engines::tts_host::make_room();
     crate::app::ensure_job_components(&p.repo_root, &p.models_root, false, false, &|ev| progress(ev))?;
+    crate::app::ensure_components(&p.repo_root, &crate::engines::models::sep_components(&p.models_root)?, &|ev| progress(ev))?;
     let sel = crate::engines::models::load_selection(&p.models_root);
     let cli = crate::engines::models::sep_cli(&p.repo_root, &p.models_root)?;
     let model = crate::engines::models::resolve_sep(&p.models_root, &sel);
@@ -81,7 +82,7 @@ pub fn clean(p: &VoicePaths, name: &str, progress: &dyn Fn(Value)) -> Result<Val
     crate::audio::media::extract_audio(&audio, &wav, 44_100, 2)?;
     let stems = work.path().join("stems");
     dub_tcpp::cpu_floor("BSRoformer")?;
-    tracing::info!("separation: {} ({})", cli.display(), crate::engines::models::stage_backend(&p.models_root, "sep_backend"));
+    tracing::info!("separation: {} ({})", cli.display(), crate::engines::models::server_choice(&p.models_root, "sep_backend"));
     let res = dub_sep::separate(&wav, &stems, &cli, &model).map_err(|e| e.localize())?;
     lib::replace_with_cleaned(&p.voices_dir, name, &res.vocals)?;
     Ok(json!({ "name": name, "cleaned": true }))

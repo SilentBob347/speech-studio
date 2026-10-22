@@ -238,7 +238,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
   // Озвучка и распознавание идут на audio.cpp и transcribe.cpp, у которых есть сборки Vulkan и CUDA 12.9.
   const backendTabs = (k: string) => {
     const cur = selv(k) || "auto";
-    const vulkan = k === "asr_backend" || k === "tts_backend";
+    const vulkan = k === "asr_backend" || k === "tts_backend" || k === "sep_backend";
     const gpuOff = vulkan ? !status.gpu.cudaBuild : !status.gpu.cuda13Ok;
     return (
       <div className="flex gap-1 mb-1.5">
@@ -406,7 +406,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
         {/* На чём считать сепарацию — свои табы (GPU CUDA-сборка / CPU-сборка BSRoformer). */}
         {backendTabs("sep_backend")}
         {variantPicker("Mel-Band Roformer voc_fv6", ["roformer", "roformer-q5", "roformer-q4"])}
-        {selv("sep_backend") === "cpu" ? rowOf("bsroformer-engine-cpu") : rowOf("bsroformer-engine")}
+        {rowOf(selv("sep_backend") === "cpu" ? "bsroformer-engine-cpu" : selv("sep_backend") === "vulkan" ? "bsroformer-engine-vulkan" : get("bsroformer-engine-cuda12") ? "bsroformer-engine-cuda12" : "bsroformer-engine")}
         {rowOf("dpdfnet")}
       </>)}
       {group(t("settings.roleDiar"), <>

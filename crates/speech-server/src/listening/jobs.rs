@@ -228,6 +228,7 @@ fn separate(p: &ListenPaths, src: &Path, work: &Path) -> Result<PathBuf, String>
 pub fn separate_to(repo_root: &Path, models_root: &Path, src: &Path, out: &Path, progress: &dyn Fn(Value)) -> Result<Value, String> {
     crate::engines::tts_host::make_room();
     crate::app::ensure_job_components(repo_root, models_root, false, false, &|ev| progress(ev))?;
+    crate::app::ensure_components(repo_root, &crate::engines::models::sep_components(models_root)?, &|ev| progress(ev))?;
     let sel = crate::engines::models::load_selection(models_root);
     let cli = crate::engines::models::sep_cli(repo_root, models_root)?;
     let model = crate::engines::models::resolve_sep(models_root, &sel);
@@ -239,7 +240,7 @@ pub fn separate_to(repo_root: &Path, models_root: &Path, src: &Path, out: &Path,
     let hq = work.path().join("mix-44k.wav");
     crate::audio::media::extract_audio(src, &hq, 44_100, 2)?;
     dub_tcpp::cpu_floor("BSRoformer")?;
-    tracing::info!("separation: {} ({})", cli.display(), crate::engines::models::stage_backend(models_root, "sep_backend"));
+    tracing::info!("separation: {} ({})", cli.display(), crate::engines::models::server_choice(models_root, "sep_backend"));
     let res = dub_sep::separate(&hq, &work.path().join("stems"), &cli, &model).map_err(|e| e.localize())?;
     std::fs::create_dir_all(out).map_err(|e| format!("{}: {e}", out.display()))?;
     let vocals = out.join("vocals.flac");
@@ -441,6 +442,7 @@ pub fn transcribe(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Resul
     }
     let clean = if s.separate {
         step(progress, t!("listen-step-separate"), 8);
+        crate::app::ensure_components(&p.repo_root, &crate::engines::models::sep_components(&p.models_root)?, &|ev| progress(ev))?;
         Some(separate(p, &src, &work)?)
     } else {
         None

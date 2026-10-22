@@ -307,7 +307,7 @@ fn ensure_job_components_with(
         .iter()
         .any(|k| models::stage_backend(models_root, k) == "gpu");
     if gpu {
-        for id in ["cuda-runtime", "onnxruntime-gpu", "cudnn", "bsroformer-engine"] {
+        for id in ["cuda-runtime", "onnxruntime-gpu", "cudnn"] {
             if missing(id) {
                 need.push(id.to_string());
             }

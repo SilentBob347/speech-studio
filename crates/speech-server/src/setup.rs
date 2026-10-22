@@ -171,9 +171,6 @@ pub(crate) const GH_LLAMA_BUILD: &str = "b11146";
 mod platform {
     use super::{Extract, FileSpec, Marker, Parts};
 
-    // GitHub: BSRoformer.cpp движок win-cuda-13.1.0 zip (chenmozhijin/BSRoformer.cpp v0.1.0).
-    const GH_BSROFORMER_ENGINE: &str =
-        "https://github.com/chenmozhijin/BSRoformer.cpp/releases/download/v0.1.0/BSRoformer-windows-cuda-13.1.0.zip";
     // GitHub: BSRoformer.cpp CPU-сборка (win-x64-msvc, без CUDA) — сепарация на процессоре: медленнее,
     // но полная функция. Статический exe 671КБ; MSVC-рантайм уже вшит компонентом vcruntime.
     const GH_BSROFORMER_ENGINE_CPU: &str =
@@ -315,12 +312,29 @@ mod platform {
         markers: &[Marker { rel: "models/qwen3-tts/ggml-cuda.dll", expect: 170_425_344 }],
     };
 
+    // BSRoformer.cpp v0.1.0 (timoncool/BSRoformer.cpp studio-0.1.0, scripts/release-windows-cuda.cmd): CUDA 13 sm
+    // 75-90 and 120a, CUDA 12.9 sm 52-90 and 120a, no PTX, cuBLAS from cuda-runtime / cuda12-runtime; Vulkan is the
+    // author's build.
     pub const BSROFORMER: Parts = Parts {
-        size: 164_990_561,
+        size: 117_036_131,
         files: &[
-            FileSpec { url: GH_BSROFORMER_ENGINE, dest_rel: "tools/bsroformer/_engine.zip", size: 164_990_561, sha256: "a7c330774c0a40ec4de09ca0613af48fdc23c28bd0d90212425697daf7b1db74", extract: Extract::Flat },
+            FileSpec { url: "https://github.com/timoncool/BSRoformer.cpp/releases/download/studio-0.1.0/BSRoformer-windows-cuda13-x64.zip", dest_rel: "tools/bsroformer/_engine.zip", size: 117_036_131, sha256: "a6cb96ec5435fc44855f45c8e4fb2223f7aa1390e4d21c2f0fe9f7d55eafbb41", extract: Extract::Flat },
         ],
         markers: &[Marker { rel: "tools/bsroformer/bs_roformer-cli.exe", expect: 0 }],
+    };
+    pub const BSROFORMER_CUDA12: Parts = Parts {
+        size: 170_818_717,
+        files: &[
+            FileSpec { url: "https://github.com/timoncool/BSRoformer.cpp/releases/download/studio-0.1.0/BSRoformer-windows-cuda12-x64.zip", dest_rel: "tools/bsroformer-cuda12/_engine.zip", size: 170_818_717, sha256: "774dc9be48fd75a919ba1569991d3b6bb13e9fa18a98d7efe75cc53501f80837", extract: Extract::Flat },
+        ],
+        markers: &[Marker { rel: "tools/bsroformer-cuda12/bs_roformer-cli.exe", expect: 0 }],
+    };
+    pub const BSROFORMER_VULKAN: Parts = Parts {
+        size: 22_779_026,
+        files: &[
+            FileSpec { url: "https://github.com/chenmozhijin/BSRoformer.cpp/releases/download/v0.1.0/BSRoformer-windows-vulkan.zip", dest_rel: "tools/bsroformer-vulkan/_engine.zip", size: 22_779_026, sha256: "a47653911eb17f68e65bce15aed6c4f1bd277a5fbd48293c4e54f0b005b869a7", extract: Extract::Flat },
+        ],
+        markers: &[Marker { rel: "tools/bsroformer-vulkan/bs_roformer-cli.exe", expect: 0 }],
     };
 
     pub const BSROFORMER_CPU: Parts = Parts {
@@ -552,14 +566,29 @@ mod platform {
         &QWEN_CODEC_ONLY
     }
 
-    // BSRoformer.cpp v0.1.0 linux-cuda-13.1.0: RUNPATH указывает на каталог CI, свои libggml берёт через
-    // LD_LIBRARY_PATH запуска (dub-sep).
+    // BSRoformer.cpp v0.1.0 (timoncool/BSRoformer.cpp studio-0.1.0, scripts/release-linux-cuda-docker.sh): Ubuntu
+    // 22.04, libgomp beside the program, RUNPATH $ORIGIN, ../../models/higgs-engine and ../../models/cuda12-runtime;
+    // Vulkan is the author's build.
     pub const BSROFORMER: Parts = Parts {
-        size: 239_527_692,
+        size: 118_589_684,
         files: &[
-            FileSpec { url: "https://github.com/chenmozhijin/BSRoformer.cpp/releases/download/v0.1.0/BSRoformer-linux-cuda-13.1.0.tar.xz", dest_rel: "tools/bsroformer/_engine.tar.xz", size: 239_527_692, sha256: "6d7e543f2985b785cfef2baf0b217fc2f891e6b5a03804ce2657b4eb70379126", extract: Extract::Flat },
+            FileSpec { url: "https://github.com/timoncool/BSRoformer.cpp/releases/download/studio-0.1.0/BSRoformer-linux-cuda13-x64.tar.gz", dest_rel: "tools/bsroformer/_engine.tar.gz", size: 118_589_684, sha256: "d363cd9c2249417f4d93851e4958c1c6808fa18e5f8b564312ed124c5881bf63", extract: Extract::Flat },
         ],
         markers: &[Marker { rel: "tools/bsroformer/bs_roformer-cli", expect: 0 }],
+    };
+    pub const BSROFORMER_CUDA12: Parts = Parts {
+        size: 172_267_870,
+        files: &[
+            FileSpec { url: "https://github.com/timoncool/BSRoformer.cpp/releases/download/studio-0.1.0/BSRoformer-linux-cuda12-x64.tar.gz", dest_rel: "tools/bsroformer-cuda12/_engine.tar.gz", size: 172_267_870, sha256: "d6bc6ee2e0af9f7a430ab6f0b3ded880e764ea77ee68e97a1c689cee92083520", extract: Extract::Flat },
+        ],
+        markers: &[Marker { rel: "tools/bsroformer-cuda12/bs_roformer-cli", expect: 0 }],
+    };
+    pub const BSROFORMER_VULKAN: Parts = Parts {
+        size: 5_900_692,
+        files: &[
+            FileSpec { url: "https://github.com/chenmozhijin/BSRoformer.cpp/releases/download/v0.1.0/BSRoformer-linux-vulkan.tar.xz", dest_rel: "tools/bsroformer-vulkan/_engine.tar.xz", size: 5_900_692, sha256: "bee2e9b5dd322b8d4fe1081583ce41709c2c1341550bbb557073c1216fef3e85", extract: Extract::Flat },
+        ],
+        markers: &[Marker { rel: "tools/bsroformer-vulkan/bs_roformer-cli", expect: 0 }],
     };
 
     pub const BSROFORMER_CPU: Parts = Parts {
@@ -1249,6 +1278,17 @@ pub fn manifest() -> Vec<Component> {
             external_url: None,
         },
         Component {
+            id: "bsroformer-engine-vulkan",
+            name: format!("{} · Vulkan", t!("setup-comp-bsroformer-engine-name")),
+            purpose: t!("setup-comp-bsroformer-engine-purpose"),
+            requirement: Requirement::Optional,
+            delivery: Delivery::Download,
+            size: platform::BSROFORMER_VULKAN.size,
+            files: platform::BSROFORMER_VULKAN.files,
+            markers: platform::BSROFORMER_VULKAN.markers,
+            external_url: None,
+        },
+        Component {
             id: "llama",
             name: t!("setup-comp-llama-name"),
             purpose: t!("setup-comp-llama-purpose"),
@@ -1386,6 +1426,20 @@ pub fn manifest() -> Vec<Component> {
             size: parts.size,
             files: parts.files,
             markers: parts.markers,
+            external_url: None,
+        });
+    }
+    // the separation engine's CUDA 12.9 build, for the card that takes it
+    if card == Some(acpp_server::asset::Build::Cuda12) {
+        all.push(Component {
+            id: "bsroformer-engine-cuda12",
+            name: format!("{} · CUDA 12.9", t!("setup-comp-bsroformer-engine-name")),
+            purpose: t!("setup-comp-bsroformer-engine-purpose"),
+            requirement: Requirement::Optional,
+            delivery: Delivery::Download,
+            size: platform::BSROFORMER_CUDA12.size,
+            files: platform::BSROFORMER_CUDA12.files,
+            markers: platform::BSROFORMER_CUDA12.markers,
             external_url: None,
         });
     }
