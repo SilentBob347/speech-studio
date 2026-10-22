@@ -220,8 +220,8 @@ pub fn supertonic(models_root: &Path) -> Result<Tts, String> {
 
 
 /// Загруженный Qwen3-TTS выбранного кванта: CustomVoice для голосов модели, Base для клона (`clone`), Base с
-/// адаптером русских ударений (`stress`); другой квант, другой чекпоинт или другой движок выгружаются. Только на
-/// видеокарте NVIDIA с CUDA 13: на неподходящей — ошибка с причиной.
+/// адаптером русских ударений (`stress`); другой квант, другой чекпоинт или другой движок выгружаются. На сборке
+/// устройства озвучки; другое устройство — после перезапуска, с причиной.
 pub fn qwen(models_root: &Path, clone: bool, stress: bool) -> Result<Tts, String> {
     let quant = crate::engines::models::qwen_quant(models_root);
     let talker = match (clone, stress) {
@@ -229,7 +229,8 @@ pub fn qwen(models_root: &Path, clone: bool, stress: bool) -> Result<Tts, String
         (true, false) => "base",
         (false, false) => "custom",
     };
-    let key = format!("{}:{talker}:{quant}", crate::engines::qwen_tts::ENGINE);
+    let device = crate::engines::qwen_tts::build(models_root)?;
+    let key = format!("{}:{talker}:{quant}:{device:?}", crate::engines::qwen_tts::ENGINE);
     let mut slot = host();
     if let Some((k, Tts::Qwen(e))) = slot.as_ref() {
         if *k == key {
@@ -247,23 +248,19 @@ pub fn qwen(models_root: &Path, clone: bool, stress: bool) -> Result<Tts, String
     }
     let build = qwen_build(models_root)?;
     let e = Arc::new(crate::engines::qwen_tts::Engine::load(models_root, build, &quant, clone || stress, stress).map_err(|e| t!("render-qwen-load-failed", error = e))?);
-    tracing::info!("voicing: Qwen3-TTS {talker} {quant} on its {build:?} build");
+    tracing::info!("voicing: Qwen3-TTS {talker} {quant} on {}", crate::engines::qwen_tts::device(build));
     *slot = Some((key, Tts::Qwen(e.clone())));
     touch();
     Ok(Tts::Qwen(e))
 }
 
-/// Видеокарта и драйвер тянут CUDA 13 (сборка движков ggml); нет — ошибка с причиной.
-/// The build of Qwen for the voicing device, once the computer can run it: the processor's floor, the CUDA 13 card and
-/// driver for that build, and no other build already in this process (they share ggml's library names).
+/// The build of Qwen for the voicing device, once the computer can run it: the processor's floor, and the CUDA 13 card
+/// and driver for that build.
 fn qwen_build(models_root: &Path) -> Result<acpp_server::asset::Build, String> {
     let build = crate::engines::qwen_tts::build(models_root)?;
     dub_tcpp::cpu_floor("Qwen3-TTS")?;
     if build == acpp_server::asset::Build::Cuda13 {
         cuda13_ready()?;
-    }
-    if crate::engines::qwen_tts::loaded_elsewhere(&crate::engines::qwen_tts::lib_dir(models_root, build)).is_some() {
-        return Err(t!("render-qwen-restart-device"));
     }
     Ok(build)
 }
@@ -284,7 +281,8 @@ fn cuda13_ready() -> Result<(), String> {
 /// Qwen3-TTS VoiceDesign: голос по описанию, одна модель на процесс вместо прочих.
 pub fn qwen_design(models_root: &Path) -> Result<Tts, String> {
     let quant = crate::engines::models::qwen_quant(models_root);
-    let key = format!("{}:design:{quant}", crate::engines::qwen_tts::ENGINE);
+    let device = crate::engines::qwen_tts::build(models_root)?;
+    let key = format!("{}:design:{quant}:{device:?}", crate::engines::qwen_tts::ENGINE);
     let mut slot = host();
     if let Some((k, Tts::Qwen(e))) = slot.as_ref() {
         if *k == key {
@@ -298,7 +296,7 @@ pub fn qwen_design(models_root: &Path) -> Result<Tts, String> {
     }
     let build = qwen_build(models_root)?;
     let e = Arc::new(crate::engines::qwen_tts::Engine::load_design(models_root, build, &quant).map_err(|e| t!("render-qwen-load-failed", error = e))?);
-    tracing::info!("voicing: Qwen3-TTS voice design {quant} on its {build:?} build");
+    tracing::info!("voicing: Qwen3-TTS voice design {quant} on {}", crate::engines::qwen_tts::device(build));
     *slot = Some((key, Tts::Qwen(e.clone())));
     touch();
     Ok(Tts::Qwen(e))

@@ -224,6 +224,12 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
   );
 
   const rowOf = (id: string) => { const c = get(id); return c ? rowView(c) : null; };
+  // the build of an engine the voicing device runs; the device «auto» picks is the component itself
+  const voicingBuild = (component: string, prefix: string) => {
+    const device = selv("tts_backend");
+    const build = device === "cpu" ? `${prefix}-cpu` : device === "vulkan" ? `${prefix}-vulkan` : null;
+    return build && get(build) ? build : component;
+  };
 
   // Тумблер движка «локально | OpenRouter» — тот же вид, что переключатель Parakeet|Whisper в группе ASR.
   const orRowCls = "px-2.5 py-2 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border)]";
@@ -320,7 +326,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
           <>
             {backendTabs("tts_backend")}
             {variantPicker("Higgs Audio v3", ["higgs", "higgs-q6_k", "higgs-q4_k_m"])}
-            {rowOf("higgs-engine")}
+            {rowOf(voicingBuild("higgs-engine", "audiocpp"))}
             {rowOf("drama3")}
             {get("drama3") && <>
               <p className="text-[11px] text-[var(--color-muted)] px-1">{t("settings.dramaNote")}</p>
@@ -339,7 +345,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
             </>}
             {rowOf("supertonic3")}
             {variantPicker("Qwen3-TTS 1.7B", ["qwen3-tts", "qwen3-tts-q8_0"])}
-            {rowOf("qwen3-tts-engine")}
+            {rowOf(voicingBuild("qwen3-tts-engine", "qwen3-tts"))}
             {rowOf("qwen3-tts-ru-stress")}
             {rowOf(selv("qwen_tts_quant") === "Q8_0" ? "qwen3-tts-design-q8_0" : "qwen3-tts-design")}
           </>

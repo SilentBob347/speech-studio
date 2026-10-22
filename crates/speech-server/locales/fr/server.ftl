@@ -1115,7 +1115,6 @@ speech-voice-preset-needed = Ce moteur a besoin d’une de ses propres voix.
 setup-comp-supertonic3-purpose = Supertonic 3 : voix rapide avec dix voix prêtes et 31 langues, sans clonage
 render-qwen-missing = Qwen3-TTS est choisi mais pas entièrement téléchargé (le moteur ou les poids de la quantification choisie) : téléchargez-le dans Modèles (voix) ou choisissez un autre moteur.
 render-qwen-load-failed = Qwen3-TTS ne s’est pas chargé : { $error }
-render-qwen-restart-device = Qwen3-TTS tourne déjà sur un autre appareil : le nouvel appareil de voix s’applique à Qwen après le redémarrage du studio
 setup-comp-qwen3-tts-purpose = Qwen3-TTS 1.7B : neuf voix prêtes (CustomVoice) et clonage des voix de la bibliothèque (Base), dix langues dont le russe, audio en flux
 render-qwen-clone-missing = Le clonage de voix dans Qwen3-TTS passe par le modèle Base de la quantification choisie, et ses fichiers manquent : retéléchargez Qwen3-TTS dans Modèles ou choisissez une voix propre au modèle.
 render-qwen-stress-missing = Qwen3-TTS avec l’accent tonique russe est choisi mais pas entièrement téléchargé (le moteur, le modèle Base de la quantification choisie ou l’adaptateur d’accent) : téléchargez-le dans Modèles (voix) ou choisissez un autre moteur.

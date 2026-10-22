@@ -134,20 +134,13 @@ struct Api {
 
 /// The library, loaded once and kept for the life of the process: ggml's static initialiser refuses a second load
 /// at the address it had (its terminate handler would already be the one it installs), so freeing the library and
-/// loading it again aborts the process. Every build names its ggml libraries alike, so another build cannot join it.
-static LOADED: std::sync::Mutex<Option<(PathBuf, Library, Api)>> = std::sync::Mutex::new(None);
-
-/// The folder of the build this process loaded, when it is not `dir`: another build waits for a restart.
-pub fn loaded_elsewhere(dir: &Path) -> Option<PathBuf> {
-    LOADED.lock().unwrap_or_else(|e| e.into_inner()).as_ref().map(|(d, _, _)| d.clone()).filter(|d| d != dir)
-}
+/// loading it again aborts the process. Its device backends are modules it loads beside itself as a device is first
+/// used, so one library serves every device and a device change only reloads the model.
+static LOADED: std::sync::Mutex<Option<(Library, Api)>> = std::sync::Mutex::new(None);
 
 fn library(dir: &Path) -> Result<Api, String> {
     let mut loaded = LOADED.lock().unwrap_or_else(|e| e.into_inner());
-    if let Some((d, _, api)) = loaded.as_ref() {
-        if d != dir {
-            return Err(format!("qwen3-tts: the build in {} is loaded; another build loads after a restart", d.display()));
-        }
+    if let Some((_, api)) = loaded.as_ref() {
         return Ok(*api);
     }
     let lib = unsafe { Library::new(dir.join(LIBRARY)) }.map_err(|e| format!("{}: {e}", dir.join(LIBRARY).display()))?;
@@ -171,7 +164,7 @@ fn library(dir: &Path) -> Result<Api, String> {
             voice_ref_free: sym!("qt_voice_ref_free"),
         }
     };
-    *loaded = Some((dir.to_path_buf(), lib, api));
+    *loaded = Some((lib, api));
     Ok(api)
 }
 
@@ -207,35 +200,49 @@ pub fn dir(models_root: &Path) -> PathBuf {
     models_root.join(DIR)
 }
 
-/// The folder of a build of the library: CUDA 13 beside the weights, where former versions put it, the others in a
-/// folder of their own.
-pub fn lib_dir(models_root: &Path, build: Build) -> PathBuf {
+/// The ggml backend module of a device the library loads beside itself; the CPU one ships with the library.
+#[cfg(windows)]
+fn module(build: Build) -> Option<&'static str> {
     match build {
-        Build::Cuda13 => dir(models_root),
-        Build::Cuda12 => models_root.join("qwen3-tts-cuda12"),
-        Build::Vulkan => models_root.join("qwen3-tts-vulkan"),
-        Build::Cpu => models_root.join("qwen3-tts-cpu"),
+        Build::Cuda13 | Build::Cuda12 => Some("ggml-cuda.dll"),
+        Build::Vulkan => Some("ggml-vulkan.dll"),
+        Build::Cpu => None,
+    }
+}
+#[cfg(not(windows))]
+fn module(build: Build) -> Option<&'static str> {
+    match build {
+        Build::Cuda13 | Build::Cuda12 => Some("libggml-cuda.so"),
+        Build::Vulkan => Some("libggml-vulkan.so"),
+        Build::Cpu => None,
     }
 }
 
-/// The component that downloads a build: `qwen3-tts-engine` is the build «auto» runs here, the others are fetched when
-/// voicing is set to their device.
-pub fn component(build: Build) -> &'static str {
-    if build == crate::engines::acpp::build() {
-        return "qwen3-tts-engine";
-    }
+/// The ggml device the library runs a build on; the studio exposes one card, so the CUDA device is the first.
+pub fn device(build: Build) -> &'static str {
     match build {
-        Build::Cuda13 => "qwen3-tts-cuda13",
-        Build::Cuda12 => "qwen3-tts-cuda12",
-        Build::Vulkan => "qwen3-tts-vulkan",
-        Build::Cpu => "qwen3-tts-cpu",
+        Build::Cuda13 | Build::Cuda12 => "CUDA0",
+        Build::Vulkan => "Vulkan0",
+        Build::Cpu => "CPU",
     }
 }
 
-/// The components of the voicing device's build: the library and its CUDA runtime.
+/// The component of a device's backend module: the CUDA one is the build of this computer's card.
+pub fn module_component(build: Build) -> Option<&'static str> {
+    match build {
+        Build::Cuda13 | Build::Cuda12 => Some("qwen3-tts-cuda"),
+        Build::Vulkan => Some("qwen3-tts-vulkan"),
+        Build::Cpu => None,
+    }
+}
+
+/// The components the voicing device needs: the engine, the device's backend module and its CUDA runtime.
 pub fn build_components(models_root: &Path) -> Result<Vec<&'static str>, String> {
     let build = build(models_root)?;
-    Ok(std::iter::once(component(build)).chain(crate::engines::acpp::runtime_component(build)).collect())
+    Ok(std::iter::once("qwen3-tts-engine")
+        .chain(module_component(build))
+        .chain(crate::engines::acpp::runtime_component(build))
+        .collect())
 }
 
 /// The build the voicing device of the settings runs Qwen on (`tts_backend`, see `acpp::build_for`).
@@ -243,9 +250,10 @@ pub fn build(models_root: &Path) -> Result<Build, String> {
     crate::engines::acpp::build_for(crate::engines::models::server_choice(models_root, "tts_backend"))
 }
 
-/// The library of that build is on disk.
+/// The library and the backend module of the voicing device are on disk.
 fn library_installed(models_root: &Path) -> bool {
-    build(models_root).is_ok_and(|b| lib_dir(models_root, b).join(LIBRARY).is_file())
+    let d = dir(models_root);
+    d.join(LIBRARY).is_file() && build(models_root).is_ok_and(|b| module(b).is_none_or(|m| d.join(m).is_file()))
 }
 
 pub fn is_engine(id: &str) -> bool {
@@ -327,7 +335,7 @@ impl Engine {
 
     fn open(models_root: &Path, build: Build, talker: &Path, stress: bool, expected: &str) -> Result<Engine, String> {
         let d = dir(models_root);
-        let lib = lib_dir(models_root, build);
+        let lib = d.clone();
         // its ggml libraries sit beside it under names other engines' libraries could share: this folder comes first
         let path = std::env::var("PATH").unwrap_or_default();
         if !std::env::split_paths(&path).any(|p| p == lib) {
@@ -337,11 +345,13 @@ impl Engine {
         let api = library(&lib)?;
         let (t, c) = (cstring(&talker.to_string_lossy(), "talker path")?, cstring(&d.join(CODEC).to_string_lossy(), "codec path")?);
         let lora = if stress { Some(cstring(&d.join(STRESS_LORA).to_string_lossy(), "adapter path")?) } else { None };
+        let device = cstring(device(build), "device")?;
         let mut p: InitParams = unsafe { std::mem::zeroed() };
         unsafe { (api.init_default)(&mut p) };
         p.abi_version = ABI_VERSION;
         p.talker_path = t.as_ptr();
         p.codec_path = c.as_ptr();
+        p.device = device.as_ptr();
         if let Some(lora) = &lora {
             p.lora_path = lora.as_ptr();
             p.lora_scale = STRESS_LORA_SCALE;

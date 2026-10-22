@@ -48,19 +48,3 @@ pub fn synth(text: &str, model: &str, voice: &str, style: &str) -> Result<Vec<f3
     crate::integrations::cloud_tts::synth(key, text, model, voice, style)
 }
 
-/// Потрачено ключом OpenRouter, USD (`usage` из `GET /key`). None — облако ни на одной стадии не выбрано,
-/// ключа нет или OpenRouter не ответил (причина в лог).
-pub fn total_usage_usd(models_root: &Path) -> Option<f64> {
-    if !crate::engines::models::openrouter_any_on(models_root) {
-        return None;
-    }
-    let key = crate::engines::models::openrouter_key()?;
-    let usage = OpenRouter::new(Some(key)).and_then(|client| client.key_usage_usd());
-    match usage {
-        Ok(usage) => Some(usage),
-        Err(e) => {
-            tracing::warn!("OpenRouter spending was not read: {e:#}");
-            None
-        }
-    }
-}

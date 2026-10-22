@@ -43,8 +43,8 @@ const FIXED_ENTRY_POINTS: &[(&str, &str)] = &[
     ("ffmpeg", "tools/ffmpeg/ffmpeg.exe"),
 ];
 
-/// The fixed entry points and those of each build of the server and of Qwen this computer lists: the program, and the
-/// ggml backend library Qwen loads at run time.
+/// The fixed entry points, those of each build of the server this computer lists, and Qwen's library with the backend
+/// modules it loads at run time.
 pub fn entry_points() -> Vec<(&'static str, String)> {
     use acpp_server::asset::Build;
     let manifest = setup::manifest();
@@ -55,16 +55,10 @@ pub fn entry_points() -> Vec<(&'static str, String)> {
         if listed(server) {
             out.push((server, format!("tools/{}/audiocpp_server.exe", build.folder())));
         }
-        let qwen = crate::engines::qwen_tts::component(build);
-        if listed(qwen) {
-            let dir = crate::engines::qwen_tts::lib_dir(Path::new("models"), build);
-            out.push((qwen, dir.join("qwen.dll").to_string_lossy().into_owned()));
-            let backend = match build {
-                Build::Cuda13 | Build::Cuda12 => Some("ggml-cuda.dll"),
-                Build::Vulkan => Some("ggml-vulkan.dll"),
-                Build::Cpu => None,
-            };
-            out.extend(backend.map(|lib| (qwen, dir.join(lib).to_string_lossy().into_owned())));
+    }
+    for (component, file) in [("qwen3-tts-engine", "qwen.dll"), ("qwen3-tts-engine", "ggml-cpu.dll"), ("qwen3-tts-vulkan", "ggml-vulkan.dll"), ("qwen3-tts-cuda", "ggml-cuda.dll")] {
+        if listed(component) {
+            out.push((component, format!("models/qwen3-tts/{file}")));
         }
     }
     out

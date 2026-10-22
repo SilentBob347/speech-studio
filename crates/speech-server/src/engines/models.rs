@@ -465,14 +465,6 @@ pub fn server_model(mroot: &Path, stage: &str) -> String {
     pick(&load_selection(mroot), key).unwrap_or("").to_string()
 }
 
-/// Идёт ли через OpenRouter хоть одна стадия (перевод, vision, TTS, ASR) — стоит ли считать затраты.
-pub fn openrouter_any_on(mroot: &Path) -> bool {
-    llm_backend(mroot, "llm") == LlmBackend::OpenRouter
-        || llm_backend(mroot, "vision") == LlmBackend::OpenRouter
-        || (tts_provider(mroot) == "openrouter" && openrouter_stage_on(mroot, "tts"))
-        || openrouter_stage_on(mroot, "asr")
-}
-
 /// Нужна ли своя Gemma: перевод или vision идут через неё.
 pub fn local_gemma_needed(mroot: &Path) -> bool {
     llm_backend(mroot, "llm") == LlmBackend::Local || llm_backend(mroot, "vision") == LlmBackend::Local
@@ -552,24 +544,6 @@ pub fn openrouter_tts_voice(mroot: &Path) -> String {
     pick(&load_selection(mroot), "or_tts_voice").unwrap_or("").to_string()
 }
 
-/// БЕТА: включён ли автокастинг облачных голосов по полу спикера. ВКЛ по умолчанию (это и есть желаемое
-/// поведение); ВЫКЛ ("0") -> все спикеры одним дефолтным голосом (or_tts_voice).
-pub fn openrouter_autocast(mroot: &Path) -> bool {
-    pick(&load_selection(mroot), "or_tts_autocast") != Some("0")
-}
-
-/// Включён ли пер-стадийный бенчмарк (галка в настройках -> active.json "bench"="1"). По умолчанию ВЫКЛ:
-/// фоновый семплер NVML/sysinfo и bench.json нужны только для сравнения настроек, не в обычной работе.
-pub fn bench_enabled(mroot: &Path) -> bool {
-    pick(&load_selection(mroot), "bench") == Some("1")
-}
-
-/// Включён ли дакинг фона под дубляжом (приглушать фон под речью). ВЫКЛ по умолчанию — не всем нужен;
-/// без него фон в дубляже звучит на полной громкости под голосом. Настройка "duck_on"="1".
-pub fn duck_enabled(mroot: &Path) -> bool {
-    pick(&load_selection(mroot), "duck_on") == Some("1")
-}
-
 /// Прочитать числовой слот выбора (llama_ubatch/higgs_ref_secs) из active.json. Значение может лежать
 /// строкой ("256") или числом — обе формы принимаем. None/пусто -> дефолт у вызывающего.
 pub fn sel_num(mroot: &Path, key: &str) -> Option<f64> {
@@ -579,12 +553,6 @@ pub fn sel_num(mroot: &Path, key: &str) -> Option<f64> {
         Some(Value::String(s)) => s.trim().parse::<f64>().ok(),
         _ => None,
     }
-}
-
-/// Длина реф-клипа клона голоса в секундах: настройка higgs_ref_secs (видимая в UI), дефолт 12.0.
-/// Пользователь на 32ГБ RAM может уменьшить (баг-репорт: >12с не влезает в prefill Higgs, ручная резка <12с спасает).
-pub fn higgs_ref_secs(mroot: &Path) -> f64 {
-    sel_num(mroot, "higgs_ref_secs").filter(|s| *s > 0.0 && *s <= 60.0).unwrap_or(12.0)
 }
 
 /// The active recogniser: Whisper chosen and CrisperWhisper downloaded — CrisperWhisper in audiocpp_server; Parakeet
