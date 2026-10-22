@@ -19,8 +19,6 @@ fn search_dirs(root: &Path) -> Vec<PathBuf> {
 /// Что грузят процессы студии: (компонент, файл). ggml-cuda.dll llama.cpp и BSRoformer, подбиблиотеки cuDNN
 /// грузятся LoadLibrary'ем, поэтому проверяются отдельными точками входа. Сборки сервера и Qwen — в `entry_points`.
 const FIXED_ENTRY_POINTS: &[(&str, &str)] = &[
-    ("llama", "tools/llama/llama-server.exe"),
-    ("llama", "tools/llama/ggml-cuda.dll"),
     ("drama3", "models/drama-engine/drama_engine.dll"),
     ("transcribe-engine", "models/transcribe-engine/transcribe_engine.dll"),
     ("transcribe-engine-cpu", "models/transcribe-engine-cpu/transcribe_engine.dll"),
@@ -50,6 +48,15 @@ pub fn entry_points() -> Vec<(&'static str, String)> {
     let manifest = setup::manifest();
     let listed = |id: &str| manifest.iter().any(|c| c.id == id);
     let mut out: Vec<(&'static str, String)> = FIXED_ENTRY_POINTS.iter().map(|(c, rel)| (*c, rel.to_string())).collect();
+    // the llama.cpp build of this computer's card, and the backend it loads at run time
+    let llama = setup::llama_dir(Path::new(""), crate::engines::acpp::build());
+    out.push(("llama", llama.join("llama-server.exe").to_string_lossy().into_owned()));
+    let backend = match crate::engines::acpp::build() {
+        Build::Cuda13 | Build::Cuda12 => Some("ggml-cuda.dll"),
+        Build::Vulkan => Some("ggml-vulkan.dll"),
+        Build::Cpu => None,
+    };
+    out.extend(backend.map(|lib| ("llama", llama.join(lib).to_string_lossy().into_owned())));
     for build in [Build::Cuda13, Build::Cuda12, Build::Vulkan, Build::Cpu] {
         let server = crate::engines::acpp::component(build);
         if listed(server) {

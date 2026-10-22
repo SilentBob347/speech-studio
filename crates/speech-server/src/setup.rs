@@ -166,6 +166,28 @@ pub struct Parts {
 // Сборка llama.cpp одна на обе платформы (стабильный релиз v0.5.0 = билд b11146).
 pub(crate) const GH_LLAMA_BUILD: &str = "b11146";
 
+/// The llama.cpp build of this computer's card, as YuE2 picks it: CUDA 13, CUDA 12, Vulkan on another card, the
+/// processor without one (the build «auto» of the engines, `acpp::build`).
+pub fn llama_parts(build: acpp_server::asset::Build) -> &'static Parts {
+    match build {
+        acpp_server::asset::Build::Cuda13 => &platform::LLAMA,
+        acpp_server::asset::Build::Cuda12 => &platform::LLAMA_CUDA12,
+        acpp_server::asset::Build::Vulkan => &platform::LLAMA_VULKAN,
+        acpp_server::asset::Build::Cpu => &platform::LLAMA_CPU,
+    }
+}
+
+/// The folder of a llama.cpp build: CUDA 13 in tools/llama, where former versions put it, the others beside it.
+pub fn llama_dir(repo_root: &Path, build: acpp_server::asset::Build) -> PathBuf {
+    let folder = match build {
+        acpp_server::asset::Build::Cuda13 => "llama",
+        acpp_server::asset::Build::Cuda12 => "llama-cuda12",
+        acpp_server::asset::Build::Vulkan => "llama-vulkan",
+        acpp_server::asset::Build::Cpu => "llama-cpu",
+    };
+    repo_root.join("tools").join(folder)
+}
+
 /// Windows x64: zip-релизы, PyPI-колёса win_amd64, redist NVIDIA windows-x86_64.
 #[cfg(windows)]
 mod platform {
@@ -351,6 +373,22 @@ mod platform {
             FileSpec { url: GH_LLAMA, dest_rel: "tools/llama/_llama.zip", size: 149_758_833, sha256: "b1866c0ce76bc7bfb0c24b33e9a37e9669f1be18539b12c74ce361f81c41f047", extract: Extract::Flat },
         ],
         markers: &[Marker { rel: "tools/llama/llama-server.exe", expect: 0 }],
+    };
+    // the same release's other builds: CUDA 12.4 (cudart and cuBLAS 12 from cuda12-runtime), Vulkan and the processor
+    pub const LLAMA_CUDA12: Parts = Parts {
+        size: 253_869_799,
+        files: &[FileSpec { url: "https://github.com/ggml-org/llama.cpp/releases/download/b11146/llama-b11146-bin-win-cuda-12.4-x64.zip", dest_rel: "tools/llama-cuda12/_llama.zip", size: 253_869_799, sha256: "3c806a6ceccc3dae1c743ceb1a1fb2cce5b76f40bfbd4c6b7b8afb6ef45a5807", extract: Extract::Flat }],
+        markers: &[Marker { rel: "tools/llama-cuda12/llama-server.exe", expect: 0 }],
+    };
+    pub const LLAMA_VULKAN: Parts = Parts {
+        size: 32_127_004,
+        files: &[FileSpec { url: "https://github.com/ggml-org/llama.cpp/releases/download/b11146/llama-b11146-bin-win-vulkan-x64.zip", dest_rel: "tools/llama-vulkan/_llama.zip", size: 32_127_004, sha256: "55a378aa095b466979d85075234f66d7655c7a7483222af0c006c0e55b4d7bd6", extract: Extract::Flat }],
+        markers: &[Marker { rel: "tools/llama-vulkan/llama-server.exe", expect: 0 }],
+    };
+    pub const LLAMA_CPU: Parts = Parts {
+        size: 18_560_055,
+        files: &[FileSpec { url: "https://github.com/ggml-org/llama.cpp/releases/download/b11146/llama-b11146-bin-win-cpu-x64.zip", dest_rel: "tools/llama-cpu/_llama.zip", size: 18_560_055, sha256: "14cf1303ca9ac3abd94816850532f9f9a69ac66fbaca3776fc6f9061c2fac1d1", extract: Extract::Flat }],
+        markers: &[Marker { rel: "tools/llama-cpu/llama-server.exe", expect: 0 }],
     };
 
     pub const ORT: Parts = Parts {
@@ -607,6 +645,22 @@ mod platform {
             FileSpec { url: "https://github.com/ggml-org/llama.cpp/releases/download/b11146/llama-b11146-bin-ubuntu-cuda-13.4-x64.tar.gz", dest_rel: "tools/llama/_llama.tar.gz", size: 149_265_156, sha256: "1603d9c00a4b6eac8298c5c7868cdb080a3ac31948ab1e457441d71ce274dd7e", extract: Extract::Flat },
         ],
         markers: &[Marker { rel: "tools/llama/llama-server", expect: 0 }],
+    };
+    // the same release's other builds: CUDA 12.8 (cudart and cuBLAS 12 from cuda12-runtime), Vulkan and the processor
+    pub const LLAMA_CUDA12: Parts = Parts {
+        size: 168_920_581,
+        files: &[FileSpec { url: "https://github.com/ggml-org/llama.cpp/releases/download/b11146/llama-b11146-bin-ubuntu-cuda-12.8-x64.tar.gz", dest_rel: "tools/llama-cuda12/_llama.tar.gz", size: 168_920_581, sha256: "c2ab9e19838513ff69d1af8d999ad717dd3c7ee4714ac04c7ed5ab9077c50e4e", extract: Extract::Flat }],
+        markers: &[Marker { rel: "tools/llama-cuda12/llama-server", expect: 0 }],
+    };
+    pub const LLAMA_VULKAN: Parts = Parts {
+        size: 30_598_492,
+        files: &[FileSpec { url: "https://github.com/ggml-org/llama.cpp/releases/download/b11146/llama-b11146-bin-ubuntu-vulkan-x64.tar.gz", dest_rel: "tools/llama-vulkan/_llama.tar.gz", size: 30_598_492, sha256: "d3ce40fce7403cc93bcf5718fc46c6efb61ed9709f8e5d9f10c86bf0e30e8fb3", extract: Extract::Flat }],
+        markers: &[Marker { rel: "tools/llama-vulkan/llama-server", expect: 0 }],
+    };
+    pub const LLAMA_CPU: Parts = Parts {
+        size: 16_998_357,
+        files: &[FileSpec { url: "https://github.com/ggml-org/llama.cpp/releases/download/b11146/llama-b11146-bin-ubuntu-x64.tar.gz", dest_rel: "tools/llama-cpu/_llama.tar.gz", size: 16_998_357, sha256: "c150306eb16b5ab696f76a8bdf810c35fd98a24e82158742e6fa28f420ff8410", extract: Extract::Flat }],
+        markers: &[Marker { rel: "tools/llama-cpu/llama-server", expect: 0 }],
     };
 
     pub const ORT: Parts = Parts {
@@ -1295,9 +1349,9 @@ pub fn manifest() -> Vec<Component> {
             requirement: Requirement::Optional,
             delivery: Delivery::Download,
             // Размер сжатого zip (для прогресса закачки); распакованный footprint ~183 МБ.
-            size: platform::LLAMA.size,
-            files: platform::LLAMA.files,
-            markers: platform::LLAMA.markers,
+            size: llama_parts(crate::engines::acpp::build()).size,
+            files: llama_parts(crate::engines::acpp::build()).files,
+            markers: llama_parts(crate::engines::acpp::build()).markers,
             external_url: None,
         },
         Component {

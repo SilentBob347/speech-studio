@@ -79,7 +79,12 @@ fn start_gemma(o: &LlmOpen, with_mmproj: bool) -> Result<LlmProvider, String> {
     if with_mmproj && !o.mmproj.is_file() {
         return Err(t!("llm-mmproj-missing", path = o.mmproj.display().to_string()));
     }
-    let mut opts = ServerOpts::new(o.llama_bin, o.mt_model)
+    let mut opts = ServerOpts::new(o.llama_bin, o.mt_model);
+    // the processor's build has no card to put layers on
+    if crate::engines::acpp::build() == acpp_server::asset::Build::Cpu {
+        opts.n_gpu_layers = 0;
+    }
+    let mut opts = opts
         .with_ubatch(crate::engines::models::sel_num(o.models_root, "llama_ubatch").map(|f| f as u32))
         .with_log_file(llama_log_path(o.models_root));
     if with_mmproj {
