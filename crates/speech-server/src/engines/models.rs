@@ -148,6 +148,7 @@ pub fn is_selection_key(key: &str) -> bool {
             // gpu = CUDA, cpu = без NVIDIA. sep=сепарация(BSRoformer CUDA/CPU-сборка), diar=диаризация
             // (Sortformer onnx CUDA-EP/CPU), asr=локальный ASR (Parakeet onnx / Whisper CTranslate2).
             | "local_backend" | "sep_backend" | "diar_backend" | "asr_backend"
+            | "gpu_index"       // карта NVIDIA по порядку PCI (как nvidia-smi); "auto" — как решит драйвер; со следующего запуска
             // Лимиты RAM (видимые контролы в настройках, НЕ авто-магия): против OOM на слабой памяти.
             | "cloud_daily_limit_usd" // дневной лимит облака для агентов и программ, USD; 0 — без лимита
             | "llama_ubatch"    // размер prefill-батча Gemma (меньше = меньше пиковый буфер графа prefill)
@@ -208,6 +209,7 @@ pub fn is_selection_value(key: &str, value: &str) -> bool {
         "tts_idle_unload_min" => matches!(value, "0" | "5" | "15" | "30" | "60"),
         "qwen_tts_quant" => crate::engines::qwen_tts::QUANTS.iter().any(|(q, _, _)| *q == value),
         "voice_clean" => matches!(value, "0" | "1"),
+        "gpu_index" => value == "auto" || value.parse::<u32>().is_ok_and(|i| i < 64),
         "drama_vram_gb" => value.parse::<u32>().is_ok_and(|gb| gb == 0 || (DRAMA_MIN_LIMIT_GB..=256).contains(&gb)),
         "cloud_daily_limit_usd" => value.parse::<f64>().is_ok_and(|v| (0.0..=10_000.0).contains(&v)),
         "google_tts_model" => crate::integrations::google_tts::is_model_id(value),

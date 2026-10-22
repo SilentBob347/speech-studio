@@ -17,7 +17,7 @@ mod voices;
 
 pub use app::flush_hub_on_exit;
 pub use app::{
-    augment_path_for_tools, build_router, diagnostics, ensure_library_path, init_proxy_route, serve, serve_blocking, service,
+    apply_gpu_choice, augment_path_for_tools, build_router, diagnostics, ensure_library_path, init_proxy_route, serve, serve_blocking, service,
     set_ort_dylib_env, AppState,
 };
 pub use dub_llm::net;

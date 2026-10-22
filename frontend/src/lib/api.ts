@@ -206,10 +206,12 @@ export type DownloadJob = {
   errorCode?: string | null; error?: string | null; startedAt: number; updatedAt: number;
 };
 // Видеокарта против требований CUDA 13 (драйвер 580+, compute capability 7.5+).
-export type GpuReason = "no_nvidia" | "no_device" | "cuda_init" | "driver_old" | "gpu_old";
+export type GpuReason = "no_nvidia" | "no_device" | "cuda_init" | "driver_old" | "gpu_old" | "gpu_missing";
+export type GpuCard = { index: number; name: string; memoryMb: number };
 export type GpuReport = {
   nvidia: boolean; name?: string | null; driverVersion?: string | null; cudaDriver?: string | null;
   compute?: string | null; cuda13Ok: boolean; reason?: GpuReason | null; minDriver: number; minCompute: string;
+  pciBusId?: string | null; cards: GpuCard[]; chosen?: number | null;
 };
 export type SetupStatus = {
   components: SetupComponent[]; ready: boolean;

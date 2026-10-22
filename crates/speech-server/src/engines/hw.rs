@@ -38,7 +38,8 @@ fn sysinfo() -> &'static Mutex<System> {
 pub fn snapshot() -> HardwareSnapshot {
     let mut snap = HardwareSnapshot::default();
 
-    // GPU через NVML (ленивая инициализация на первом опросе).
+    // GPU через NVML (ленивая инициализация на первом опросе); карта — та, что у CUDA.
+    let pci = gpu_report().pci_bus_id;
     let mut ng = nvml().lock().unwrap();
     if ng.is_none() {
         match Nvml::init() {
@@ -47,7 +48,7 @@ pub fn snapshot() -> HardwareSnapshot {
         }
     }
     if let Some(n) = ng.as_ref() {
-        match n.device_by_index(0) {
+        match our_device(n, pci.as_deref()) {
             Ok(d) => {
                 snap.gpu_name = d.name().unwrap_or_else(|_| "NVIDIA GPU".into());
                 if let Ok(m) = d.memory_info() {
@@ -96,14 +97,15 @@ pub fn total_ram() -> u64 {
     sg.total_memory()
 }
 
-/// Видеопамять карты 0, байт (NVML); 0 — карты нет или NVML не ответил.
+/// Видеопамять карты, на которой считает CUDA, байт (NVML); 0 — карты нет или NVML не ответил.
 pub fn total_vram() -> u64 {
+    let pci = gpu_report().pci_bus_id;
     let mut ng = nvml().lock().unwrap();
     if ng.is_none() {
         *ng = Nvml::init().ok();
     }
     ng.as_ref()
-        .and_then(|n| n.device_by_index(0).ok())
+        .and_then(|n| our_device(n, pci.as_deref()).ok())
         .and_then(|d| d.memory_info().ok())
         .map_or(0, |m| m.total)
 }
@@ -140,10 +142,24 @@ pub struct GpuReport {
     pub compute: Option<String>,
     /// Локальные стадии можно считать на GPU этой сборкой.
     pub cuda13_ok: bool,
-    /// Почему нельзя: no_nvidia | no_device | cuda_init | driver_old | gpu_old.
+    /// Почему нельзя: no_nvidia | no_device | cuda_init | driver_old | gpu_old | gpu_missing.
     pub reason: Option<&'static str>,
     pub min_driver: u32,
     pub min_compute: String,
+    /// PCI bus id of the card CUDA uses, by which NVML names it: NVML does not follow CUDA_VISIBLE_DEVICES.
+    pub pci_bus_id: Option<String>,
+    /// Every NVIDIA card in PCI bus order, the order CUDA_VISIBLE_DEVICES counts in with CUDA_DEVICE_ORDER=PCI_BUS_ID.
+    pub cards: Vec<GpuCard>,
+    /// The card chosen in the settings, when one is.
+    pub chosen: Option<u32>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GpuCard {
+    pub index: u32,
+    pub name: String,
+    pub memory_mb: u64,
 }
 
 impl GpuReport {
@@ -259,6 +275,7 @@ pub fn gpu_report() -> GpuReport {
 
 fn probe_gpu() -> GpuReport {
     let mut r = GpuReport { min_driver: CUDA13_DRIVER, min_compute: format!("{}.{}", CUDA13_OLDEST.0, CUDA13_OLDEST.1), ..Default::default() };
+    r.chosen = chosen_card();
     match cuda_driver_probe() {
         CudaProbe::NoDriver => {
             r.reason = Some("no_nvidia");
@@ -273,8 +290,9 @@ fn probe_gpu() -> GpuReport {
             tracing::warn!("the CUDA driver does not answer: {what}");
             r.reason = Some("cuda_init");
         }
-        CudaProbe::Ok { version, compute } => {
+        CudaProbe::Ok { version, compute, pci } => {
             r.nvidia = true;
+            r.pci_bus_id = pci;
             r.cuda_driver = Some(format!("{}.{}", version / 1000, (version % 1000) / 10));
             r.compute = Some(format!("{}.{}", compute.0, compute.1));
             match cuda13_verdict(compute, version) {
@@ -292,16 +310,45 @@ fn probe_gpu() -> GpuReport {
     }
     if let Some(n) = ng.as_ref() {
         r.driver_version = n.sys_driver_version().ok();
-        r.name = n.device_by_index(0).and_then(|d| d.name()).ok();
+        let count = n.device_count().unwrap_or(0);
+        r.cards = (0..count)
+            .filter_map(|i| {
+                let d = n.device_by_index(i).ok()?;
+                Some(GpuCard { index: i, name: d.name().ok()?, memory_mb: d.memory_info().map(|m| m.total >> 20).unwrap_or(0) })
+            })
+            .collect();
+        r.name = our_device(n, r.pci_bus_id.as_deref()).and_then(|d| d.name()).ok();
+        if let Some(i) = r.chosen.filter(|i| *i >= count) {
+            tracing::warn!("the graphics card {i} chosen in the settings is not in this computer ({count} NVIDIA cards)");
+            r.reason = Some("gpu_missing");
+            r.cuda13_ok = false;
+        }
     }
     r
+}
+
+/// The card chosen in the settings, as the process environment carries it (see app::runtime::apply_gpu_choice).
+fn chosen_card() -> Option<u32> {
+    (std::env::var("CUDA_DEVICE_ORDER").as_deref() == Ok("PCI_BUS_ID"))
+        .then(|| std::env::var("CUDA_VISIBLE_DEVICES").ok()?.trim().parse().ok())
+        .flatten()
+}
+
+/// The NVML device of the card CUDA uses: by its PCI bus id; with no id (a driver without cuDeviceGetPCIBusId) only a
+/// single card is unambiguous.
+fn our_device<'a>(n: &'a Nvml, pci: Option<&str>) -> Result<nvml_wrapper::Device<'a>, nvml_wrapper::error::NvmlError> {
+    match pci {
+        Some(id) => n.device_by_pci_bus_id(id),
+        None if n.device_count()? == 1 => n.device_by_index(0),
+        None => Err(nvml_wrapper::error::NvmlError::NotFound),
+    }
 }
 
 enum CudaProbe {
     NoDriver,
     NoDevice,
     Failed(String),
-    Ok { version: u32, compute: (u32, u32) },
+    Ok { version: u32, compute: (u32, u32), pci: Option<String> },
 }
 
 #[cfg(windows)]
@@ -381,7 +428,15 @@ fn driver_api_probe(sym: impl Fn(&[u8]) -> *mut std::ffi::c_void) -> CudaProbe {
         if rc != 0 || rc2 != 0 {
             return CudaProbe::Failed(format!("cuDeviceGetAttribute: CUresult {rc}/{rc2}"));
         }
-        CudaProbe::Ok { version: v.max(0) as u32, compute: (major.max(0) as u32, minor.max(0) as u32) }
+        let bus = sym(b"cuDeviceGetPCIBusId\0");
+        let pci = (!bus.is_null()).then(|| {
+            type CuDeviceGetPciBusId = unsafe extern "system" fn(*mut u8, i32, i32) -> i32;
+            let bus = std::mem::transmute::<*mut c_void, CuDeviceGetPciBusId>(bus);
+            let mut buf = [0u8; 32];
+            (bus(buf.as_mut_ptr(), buf.len() as i32, 0) == 0)
+                .then(|| String::from_utf8_lossy(&buf[..buf.iter().position(|b| *b == 0).unwrap_or(buf.len())]).into_owned())
+        }).flatten();
+        CudaProbe::Ok { version: v.max(0) as u32, compute: (major.max(0) as u32, minor.max(0) as u32), pci }
     }
 }
 

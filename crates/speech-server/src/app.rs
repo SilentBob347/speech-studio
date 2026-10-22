@@ -53,7 +53,7 @@ pub use bootstrap::{serve, serve_blocking};
 pub(crate) use files::{reveal_in_explorer, serve_file_range};
 pub(crate) use jobs_api::enqueue_error;
 pub use router::build_router;
-pub use runtime::{augment_path_for_tools, ensure_library_path, init_proxy_route, set_ort_dylib_env};
+pub use runtime::{apply_gpu_choice, augment_path_for_tools, ensure_library_path, init_proxy_route, set_ort_dylib_env};
 pub(crate) use runtime::{models_root, point_ort};
 pub use state::AppState;
 
