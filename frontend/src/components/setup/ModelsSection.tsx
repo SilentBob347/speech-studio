@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { ASR_VARIANT_I18N, activeVariantId, type VariantI18n } from "../../lib/modelVariants";
 import { useTranslation } from "react-i18next";
 import { Download, FolderDown, RefreshCw, X } from "lucide-react";
-import { api, llmProviderOf, slot, SetupError, type Capabilities, type SetupComponent } from "../../lib/api";
+import { api, llmProviderOf, SELECTION_CHANGED, slot, SetupError, type Capabilities, type SetupComponent } from "../../lib/api";
 import { openSettings } from "../../lib/settingsNav";
-import { SETTINGS_CHANGED, settingsChangedHere, useChanged } from "../../lib/mcpBridge";
+import { SETTINGS_CHANGED, useChanged } from "../../lib/mcpBridge";
 import { useSetupStatus } from "../../lib/useSetupStatus";
 import { useDownloadErrorText, useGpuReasonText } from "../../lib/setupText";
 import { fmtBytes } from "../../lib/format";
@@ -59,7 +59,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
   const selv = (k: string) => slot(cap?.selection, k) ?? "";
   const hasOrKey = cap?.selection?.or_key_set === true;
   // the status follows too: which engine build and which components a choice owes is the server's answer
-  const setSel = (k: string, v: string) => api.setSelection(k, v).then(settingsChangedHere).catch(() => {});
+  const setSel = (k: string, v: string) => api.setSelection(k, v).catch(() => {});
   // Голоса выбранной облачной TTS-модели (пол/возраст/русский) для дропдауна + предупреждения о русском.
   const ttsProvider = slot(cap?.selection, "tts_provider") ?? (selv("or_tts_on") === "1" ? "openrouter" : "local");
   const orTtsModel = slot(cap?.selection, ttsProvider === "google" ? "google_tts_model" : "or_tts_model") ?? "";
@@ -94,6 +94,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
   };
   const pause = () => { api.setupCancel().then(() => refreshStatus()).catch(setupErr); };
   useChanged(SETTINGS_CHANGED, () => { loadCap(); refreshStatus().catch(setupErr); });
+  useChanged(SELECTION_CHANGED, () => { loadCap(); refreshStatus().catch(setupErr); });
   const browseId = async (id: string) => {
     if (prog) return;
     try {

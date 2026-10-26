@@ -27,6 +27,7 @@ release notes on GitHub are taken from the release's section.
 
 ### Fixed
 
+- **The status line names the assistant the studio really uses**: Gemma's file, the OpenRouter or local server model, or the agent (MCP); it showed Gemma whatever was chosen, and now follows a preset or a change by the agent at once.
 - **A hardware preset moves every stage and stays shown**: «CPU + cloud» left voicing, recognition and separation on the card when they had a device of their own, and Settings → Models showed the recommended preset again once reopened; now a preset sets the device of each stage, and the list shows the preset the settings are on, or Custom.
 - **Linux and macOS know the free space of the models folder**: First run said the free space is unknown, and a download too big for the disk was not stopped before it began.
 - **Nemotron under Auto keeps the first word of what is said** («Победа пришла…» was heard as «Пришла…»): Live and Listening tell it the language VoxLingua107 hears among its own, the first two seconds of speech in Live, before it recognises anything.

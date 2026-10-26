@@ -168,7 +168,7 @@ export const slot = (sel: Selection | undefined, key: string): string | undefine
 };
 export type Capabilities = {
   device: string; tts_quant: string; asr_model: string; asr_label: string; ffmpeg: boolean;
-  languages: string[]; voice_modes: string[]; models?: ModelStack;
+  languages: string[]; voice_modes: string[]; models?: ModelStack; llm_provider?: LlmProviderKind;
   // Выбор ASR-движка (active.json): parakeet | nemotron | whisper (CrisperWhisper).
   selection?: Selection;
   asr_engines?: string[];
@@ -399,9 +399,9 @@ export const llmProviderOf = (sel: Selection | undefined, stage: "llm" | "vision
 
 /** Fired after the server took a new engine, model or device choice. */
 export const SELECTION_CHANGED = "speech:selection-changed";
-const selectionChanged = (s: Selection): Selection => {
+const selectionChanged = <T,>(answer: T): T => {
   window.dispatchEvent(new Event(SELECTION_CHANGED));
-  return s;
+  return answer;
 };
 
 export const api = {
@@ -449,7 +449,7 @@ export const api = {
   proxyTest: (form: { mode: ProxyMode; kind: ProxyKind; url: string; password?: string }) => postJson<ProxyProbe>("/engine/proxy/test", form),
   // Пресеты железа: список + детект GPU/VRAM + рекомендация; применение пишет кванты/облако в active.json.
   hwPresets: () => getJson<{ presets: { id: string; title: string; subtitle: string }[]; hardware: { gpuName: string; totalVramGb: number; totalRamGb: number; hasGpu: boolean; recommended: string; reason: string }; current: string }>("/engine/presets"),
-  applyPreset: (id: string) => postJson<{ ok: boolean; id: string; applied: { key: string; value: string }[] }>("/engine/preset", { id }),
+  applyPreset: (id: string) => postJson<{ ok: boolean; id: string; applied: { key: string; value: string }[] }>("/engine/preset", { id }).then(selectionChanged),
   voices: () => getCoded<VoiceListing>("/voices"),
   // Дефолты запуска дубляжа (форма стартового экрана) хранит сервис: одни на все окна и агента.
   launchDefaults: () => getJson<LaunchDefaultsState>("/settings/launch"),

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
 import { api, SELECTION_CHANGED } from "./lib/api";
+import { SETTINGS_CHANGED } from "./lib/mcpBridge";
 import { useStore } from "./store";
 import { hubChanged, setTelemetry, showsNow, useHubState, type HubView } from "./lib/studioHub";
 import { HubBars } from "./components/HubBars";
@@ -43,14 +44,22 @@ export default function App() {
     if (stage !== "ready") return;
     const load = () => api.capabilities().then((c) => {
       const rest = [`ASR ${c.asr_label}`];
-      if (c.models?.llm) rest.push(`LLM ${modelName(c.models.llm)}`);
+      const llm = modelName(c.models?.llm);
+      if (c.llm_provider === "agent") rest.push(`LLM ${t("providers.agent")}`);
+      else if (c.llm_provider === "openrouter") rest.push(`LLM ${llm ? `${llm} (OpenRouter)` : "OpenRouter"}`);
+      else if (c.llm_provider === "server") rest.push(`LLM ${llm ? `${llm} (${t("providers.server")})` : t("providers.server")}`);
+      else if (llm) rest.push(`LLM ${llm}`);
       setCap({ device: c.device, tts: c.models?.tts ? `${c.models.tts}${c.tts_quant ? ` ${c.tts_quant}` : ""}` : "", rest });
       setCapOffline(false);
     }).catch(() => setCapOffline(true));
     load();
     window.addEventListener(SELECTION_CHANGED, load);
-    return () => window.removeEventListener(SELECTION_CHANGED, load);
-  }, [stage]);
+    window.addEventListener(SETTINGS_CHANGED, load);
+    return () => {
+      window.removeEventListener(SELECTION_CHANGED, load);
+      window.removeEventListener(SETTINGS_CHANGED, load);
+    };
+  }, [stage, t]);
   const tts = mode === "speech" && speechEngine ? speechEngine : cap?.tts;
   const capText = cap ? [cap.device, ...(tts ? [`TTS ${tts}`] : []), ...cap.rest].join(" · ") : "";
   // Сетевая ошибка (fetch отклонён TypeError) = сервиса нет на порту -> экран «сервер не отвечает»; HTTP-ошибка

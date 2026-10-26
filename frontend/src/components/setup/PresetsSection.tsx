@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api } from "../../lib/api";
-import { SETTINGS_CHANGED, settingsChangedHere, useChanged } from "../../lib/mcpBridge";
+import { api, SELECTION_CHANGED } from "../../lib/api";
+import { SETTINGS_CHANGED, useChanged } from "../../lib/mcpBridge";
 
 // Пресет под железо: автоопределение GPU/VRAM -> рекомендованные кванты, но юзер применяет любой сам.
 // Облачный пресет включает OpenRouter на все стадии — работает даже на слабом ПК без своей GPU.
@@ -14,10 +14,11 @@ export default function PresetsSection({ onApplied }: { onApplied?: () => void }
   const load = () => { api.hwPresets().then(setData).catch(() => {}); };
   useEffect(() => { load(); }, []);
   useChanged(SETTINGS_CHANGED, load);
+  useChanged(SELECTION_CHANGED, load);
   const apply = async (id: string) => {
     setBusy(true);
     setCustom(id === "custom");
-    try { await api.applyPreset(id); settingsChangedHere(); onApplied?.(); } catch { /* ignore */ }
+    try { await api.applyPreset(id); onApplied?.(); } catch { /* ignore */ }
     setBusy(false);
   };
   const hw = data?.hardware;
