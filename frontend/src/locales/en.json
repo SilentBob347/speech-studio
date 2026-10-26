@@ -344,6 +344,7 @@
   },
   "setup": {
     "takenFrom": "taken from {{app}} instead of downloading",
+    "takenFromOwn": "taken from another install of {{app}} instead of downloading",
     "title": "First run",
     "subtitle": "Speech Studio needs a few components before the first voicing. Everything needed is already checked: click Download selected at the bottom.",
     "pickNoteTitle": "One quant per model.",

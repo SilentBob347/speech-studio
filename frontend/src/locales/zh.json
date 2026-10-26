@@ -344,6 +344,7 @@
   },
   "setup": {
     "takenFrom": "已从 {{app}} 获取，无需下载",
+    "takenFromOwn": "已从另一个 {{app}} 安装获取，无需下载",
     "title": "首次运行",
     "subtitle": "Speech Studio 在首次配音前需要几个组件。所需内容已全部勾选：点击底部的“下载所选”。",
     "download": "下载所选",

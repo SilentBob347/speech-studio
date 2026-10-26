@@ -27,6 +27,7 @@ release notes on GitHub are taken from the release's section.
 
 ### Fixed
 
+- **First run names its button as it is** («Download checked» in Russian, Spanish and Portuguese), and a component taken from another install of Speech Studio says so instead of «taken from Speech Studio».
 - **A program downloaded on Linux or macOS runs** even when its archive carries no execute bit (the audio.cpp server of Higgs, CrisperWhisper and Parakeet answered «Permission denied»): after unpacking, a component's program is made executable.
 - **Voicing finishes on Linux with the system's ffmpeg**: the AppImage gave ffmpeg, ffprobe, yt-dlp and the file manager its own libraries, and a newer system's ffmpeg stopped with «undefined symbol vaMapBuffer2»; programs of the computer now start without them.
 - **The script assistant starts on Linux older than glibc 2.38 (Ubuntu 22.04 and the like)**: the CUDA builds of llama.cpp need glibc 2.38, so there the assistant runs on the card through the Vulkan build, and Settings → Models says why.

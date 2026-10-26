@@ -19,7 +19,7 @@ import DownloadProgress from "../DownloadProgress";
 import RemoveComponent from "../RemoveComponent";
 import ConfirmDialog from "../ConfirmDialog";
 import Hint from "../Hint";
-import { PROGRAMS } from "../../lib/programs";
+import { takenFromLabel } from "../../lib/programs";
 
 // Модели и компоненты в настройках: список из /setup/status с кнопками скачки/докачки и прогрессом.
 // part="cloud" — раздел «Облако» (ключ OpenRouter и потоки) на том же состоянии выбора.
@@ -145,7 +145,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
         <div className="min-w-0 flex-1">
           <div className="text-[12px] font-medium truncate">{c.name} {c.purpose && <Hint text={c.purpose} />}</div>
           <div className="mono text-[10px] text-[var(--color-muted)] break-words">{c.vram ? `${fmtBytes(c.vram)} VRAM · ` : ""}{fmtBytes(c.size)} {t("settings.disk")}</div>
-          {c.takenFrom && <div className="text-[10px] text-[var(--color-accent)]">{t("setup.takenFrom", { app: PROGRAMS[c.takenFrom] ?? c.takenFrom })}</div>}
+          {c.takenFrom && <div className="text-[10px] text-[var(--color-accent)]">{takenFromLabel(t, c.takenFrom)}</div>}
         </div>
         {active ? (
           <div className="w-24 shrink-0">

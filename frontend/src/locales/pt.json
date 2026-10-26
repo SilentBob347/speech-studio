@@ -344,8 +344,9 @@
   },
   "setup": {
     "takenFrom": "aproveitado de {{app}} sem baixar",
+    "takenFromOwn": "aproveitado de outra instalação do {{app}} sem baixar",
     "title": "Primeira execução",
-    "subtitle": "O Speech Studio precisa de alguns componentes antes da primeira locução. Tudo o que é necessário já está marcado: clique em Baixar selecionados embaixo.",
+    "subtitle": "O Speech Studio precisa de alguns componentes antes da primeira locução. Tudo o que é necessário já está marcado: clique em Baixar os marcados embaixo.",
     "download": "Baixar os marcados",
     "downloadOne": "Baixar",
     "cancel": "Cancelar",
