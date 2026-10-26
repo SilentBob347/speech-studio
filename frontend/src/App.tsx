@@ -49,7 +49,10 @@ export default function App() {
       else if (c.llm_provider === "openrouter") rest.push(`LLM ${llm ? `${llm} (OpenRouter)` : "OpenRouter"}`);
       else if (c.llm_provider === "server") rest.push(`LLM ${llm ? `${llm} (${t("providers.server")})` : t("providers.server")}`);
       else if (llm) rest.push(`LLM ${llm}`);
-      setCap({ device: c.device, tts: c.models?.tts ? `${c.models.tts}${c.tts_quant ? ` ${c.tts_quant}` : ""}` : "", rest });
+      const voice = modelName(c.models?.tts);
+      const cloud = c.tts_provider === "openrouter" ? "OpenRouter" : c.tts_provider === "google" ? "Google" : "";
+      const tts = cloud ? (voice ? `${voice} (${cloud})` : cloud) : voice ? `${c.models?.tts}${c.tts_quant ? ` ${c.tts_quant}` : ""}` : "";
+      setCap({ device: c.device, tts, rest });
       setCapOffline(false);
     }).catch(() => setCapOffline(true));
     load();

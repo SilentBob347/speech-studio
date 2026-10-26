@@ -168,7 +168,7 @@ export const slot = (sel: Selection | undefined, key: string): string | undefine
 };
 export type Capabilities = {
   device: string; tts_quant: string; asr_model: string; asr_label: string; ffmpeg: boolean;
-  languages: string[]; voice_modes: string[]; models?: ModelStack; llm_provider?: LlmProviderKind;
+  languages: string[]; voice_modes: string[]; models?: ModelStack; llm_provider?: LlmProviderKind; tts_provider?: "local" | "openrouter" | "google";
   // Выбор ASR-движка (active.json): parakeet | nemotron | whisper (CrisperWhisper).
   selection?: Selection;
   asr_engines?: string[];
