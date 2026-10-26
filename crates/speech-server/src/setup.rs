@@ -239,6 +239,12 @@ pub fn llama_dir(repo_root: &Path, build: acpp_server::asset::Build) -> PathBuf 
     repo_root.join("tools").join(folder)
 }
 
+/// The download of a transcribe.cpp build as dub_tcpp pins it, to `dest_rel`.
+const fn tcpp_file(build: dub_asr::tcpp::Build, dest_rel: &'static str) -> FileSpec {
+    let d = build.download();
+    FileSpec { url: d.url, dest_rel, size: d.size, sha256: d.sha256, extract: Extract::None }
+}
+
 /// Windows x64: zip-релизы, PyPI-колёса win_amd64, redist NVIDIA windows-x86_64.
 #[cfg(windows)]
 mod platform {
@@ -343,22 +349,22 @@ mod platform {
 
     // transcribe.cpp (fork timoncool/transcribe.cpp, branch studio, scripts/build-engine-windows.cmd): libtranscribe and
     // ggml whole in one library. CUDA 13, sm 75/80/86/89/90/100/120 without PTX, cudart and cuBLAS from cuda-runtime;
-    // the CPU build for a computer without a card CUDA 13 runs on.
+    // the CPU build for a computer without a card CUDA 13 runs on. The pins are dub_tcpp's.
     pub const TRANSCRIBE_ENGINE: Parts = Parts {
-        size: 144_406_016,
-        files: &[FileSpec { url: "https://github.com/timoncool/transcribe.cpp/releases/download/engine-0.1.3/transcribe_engine.dll", dest_rel: "models/transcribe-engine/transcribe_engine.dll", size: 144_406_016, sha256: "e38b5d275449cd1453e09e1e40560e9da07f8d5715b1bc8403facb3b7b9b9009", extract: Extract::None }],
-        markers: &[Marker { rel: "models/transcribe-engine/transcribe_engine.dll", expect: 144_406_016 }],
+        size: dub_asr::tcpp::Build::Cuda.download().size,
+        files: &[super::tcpp_file(dub_asr::tcpp::Build::Cuda, "models/transcribe-engine/transcribe_engine.dll")],
+        markers: &[Marker { rel: "models/transcribe-engine/transcribe_engine.dll", expect: dub_asr::tcpp::Build::Cuda.download().size }],
     };
     pub const TRANSCRIBE_ENGINE_CPU: Parts = Parts {
-        size: 3_558_912,
-        files: &[FileSpec { url: "https://github.com/timoncool/transcribe.cpp/releases/download/engine-0.1.3/transcribe_engine-cpu.dll", dest_rel: "models/transcribe-engine-cpu/transcribe_engine.dll", size: 3_558_912, sha256: "64df1c98b5b6da2b77e6102f3c852adcb2e285336fc49085f7ee63cfddc0855c", extract: Extract::None }],
-        markers: &[Marker { rel: "models/transcribe-engine-cpu/transcribe_engine.dll", expect: 3_558_912 }],
+        size: dub_asr::tcpp::Build::Cpu.download().size,
+        files: &[super::tcpp_file(dub_asr::tcpp::Build::Cpu, "models/transcribe-engine-cpu/transcribe_engine.dll")],
+        markers: &[Marker { rel: "models/transcribe-engine-cpu/transcribe_engine.dll", expect: dub_asr::tcpp::Build::Cpu.download().size }],
     };
     // the Vulkan build for a card CUDA 13 does not run on (AMD, Intel, older NVIDIA)
     pub const TRANSCRIBE_ENGINE_VULKAN: Parts = Parts {
-        size: 48_806_400,
-        files: &[FileSpec { url: "https://github.com/timoncool/transcribe.cpp/releases/download/engine-0.1.3/transcribe_engine-vulkan.dll", dest_rel: "models/transcribe-engine-vulkan/transcribe_engine.dll", size: 48_806_400, sha256: "a82e53b5f09293a6c3577229397a800230bfd0cac821782b1be6e21e576253d5", extract: Extract::None }],
-        markers: &[Marker { rel: "models/transcribe-engine-vulkan/transcribe_engine.dll", expect: 48_806_400 }],
+        size: dub_asr::tcpp::Build::Vulkan.download().size,
+        files: &[super::tcpp_file(dub_asr::tcpp::Build::Vulkan, "models/transcribe-engine-vulkan/transcribe_engine.dll")],
+        markers: &[Marker { rel: "models/transcribe-engine-vulkan/transcribe_engine.dll", expect: dub_asr::tcpp::Build::Vulkan.download().size }],
     };
 
     // Qwen3-TTS (timoncool/qwentts.cpp, branch studio, ABI 7, scripts/build-engine-windows.cmd): qwen.dll with ggml and
@@ -573,21 +579,21 @@ mod platform {
 
     // transcribe.cpp (fork timoncool/transcribe.cpp, scripts/build-engine-linux-docker.sh: Ubuntu 22.04). CUDA 13.3,
     // sm 75/80/86/89/90/100/120, RUNPATH $ORIGIN and ../higgs-engine, where libcudart and libcublas come from
-    // cuda-runtime; the CPU build for a computer without a card CUDA 13 runs on.
+    // cuda-runtime; the CPU build for a computer without a card CUDA 13 runs on. The pins are dub_tcpp's.
     pub const TRANSCRIBE_ENGINE: Parts = Parts {
-        size: 160_763_128,
-        files: &[FileSpec { url: "https://github.com/timoncool/transcribe.cpp/releases/download/engine-0.1.3/libtranscribe_engine.so", dest_rel: "models/transcribe-engine/libtranscribe_engine.so", size: 160_763_128, sha256: "1a41940dc1708520d4cc5ba51ffb31b42d13beb67078d476a179df4b1cc45c5e", extract: Extract::None }],
-        markers: &[Marker { rel: "models/transcribe-engine/libtranscribe_engine.so", expect: 160_763_128 }],
+        size: dub_asr::tcpp::Build::Cuda.download().size,
+        files: &[super::tcpp_file(dub_asr::tcpp::Build::Cuda, "models/transcribe-engine/libtranscribe_engine.so")],
+        markers: &[Marker { rel: "models/transcribe-engine/libtranscribe_engine.so", expect: dub_asr::tcpp::Build::Cuda.download().size }],
     };
     pub const TRANSCRIBE_ENGINE_CPU: Parts = Parts {
-        size: 4_837_704,
-        files: &[FileSpec { url: "https://github.com/timoncool/transcribe.cpp/releases/download/engine-0.1.3/libtranscribe_engine-cpu.so", dest_rel: "models/transcribe-engine-cpu/libtranscribe_engine.so", size: 4_837_704, sha256: "9f7904d685a8a4385f436a1af821d1bd2629b1c1af814ea4a5b00deada9513b2", extract: Extract::None }],
-        markers: &[Marker { rel: "models/transcribe-engine-cpu/libtranscribe_engine.so", expect: 4_837_704 }],
+        size: dub_asr::tcpp::Build::Cpu.download().size,
+        files: &[super::tcpp_file(dub_asr::tcpp::Build::Cpu, "models/transcribe-engine-cpu/libtranscribe_engine.so")],
+        markers: &[Marker { rel: "models/transcribe-engine-cpu/libtranscribe_engine.so", expect: dub_asr::tcpp::Build::Cpu.download().size }],
     };
     pub const TRANSCRIBE_ENGINE_VULKAN: Parts = Parts {
-        size: 50_802_760,
-        files: &[FileSpec { url: "https://github.com/timoncool/transcribe.cpp/releases/download/engine-0.1.3/libtranscribe_engine-vulkan.so", dest_rel: "models/transcribe-engine-vulkan/libtranscribe_engine.so", size: 50_802_760, sha256: "b20c17f2eb91a05cc3ab7cd5e90ecaad178cbcc3fcd0bdcc5baad8257ac9382a", extract: Extract::None }],
-        markers: &[Marker { rel: "models/transcribe-engine-vulkan/libtranscribe_engine.so", expect: 50_802_760 }],
+        size: dub_asr::tcpp::Build::Vulkan.download().size,
+        files: &[super::tcpp_file(dub_asr::tcpp::Build::Vulkan, "models/transcribe-engine-vulkan/libtranscribe_engine.so")],
+        markers: &[Marker { rel: "models/transcribe-engine-vulkan/libtranscribe_engine.so", expect: dub_asr::tcpp::Build::Vulkan.download().size }],
     };
 
     // Qwen3-TTS (timoncool/qwentts.cpp, branch studio, ABI 7, scripts/build-engine-linux-docker.sh, Ubuntu 22.04):
@@ -780,14 +786,14 @@ mod platform {
     // Drama 3 is a CUDA engine: macOS does not offer it (`manifest`), and the engine says so (`drama_unavailable`).
     pub const DRAMA_ENGINE: FileSpec = FileSpec { url: "", dest_rel: "models/drama-engine/libdrama_engine.dylib", size: 0, sha256: "", extract: Extract::None };
 
-    // transcribe.cpp (timoncool/transcribe.cpp engine-0.1.1): Metal and the processor in one library, in the
-    // processor build's folder (`models::tcpp_build`).
+    // transcribe.cpp (dub_tcpp's pin): Metal and the processor in one library, in the processor build's folder
+    // (`models::tcpp_build`).
     pub const TRANSCRIBE_ENGINE: Parts = NONE;
     pub const TRANSCRIBE_ENGINE_VULKAN: Parts = NONE;
     pub const TRANSCRIBE_ENGINE_CPU: Parts = Parts {
-        size: 8_994_040,
-        files: &[FileSpec { url: "https://github.com/timoncool/transcribe.cpp/releases/download/engine-0.1.1/libtranscribe_engine-macos-arm64.dylib", dest_rel: "models/transcribe-engine-cpu/libtranscribe_engine.dylib", size: 8_994_040, sha256: "683456e64f2cd16442895e0ac293c146b2b773f18a2aaedd2d7d6b6a90523829", extract: Extract::None }],
-        markers: &[Marker { rel: "models/transcribe-engine-cpu/libtranscribe_engine.dylib", expect: 8_994_040 }],
+        size: dub_asr::tcpp::Build::Cpu.download().size,
+        files: &[super::tcpp_file(dub_asr::tcpp::Build::Cpu, "models/transcribe-engine-cpu/libtranscribe_engine.dylib")],
+        markers: &[Marker { rel: "models/transcribe-engine-cpu/libtranscribe_engine.dylib", expect: dub_asr::tcpp::Build::Cpu.download().size }],
     };
 
     // Qwen3-TTS (timoncool/qwentts.cpp engine-0.2.1, scripts/build-engine-macos.sh, ABI 7): libqwen.dylib with ggml,
@@ -3905,8 +3911,11 @@ mod tests {
             assert_eq!((f.url, f.size, f.sha256), (h.download.url, h.download.size, h.download.sha256), "{}", c.id);
             assert_eq!(std::path::Path::new(f.dest_rel), std::path::Path::new("models").join(h.dir).join(h.file), "{}", c.id);
         }
-        // the builds this platform ships: CUDA, Vulkan and the processor, on a Mac the processor's slot alone
-        let shipped = dub_asr::tcpp::Build::ALL.into_iter().filter(|b| !(cfg!(target_os = "macos") && *b != dub_asr::tcpp::Build::Cpu));
+        // the builds this platform ships: CUDA 13, Vulkan and the processor (not yet CUDA 12.9), on a Mac the processor's
+        // slot alone
+        let shipped = dub_asr::tcpp::Build::ALL
+            .into_iter()
+            .filter(|b| *b != dub_asr::tcpp::Build::Cuda12 && !(cfg!(target_os = "macos") && *b != dub_asr::tcpp::Build::Cpu));
         for b in shipped {
             let d = b.download();
             let [f] = comp(b.dir()).files else { panic!("{b:?}: one file") };
