@@ -135,24 +135,35 @@ fn installed_layout(executable_dir: &Path) -> bool {
     executable_dir.join("frontend").join("dist").is_dir()
 }
 
-/// Linux-пакет (deb и AppImage): exe в usr/bin, ресурсы бандла в usr/lib/<productName>, оба только для чтения.
-fn linux_package_resources(executable_dir: &Path) -> Option<PathBuf> {
-    if !cfg!(target_os = "linux") {
+/// Пакет только для чтения: Linux (deb и AppImage) — exe в usr/bin, ресурсы бандла в usr/lib/<productName>;
+/// macOS (.app) — exe в Contents/MacOS, ресурсы в Contents/Resources.
+fn package_resources(executable_dir: &Path) -> Option<PathBuf> {
+    let resources = if cfg!(target_os = "linux") {
+        executable_dir.parent()?.join("lib").join(DATA_DIRECTORY_NAME)
+    } else if cfg!(target_os = "macos") {
+        executable_dir.parent()?.join("Resources")
+    } else {
         return None;
-    }
-    let resources = executable_dir.parent()?.join("lib").join(DATA_DIRECTORY_NAME);
+    };
     installed_layout(&resources).then_some(resources)
 }
 
-/// Данные Linux-пакета: $XDG_DATA_HOME/speech-studio, иначе ~/.local/share/speech-studio.
-fn linux_data_directory() -> Result<PathBuf, String> {
-    if let Some(root) = std::env::var_os("XDG_DATA_HOME").filter(|v| !v.is_empty()) {
-        return Ok(PathBuf::from(root).join("speech-studio"));
+/// Данные пакета: на Linux $XDG_DATA_HOME/speech-studio, иначе ~/.local/share/speech-studio; на macOS
+/// ~/Library/Application Support/Speech Studio.
+fn package_data_directory() -> Result<PathBuf, String> {
+    if !cfg!(target_os = "macos") {
+        if let Some(root) = std::env::var_os("XDG_DATA_HOME").filter(|v| !v.is_empty()) {
+            return Ok(PathBuf::from(root).join("speech-studio"));
+        }
     }
-    std::env::var_os("HOME")
-        .filter(|v| !v.is_empty())
-        .map(|home| PathBuf::from(home).join(".local").join("share").join("speech-studio"))
-        .ok_or_else(|| "Neither XDG_DATA_HOME nor HOME is set: there is nowhere to keep the models.\n\nНе заданы ни XDG_DATA_HOME, ни HOME: моделям негде лежать.".to_string())
+    let home = std::env::var_os("HOME").filter(|v| !v.is_empty()).map(PathBuf::from).ok_or_else(|| {
+        "Neither XDG_DATA_HOME nor HOME is set: there is nowhere to keep the models.\n\nНе заданы ни XDG_DATA_HOME, ни HOME: моделям негде лежать.".to_string()
+    })?;
+    Ok(if cfg!(target_os = "macos") {
+        home.join("Library").join("Application Support").join(DATA_DIRECTORY_NAME)
+    } else {
+        home.join(".local").join("share").join("speech-studio")
+    })
 }
 
 pub fn resolve() -> Result<Layout, String> {
@@ -179,8 +190,8 @@ pub fn resolve() -> Result<Layout, String> {
         });
     }
 
-    if let Some(resources) = linux_package_resources(&exe_dir) {
-        let data = linux_data_directory()?;
+    if let Some(resources) = package_resources(&exe_dir) {
+        let data = package_data_directory()?;
         if !directory_is_writable(&data) {
             return Err(format!("Cannot write to {}\n\nНельзя писать в {}", data.display(), data.display()));
         }
