@@ -377,8 +377,33 @@ impl Params {
 /// Сколько секунд обычно звучит текст на этом языке (для потолка токенов и сторожа).
 pub fn expected_secs(text: &str, lang: &str) -> f64 {
     let chars = text.chars().filter(|c| c.is_alphanumeric()).count() as f64;
-    let lang = if lang.is_empty() || lang == "auto" { "ru" } else { lang };
-    (chars / dub_core::fit::table_cps(lang)).max(0.6)
+    (chars / dub_core::fit::table_cps(pace_lang(text, lang))).max(0.6)
+}
+
+/// The language a phrase is paced by: the one it is set to, else what its letters say — ideographs Chinese, kana
+/// Japanese, Hangul Korean (a sign of theirs is a syllable, two to three times a Russian letter), any other Russian.
+pub fn pace_lang<'a>(text: &str, lang: &'a str) -> &'a str {
+    if !lang.is_empty() && lang != "auto" {
+        return lang;
+    }
+    let (mut han, mut kana, mut hangul, mut other) = (0usize, 0usize, 0usize, 0usize);
+    for c in text.chars().filter(|c| c.is_alphanumeric()) {
+        match c as u32 {
+            0x3040..=0x30ff => kana += 1,
+            0x3400..=0x4dbf | 0x4e00..=0x9fff | 0xf900..=0xfaff => han += 1,
+            0xac00..=0xd7af => hangul += 1,
+            _ => other += 1,
+        }
+    }
+    if kana > 0 && kana + han > other {
+        "ja"
+    } else if han > other {
+        "zh"
+    } else if hangul > other {
+        "ko"
+    } else {
+        "ru"
+    }
 }
 
 fn token_cap(expected: f64) -> u32 {
@@ -688,7 +713,7 @@ pub fn synth(engine: &Tts, req: &Request) -> Result<Synth, String> {
         if aloud {
             return Ok(Synth { samples, sr, seed, temperature, defects, seconds });
         }
-        match defect(&samples, sr, chars, req.lang) {
+        match defect(&samples, sr, chars, pace_lang(req.text, req.lang)) {
             None => return Ok(Synth { samples, sr, seed, temperature, defects, seconds }),
             Some(kind) => defects.push(kind),
         }
@@ -714,6 +739,24 @@ mod tests {
         assert_eq!(defect(&speech(0.2, sr), sr, 40, "ru"), Some("cutoff"));
         assert_eq!(defect(&vec![0.001; sr as usize * 2], sr, 20, "ru"), Some("silence"));
         assert_eq!(defect(&speech(2.0, sr), sr, 25, "ru"), None);
+    }
+
+    /// A Chinese phrase in a project of language «auto» is paced as Chinese: 40 ideographs read in 9 s were a «runaway»
+    /// by the Russian rate on every attempt.
+    #[test]
+    fn a_phrase_of_auto_language_is_paced_by_its_script() {
+        let sr = 24_000;
+        let zh = "今天晚上八点我们在老桥旁边见面然后一起去看电影吃饭聊天散步回家休息明天再见朋友们";
+        let chars = zh.chars().filter(|c| c.is_alphanumeric()).count();
+        assert_eq!(pace_lang(zh, "auto"), "zh");
+        assert_eq!(pace_lang(zh, ""), "zh");
+        assert_eq!(pace_lang("今日はいい天気ですね", "auto"), "ja");
+        assert_eq!(pace_lang("오늘 날씨가 좋네요", "auto"), "ko");
+        assert_eq!(pace_lang("Сегодня в восемь вечера", "auto"), "ru");
+        assert_eq!(pace_lang(zh, "en"), "en", "a language set by hand stands");
+        assert_eq!(defect(&speech(9.0, sr), sr, chars, pace_lang(zh, "auto")), None);
+        assert_eq!(defect(&speech(9.0, sr), sr, chars, "ru"), Some("runaway"));
+        assert!(expected_secs(zh, "auto") > 6.0);
     }
 
     #[test]
