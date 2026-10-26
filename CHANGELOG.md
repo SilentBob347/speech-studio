@@ -23,6 +23,7 @@ release notes on GitHub are taken from the release's section.
 
 ### Fixed
 
+- **Casting a book keeps the book's words whatever the model writes** («the director model changed the book's text twice»): the model only says who speaks and where each line begins, and every line's text is cut from the book itself; a chunk fails only when the model's answer is another text.
 - **Higgs stops a phrase that does not end a second past its runaway length**: the cap counted 75 tokens a second where audio.cpp counts 25 codec frames, so a phrase that would not stop ran three times longer than meant before it was judged and voiced again.
 - **Speech detection fetches what it lacks**: Live, Listening and the take check download the transcribe.cpp build of the recognition device or the Silero VAD model with the job's progress. Before, Live asked for Silero VAD, which was there, and kept refusing to start, and the take check and Listening stopped with «Silero VAD is not downloaded» when it was the engine build that was missing.
 - **Renaming a library voice no longer breaks the projects that speak with it** («There is no voice named …»): they follow the new name, and the blocks voiced with it stay voiced.
