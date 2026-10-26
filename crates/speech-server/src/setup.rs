@@ -456,7 +456,7 @@ mod platform {
 
 /// Linux x86-64: tar-сборки GitHub, PyPI-колёса manylinux, redist NVIDIA linux-x86_64. Библиотеки CUDA ищутся
 /// через LD_LIBRARY_PATH, который ставит `ensure_library_path` на старте студии.
-#[cfg(not(windows))]
+#[cfg(target_os = "linux")]
 mod platform {
     use super::{Extract, FileSpec, Marker, Parts};
 
@@ -521,74 +521,45 @@ mod platform {
     // transcribe.cpp (fork timoncool/transcribe.cpp, scripts/build-engine-linux-docker.sh: Ubuntu 22.04). CUDA 13.3,
     // sm 75/80/86/89/90/100/120, RUNPATH $ORIGIN and ../higgs-engine, where libcudart and libcublas come from
     // cuda-runtime; the CPU build for a computer without a card CUDA 13 runs on.
-    #[cfg(not(target_os = "macos"))]
     pub const TRANSCRIBE_ENGINE: Parts = Parts {
         size: 160_763_128,
         files: &[FileSpec { url: "https://github.com/timoncool/transcribe.cpp/releases/download/engine-0.1.3/libtranscribe_engine.so", dest_rel: "models/transcribe-engine/libtranscribe_engine.so", size: 160_763_128, sha256: "1a41940dc1708520d4cc5ba51ffb31b42d13beb67078d476a179df4b1cc45c5e", extract: Extract::None }],
         markers: &[Marker { rel: "models/transcribe-engine/libtranscribe_engine.so", expect: 160_763_128 }],
     };
-    #[cfg(not(target_os = "macos"))]
     pub const TRANSCRIBE_ENGINE_CPU: Parts = Parts {
         size: 4_837_704,
         files: &[FileSpec { url: "https://github.com/timoncool/transcribe.cpp/releases/download/engine-0.1.3/libtranscribe_engine-cpu.so", dest_rel: "models/transcribe-engine-cpu/libtranscribe_engine.so", size: 4_837_704, sha256: "9f7904d685a8a4385f436a1af821d1bd2629b1c1af814ea4a5b00deada9513b2", extract: Extract::None }],
         markers: &[Marker { rel: "models/transcribe-engine-cpu/libtranscribe_engine.so", expect: 4_837_704 }],
     };
-    #[cfg(not(target_os = "macos"))]
     pub const TRANSCRIBE_ENGINE_VULKAN: Parts = Parts {
         size: 50_802_760,
         files: &[FileSpec { url: "https://github.com/timoncool/transcribe.cpp/releases/download/engine-0.1.3/libtranscribe_engine-vulkan.so", dest_rel: "models/transcribe-engine-vulkan/libtranscribe_engine.so", size: 50_802_760, sha256: "b20c17f2eb91a05cc3ab7cd5e90ecaad178cbcc3fcd0bdcc5baad8257ac9382a", extract: Extract::None }],
         markers: &[Marker { rel: "models/transcribe-engine-vulkan/libtranscribe_engine.so", expect: 50_802_760 }],
     };
-    // macOS: one build per architecture, in the processor build's folder (Metal and the processor on Apple silicon, the
-    // processor on Intel); there is no CUDA build.
-    #[cfg(target_os = "macos")]
-    pub const TRANSCRIBE_ENGINE: Parts = Parts { size: 0, files: &[], markers: &[] };
-    #[cfg(target_os = "macos")]
-    pub const TRANSCRIBE_ENGINE_VULKAN: Parts = Parts { size: 0, files: &[], markers: &[] };
-    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-    pub const TRANSCRIBE_ENGINE_CPU: Parts = Parts {
-        size: 8_994_040,
-        files: &[FileSpec { url: "https://github.com/timoncool/transcribe.cpp/releases/download/engine-0.1.1/libtranscribe_engine-macos-arm64.dylib", dest_rel: "models/transcribe-engine-cpu/libtranscribe_engine.dylib", size: 8_994_040, sha256: "683456e64f2cd16442895e0ac293c146b2b773f18a2aaedd2d7d6b6a90523829", extract: Extract::None }],
-        markers: &[Marker { rel: "models/transcribe-engine-cpu/libtranscribe_engine.dylib", expect: 8_994_040 }],
-    };
-    #[cfg(all(target_os = "macos", not(target_arch = "aarch64")))]
-    pub const TRANSCRIBE_ENGINE_CPU: Parts = Parts {
-        size: 9_918_736,
-        files: &[FileSpec { url: "https://github.com/timoncool/transcribe.cpp/releases/download/engine-0.1.1/libtranscribe_engine-macos-x86_64.dylib", dest_rel: "models/transcribe-engine-cpu/libtranscribe_engine.dylib", size: 9_918_736, sha256: "7f9d0d154540673227880fc27a6178e2bd2ebbdff73e8f9a1a18d7cb262a9290", extract: Extract::None }],
-        markers: &[Marker { rel: "models/transcribe-engine-cpu/libtranscribe_engine.dylib", expect: 9_918_736 }],
-    };
 
     // Qwen3-TTS (timoncool/qwentts.cpp, branch studio, ABI 7, scripts/build-engine-linux-docker.sh, Ubuntu 22.04):
     // libqwen.so with ggml, its CPU backend and libgomp, and the backend module of each other device beside it
     // (GGML_BACKEND_DL); RUNPATH $ORIGIN, ../higgs-engine (CUDA 13 runtime) and ../cuda12-runtime.
-    #[cfg(target_os = "linux")]
     pub const QWEN_ENGINE: Parts = Parts {
         size: super::QWEN_CODEC.size + 1_235_196,
         files: &[super::QWEN_CODEC, FileSpec { url: "https://github.com/timoncool/qwentts.cpp/releases/download/engine-0.2.0/qwen-linux-x64.tar.gz", dest_rel: "models/qwen3-tts/_engine.tar.gz", size: 1_235_196, sha256: "a2a5a4d355f8e4e58e87130f075c035aa0c62d0e43cec31da7c0c87c22880e8a", extract: Extract::Flat }],
         markers: &[Marker { rel: super::QWEN_CODEC.dest_rel, expect: super::QWEN_CODEC.size }, Marker { rel: "models/qwen3-tts/libqwen.so", expect: 675_808 }, Marker { rel: "models/qwen3-tts/libggml-cpu.so", expect: 1_272_208 }],
     };
-    #[cfg(target_os = "linux")]
     pub const QWEN_VULKAN: Parts = Parts {
         size: 42_242_640,
         files: &[FileSpec { url: "https://github.com/timoncool/qwentts.cpp/releases/download/engine-0.2.0/libggml-vulkan-linux-x64.so", dest_rel: "models/qwen3-tts/libggml-vulkan.so", size: 42_242_640, sha256: "efce535b0ba4a3d7803ab2ec75f0a1a06693fb44699baebbdd61dbc032c2177d", extract: Extract::None }],
         markers: &[Marker { rel: "models/qwen3-tts/libggml-vulkan.so", expect: 42_242_640 }],
     };
-    #[cfg(target_os = "linux")]
     pub const QWEN_CUDA13: Parts = Parts {
         size: 157_457_144,
         files: &[FileSpec { url: "https://github.com/timoncool/qwentts.cpp/releases/download/engine-0.2.0/libggml-cuda13-linux-x64.so", dest_rel: "models/qwen3-tts/libggml-cuda.so", size: 157_457_144, sha256: "ded156c13202ed4a27647eccde8ec7e30b139e5e948f8d98a9f67f0d8494d6eb", extract: Extract::None }],
         markers: &[Marker { rel: "models/qwen3-tts/libggml-cuda.so", expect: 157_457_144 }],
     };
-    #[cfg(target_os = "linux")]
     pub const QWEN_CUDA12: Parts = Parts {
         size: 181_025_560,
         files: &[FileSpec { url: "https://github.com/timoncool/qwentts.cpp/releases/download/engine-0.2.0/libggml-cuda12-linux-x64.so", dest_rel: "models/qwen3-tts/libggml-cuda.so", size: 181_025_560, sha256: "bb4123ff8521c38ecf7704e71d2ee2814ae21704d44240b9489033ce56474837", extract: Extract::None }],
         markers: &[Marker { rel: "models/qwen3-tts/libggml-cuda.so", expect: 181_025_560 }],
     };
-    // macOS has no build of Qwen3-TTS yet: the component brings the codec alone and the engine stays unavailable with
-    // its reason.
-    #[cfg(target_os = "macos")]
-    pub const QWEN_ENGINE: Parts = Parts { size: super::QWEN_CODEC.size, files: &[super::QWEN_CODEC], markers: &[Marker { rel: super::QWEN_CODEC.dest_rel, expect: super::QWEN_CODEC.size }] };
 
     // BSRoformer.cpp v0.1.0 (timoncool/BSRoformer.cpp studio-0.1.0, scripts/release-linux-cuda-docker.sh): Ubuntu
     // 22.04, libgomp beside the program, RUNPATH $ORIGIN, ../../models/higgs-engine and ../../models/cuda12-runtime;
@@ -713,6 +684,109 @@ mod platform {
             FileSpec { url: "https://files.pythonhosted.org/packages/af/75/96ea5c5368eb595c39d629cde08a66227a864e71ccb0e593add2612bb952/nvidia_cudnn_cu13-9.27.0.42-py3-none-manylinux_2_27_x86_64.whl", dest_rel: "models/higgs-engine/_cudnn.whl", size: 536_771_498, sha256: "9677e76f21862eb5da7ee5ed69d544738b2d8b5c3ce7e5ec125c5592e6cdbdc8", extract: Extract::Libs },
         ],
         markers: &[Marker { rel: "models/higgs-engine/libcudnn.so.9", expect: 0 }],
+    };
+}
+
+#[cfg(all(target_os = "macos", not(target_arch = "aarch64")))]
+compile_error!("Speech Studio for macOS is built for Apple silicon only: ONNX Runtime 1.28.2 has no Intel build");
+
+/// macOS on Apple silicon: one build of each engine, Metal and the processor in it (a stage set to the processor or to
+/// «auto» runs it); no CUDA, no Vulkan. Tar and zip archives of GitHub, ffmpeg of ffmpeg.martin-riedl.de. A sidecar whose
+/// libraries name the CI's folder finds them beside itself through DYLD_LIBRARY_PATH (`dub_core::proc::libraries_beside`).
+#[cfg(target_os = "macos")]
+mod platform {
+    use super::{Extract, FileSpec, Marker, Parts};
+
+    const NONE: Parts = Parts { size: 0, files: &[], markers: &[] };
+
+    // audiocpp_server has no macOS build yet: Higgs, Supertonic and CrisperWhisper are not offered on macOS until the
+    // Metal build of acpp_server::asset is pinned here.
+    pub fn server_parts(_build: acpp_server::asset::Build) -> &'static Parts {
+        &NONE
+    }
+
+    pub const CUDA12_RUNTIME: Parts = NONE;
+    pub const CUDA_RUNTIME: Parts = NONE;
+    pub const CUDNN: Parts = NONE;
+    pub const ORT_GPU: Parts = NONE;
+
+    // Drama 3 is a CUDA engine: macOS does not offer it (`manifest`), and the engine says so (`drama_unavailable`).
+    pub const DRAMA_ENGINE: FileSpec = FileSpec { url: "", dest_rel: "models/drama-engine/libdrama_engine.dylib", size: 0, sha256: "", extract: Extract::None };
+
+    // transcribe.cpp (timoncool/transcribe.cpp engine-0.1.1): Metal and the processor in one library, in the
+    // processor build's folder (`models::tcpp_build`).
+    pub const TRANSCRIBE_ENGINE: Parts = NONE;
+    pub const TRANSCRIBE_ENGINE_VULKAN: Parts = NONE;
+    pub const TRANSCRIBE_ENGINE_CPU: Parts = Parts {
+        size: 8_994_040,
+        files: &[FileSpec { url: "https://github.com/timoncool/transcribe.cpp/releases/download/engine-0.1.1/libtranscribe_engine-macos-arm64.dylib", dest_rel: "models/transcribe-engine-cpu/libtranscribe_engine.dylib", size: 8_994_040, sha256: "683456e64f2cd16442895e0ac293c146b2b773f18a2aaedd2d7d6b6a90523829", extract: Extract::None }],
+        markers: &[Marker { rel: "models/transcribe-engine-cpu/libtranscribe_engine.dylib", expect: 8_994_040 }],
+    };
+
+    // Qwen3-TTS (timoncool/qwentts.cpp engine-0.2.1, scripts/build-engine-macos.sh, ABI 7): libqwen.dylib with ggml,
+    // the CPU backend and Metal linked in, no backend modules.
+    pub const QWEN_ENGINE: Parts = Parts {
+        size: super::QWEN_CODEC.size + QWEN_MACOS_SIZE,
+        files: &[super::QWEN_CODEC, FileSpec { url: "https://github.com/timoncool/qwentts.cpp/releases/download/engine-0.2.1/qwen-macos-arm64.tar.gz", dest_rel: "models/qwen3-tts/_engine.tar.gz", size: QWEN_MACOS_SIZE, sha256: "116a8ff3686375974fe9a0f8d39970b36aa86e12e65e02dd4b7b3ee502afa9e7", extract: Extract::Flat }],
+        markers: &[Marker { rel: super::QWEN_CODEC.dest_rel, expect: super::QWEN_CODEC.size }, Marker { rel: "models/qwen3-tts/libqwen.dylib", expect: 594_416 }],
+    };
+    const QWEN_MACOS_SIZE: u64 = 1_953_301;
+    pub const QWEN_VULKAN: Parts = NONE;
+    pub const QWEN_CUDA13: Parts = NONE;
+    pub const QWEN_CUDA12: Parts = NONE;
+
+    // BSRoformer.cpp v0.1.0, the author's build (chenmozhijin/BSRoformer.cpp): Metal and the processor, the
+    // libraries by their full versions (`add_soname_links` gives them the names the program asks for).
+    pub const BSROFORMER: Parts = NONE;
+    pub const BSROFORMER_CUDA12: Parts = NONE;
+    pub const BSROFORMER_VULKAN: Parts = NONE;
+    pub const BSROFORMER_CPU: Parts = Parts {
+        size: 636_996,
+        files: &[
+            FileSpec { url: "https://github.com/chenmozhijin/BSRoformer.cpp/releases/download/v0.1.0/BSRoformer-macos-arm64.tar.xz", dest_rel: "tools/bsroformer-cpu/_engine.tar.xz", size: 636_996, sha256: "d0fc45181d31dcceea99c3828378f4a7376e52e7fdbc43e29a07e806785b4c9a", extract: Extract::Flat },
+        ],
+        markers: &[Marker { rel: "tools/bsroformer-cpu/bs_roformer-cli", expect: 0 }],
+    };
+
+    // llama.cpp b11900 macos-arm64: Metal and the processor, rpath @loader_path.
+    pub const LLAMA: Parts = NONE;
+    pub const LLAMA_CUDA12: Parts = NONE;
+    pub const LLAMA_VULKAN: Parts = NONE;
+    pub const LLAMA_CPU: Parts = Parts {
+        size: 16_295_973,
+        files: &[FileSpec { url: "https://github.com/ggml-org/llama.cpp/releases/download/b11900/llama-b11900-bin-macos-arm64.tar.gz", dest_rel: "tools/llama-cpu/_llama.tar.gz", size: 16_295_973, sha256: "6d3af8649e687b288395ee79f4423a21376892edb94520fa6320bfd3eb81700b", extract: Extract::Flat }],
+        markers: &[Marker { rel: "tools/llama-cpu/llama-server", expect: 0 }],
+    };
+
+    pub const ORT: Parts = Parts {
+        size: 32_093_967,
+        files: &[
+            FileSpec { url: "https://github.com/microsoft/onnxruntime/releases/download/v1.28.2/onnxruntime-osx-arm64-1.28.2.tgz", dest_rel: "models/runtime/_ort.tgz", size: 32_093_967, sha256: "c4fceacfc53765d0869dc9180c31ec91054d149017a99d1e80ffe28dc79596de", extract: Extract::Tree },
+        ],
+        markers: &[Marker { rel: "models/runtime/onnxruntime-osx-arm64-1.28.2/lib/libonnxruntime.1.28.2.dylib", expect: 0 }],
+    };
+
+    // ffmpeg 9.0.2 of ffmpeg.martin-riedl.de (static, signed): ffmpeg and ffprobe, a zip each. Not mirrored: a GPL
+    // program is fetched from its builder.
+    pub const FFMPEG: Parts = Parts {
+        size: 56_713_400,
+        files: &[
+            FileSpec { url: "https://ffmpeg.martin-riedl.de/download/macos/arm64/1789931890_9.0.2/ffmpeg.zip", dest_rel: "tools/ffmpeg/_ffmpeg.zip", size: 28_395_699, sha256: "c8ed4c4e6978a03c485edbfe4e0a5dc2380f8a30bba5150531b31b094492d924", extract: Extract::Pick },
+            FileSpec { url: "https://ffmpeg.martin-riedl.de/download/macos/arm64/1789931890_9.0.2/ffprobe.zip", dest_rel: "tools/ffmpeg/_ffprobe.zip", size: 28_317_701, sha256: "fcbe839537485eaee7a7a8bc5cbc0f90d53617e80943e8a5b2e31cb851197ea6", extract: Extract::Pick },
+        ],
+        markers: &[Marker { rel: "tools/ffmpeg/ffmpeg", expect: 66_332_880 }, Marker { rel: "tools/ffmpeg/ffprobe", expect: 66_158_064 }],
+    };
+
+    pub const YTDLP: Parts = Parts {
+        size: 75_951_531,
+        files: &[
+            FileSpec { url: "https://github.com/yt-dlp/yt-dlp/releases/download/2026.10.21/yt-dlp_macos", dest_rel: "tools/yt-dlp/yt-dlp", size: 37_180_736, sha256: "7a6fe71d7d680f1fb0ac18d4949873d77db2859e90017c0f44bd94b23be4ee40", extract: Extract::None },
+            FileSpec { url: "https://github.com/denoland/deno/releases/download/v2.9.8/deno-aarch64-apple-darwin.zip", dest_rel: "tools/yt-dlp/_deno.zip", size: 38_770_795, sha256: "9f0bf660393da2eaff044cdc7444cb08c73f235849b61d224d825a194ce7c98e", extract: Extract::Flat },
+        ],
+        markers: &[
+            Marker { rel: "tools/yt-dlp/yt-dlp", expect: 37_180_736 },
+            Marker { rel: "tools/yt-dlp/deno", expect: 81_512_928 },
+        ],
     };
 }
 
@@ -1484,8 +1558,7 @@ pub fn manifest() -> Vec<Component> {
         });
     }
     // Qwen3-TTS's backend modules, fetched when voicing is set to their device: Vulkan, and the CUDA one of this
-    // computer's card (macOS has no build of Qwen3-TTS yet)
-    #[cfg(not(target_os = "macos"))]
+    // computer's card (macOS: Metal is in the engine itself, and these have no files there)
     {
         all.push(Component {
             id: "qwen3-tts-vulkan",
@@ -1540,8 +1613,19 @@ pub fn manifest() -> Vec<Component> {
     if platform::TRANSCRIBE_ENGINE_CPU.files.is_empty() {
         all.retain(|c| !c.id.starts_with("transcribe-engine") && !c.id.starts_with("asr-gguf-"));
     }
+    // a platform without a build of audiocpp_server has nothing to run Higgs, Supertonic and CrisperWhisper on
+    if platform::server_parts(crate::engines::acpp::build()).files.is_empty() {
+        all.retain(|c| !SERVER_ONLY.contains(&c.id));
+    }
+    // macOS: no NVIDIA card and no CUDA engine; what has no build here is not offered
+    if cfg!(target_os = "macos") {
+        all.retain(|c| !matches!(c.id, "nvidia-driver" | "drama3") && (c.delivery != Delivery::Download || !c.files.is_empty()));
+    }
     all
 }
+
+/// The components only audiocpp_server runs: its program and the models no other engine of the studio reads.
+const SERVER_ONLY: &[&str] = &["higgs-engine", "higgs", "higgs-q6_k", "higgs-q4_k_m", "supertonic3", "crisperwhisper-turbo"];
 
 // ── Статус одного компонента ────────────────────────────────────────────────
 
@@ -3204,19 +3288,15 @@ fn extract_archive(archive: &Path, name: &str, extract: Extract, dir: &Path) -> 
     Ok(written)
 }
 
-/// Как `ldconfig -n`: библиотеке `libX.so.0.15.1` без соседней `libX.so.0` поставить эту ссылку — по ней
-/// её ищет загрузчик (CPU-сборка BSRoformer для Linux приходит одними полными именами).
+/// Как `ldconfig -n`: библиотеке, пришедшей одним полным именем (`libX.so.0.15.1`, `libX.0.15.1.dylib`), без
+/// соседней ссылки по имени, которое просит загрузчик, поставить эту ссылку (CPU-сборка BSRoformer для Linux, его
+/// сборка для macOS).
 #[cfg(unix)]
 fn add_soname_links(written: &mut Vec<PathBuf>) -> Result<(), String> {
     let mut added = Vec::new();
     for path in written.iter() {
         let Some(name) = path.file_name().and_then(|n| n.to_str()) else { continue };
-        let Some(at) = name.find(".so.") else { continue };
-        let version: Vec<&str> = name[at + 4..].split('.').collect();
-        if version.len() < 2 || !version.iter().all(|v| !v.is_empty() && v.bytes().all(|b| b.is_ascii_digit())) {
-            continue;
-        }
-        let soname = format!("{}.so.{}", &name[..at], version[0]);
+        let Some(soname) = soname_of(name) else { continue };
         let link = path.with_file_name(&soname);
         if link.exists() || written.contains(&link) || added.contains(&link) {
             continue;
@@ -3226,6 +3306,23 @@ fn add_soname_links(written: &mut Vec<PathBuf>) -> Result<(), String> {
     }
     written.extend(added);
     Ok(())
+}
+
+/// The name the loader asks for of a library named by its full version: `libX.so.0.15.1` → `libX.so.0`,
+/// `libX.0.15.1.dylib` → `libX.0.dylib`; None for a name without one.
+#[cfg(any(unix, test))]
+fn soname_of(name: &str) -> Option<String> {
+    let numeric = |parts: &[&str]| parts.len() >= 2 && parts.iter().all(|v| !v.is_empty() && v.bytes().all(|b| b.is_ascii_digit()));
+    if let Some(at) = name.find(".so.") {
+        let version: Vec<&str> = name[at + 4..].split('.').collect();
+        return numeric(&version).then(|| format!("{}.so.{}", &name[..at], version[0]));
+    }
+    let stem = name.strip_suffix(".dylib")?;
+    let mut parts: Vec<&str> = stem.split('.').collect();
+    let base = parts.remove(0);
+    let first = parts.iter().position(|p| p.bytes().all(|b| b.is_ascii_digit()))?;
+    let (named, version) = parts.split_at(first);
+    numeric(version).then(|| format!("{}.{}.dylib", std::iter::once(base).chain(named.iter().copied()).collect::<Vec<_>>().join("."), version[0]))
 }
 
 /// Записать элемент архива в файл через .part+rename (атомарно); на Linux — с правами из архива (бит запуска).
@@ -3985,5 +4082,16 @@ mod tests {
         let tree = tmp.path().join("tree");
         extract_archive(&archive, "pkg.tar.gz", Extract::Tree, &tree).unwrap();
         assert_eq!(std::fs::read(tree.join("pkg/include/foo.h")).unwrap(), b"header");
+    }
+
+    /// A library that comes by its full version gets the name the loader asks for, on Linux and on macOS alike.
+    #[test]
+    fn a_library_by_its_full_version_gets_the_name_the_loader_asks_for() {
+        assert_eq!(soname_of("libggml-base.so.0.15.1").as_deref(), Some("libggml-base.so.0"));
+        assert_eq!(soname_of("libggml-base.0.15.1.dylib").as_deref(), Some("libggml-base.0.dylib"));
+        assert_eq!(soname_of("libllama-common.0.7.0.dylib").as_deref(), Some("libllama-common.0.dylib"));
+        for name in ["libggml.0.dylib", "libqwen.dylib", "libggml.so.0", "libfoo.so", "bs_roformer-cli", "libonnxruntime.dylib"] {
+            assert_eq!(soname_of(name), None, "{name}");
+        }
     }
 }

@@ -1,0 +1,59 @@
+name: macOS build
+
+# Speech Studio for Apple silicon (scripts/build-release-macos.sh), started by hand for a release tag: the .dmg is
+# attached to that release. Windows and Linux are built on the release machine.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build and attach the .dmg to"
+        required: true
+
+concurrency:
+  group: macos-${{ inputs.tag }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+env:
+  # the repository pins the Windows toolchain for the release machine
+  RUSTUP_TOOLCHAIN: stable
+  CARGO_TERM_COLOR: never
+
+jobs:
+  macos-arm64:
+    runs-on: macos-14
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            . -> target
+            desktop/src-tauri -> target
+      - name: Install ffmpeg
+        run: brew list ffmpeg >/dev/null 2>&1 || brew install ffmpeg
+      - name: Build
+        run: bash scripts/build-release-macos.sh
+      - name: Collect
+        run: |
+          set -e
+          mkdir -p out
+          dmg="$(find desktop/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg -name '*.dmg' | head -n 1)"
+          version="$(node -p "require('./desktop/src-tauri/tauri.conf.json').version")"
+          cp "$dmg" "out/Speech-Studio-${version}-macos-arm64.dmg"
+          (cd out && shasum -a 256 *.dmg)
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ inputs.tag }}" out/*.dmg --clobber

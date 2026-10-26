@@ -8,6 +8,7 @@ release notes on GitHub are taken from the release's section.
 
 ### Changed
 
+- **Speech Studio for macOS on Apple silicon** (macOS 13 and newer, a .dmg): First run downloads the macOS builds of recognition (transcribe.cpp), Qwen3-TTS, separation, the local LLM, ONNX Runtime, ffmpeg and yt-dlp, each with Metal where it has it. Higgs, Supertonic and CrisperWhisper are not offered on macOS until their engine (audio.cpp) has a macOS build; Drama 3 runs on NVIDIA cards only.
 - **Studio notices come as a window too**: a notice of the studio's feed can open as a window over the studio, once ready, after its delay and only while nothing is being voiced, recorded or said aloud; its buttons open a link, the news, Settings → Models or About. A strip or a window shows only in the sections it is meant for (making a work, the voice library, the news, the tools, Settings), and an advertisement carries its label and erid.
 - **News from the feed have their picture and buttons**, and a button can open a link, Settings or the news.
 - **The anonymous report says how fast voicing goes on the card**: seconds of speech voiced and seconds the engine worked for them, for local engines (Settings → Privacy says so). The window's own polling (microphone state, recording level, resource monitor, queue) is no longer counted as using the studio.

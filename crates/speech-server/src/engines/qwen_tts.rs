@@ -28,8 +28,11 @@ pub const QUANTS: &[(&str, &str, &str)] = &[
 ];
 #[cfg(windows)]
 pub const LIBRARY: &str = "qwen.dll";
-#[cfg(not(windows))]
+#[cfg(target_os = "linux")]
 pub const LIBRARY: &str = "libqwen.so";
+/// macOS: the CPU backend and Metal are linked into the library, so no device has a module beside it.
+#[cfg(target_os = "macos")]
+pub const LIBRARY: &str = "libqwen.dylib";
 /// The speakers of the CustomVoice checkpoints with the native language the model card gives them.
 pub const SPEAKERS: &[(&str, &str, &str, &str, &str)] = &[
     ("vivian", "Vivian", "female", "zh", "Bright, slightly edgy young female voice."),
