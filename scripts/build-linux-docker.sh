@@ -41,9 +41,12 @@ if [ "${1:-}" = "--inside" ]; then
   echo "[..] build (log: build.log)"
   bash scripts/build-release-linux.sh > /out/build.log 2>&1 || { echo "[ERROR] build failed"; tail -40 /out/build.log; exit 1; }
   version="$(node -p "require('./desktop/src-tauri/tauri.conf.json').version")"
-  # the cache keeps the bundles of earlier versions: take this version's
-  cp "/cache/target/release/bundle/deb/Speech Studio_${version}_amd64.deb" "/out/Speech-Studio-${version}-linux-amd64-experimental.deb"
-  cp "/cache/target/release/bundle/appimage/Speech Studio_${version}_amd64.AppImage" "/out/Speech-Studio-${version}-linux-x86_64-experimental.AppImage"
+  # the cache keeps the packages of earlier versions: take this version's by name
+  deb="$(find /cache/target/release/bundle/deb -name "*_${version}_amd64.deb" | head -n 1)"
+  appimage="$(find /cache/target/release/bundle/appimage -name "*_${version}_amd64.AppImage" | head -n 1)"
+  [ -f "$deb" ] && [ -f "$appimage" ] || { echo "[ERROR] no ${version} package in the bundle folder"; exit 1; }
+  cp "$deb" "/out/Speech-Studio-${version}-linux-amd64-experimental.deb"
+  cp "$appimage" "/out/Speech-Studio-${version}-linux-x86_64-experimental.AppImage"
   ls -la /out/*.deb /out/*.AppImage
   echo "[OK] Speech Studio ${version} for Linux"
   exit 0
