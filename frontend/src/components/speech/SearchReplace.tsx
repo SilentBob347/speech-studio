@@ -27,7 +27,7 @@ export default function SearchReplace({ blocks, onReplace, onJump, onFound, onCl
   onClose: () => void;
 }) {
   const { t } = useTranslation();
-  useEscapeLayer(onClose);
+  useEscapeLayer(onClose, true, false);
   const [find, setFind] = useState("");
   const [replace, setReplace] = useState("");
   const [regex, setRegex] = useState(false);

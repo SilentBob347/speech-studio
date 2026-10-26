@@ -9,6 +9,7 @@ import { useSpeechProject } from "../../lib/useSpeechProject";
 import BookImport from "./BookImport";
 import { sentenceAt, wordAt, wordTimes } from "../../lib/readAlong";
 import { useLivePlayback } from "../../lib/livePlayback";
+import { LAYER_OPENED } from "../../lib/escape";
 import { useEngines } from "../../lib/engines";
 import { followJob } from "../../lib/followJob";
 import { errorText } from "../../lib/voices";
@@ -273,6 +274,13 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
 
   const stopAudio = useCallback(() => { audio.current?.pause(); setPlaying(null); setPaused(false); setQueue([]); }, []);
   const pauseAudio = () => { if (!playing) return; audio.current?.pause(); setPaused(true); };
+  const pauseLatest = useRef(pauseAudio);
+  useEffect(() => { pauseLatest.current = pauseAudio; });
+  useEffect(() => {
+    const pause = () => pauseLatest.current();
+    window.addEventListener(LAYER_OPENED, pause);
+    return () => window.removeEventListener(LAYER_OPENED, pause);
+  }, []);
   const resumeAudio = () => { if (!playing || !audio.current) return; setPaused(false); audio.current.play().catch((e: unknown) => { setPlaying(null); setJobError(errorText(e)); }); };
   const editSpoken = () => {
     const b = playing ? blocks.find((x) => x.id === playing) : null;
