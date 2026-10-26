@@ -310,7 +310,8 @@ fn listen(choice: crate::engines::models::AsrChoice, models_root: &Path, lang: &
 mod tests {
     use super::*;
 
-    /// LIVE_WAV: a recording to feed as the microphone; SPEECH_STUDIO_ROOT: a studio root with Parakeet and Silero VAD.
+    /// LIVE_WAV: a recording to feed as the microphone; SPEECH_STUDIO_ROOT: a studio root with its recognition model and
+    /// Silero VAD; LIVE_LANG: the language to hear in (`ru` when not set, `auto` for Auto).
     #[test]
     #[ignore]
     fn a_recording_fed_as_the_microphone_is_heard_phrase_by_phrase() {
@@ -318,9 +319,10 @@ mod tests {
         let models = root.join("models");
         crate::set_ort_dylib_env(&root, &root).unwrap();
         let (x, sr) = crate::audio::wavio::read_mono_f32(Path::new(&std::env::var("LIVE_WAV").expect("LIVE_WAV"))).unwrap();
-        let choice = crate::app::recognition::choice(&root, &models, "ru", "test").unwrap();
+        let lang = std::env::var("LIVE_LANG").unwrap_or_else(|_| "ru".into());
+        let choice = crate::app::recognition::choice(&root, &models, &lang, "test").unwrap();
         std::env::set_var("DUB_ASR_BACKEND", crate::engines::models::stage_backend(&models, "asr_backend"));
-        *live().lock().unwrap() = Some(Live { lines: Vec::new(), partial: None, error: None, muted: false, typed: Default::default(), engine: String::new(), lang: "ru".into(), stop: Arc::new(AtomicBool::new(false)), worker: None });
+        *live().lock().unwrap() = Some(Live { lines: Vec::new(), partial: None, error: None, muted: false, typed: Default::default(), engine: String::new(), lang: lang.clone(), stop: Arc::new(AtomicBool::new(false)), worker: None });
         let (to, from) = channel::<Vec<f32>>();
         let feeder = std::thread::spawn(move || {
             for chunk in x.chunks((sr / 10) as usize) {
@@ -341,7 +343,7 @@ mod tests {
             seen
         });
         let stop = AtomicBool::new(false);
-        listen(choice, &models, "ru", from, &stop, &move || sr, 0.0).unwrap();
+        listen(choice, &models, &lang, from, &stop, &move || sr, 0.0).unwrap();
         feeder.join().unwrap();
         let seen = partials.join().unwrap();
         for p in &seen {
