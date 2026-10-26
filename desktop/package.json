@@ -1,6 +1,6 @@
 {
   "name": "speech-studio-desktop",
-  "version": "0.2.4",
+  "version": "0.3.0",
   "private": true,
   "description": "Tauri-оболочка Speech Studio (поднимает нативный speech-server и открывает окно)",
   "scripts": {
