@@ -52,7 +52,7 @@ fn load(p: &SpeechPaths, engine: &str, voice: Option<&str>, lang: &str) -> Resul
     if engine == crate::engines::models::DRAMA_TTS {
         tts_host::drama(&p.models_root)?;
     } else if engine == crate::engines::supertonic::ENGINE {
-        tts_host::supertonic(&p.models_root)?;
+        tts_host::supertonic(&p.repo_root, &p.models_root)?;
     } else if crate::engines::qwen_tts::is_engine(engine) {
         tts_host::qwen(&p.models_root, clones, engine == crate::engines::qwen_tts::ENGINE_STRESS)?;
     } else if engine == "higgs" {
@@ -367,7 +367,7 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
     let engine = if drama {
         tts_host::drama(&p.models_root)?
     } else if own == crate::engines::supertonic::ENGINE {
-        tts_host::supertonic(&p.models_root)?
+        tts_host::supertonic(&p.repo_root, &p.models_root)?
     } else if crate::engines::qwen_tts::is_engine(own) {
         tts_host::qwen(&p.models_root, preset.is_none(), own == crate::engines::qwen_tts::ENGINE_STRESS)?
     } else {
@@ -1087,7 +1087,9 @@ fn synth_scope(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Valu
     }
     // the build of the voicing device the local engines run on, once their models are here
     let mut builds: Vec<&str> = Vec::new();
-    if used.contains(&"higgs") && crate::engines::acpp::higgs_gguf(&p.models_root).is_file() {
+    let higgs = used.contains(&"higgs") && crate::engines::acpp::higgs_gguf(&p.models_root).is_file();
+    let supertonic = used.contains(&crate::engines::supertonic::ENGINE) && crate::engines::supertonic::installed(&p.models_root);
+    if higgs || supertonic {
         let build = crate::engines::acpp::build_for(crate::engines::models::server_choice(&p.models_root, "tts_backend"))?;
         builds.push(crate::engines::acpp::component(build));
         builds.extend(crate::engines::acpp::runtime_component(build));

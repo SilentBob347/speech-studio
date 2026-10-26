@@ -1,6 +1,6 @@
 //! The studio's audiocpp_server (audio.cpp, through Dub Studio's crate `acpp-server`: `SERVERS`, one process per
-//! build): CrisperWhisper, Parakeet TDT v3 and Nemotron 3.5 recognition, Nemotron 3 Diarization and Higgs Audio v3
-//! voicing, with the models on disk now. The same server and
+//! build): CrisperWhisper, Parakeet TDT v3 and Nemotron 3.5 recognition, Nemotron 3 Diarization, and Higgs Audio v3
+//! and Supertonic 3 voicing, with the models on disk now. The same server and
 //! layout as Dub Studio's, so a model of one program serves the other.
 
 use crate::engines::hw::CudaBuild;
@@ -17,6 +17,7 @@ pub const DIAR: &str = "nemotron-diar";
 pub const HIGGS: &str = "higgs";
 pub const NEMOTRON: &str = "nemotron";
 pub const PARAKEET: &str = "parakeet-v3";
+pub const SUPERTONIC: &str = "supertonic";
 
 /// The models of transcribe.cpp's catalogue the server runs, reading their GGUF in place: Parakeet TDT v3 and Nemotron
 /// 3.5. Parakeet Ultra stays on transcribe.cpp: audio.cpp does not read its built-in VAD head.
@@ -135,6 +136,9 @@ fn models(models_root: &Path) -> Vec<ModelEntry> {
     let diar = diar_onnx(models_root);
     if diar.is_file() {
         out.push(ModelEntry::nemotron_3_diar(DIAR, &diar));
+    }
+    if crate::engines::supertonic::installed(models_root) {
+        out.push(ModelEntry::supertonic(SUPERTONIC, &crate::engines::supertonic::dir(models_root)));
     }
     // the transcribe.cpp GGUFs, which audio.cpp reads in place
     for id in SERVER_ASR {
@@ -255,6 +259,7 @@ impl Higgs {
             input: text.to_string(),
             voice_ref: reference.map(|p| VoiceRef::Path(p.to_path_buf())),
             reference_text: reference_text.filter(|t| !t.trim().is_empty()).map(str::to_string),
+            language: None,
             options,
             stall: SPEECH_STALL,
         };

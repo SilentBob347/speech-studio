@@ -9,17 +9,17 @@ description = "axum-сервис Speech Studio: озвучка (Speech) и ра�
 tempfile = "3"
 trash = "5"
 fluent-templates = "0.15.1"
-dub-core = { git = "https://github.com/timoncool/dub-studio", rev = "c65cda8b22299778ba150988c9c43a6ab33a6e5d" }
-dub-asr = { git = "https://github.com/timoncool/dub-studio", rev = "c65cda8b22299778ba150988c9c43a6ab33a6e5d", features = ["cuda"] }
-dub-tcpp = { git = "https://github.com/timoncool/dub-studio", rev = "c65cda8b22299778ba150988c9c43a6ab33a6e5d" }
-acpp-server = { git = "https://github.com/timoncool/dub-studio", rev = "c65cda8b22299778ba150988c9c43a6ab33a6e5d", features = ["langid"] }
-dub-llm = { git = "https://github.com/timoncool/dub-studio", rev = "c65cda8b22299778ba150988c9c43a6ab33a6e5d" }
-dub-translate = { git = "https://github.com/timoncool/dub-studio", rev = "c65cda8b22299778ba150988c9c43a6ab33a6e5d" }
-dub-captions = { git = "https://github.com/timoncool/dub-studio", rev = "c65cda8b22299778ba150988c9c43a6ab33a6e5d" }
-dub-sep = { git = "https://github.com/timoncool/dub-studio", rev = "c65cda8b22299778ba150988c9c43a6ab33a6e5d" }
-dub-faces = { git = "https://github.com/timoncool/dub-studio", rev = "c65cda8b22299778ba150988c9c43a6ab33a6e5d" }
+dub-core = { git = "https://github.com/timoncool/dub-studio", rev = "7e7f1545dc748a5851d58814ec5b47d387594de1" }
+dub-asr = { git = "https://github.com/timoncool/dub-studio", rev = "7e7f1545dc748a5851d58814ec5b47d387594de1", features = ["cuda"] }
+dub-tcpp = { git = "https://github.com/timoncool/dub-studio", rev = "7e7f1545dc748a5851d58814ec5b47d387594de1" }
+acpp-server = { git = "https://github.com/timoncool/dub-studio", rev = "7e7f1545dc748a5851d58814ec5b47d387594de1", features = ["langid"] }
+dub-llm = { git = "https://github.com/timoncool/dub-studio", rev = "7e7f1545dc748a5851d58814ec5b47d387594de1" }
+dub-translate = { git = "https://github.com/timoncool/dub-studio", rev = "7e7f1545dc748a5851d58814ec5b47d387594de1" }
+dub-captions = { git = "https://github.com/timoncool/dub-studio", rev = "7e7f1545dc748a5851d58814ec5b47d387594de1" }
+dub-sep = { git = "https://github.com/timoncool/dub-studio", rev = "7e7f1545dc748a5851d58814ec5b47d387594de1" }
+dub-faces = { git = "https://github.com/timoncool/dub-studio", rev = "7e7f1545dc748a5851d58814ec5b47d387594de1" }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
-drama = { git = "https://github.com/timoncool/dub-studio", rev = "c65cda8b22299778ba150988c9c43a6ab33a6e5d" }
+drama = { git = "https://github.com/timoncool/dub-studio", rev = "7e7f1545dc748a5851d58814ec5b47d387594de1" }
 hound = "3"
 axum = { version = "0.8", features = ["multipart"] }
 tower = { version = "0.5", features = ["util"] }
@@ -78,7 +78,7 @@ studio-hub-client = { git = "https://github.com/timoncool/studio-hub-client", re
 regex = "1"
 # ударения и омографы (stress.rs): ONNX-сети RUAccent на той же onnxruntime 1.28, что ASR, их токенизатор и словарь как FST.
 ort = { version = "=2.0.0-rc.13", default-features = false, features = ["load-dynamic", "tracing", "api-28", "cuda"] }
-# Supertonic: NFKD of the text, as its unicode indexer expects.
+# the director's check of a rewritten text: NFKC of its letters.
 unicode-normalization = "0.1"
 # Qwen3-TTS: qwentts.cpp's C ABI loaded at run time.
 libloading = "0.9"
@@ -113,4 +113,4 @@ libc = "0.2"
 
 [dev-dependencies]
 # Поддельный HTTP-сервер для тестов провайдеров.
-dub-llm = { git = "https://github.com/timoncool/dub-studio", rev = "c65cda8b22299778ba150988c9c43a6ab33a6e5d", features = ["test-support"] }
+dub-llm = { git = "https://github.com/timoncool/dub-studio", rev = "7e7f1545dc748a5851d58814ec5b47d387594de1", features = ["test-support"] }
