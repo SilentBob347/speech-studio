@@ -27,6 +27,7 @@ release notes on GitHub are taken from the release's section.
 
 ### Fixed
 
+- **The script assistant starts on Linux older than glibc 2.38 (Ubuntu 22.04 and the like)**: the CUDA builds of llama.cpp need glibc 2.38, so there the assistant runs on the card through the Vulkan build, and Settings → Models says why.
 - **A window 768 to 1023 pixels wide no longer scrolls sideways**: the top bar shows Speech, Listening and Live by their icons there, with their names from 1024 pixels on.
 - **The status line names the assistant the studio really uses**: Gemma's file, the OpenRouter or local server model, or the agent (MCP); it showed Gemma whatever was chosen, and now follows a preset or a change by the agent at once.
 - **A hardware preset moves every stage and stays shown**: «CPU + cloud» left voicing, recognition and separation on the card when they had a device of their own, and Settings → Models showed the recommended preset again once reopened; now a preset sets the device of each stage, and the list shows the preset the settings are on, or Custom.

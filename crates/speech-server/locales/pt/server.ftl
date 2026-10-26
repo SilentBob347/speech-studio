@@ -707,6 +707,7 @@ setup-comp-bsroformer-engine-cpu-name = Motor de separação de voz (processador
 setup-comp-bsroformer-engine-cpu-purpose = Para um computador sem NVIDIA: roda no processador, mais devagar
 setup-comp-llama-name = Servidor do assistente (llama.cpp)
 setup-comp-llama-purpose = O programa que roda o Gemma para o assistente de roteiro
+setup-llama-vulkan-glibc = O assistente usa a placa pelo Vulkan: a versão CUDA do llama.cpp precisa da glibc { $need } ou mais nova, este sistema tem a { $glibc }
 setup-comp-onnxruntime-purpose = Necessário para reconhecer a fala e os falantes
 setup-comp-onnxruntime-gpu-purpose = Para que o reconhecimento de fala e de pessoas rode na placa de vídeo, não no processador
 setup-comp-ffmpeg-purpose = Lê e grava áudio e vídeo

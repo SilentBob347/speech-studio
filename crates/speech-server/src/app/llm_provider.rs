@@ -81,7 +81,7 @@ fn start_gemma(o: &LlmOpen, with_mmproj: bool) -> Result<LlmProvider, String> {
     }
     let mut opts = ServerOpts::new(o.llama_bin, o.mt_model);
     // the processor's build has no card to put layers on
-    if crate::engines::acpp::build() == acpp_server::asset::Build::Cpu {
+    if crate::setup::llama_build() == acpp_server::asset::Build::Cpu {
         opts.n_gpu_layers = 0;
     }
     let mut opts = opts

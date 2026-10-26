@@ -25,6 +25,8 @@ pub struct SetupStatus {
     pub driver_ok: bool,
     /// build-строки для диагностики (llama-билд и т.п.).
     pub llama_build: String,
+    /// Why the assistant runs another build than the card's (a CUDA build the system cannot start); None when it does not.
+    pub llama_note: Option<String>,
     /// Папка моделей (куда кладёт «Первый запуск»).
     pub models_dir: String,
     /// Свободно на томе моделей, байт; None — ОС не ответила, место не проверяется.
@@ -151,6 +153,7 @@ pub fn setup_status(repo_root: &Path) -> SetupStatus {
         download_pending,
         driver_ok: gpu.nvidia,
         llama_build: GH_LLAMA_BUILD.to_string(),
+        llama_note: crate::setup::llama_note(),
         models_dir: mroot.to_string_lossy().to_string(),
         free_bytes: free_bytes(&mroot),
         gpu,

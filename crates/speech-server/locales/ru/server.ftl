@@ -717,6 +717,7 @@ setup-comp-bsroformer-engine-cpu-name = Движок отделения голо
 setup-comp-bsroformer-engine-cpu-purpose = Для компьютера без NVIDIA: работает на процессоре, медленнее
 setup-comp-llama-name = Сервер помощника (llama.cpp)
 setup-comp-llama-purpose = Программа, которая запускает Gemma для помощника по сценарию
+setup-llama-vulkan-glibc = Помощник идёт на видеокарте через Vulkan: CUDA-сборке llama.cpp нужна glibc { $need } или новее, в системе { $glibc }
 setup-comp-onnxruntime-purpose = Нужна для распознавания речи и говорящих
 setup-comp-onnxruntime-gpu-purpose = Чтобы распознавание речи и говорящих шло на видеокарте, а не на процессоре
 setup-comp-ffmpeg-purpose = Читает и записывает звук и видео

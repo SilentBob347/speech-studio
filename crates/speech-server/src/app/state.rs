@@ -71,7 +71,7 @@ impl AppState {
         let sortformer_onnx = crate::engines::acpp::diar_onnx(&mroot);
         // llama-server: env-override, иначе <repo>/tools/llama/llama-server(.exe) (негитуемый каталог,
         // кладёт установщик/раунд 3). Существование проверяет сама стадия перевода (fail-safe).
-        let llama_bin = dub_llm::resolve_llama_bin(&crate::setup::llama_dir(&repo_root, crate::engines::acpp::build()));
+        let llama_bin = dub_llm::resolve_llama_bin(&crate::setup::llama_dir(&repo_root, crate::setup::llama_build()));
         let bsroformer_cli = std::env::var("SPEECH_STUDIO_BSROFORMER_DIR")
             .map(|d| PathBuf::from(d).join(dub_sep::ENGINE_CLI_FILE))
             .unwrap_or_else(|_| dub_sep::engine_dir(&repo_root).join(dub_sep::ENGINE_CLI_FILE));

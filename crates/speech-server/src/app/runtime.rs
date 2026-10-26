@@ -49,7 +49,7 @@ pub fn ensure_library_path(repo_root: &Path) {
 pub fn augment_path_for_tools(repo_root: &Path) {
     let mut dirs = vec![
         repo_root.join("tools").join("ffmpeg"),
-        crate::setup::llama_dir(repo_root, crate::engines::acpp::build()),
+        crate::setup::llama_dir(repo_root, crate::setup::llama_build()),
         repo_root.join("models").join("higgs-engine"),
     ];
     if crate::engines::hw::gpu_report().cuda_build == Some(crate::engines::hw::CudaBuild::Cuda12) {

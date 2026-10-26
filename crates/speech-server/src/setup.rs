@@ -168,6 +168,7 @@ pub(crate) const GH_LLAMA_BUILD: &str = "b11900";
 
 /// The llama.cpp build of this computer's card, as YuE2 picks it: CUDA 13, CUDA 12, Vulkan on another card, the
 /// processor without one (the build «auto» of the engines, `acpp::build`).
+
 pub fn llama_parts(build: acpp_server::asset::Build) -> &'static Parts {
     match build {
         acpp_server::asset::Build::Cuda13 => &platform::LLAMA,
@@ -175,6 +176,56 @@ pub fn llama_parts(build: acpp_server::asset::Build) -> &'static Parts {
         acpp_server::asset::Build::Vulkan => &platform::LLAMA_VULKAN,
         acpp_server::asset::Build::Cpu => &platform::LLAMA_CPU,
     }
+}
+
+/// The oldest glibc the upstream llama.cpp CUDA builds for Linux start on (b11900 needs GLIBC_2.38 and GLIBCXX_3.4.32).
+const LLAMA_CUDA_GLIBC: (u32, u32) = (2, 38);
+
+/// The llama.cpp build the assistant runs on: the card's build, except a CUDA one on a Linux whose glibc is older than
+/// the upstream CUDA builds need; the card then runs the Vulkan build.
+pub fn llama_build() -> acpp_server::asset::Build {
+    llama_build_for(crate::engines::acpp::build(), glibc_version())
+}
+
+fn llama_build_for(card: acpp_server::asset::Build, glibc: Option<(u32, u32)>) -> acpp_server::asset::Build {
+    use acpp_server::asset::Build;
+    match (card, glibc) {
+        (Build::Cuda13 | Build::Cuda12, Some(version)) if version < LLAMA_CUDA_GLIBC => Build::Vulkan,
+        _ => card,
+    }
+}
+
+/// Why the assistant does not run the card's CUDA build, for Settings; None when it does.
+pub fn llama_note() -> Option<String> {
+    let glibc = glibc_version()?;
+    (llama_build() != crate::engines::acpp::build()).then(|| {
+        t!(
+            "setup-llama-vulkan-glibc",
+            glibc = format!("{}.{}", glibc.0, glibc.1),
+            need = format!("{}.{}", LLAMA_CUDA_GLIBC.0, LLAMA_CUDA_GLIBC.1)
+        )
+    })
+}
+
+/// The C library version of this Linux (`gnu_get_libc_version`); None on other systems.
+pub fn glibc_version() -> Option<(u32, u32)> {
+    #[cfg(all(target_os = "linux", target_env = "gnu"))]
+    {
+        let text = unsafe { std::ffi::CStr::from_ptr(libc::gnu_get_libc_version()) };
+        parse_glibc(text.to_str().ok()?)
+    }
+    #[cfg(not(all(target_os = "linux", target_env = "gnu")))]
+    {
+        None
+    }
+}
+
+#[cfg(any(all(target_os = "linux", target_env = "gnu"), test))]
+fn parse_glibc(text: &str) -> Option<(u32, u32)> {
+    let mut parts = text.trim().split('.');
+    let major = parts.next()?.parse().ok()?;
+    let minor = parts.next()?.chars().take_while(char::is_ascii_digit).collect::<String>().parse().ok()?;
+    Some((major, minor))
 }
 
 /// The folder of a llama.cpp build: CUDA 13 in tools/llama, where former versions put it, the others beside it.
@@ -1409,9 +1460,9 @@ pub fn manifest() -> Vec<Component> {
             requirement: Requirement::Optional,
             delivery: Delivery::Download,
             // Размер сжатого zip (для прогресса закачки); распакованный footprint ~183 МБ.
-            size: llama_parts(crate::engines::acpp::build()).size,
-            files: llama_parts(crate::engines::acpp::build()).files,
-            markers: llama_parts(crate::engines::acpp::build()).markers,
+            size: llama_parts(llama_build()).size,
+            files: llama_parts(llama_build()).files,
+            markers: llama_parts(llama_build()).markers,
             external_url: None,
         },
         Component {
@@ -3588,6 +3639,22 @@ mod tests {
         let free = free_bytes(&root.join("models").join("not-yet"));
         let _ = std::fs::remove_dir_all(&root);
         assert!(free.is_some_and(|b| b > 0), "{free:?}");
+    }
+
+    #[test]
+    fn a_linux_older_than_glibc_2_38_runs_the_assistant_on_vulkan_instead_of_cuda() {
+        use acpp_server::asset::Build;
+        assert_eq!(parse_glibc("2.35"), Some((2, 35)));
+        assert_eq!(parse_glibc("2.39\n"), Some((2, 39)));
+        assert_eq!(parse_glibc("2.38-ubuntu"), Some((2, 38)));
+        assert_eq!(parse_glibc("x"), None);
+        for card in [Build::Cuda13, Build::Cuda12] {
+            assert_eq!(llama_build_for(card, Some((2, 35))), Build::Vulkan);
+            assert_eq!(llama_build_for(card, Some((2, 38))), card);
+            assert_eq!(llama_build_for(card, None), card);
+        }
+        assert_eq!(llama_build_for(Build::Cpu, Some((2, 35))), Build::Cpu);
+        assert_eq!(llama_build_for(Build::Vulkan, Some((2, 35))), Build::Vulkan);
     }
 
     #[test]

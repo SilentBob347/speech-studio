@@ -49,9 +49,9 @@ pub fn entry_points() -> Vec<(&'static str, String)> {
     let listed = |id: &str| manifest.iter().any(|c| c.id == id);
     let mut out: Vec<(&'static str, String)> = FIXED_ENTRY_POINTS.iter().map(|(c, rel)| (*c, rel.to_string())).collect();
     // the llama.cpp build of this computer's card, and the backend it loads at run time
-    let llama = setup::llama_dir(Path::new(""), crate::engines::acpp::build());
+    let llama = setup::llama_dir(Path::new(""), setup::llama_build());
     out.push(("llama", llama.join("llama-server.exe").to_string_lossy().into_owned()));
-    let backend = match crate::engines::acpp::build() {
+    let backend = match setup::llama_build() {
         Build::Cuda13 | Build::Cuda12 => Some("ggml-cuda.dll"),
         Build::Vulkan => Some("ggml-vulkan.dll"),
         Build::Cpu => None,
