@@ -317,6 +317,14 @@ mod tests {
     fn a_recording_fed_as_the_microphone_is_heard_phrase_by_phrase() {
         let root = std::path::PathBuf::from(std::env::var("SPEECH_STUDIO_ROOT").expect("SPEECH_STUDIO_ROOT"));
         let models = root.join("models");
+        // a test process has no job object of the studio: the engine servers it starts outlive it unless stopped here
+        struct StopServers;
+        impl Drop for StopServers {
+            fn drop(&mut self) {
+                acpp_server::SERVERS.stop_all();
+            }
+        }
+        let _servers = StopServers;
         crate::set_ort_dylib_env(&root, &root).unwrap();
         let (x, sr) = crate::audio::wavio::read_mono_f32(Path::new(&std::env::var("LIVE_WAV").expect("LIVE_WAV"))).unwrap();
         let lang = std::env::var("LIVE_LANG").unwrap_or_else(|_| "ru".into());
