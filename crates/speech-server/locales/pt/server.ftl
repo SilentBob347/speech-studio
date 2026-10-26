@@ -701,7 +701,6 @@ setup-comp-langid-purpose = Detecta o idioma de uma gravação em «Auto» para 
 setup-comp-dpdfnet-name = Supressão de ruído DPDFNet
 setup-comp-dpdfnet-purpose = Remove o ruído das referências de voz e das gravações, com controle de intensidade para a fala não soar estéril (10,5 MB)
 denoise-missing = O modelo de supressão de ruído DPDFNet não foi baixado: baixe-o em Configurações → Modelos.
-vad-missing = O Silero VAD não foi baixado: baixe-o em Configurações → Modelos.
 setup-comp-bsroformer-engine-name = Motor de separação de voz (NVIDIA)
 setup-comp-bsroformer-engine-purpose = O programa que separa a voz na placa de vídeo
 setup-comp-bsroformer-engine-cpu-name = Motor de separação de voz (processador)

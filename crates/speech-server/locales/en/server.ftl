@@ -704,7 +704,6 @@ setup-comp-langid-purpose = Tells the language of a recording set to Auto, so a 
 setup-comp-dpdfnet-name = DPDFNet noise suppression
 setup-comp-dpdfnet-purpose = Removes noise from voice references and recordings, with a strength control so speech does not sound sterile (10.5 MB)
 denoise-missing = The DPDFNet noise suppression model is not downloaded: download it in Settings → Models.
-vad-missing = Silero VAD is not downloaded: download it in Settings → Models.
 setup-comp-bsroformer-engine-name = Voice separation engine (NVIDIA)
 setup-comp-bsroformer-engine-purpose = The program that separates the voice on the graphics card
 setup-comp-bsroformer-engine-cpu-name = Voice separation engine (processor)

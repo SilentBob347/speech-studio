@@ -539,7 +539,6 @@ setup-comp-langid-purpose = 识别语言设为“自动”的录音是什么语�
 setup-comp-dpdfnet-name = DPDFNet 降噪
 setup-comp-dpdfnet-purpose = 去除声音参考和录音中的噪声，可调节强度，避免语音听起来过于干净生硬（10.5 MB）
 denoise-missing = DPDFNet 降噪模型尚未下载：请在“设置 → 模型”中下载。
-vad-missing = Silero VAD 尚未下载：请在“设置 → 模型”中下载。
 setup-comp-bsroformer-engine-name = 人声分离引擎（NVIDIA）
 setup-comp-bsroformer-engine-purpose = 在显卡上分离人声的程序
 setup-comp-bsroformer-engine-cpu-name = 人声分离引擎（处理器）

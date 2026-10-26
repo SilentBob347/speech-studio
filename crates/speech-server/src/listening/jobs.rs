@@ -275,9 +275,8 @@ fn diarize(p: &ListenPaths, wav: &Path, speakers: u8) -> Result<Vec<dub_asr::Tur
 /// запись не грузится в него целиком.
 #[allow(clippy::too_many_arguments)]
 fn recognise_by_pauses(p: &ListenPaths, choice: &crate::engines::models::AsrChoice, wav: &Path, work: &Path, lang: &str, vad: &crate::engines::vad::VadConfig, progress: &dyn Fn(Value)) -> Result<Vec<dub_asr::Segment>, String> {
-    if !crate::engines::vad::installed(&p.models_root) {
-        return Err(t!("vad-missing"));
-    }
+    let lacking = crate::engines::vad::missing(&p.models_root);
+    crate::app::ensure_components(&p.repo_root, &lacking.iter().map(String::as_str).collect::<Vec<_>>(), &|ev| progress(ev))?;
     let (samples, sr) = crate::audio::wavio::read_mono_f32(wav)?;
     if sr as usize != crate::engines::vad::SR {
         return Err(format!("{}: {sr} Hz, the speech finder takes {} Hz", wav.display(), crate::engines::vad::SR));

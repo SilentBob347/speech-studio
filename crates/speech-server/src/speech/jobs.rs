@@ -812,9 +812,6 @@ fn voice_embedding(embedder: &mut dub_faces::VoiceEmbedder, audio: &Path) -> Res
 /// «прошёл всё → WER → похожесть» становится активным; блоки, где не прошёл ни один, — в ответе.
 /// Дубль, где вместо речи музыка или шум: его звук в 16 кГц через Silero VAD.
 fn non_speech(p: &SpeechPaths, file: &Path) -> Result<bool, String> {
-    if !crate::engines::vad::installed(&p.models_root) {
-        return Err(t!("vad-missing"));
-    }
     let tmp = tempfile::Builder::new().prefix("vad-").tempdir().map_err(|e| e.to_string())?;
     let wav = tmp.path().join("take16.wav");
     crate::audio::media::to_16k_mono(file, &wav)?;
@@ -885,7 +882,8 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, re
     crate::app::ensure_job_components(&p.repo_root, &p.models_root, sim_on, false, &|ev| progress(ev))?;
     if asr_on {
         crate::app::recognition::ensure(&p.repo_root, &p.models_root, "", &|ev| progress(ev))?;
-        crate::app::ensure_components(&p.repo_root, &["silero-vad"], &|ev| progress(ev))?;
+        let vad = crate::engines::vad::missing(&p.models_root);
+        crate::app::ensure_components(&p.repo_root, &vad.iter().map(String::as_str).collect::<Vec<_>>(), &|ev| progress(ev))?;
     }
     let mut embedder = if sim_on {
         Some(dub_faces::VoiceEmbedder::load(&dub_faces::wespeaker_path(&p.models_root)).map_err(|e| e.to_string())?)

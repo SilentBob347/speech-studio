@@ -24,7 +24,7 @@ release notes on GitHub are taken from the release's section.
 ### Fixed
 
 - **Higgs stops a phrase that does not end a second past its runaway length**: the cap counted 75 tokens a second where audio.cpp counts 25 codec frames, so a phrase that would not stop ran three times longer than meant before it was judged and voiced again.
-- **Live with the recognition engine build missing downloads that build**: it asked for Silero VAD, which was there, and kept refusing to start.
+- **Speech detection fetches what it lacks**: Live, Listening and the take check download the transcribe.cpp build of the recognition device or the Silero VAD model with the job's progress. Before, Live asked for Silero VAD, which was there, and kept refusing to start, and the take check and Listening stopped with «Silero VAD is not downloaded» when it was the engine build that was missing.
 - **Renaming a library voice no longer breaks the projects that speak with it** («There is no voice named …»): they follow the new name, and the blocks voiced with it stay voiced.
 - **Chinese, Japanese and Korean text in a project of language Auto is no longer failed as «runaway»**: its length was judged by the pace of Russian letters, so a long sentence of ideographs counted as speech that would not stop on every attempt; the language is now read from the letters when the project leaves it to Auto.
 - **A window opened over the editor pauses what the editor plays** (#14): the voice library, the settings or any other window covered the player while a project or a recording went on playing with no way to stop it; it pauses where it was, and Play goes on from there. Pausing right after Play no longer shows «The play() request was interrupted by a call to pause()».

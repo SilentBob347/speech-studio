@@ -711,7 +711,6 @@ setup-comp-langid-purpose = Определяет язык записи с язы
 setup-comp-dpdfnet-name = Шумоподавление DPDFNet
 setup-comp-dpdfnet-purpose = Убирает шум из рефов голосов и записей; сила подавления настраивается, чтобы речь не звучала стерильно (10,5 МБ)
 denoise-missing = Модель шумоподавления DPDFNet не скачана: скачайте её в «Настройки → Модели».
-vad-missing = Silero VAD не скачан: скачайте его в «Настройки → Модели».
 setup-comp-bsroformer-engine-name = Движок отделения голоса (NVIDIA)
 setup-comp-bsroformer-engine-purpose = Программа, которая отделяет голос на видеокарте
 setup-comp-bsroformer-engine-cpu-name = Движок отделения голоса (процессор)
