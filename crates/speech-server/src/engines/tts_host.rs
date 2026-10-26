@@ -14,8 +14,10 @@ use serde_json::{json, Value};
 
 const GUARD_GRACE_SECS: u64 = 20;
 pub const ENGINE_STUCK: &str = "ENGINE_STUCK";
-/// Кодек Higgs выдаёт 25–75 токенов в секунду в зависимости от версии: потолок считается по верхней границе с запасом.
-const TOKENS_PER_SEC: f64 = 75.0;
+/// Higgs v3 in audio.cpp counts `max_tokens` in codec frames of 40 ms (model_specs/higgs_audio_tts.json).
+const FRAMES_PER_SEC: f64 = 25.0;
+/// Frames the delay of the codebooks adds after the last sound.
+const CODEBOOK_DELAY: u32 = 8;
 /// Движок принимает сид как небольшое беззнаковое целое.
 pub const SEED_RANGE: u64 = 1 << 31;
 
@@ -406,8 +408,16 @@ pub fn pace_lang<'a>(text: &str, lang: &'a str) -> &'a str {
     }
 }
 
-fn token_cap(expected: f64) -> u32 {
-    (((expected * TOKENS_PER_SEC * 1.5).ceil() as u32) + 32).clamp(64, 2048)
+/// Seconds of sound past which a phrase of `chars` letters and digits is a runaway.
+fn runaway_secs(chars: usize, lang: &str) -> f64 {
+    let lang = if lang.is_empty() || lang == "auto" { "ru" } else { lang };
+    chars as f64 * RUNAWAY_PER_CHAR * (RUNAWAY_CPS / dub_core::fit::table_cps(lang)).max(1.0) + RUNAWAY_SLACK
+}
+
+/// Higgs stops a second past the runaway length: what it says by then is judged a runaway and voiced again, and a
+/// phrase read at any pace short of that is not cut.
+fn token_cap(chars: usize, lang: &str) -> u32 {
+    ((((runaway_secs(chars, lang) + 1.0) * FRAMES_PER_SEC).ceil() as u32) + CODEBOOK_DELAY).clamp(64, 2048)
 }
 
 /// Секунд звука на знак, выше которых фраза считается разнесённой (HiggsAudio-Studio: 0,13 с на знак + 3 с).
@@ -444,9 +454,7 @@ pub fn defect(samples: &[f32], sr: i32, chars: usize, lang: &str) -> Option<&'st
     }
     let srn = sr as usize;
     let dur = samples.len() as f64 / srn as f64;
-    let lang = if lang.is_empty() || lang == "auto" { "ru" } else { lang };
-    let per_char = RUNAWAY_PER_CHAR * (RUNAWAY_CPS / dub_core::fit::table_cps(lang)).max(1.0);
-    if chars >= 1 && dur > chars as f64 * per_char + RUNAWAY_SLACK {
+    if chars >= 1 && dur > runaway_secs(chars, lang) {
         return Some("runaway");
     }
     if chars >= 4 && dur < chars as f64 * 0.045 {
@@ -669,9 +677,9 @@ fn drama_frames(expected: f64, max_tokens: u32) -> u32 {
 pub fn synth(engine: &Tts, req: &Request) -> Result<Synth, String> {
     req.params.checked()?;
     let expected = expected_secs(req.text, req.lang);
-    let cap = if req.params.max_tokens > 0 { req.params.max_tokens as usize } else { token_cap(expected) as usize };
-    let timeout = Duration::from_secs(((expected * 8.0).ceil() as u64).max(45));
     let chars = req.text.chars().filter(|c| c.is_alphanumeric()).count();
+    let cap = if req.params.max_tokens > 0 { req.params.max_tokens as usize } else { token_cap(chars, pace_lang(req.text, req.lang)) as usize };
+    let timeout = Duration::from_secs(((expected * 8.0).ceil() as u64).max(45));
     let fixed = req.params.seed_mode != "random";
     let aloud = req.live.as_ref().is_some_and(|l| l.is_aloud());
     let tries = if fixed || aloud { 1 } else { 3 };
@@ -807,8 +815,9 @@ mod tests {
 
     #[test]
     fn the_token_cap_follows_the_expected_length() {
-        assert_eq!(token_cap(0.6), 100);
-        assert_eq!(token_cap(100.0), 2048);
+        assert_eq!(token_cap(10, "ru"), ((10.0 * 0.13 + 3.0 + 1.0) * 25.0f64).ceil() as u32 + 8, "frames of 40 ms to a second past the runaway");
+        assert_eq!(token_cap(2_000, "ru"), 2048);
+        assert!(token_cap(40, "zh") > token_cap(40, "ru"), "an ideograph is a syllable");
         let short = expected_secs("Да.", "ru");
         let long = expected_secs(&"слово ".repeat(40), "ru");
         assert!(short < 1.0 && long > 15.0);

@@ -23,6 +23,7 @@ release notes on GitHub are taken from the release's section.
 
 ### Fixed
 
+- **Higgs stops a phrase that does not end a second past its runaway length**: the cap counted 75 tokens a second where audio.cpp counts 25 codec frames, so a phrase that would not stop ran three times longer than meant before it was judged and voiced again.
 - **Live with the recognition engine build missing downloads that build**: it asked for Silero VAD, which was there, and kept refusing to start.
 - **Renaming a library voice no longer breaks the projects that speak with it** («There is no voice named …»): they follow the new name, and the blocks voiced with it stay voiced.
 - **Chinese, Japanese and Korean text in a project of language Auto is no longer failed as «runaway»**: its length was judged by the pace of Russian letters, so a long sentence of ideographs counted as speech that would not stop on every attempt; the language is now read from the letters when the project leaves it to Auto.
