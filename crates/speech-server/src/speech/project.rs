@@ -433,6 +433,30 @@ impl SpeechProject {
         self.chapters.iter_mut().flat_map(|c| c.blocks.iter_mut()).find(|b| b.id == id)
     }
 
+    /// Names the library voice `from` as `to` wherever the project speaks with it or made a take with it; whether it
+    /// did anywhere.
+    pub fn rename_voice(&mut self, from: &str, to: &str) -> bool {
+        let mut changed = false;
+        let mut swap = |v: &mut String| {
+            if v == from {
+                *v = to.to_string();
+                changed = true;
+            }
+        };
+        if let Some(v) = self.settings.voice.as_mut() {
+            swap(v);
+        }
+        self.settings.lang_voices.values_mut().for_each(&mut swap);
+        self.cast.values_mut().for_each(&mut swap);
+        for b in self.chapters.iter_mut().flat_map(|c| c.blocks.iter_mut()) {
+            if let Some(v) = b.voice.as_mut() {
+                swap(v);
+            }
+            b.takes.iter_mut().for_each(|t| swap(&mut t.voice));
+        }
+        changed
+    }
+
     /// Движок, что озвучивает блок: свой блока, персонажа, проекта; в режиме одного голоса — проекта.
     pub fn engine_of<'a>(&'a self, b: &'a Block) -> &'a str {
         if self.settings.one_voice {

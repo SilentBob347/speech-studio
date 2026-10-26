@@ -105,6 +105,35 @@ pub fn keys(p: &SpeechPaths, project: &SpeechProject) -> BTreeMap<String, String
         .collect()
 }
 
+/// Renames a library voice (`rename` moves its files) and the Speech projects that speak with it follow: they name
+/// the new voice, and a take made with the old name stays the block's voiced take, the voice being the same sound.
+pub fn rename_voice(p: &SpeechPaths, from: &str, to: &str, rename: impl FnOnce() -> Result<(), String>) -> Result<(), String> {
+    let mut using: Vec<(String, BTreeMap<String, String>)> = Vec::new();
+    for entry in std::fs::read_dir(&p.workspace).into_iter().flatten().flatten() {
+        let pid = entry.file_name().to_string_lossy().into_owned();
+        if !crate::speech::project_path(&p.workspace, &pid).is_file() {
+            continue;
+        }
+        let Ok(project) = crate::speech::load(&p.workspace, &pid) else { continue };
+        if project.clone().rename_voice(from, to) {
+            using.push((pid, keys(p, &project)));
+        }
+    }
+    rename()?;
+    for (pid, before) in using {
+        crate::speech::edit(&p.workspace, &pid, |project| {
+            project.rename_voice(from, to);
+            let after = keys(p, project);
+            for b in project.chapters.iter_mut().flat_map(|c| c.blocks.iter_mut()) {
+                if let (Some(old), Some(new)) = (before.get(&b.id), after.get(&b.id)) {
+                    b.takes.iter_mut().filter(|t| &t.key == old).for_each(|t| t.key = new.clone());
+                }
+            }
+        })?;
+    }
+    Ok(())
+}
+
 /// Что за движок и модель озвучивают блок — часть ключа дубля.
 pub(crate) fn engine_tag(p: &SpeechPaths, project: &SpeechProject, engine: &str) -> String {
     if engine == "openrouter" {
@@ -2276,6 +2305,34 @@ mod tests {
         assert_eq!(states, vec![("b".to_string(), "modified".to_string()), ("c".to_string(), "duration".to_string())], "a take of an old project has no size and is not compared");
         std::fs::remove_file(dir.join("a-1.flac")).unwrap();
         assert_eq!(export_check(&p, "pid", &project)[0]["state"], "missing");
+    }
+
+    /// A renamed library voice stays the project's voice and its takes stay voiced; before, the project kept the old
+    /// name and voicing failed with «There is no voice named …».
+    #[test]
+    fn a_renamed_voice_is_followed_by_its_projects_and_their_takes() {
+        let root = tempfile::tempdir().unwrap();
+        let p = SpeechPaths { repo_root: root.path().into(), workspace: root.path().join("ws"), voices_dir: root.path().join("voices"), models_root: root.path().join("models") };
+        std::fs::create_dir_all(&p.voices_dir).unwrap();
+        std::fs::write(p.voices_dir.join("Designed voice.wav"), b"RIFF0000WAVE").unwrap();
+        let mut project = SpeechProject::default();
+        project.settings.voice = Some("Designed voice".into());
+        project.cast.insert("A".into(), "Designed voice".into());
+        project.chapters = vec![sp::Chapter { id: "c".into(), title: String::new(), blocks: vec![Block { id: "a".into(), speaker: "A".into(), text: "Текст.".into(), ..Default::default() }] }];
+        let before = keys(&p, &project);
+        project.chapters[0].blocks[0].takes.push(Take { n: 1, key: before["a"].clone(), voice: "Designed voice".into(), ..Default::default() });
+        project.chapters[0].blocks[0].active = Some(1);
+        let pid = "0123456789";
+        crate::speech::save(&p.workspace, pid, &project).unwrap();
+
+        rename_voice(&p, "Designed voice", "Narrator", || crate::voices::rename(&p.voices_dir, "Designed voice", "Narrator")).unwrap();
+
+        let after = crate::speech::load(&p.workspace, pid).unwrap();
+        assert_eq!(after.settings.voice.as_deref(), Some("Narrator"));
+        assert_eq!(after.cast["A"], "Narrator");
+        let b = &after.chapters[0].blocks[0];
+        assert_eq!(b.takes[0].voice, "Narrator");
+        assert_eq!(sp::status(b, &keys(&p, &after)["a"]), "ready", "the take made with the old name is still the block's voice");
     }
 
     #[test]

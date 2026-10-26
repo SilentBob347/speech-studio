@@ -7,7 +7,7 @@ pub(crate) mod record;
 pub(crate) mod ref_pick;
 mod reference;
 
-pub(crate) use library::audio_path;
+pub(crate) use library::{audio_path, rename};
 pub(crate) use reference::prepare_reference;
 
 pub(crate) use jobs::{ensure_words, VoicePaths};

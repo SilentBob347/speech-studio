@@ -23,6 +23,7 @@ release notes on GitHub are taken from the release's section.
 
 ### Fixed
 
+- **Renaming a library voice no longer breaks the projects that speak with it** («There is no voice named …»): they follow the new name, and the blocks voiced with it stay voiced.
 - **Chinese, Japanese and Korean text in a project of language Auto is no longer failed as «runaway»**: its length was judged by the pace of Russian letters, so a long sentence of ideographs counted as speech that would not stop on every attempt; the language is now read from the letters when the project leaves it to Auto.
 - **A window opened over the editor pauses what the editor plays** (#14): the voice library, the settings or any other window covered the player while a project or a recording went on playing with no way to stop it; it pauses where it was, and Play goes on from there. Pausing right after Play no longer shows «The play() request was interrupted by a call to pause()».
 - **Another engine's built-in voice no longer fails voicing block by block** («There is no voice named F1»): choosing Higgs for a block or a speaker drops a Supertonic or Qwen voice it cannot speak, changing the project's engine clears such a voice from the voices by language too, and voicing names every block whose voice is neither in the library nor its engine's own before any model loads.

@@ -30,6 +30,7 @@ mod timings;
 mod tools;
 mod url_api;
 mod url_import;
+mod voice_rename;
 
 mod asr;
 mod downloads;
@@ -89,6 +90,7 @@ pub(crate) use listening::{paths as listening_paths, watch_dependencies};
 pub(crate) use listening_to_speech::convert as convert_listening_to_speech;
 
 pub(crate) use listening_voices::extract as extract_listening_voices;
+pub(crate) use voice_rename::rename_voice;
 
 pub(crate) mod recognition {
     #[cfg(test)]
