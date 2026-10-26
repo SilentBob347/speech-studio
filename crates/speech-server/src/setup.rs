@@ -15,8 +15,8 @@
 //! Классы источников:
 //!   • модели — прямые файлы HF (higgs-q8_0/*, gemma-4 + mmproj, parakeet-tdt int8, nemotron 3
 //!     diarization, roformer voc_fv6-Q8_0);
-//!   • сайдкары/движки — zip-релизы GitHub (BSRoformer.cpp v0.1.0, llama.cpp b11146 win-cuda-13.4,
-//!     onnxruntime 1.28.2, ffmpeg BtbN, deno 2.9.7) + audiocpp_engine.dll (своя сборка с sm_75, GitHub timoncool/Higgs-Ultimate) + yt-dlp.exe 2026.08.19;
+//!   • сайдкары/движки — zip-релизы GitHub (BSRoformer.cpp v0.1.0, llama.cpp b11900 win-cuda-13.4,
+//!     onnxruntime 1.28.2, ffmpeg BtbN, deno 2.9.8) + audiocpp_engine.dll (своя сборка с sm_75, GitHub timoncool/Higgs-Ultimate) + yt-dlp.exe 2026.10.21;
 //!   • CUDA-runtime — PyPI-wheel'ы NVIDIA (cudart 13.4.92 / cublas 13.8.0.4 / cuDNN 9.27.0.42) + redist cuFFT
 //!     12.4.0.43, распаковка *.dll плоско;
 //!   • VC++ runtime + OCR-модели — БАНДЛ (кладутся в релиз рядом с exe, как VC++ в Higgs); не качаются,
@@ -163,8 +163,8 @@ pub struct Parts {
     pub markers: &'static [Marker],
 }
 
-// Сборка llama.cpp одна на обе платформы (стабильный релиз v0.5.0 = билд b11146).
-pub(crate) const GH_LLAMA_BUILD: &str = "b11146";
+// Сборка llama.cpp одна на обе платформы (билд b11900).
+pub(crate) const GH_LLAMA_BUILD: &str = "b11900";
 
 /// The llama.cpp build of this computer's card, as YuE2 picks it: CUDA 13, CUDA 12, Vulkan on another card, the
 /// processor without one (the build «auto» of the engines, `acpp::build`).
@@ -197,10 +197,10 @@ mod platform {
     // но полная функция. Статический exe 671КБ; MSVC-рантайм уже вшит компонентом vcruntime.
     const GH_BSROFORMER_ENGINE_CPU: &str =
         "https://github.com/chenmozhijin/BSRoformer.cpp/releases/download/v0.1.0/BSRoformer-windows-x64-msvc.zip";
-    // GitHub: llama.cpp win-cuda-13.4 (ggml-org/llama.cpp; пин на стабильный релиз v0.5.0 = билд b11146).
+    // GitHub: llama.cpp win-cuda-13.4 (ggml-org/llama.cpp, билд b11900).
     // ggml-cuda.dll импортирует cublas64_13.dll (ставит cuda-runtime), cudart слинкован статически.
     const GH_LLAMA: &str =
-        "https://github.com/ggml-org/llama.cpp/releases/download/b11146/llama-b11146-bin-win-cuda-13.4-x64.zip";
+        "https://github.com/ggml-org/llama.cpp/releases/download/b11900/llama-b11900-bin-win-cuda-13.4-x64.zip";
     // GitHub: onnxruntime 1.28.2 win-x64 (microsoft/onnxruntime) — строго 1.28.x (ort rc.13 api-28; иначе дедлок).
     const GH_ORT: &str =
         "https://github.com/microsoft/onnxruntime/releases/download/v1.28.2/onnxruntime-win-x64-1.28.2.zip";
@@ -213,7 +213,7 @@ mod platform {
     // GitHub: ffmpeg static win64 GPL (BtbN/FFmpeg-Builds), master-сборка последнего дня месяца: дневные
     // autobuild BtbN удаляет через пару недель, а сборки последнего дня месяца хранит, поэтому закреплена такая.
     const GH_FFMPEG: &str =
-        "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-08-31-13-27/ffmpeg-N-126342-gf88b741dbf-win64-gpl.zip";
+        "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-09-30-13-08/ffmpeg-N-127021-ge0c94b2d1c-win64-gpl.zip";
     // PyPI-wheel'ы NVIDIA CUDA 13 runtime (CUDA 13.4 Update 2: cudart 13.4.92, cuBLAS 13.8.0.4).
     // Дают cudart64_13.dll, cublas64_13.dll, cublasLt64_13.dll.
     const WHEEL_CUDART: &str = "https://files.pythonhosted.org/packages/86/00/d5436004268f049214193659ebc36550b5ef3925c3d13b4cc980e13be6f5/nvidia_cuda_runtime-13.4.92-py3-none-win_amd64.whl";
@@ -225,12 +225,12 @@ mod platform {
     // onnxruntime_providers_cuda.dll (сборка cuda13) грузит именно cufft64_12.dll — без него CUDA-EP не
     // грузится («CUDA not enabled»). cuFFT сохраняет soname 12 даже в CUDA 13. Извлекается как *.dll плоско.
     const REDIST_CUFFT: &str = "https://developer.download.nvidia.com/compute/cuda/redist/libcufft/windows-x86_64/libcufft-windows-x86_64-12.4.0.43-archive.zip";
-    // GitHub: yt-dlp 2026.08.19 (yt-dlp/yt-dlp, SHA-256 из SHA2-256SUMS релиза) — загрузка видео по ссылке. Это опора:
+    // GitHub: yt-dlp 2026.10.21 (yt-dlp/yt-dlp, SHA-256 из SHA2-256SUMS релиза) — загрузка видео по ссылке. Это опора:
     // более свежие версии ставит рядом ytdlp::update, при их провале работает эта.
-    const GH_YTDLP: &str = "https://github.com/yt-dlp/yt-dlp/releases/download/2026.08.19/yt-dlp.exe";
-    // GitHub: deno 2.9.7 (denoland/deno) — JS-рантайм, без которого yt-dlp не решает задачи YouTube (yt-dlp-ejs уже внутри
+    const GH_YTDLP: &str = "https://github.com/yt-dlp/yt-dlp/releases/download/2026.10.21/yt-dlp.exe";
+    // GitHub: deno 2.9.8 (denoland/deno) — JS-рантайм, без которого yt-dlp не решает задачи YouTube (yt-dlp-ejs уже внутри
     // yt-dlp.exe; вики yt-dlp EJS: deno не ниже 2.3.0).
-    const GH_DENO: &str = "https://github.com/denoland/deno/releases/download/v2.9.7/deno-x86_64-pc-windows-msvc.zip";
+    const GH_DENO: &str = "https://github.com/denoland/deno/releases/download/v2.9.8/deno-x86_64-pc-windows-msvc.zip";
     // audiocpp_server (timoncool/audio.cpp, branch studio; acpp_server::asset): Higgs, CrisperWhisper and Nemotron. One
     // archive a build: the program with the VC++ runtime and vcomp140; the CUDA builds take cuBLAS and cuFFT from
     // cuda-runtime (CUDA 13) or cuda12-runtime (CUDA 12.9).
@@ -368,26 +368,26 @@ mod platform {
     };
 
     pub const LLAMA: Parts = Parts {
-        size: 149_758_833,
+        size: 164_721_212,
         files: &[
-            FileSpec { url: GH_LLAMA, dest_rel: "tools/llama/_llama.zip", size: 149_758_833, sha256: "b1866c0ce76bc7bfb0c24b33e9a37e9669f1be18539b12c74ce361f81c41f047", extract: Extract::Flat },
+            FileSpec { url: GH_LLAMA, dest_rel: "tools/llama/_llama.zip", size: 164_721_212, sha256: "0d75ad36367da00622c146a97e82fac3dcfcbe960afc2f0234eef026886b16f6", extract: Extract::Flat },
         ],
         markers: &[Marker { rel: "tools/llama/llama-server.exe", expect: 0 }],
     };
     // the same release's other builds: CUDA 12.4 (cudart and cuBLAS 12 from cuda12-runtime), Vulkan and the processor
     pub const LLAMA_CUDA12: Parts = Parts {
-        size: 253_869_799,
-        files: &[FileSpec { url: "https://github.com/ggml-org/llama.cpp/releases/download/b11146/llama-b11146-bin-win-cuda-12.4-x64.zip", dest_rel: "tools/llama-cuda12/_llama.zip", size: 253_869_799, sha256: "3c806a6ceccc3dae1c743ceb1a1fb2cce5b76f40bfbd4c6b7b8afb6ef45a5807", extract: Extract::Flat }],
+        size: 279_417_051,
+        files: &[FileSpec { url: "https://github.com/ggml-org/llama.cpp/releases/download/b11900/llama-b11900-bin-win-cuda-12.4-x64.zip", dest_rel: "tools/llama-cuda12/_llama.zip", size: 279_417_051, sha256: "387ad76c926cdb301971851a11df018165a7b4df4b1b7c64cf4b09a367ec82bc", extract: Extract::Flat }],
         markers: &[Marker { rel: "tools/llama-cuda12/llama-server.exe", expect: 0 }],
     };
     pub const LLAMA_VULKAN: Parts = Parts {
-        size: 32_127_004,
-        files: &[FileSpec { url: "https://github.com/ggml-org/llama.cpp/releases/download/b11146/llama-b11146-bin-win-vulkan-x64.zip", dest_rel: "tools/llama-vulkan/_llama.zip", size: 32_127_004, sha256: "55a378aa095b466979d85075234f66d7655c7a7483222af0c006c0e55b4d7bd6", extract: Extract::Flat }],
+        size: 37_051_563,
+        files: &[FileSpec { url: "https://github.com/ggml-org/llama.cpp/releases/download/b11900/llama-b11900-bin-win-vulkan-x64.zip", dest_rel: "tools/llama-vulkan/_llama.zip", size: 37_051_563, sha256: "baf0183b1906d7cc0cfe9a0bd3fae34ceb4048acecc371ff3b7a91456783d051", extract: Extract::Flat }],
         markers: &[Marker { rel: "tools/llama-vulkan/llama-server.exe", expect: 0 }],
     };
     pub const LLAMA_CPU: Parts = Parts {
-        size: 18_560_055,
-        files: &[FileSpec { url: "https://github.com/ggml-org/llama.cpp/releases/download/b11146/llama-b11146-bin-win-cpu-x64.zip", dest_rel: "tools/llama-cpu/_llama.zip", size: 18_560_055, sha256: "14cf1303ca9ac3abd94816850532f9f9a69ac66fbaca3776fc6f9061c2fac1d1", extract: Extract::Flat }],
+        size: 24_228_419,
+        files: &[FileSpec { url: "https://github.com/ggml-org/llama.cpp/releases/download/b11900/llama-b11900-bin-win-cpu-x64.zip", dest_rel: "tools/llama-cpu/_llama.zip", size: 24_228_419, sha256: "d3bbbbb7d1b4979b72052fd73cdeeb5a4d5a4e6a3f52aeb40abd6f116558e323", extract: Extract::Flat }],
         markers: &[Marker { rel: "tools/llama-cpu/llama-server.exe", expect: 0 }],
     };
 
@@ -409,22 +409,22 @@ mod platform {
     };
 
     pub const FFMPEG: Parts = Parts {
-        size: 170_732_198,
+        size: 198_589_424,
         files: &[
-            FileSpec { url: GH_FFMPEG, dest_rel: "tools/ffmpeg/_ffmpeg.zip", size: 170_732_198, sha256: "b4da332540eaebc6939181b59e267f163dd57407ef6596f7f3452845921d1d91", extract: Extract::Pick },
+            FileSpec { url: GH_FFMPEG, dest_rel: "tools/ffmpeg/_ffmpeg.zip", size: 198_589_424, sha256: "85c4a4636b93d681a07588ffa6f1d8f5c064d9c3fb0622066662906b6fd718a1", extract: Extract::Pick },
         ],
         markers: &[Marker { rel: "tools/ffmpeg/ffmpeg.exe", expect: 0 }, Marker { rel: "tools/ffmpeg/ffprobe.exe", expect: 0 }],
     };
 
     pub const YTDLP: Parts = Parts {
-        size: 60_470_620,
+        size: 60_797_583,
         files: &[
-            FileSpec { url: GH_YTDLP, dest_rel: "tools/yt-dlp/yt-dlp.exe", size: 17_840_399, sha256: "66674953fe251b89f4d08c5f0e35e0728679bd67ab3d7d05c0562af101dd3e7a", extract: Extract::None },
-            FileSpec { url: GH_DENO, dest_rel: "tools/yt-dlp/_deno.zip", size: 42_630_221, sha256: "a0c3101b4158d1dfb7d6a78a7bf0f3de80c96bb423c152beec8beb22786f2238", extract: Extract::Flat },
+            FileSpec { url: GH_YTDLP, dest_rel: "tools/yt-dlp/yt-dlp.exe", size: 17_880_111, sha256: "33121d192d706e62f684a06f80918e3f3a8ba52ac3a65213b6951c39c7d9f555", extract: Extract::None },
+            FileSpec { url: GH_DENO, dest_rel: "tools/yt-dlp/_deno.zip", size: 42_917_472, sha256: "cba84b26e0df5ae7f74fc66b86a95b866872a86292ebd84fa1e959927edd93bf", extract: Extract::Flat },
         ],
         markers: &[
-            Marker { rel: "tools/yt-dlp/yt-dlp.exe", expect: 17_840_399 },
-            Marker { rel: "tools/yt-dlp/deno.exe", expect: 97_462_048 },
+            Marker { rel: "tools/yt-dlp/yt-dlp.exe", expect: 17_880_111 },
+            Marker { rel: "tools/yt-dlp/deno.exe", expect: 98_081_568 },
         ],
     };
 
@@ -623,29 +623,29 @@ mod platform {
         markers: &[Marker { rel: "tools/bsroformer-cpu/bs_roformer-cli", expect: 0 }],
     };
 
-    // llama.cpp b11146 ubuntu-cuda-13.4: RUNPATH $ORIGIN для своих библиотек, cudart/cuBLAS 13 — из cuda-runtime,
+    // llama.cpp b11900 ubuntu-cuda-13.4: RUNPATH $ORIGIN для своих библиотек, cudart/cuBLAS 13 — из cuda-runtime,
     // libssl.so.3 — системная.
     pub const LLAMA: Parts = Parts {
-        size: 149_265_156,
+        size: 163_678_003,
         files: &[
-            FileSpec { url: "https://github.com/ggml-org/llama.cpp/releases/download/b11146/llama-b11146-bin-ubuntu-cuda-13.4-x64.tar.gz", dest_rel: "tools/llama/_llama.tar.gz", size: 149_265_156, sha256: "1603d9c00a4b6eac8298c5c7868cdb080a3ac31948ab1e457441d71ce274dd7e", extract: Extract::Flat },
+            FileSpec { url: "https://github.com/ggml-org/llama.cpp/releases/download/b11900/llama-b11900-bin-ubuntu-cuda-13.4-x64.tar.gz", dest_rel: "tools/llama/_llama.tar.gz", size: 163_678_003, sha256: "925078bca4277d495e7fc07cfd20aa1a9ed57640b218bce3ad49de9bcc1c5799", extract: Extract::Flat },
         ],
         markers: &[Marker { rel: "tools/llama/llama-server", expect: 0 }],
     };
     // the same release's other builds: CUDA 12.8 (cudart and cuBLAS 12 from cuda12-runtime), Vulkan and the processor
     pub const LLAMA_CUDA12: Parts = Parts {
-        size: 168_920_581,
-        files: &[FileSpec { url: "https://github.com/ggml-org/llama.cpp/releases/download/b11146/llama-b11146-bin-ubuntu-cuda-12.8-x64.tar.gz", dest_rel: "tools/llama-cuda12/_llama.tar.gz", size: 168_920_581, sha256: "c2ab9e19838513ff69d1af8d999ad717dd3c7ee4714ac04c7ed5ab9077c50e4e", extract: Extract::Flat }],
+        size: 182_211_176,
+        files: &[FileSpec { url: "https://github.com/ggml-org/llama.cpp/releases/download/b11900/llama-b11900-bin-ubuntu-cuda-12.8-x64.tar.gz", dest_rel: "tools/llama-cuda12/_llama.tar.gz", size: 182_211_176, sha256: "618c17e4e4ccc11953f21452ca34e4786a1554dc405e98a2c4d53d7c2ed5b415", extract: Extract::Flat }],
         markers: &[Marker { rel: "tools/llama-cuda12/llama-server", expect: 0 }],
     };
     pub const LLAMA_VULKAN: Parts = Parts {
-        size: 30_598_492,
-        files: &[FileSpec { url: "https://github.com/ggml-org/llama.cpp/releases/download/b11146/llama-b11146-bin-ubuntu-vulkan-x64.tar.gz", dest_rel: "tools/llama-vulkan/_llama.tar.gz", size: 30_598_492, sha256: "d3ce40fce7403cc93bcf5718fc46c6efb61ed9709f8e5d9f10c86bf0e30e8fb3", extract: Extract::Flat }],
+        size: 35_162_561,
+        files: &[FileSpec { url: "https://github.com/ggml-org/llama.cpp/releases/download/b11900/llama-b11900-bin-ubuntu-vulkan-x64.tar.gz", dest_rel: "tools/llama-vulkan/_llama.tar.gz", size: 35_162_561, sha256: "111ee8d3f61723859e57195bb9ba21241eb598163621840aaf3b5c066950c092", extract: Extract::Flat }],
         markers: &[Marker { rel: "tools/llama-vulkan/llama-server", expect: 0 }],
     };
     pub const LLAMA_CPU: Parts = Parts {
-        size: 16_998_357,
-        files: &[FileSpec { url: "https://github.com/ggml-org/llama.cpp/releases/download/b11146/llama-b11146-bin-ubuntu-x64.tar.gz", dest_rel: "tools/llama-cpu/_llama.tar.gz", size: 16_998_357, sha256: "c150306eb16b5ab696f76a8bdf810c35fd98a24e82158742e6fa28f420ff8410", extract: Extract::Flat }],
+        size: 22_497_562,
+        files: &[FileSpec { url: "https://github.com/ggml-org/llama.cpp/releases/download/b11900/llama-b11900-bin-ubuntu-x64.tar.gz", dest_rel: "tools/llama-cpu/_llama.tar.gz", size: 22_497_562, sha256: "3effcc3009af64d6f30c217827d7982b3934577d282feb243b11fb6789ed124e", extract: Extract::Flat }],
         markers: &[Marker { rel: "tools/llama-cpu/llama-server", expect: 0 }],
     };
 
@@ -669,22 +669,22 @@ mod platform {
 
     // ffmpeg static linux64 GPL (BtbN), та же сборка последнего дня месяца, что на Windows.
     pub const FFMPEG: Parts = Parts {
-        size: 128_065_756,
+        size: 154_317_776,
         files: &[
-            FileSpec { url: "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-08-31-13-27/ffmpeg-N-126342-gf88b741dbf-linux64-gpl.tar.xz", dest_rel: "tools/ffmpeg/_ffmpeg.tar.xz", size: 128_065_756, sha256: "d1cf19f669510448f18a4cffcdbd8fa9592ee7c15c92feb5b96ad7e9ccc30114", extract: Extract::Pick },
+            FileSpec { url: "https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-09-30-13-08/ffmpeg-N-127021-ge0c94b2d1c-linux64-gpl.tar.xz", dest_rel: "tools/ffmpeg/_ffmpeg.tar.xz", size: 154_317_776, sha256: "3a2a94e704752287833604501a79505c2319ad1d8b2f5577c63f2b1b7a6f2b66", extract: Extract::Pick },
         ],
         markers: &[Marker { rel: "tools/ffmpeg/ffmpeg", expect: 0 }, Marker { rel: "tools/ffmpeg/ffprobe", expect: 0 }],
     };
 
     pub const YTDLP: Parts = Parts {
-        size: 82_043_018,
+        size: 82_532_144,
         files: &[
-            FileSpec { url: "https://github.com/yt-dlp/yt-dlp/releases/download/2026.08.19/yt-dlp_linux", dest_rel: "tools/yt-dlp/yt-dlp", size: 40_446_224, sha256: "58162f9bfdc27458ea47bfcb311cf47028f17d8154a8bf7d689861d46399230a", extract: Extract::None },
-            FileSpec { url: "https://github.com/denoland/deno/releases/download/v2.9.7/deno-x86_64-unknown-linux-gnu.zip", dest_rel: "tools/yt-dlp/_deno.zip", size: 41_596_794, sha256: "c6527f24f4b16031d3ae4fa9f658d5f11534c8d84ce7dc8502420280919c3490", extract: Extract::Flat },
+            FileSpec { url: "https://github.com/yt-dlp/yt-dlp/releases/download/2026.10.21/yt-dlp_linux", dest_rel: "tools/yt-dlp/yt-dlp", size: 40_569_080, sha256: "d8bd33fca9d5b23bd5b9952b3fca36db5c46331933fda9f598a3da14ce2c243f", extract: Extract::None },
+            FileSpec { url: "https://github.com/denoland/deno/releases/download/v2.9.8/deno-x86_64-unknown-linux-gnu.zip", dest_rel: "tools/yt-dlp/_deno.zip", size: 41_963_064, sha256: "e890975bc2549807bbcc0b584ffafda72cc7c93349dd99c80483dd784f6c4609", extract: Extract::Flat },
         ],
         markers: &[
-            Marker { rel: "tools/yt-dlp/yt-dlp", expect: 40_446_224 },
-            Marker { rel: "tools/yt-dlp/deno", expect: 95_830_104 },
+            Marker { rel: "tools/yt-dlp/yt-dlp", expect: 40_569_080 },
+            Marker { rel: "tools/yt-dlp/deno", expect: 96_055_992 },
         ],
     };
 
