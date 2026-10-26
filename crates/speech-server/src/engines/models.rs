@@ -265,6 +265,8 @@ pub fn build_name(build: acpp_server::asset::Build) -> &'static str {
         acpp_server::asset::Build::Cuda12 => "cuda12",
         acpp_server::asset::Build::Vulkan => "vulkan",
         acpp_server::asset::Build::Cpu => "cpu",
+        // a Mac's one build of each engine, Metal and the processor, lives in the processor build's folders
+        acpp_server::asset::Build::Metal => "cpu",
     }
 }
 
@@ -283,7 +285,7 @@ pub fn sep_components(mroot: &Path) -> Result<Vec<&'static str>, String> {
         acpp_server::asset::Build::Cuda13 => "bsroformer-engine",
         acpp_server::asset::Build::Cuda12 => "bsroformer-engine-cuda12",
         acpp_server::asset::Build::Vulkan => "bsroformer-engine-vulkan",
-        acpp_server::asset::Build::Cpu => "bsroformer-engine-cpu",
+        acpp_server::asset::Build::Cpu | acpp_server::asset::Build::Metal => "bsroformer-engine-cpu",
     };
     Ok(std::iter::once(engine).chain(crate::engines::acpp::runtime_component(build)).collect())
 }

@@ -54,7 +54,7 @@ pub fn entry_points() -> Vec<(&'static str, String)> {
     let backend = match setup::llama_build() {
         Build::Cuda13 | Build::Cuda12 => Some("ggml-cuda.dll"),
         Build::Vulkan => Some("ggml-vulkan.dll"),
-        Build::Cpu => None,
+        Build::Cpu | Build::Metal => None,
     };
     out.extend(backend.map(|lib| ("llama", llama.join(lib).to_string_lossy().into_owned())));
     for build in [Build::Cuda13, Build::Cuda12, Build::Vulkan, Build::Cpu] {

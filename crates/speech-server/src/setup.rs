@@ -174,7 +174,7 @@ pub fn llama_parts(build: acpp_server::asset::Build) -> &'static Parts {
         acpp_server::asset::Build::Cuda13 => &platform::LLAMA,
         acpp_server::asset::Build::Cuda12 => &platform::LLAMA_CUDA12,
         acpp_server::asset::Build::Vulkan => &platform::LLAMA_VULKAN,
-        acpp_server::asset::Build::Cpu => &platform::LLAMA_CPU,
+        acpp_server::asset::Build::Cpu | acpp_server::asset::Build::Metal => &platform::LLAMA_CPU,
     }
 }
 
@@ -234,7 +234,7 @@ pub fn llama_dir(repo_root: &Path, build: acpp_server::asset::Build) -> PathBuf 
         acpp_server::asset::Build::Cuda13 => "llama",
         acpp_server::asset::Build::Cuda12 => "llama-cuda12",
         acpp_server::asset::Build::Vulkan => "llama-vulkan",
-        acpp_server::asset::Build::Cpu => "llama-cpu",
+        acpp_server::asset::Build::Cpu | acpp_server::asset::Build::Metal => "llama-cpu",
     };
     repo_root.join("tools").join(folder)
 }
@@ -316,6 +316,7 @@ mod platform {
             acpp_server::asset::Build::Cuda12 => &SERVER_CUDA12,
             acpp_server::asset::Build::Vulkan => &SERVER_VULKAN,
             acpp_server::asset::Build::Cpu => &SERVER_CPU,
+            acpp_server::asset::Build::Metal => &Parts { size: 0, files: &[], markers: &[] },
         }
     }
 
@@ -545,6 +546,7 @@ mod platform {
             acpp_server::asset::Build::Cuda12 => &SERVER_CUDA12,
             acpp_server::asset::Build::Vulkan => &SERVER_VULKAN,
             acpp_server::asset::Build::Cpu => &SERVER_CPU,
+            acpp_server::asset::Build::Metal => &Parts { size: 0, files: &[], markers: &[] },
         }
     }
 
@@ -750,10 +752,24 @@ mod platform {
 
     const NONE: Parts = Parts { size: 0, files: &[], markers: &[] };
 
-    // audiocpp_server has no macOS build yet: Higgs, Supertonic and CrisperWhisper are not offered on macOS until the
-    // Metal build of acpp_server::asset is pinned here.
-    pub fn server_parts(_build: acpp_server::asset::Build) -> &'static Parts {
-        &NONE
+    // audiocpp_server (acpp_server::asset::SERVER_MACOS): Metal and the processor in one program; no other build here.
+    const SERVER_METAL: Parts = Parts {
+        size: acpp_server::asset::SERVER_MACOS.size,
+        files: &[FileSpec {
+            url: acpp_server::asset::SERVER_MACOS.url,
+            dest_rel: "tools/audiocpp-metal/_server.tar.gz",
+            size: acpp_server::asset::SERVER_MACOS.size,
+            sha256: acpp_server::asset::SERVER_MACOS.sha256,
+            extract: Extract::Flat,
+        }],
+        markers: &[Marker { rel: "tools/audiocpp-metal/audiocpp_server", expect: 0 }],
+    };
+
+    pub fn server_parts(build: acpp_server::asset::Build) -> &'static Parts {
+        match build {
+            acpp_server::asset::Build::Metal => &SERVER_METAL,
+            _ => &NONE,
+        }
     }
 
     pub const CUDA12_RUNTIME: Parts = NONE;
@@ -1580,6 +1596,7 @@ pub fn manifest() -> Vec<Component> {
             acpp_server::asset::Build::Cuda12 => "CUDA 12.9",
             acpp_server::asset::Build::Vulkan => "Vulkan",
             acpp_server::asset::Build::Cpu => "CPU",
+            acpp_server::asset::Build::Metal => "Metal",
         };
         let parts = platform::server_parts(build);
         all.push(Component {

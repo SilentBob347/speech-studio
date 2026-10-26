@@ -21,6 +21,7 @@ fn server_device(choice: &str) -> &'static str {
         Ok(acpp_server::asset::Build::Cuda13 | acpp_server::asset::Build::Cuda12) => "CUDA",
         Ok(acpp_server::asset::Build::Vulkan) => "Vulkan",
         Ok(acpp_server::asset::Build::Cpu) => "CPU",
+        Ok(acpp_server::asset::Build::Metal) => "Metal",
         Err(_) => "CUDA",
     }
 }

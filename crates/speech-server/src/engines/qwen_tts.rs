@@ -209,7 +209,7 @@ fn module(build: Build) -> Option<&'static str> {
     match build {
         Build::Cuda13 | Build::Cuda12 => Some("ggml-cuda.dll"),
         Build::Vulkan => Some("ggml-vulkan.dll"),
-        Build::Cpu => None,
+        Build::Cpu | Build::Metal => None,
     }
 }
 #[cfg(not(windows))]
@@ -217,7 +217,7 @@ fn module(build: Build) -> Option<&'static str> {
     match build {
         Build::Cuda13 | Build::Cuda12 => Some("libggml-cuda.so"),
         Build::Vulkan => Some("libggml-vulkan.so"),
-        Build::Cpu => None,
+        Build::Cpu | Build::Metal => None,
     }
 }
 
@@ -227,6 +227,7 @@ pub fn device(build: Build) -> &'static str {
         Build::Cuda13 | Build::Cuda12 => "CUDA0",
         Build::Vulkan => "Vulkan0",
         Build::Cpu => "CPU",
+        Build::Metal => "MTL0",
     }
 }
 
@@ -235,7 +236,7 @@ pub fn module_component(build: Build) -> Option<&'static str> {
     match build {
         Build::Cuda13 | Build::Cuda12 => Some("qwen3-tts-cuda"),
         Build::Vulkan => Some("qwen3-tts-vulkan"),
-        Build::Cpu => None,
+        Build::Cpu | Build::Metal => None,
     }
 }
 

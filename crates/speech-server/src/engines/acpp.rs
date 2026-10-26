@@ -35,6 +35,10 @@ const SPEECH_STALL: Duration = Duration::from_secs(120);
 /// «auto»: the card's CUDA build, else Vulkan on a card of another make, else the processor. An NVIDIA card runs Vulkan
 /// only when it is chosen. An error when the card is chosen and it runs neither CUDA build.
 pub fn build_for(choice: &str) -> Result<Build, String> {
+    // a Mac with Apple silicon has one program, Metal and the processor in it, for every choice
+    if let Some(mac) = Build::for_this_mac() {
+        return Ok(mac);
+    }
     let report = crate::engines::hw::gpu_report();
     let cuda = report.cuda_build.map(|b| match b {
         CudaBuild::Cuda13 => Build::Cuda13,
@@ -76,6 +80,7 @@ pub fn component(build: Build) -> &'static str {
         Build::Cuda12 => "audiocpp-cuda12",
         Build::Vulkan => "audiocpp-vulkan",
         Build::Cpu => "audiocpp-cpu",
+        Build::Metal => "audiocpp-metal",
     }
 }
 
@@ -84,7 +89,7 @@ pub fn runtime_component(build: Build) -> Option<&'static str> {
     match build {
         Build::Cuda13 => Some("cuda-runtime"),
         Build::Cuda12 => Some("cuda12-runtime"),
-        Build::Vulkan | Build::Cpu => None,
+        Build::Vulkan | Build::Cpu | Build::Metal => None,
     }
 }
 
