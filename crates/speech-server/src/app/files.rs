@@ -16,7 +16,7 @@ pub(super) fn open_folder(dir: &Path) -> std::io::Result<()> {
     let cmd = "explorer.exe";
     #[cfg(not(windows))]
     let cmd = "xdg-open";
-    std::process::Command::new(cmd).arg(dir).spawn().map(|_| ())
+    dub_core::proc::host_command(cmd).arg(dir).spawn().map(|_| ())
 }
 
 /// POST /pick-folder — нативный диалог выбора папки (rfd). Возвращает {dir} или {dir:null} при отмене.
@@ -46,7 +46,7 @@ pub(crate) fn reveal_in_explorer(path: String) {
                 .parent()
                 .map(|p| p.to_path_buf())
                 .unwrap_or_else(|| std::path::PathBuf::from("."));
-            let _ = std::process::Command::new("xdg-open").arg(parent).spawn();
+            let _ = dub_core::proc::host_command("xdg-open").arg(parent).spawn();
         }
     });
 }

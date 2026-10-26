@@ -4,7 +4,6 @@
 use serde_json::Value;
 use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 #[cfg(windows)]
 const FFMPEG: &str = "ffmpeg.exe";
@@ -23,7 +22,7 @@ pub struct MediaMeta {
 
 /// ffprobe -show_format -show_streams (json) -> MediaMeta. Ошибка если нет видеопотока/длительности.
 pub fn probe(input: &Path) -> Result<MediaMeta, String> {
-    let out = Command::new(FFPROBE)
+    let out = dub_core::proc::host_command(FFPROBE)
         .args([
             "-v",
             "error",
@@ -87,7 +86,7 @@ fn os_args(parts: &[&OsStr]) -> Vec<OsString> {
 // ─── Рендер-хелперы (порт media.py: extract_audio/duration/time_stretch/mix/mux/trim) ─────────
 
 fn run_ff(args: &[&std::ffi::OsStr]) -> Result<(), String> {
-    let out = dub_core::proc::output(Command::new(FFMPEG).args(args)).map_err(|e| t!("common-ffmpeg-start", error = e.to_string()))?;
+    let out = dub_core::proc::output(dub_core::proc::host_command(FFMPEG).args(args)).map_err(|e| t!("common-ffmpeg-start", error = e.to_string()))?;
     if !out.status.success() {
         let err = String::from_utf8_lossy(&out.stderr);
         let tail: String = err.chars().rev().take(1500).collect::<String>().chars().rev().collect();
@@ -140,7 +139,7 @@ pub fn to_16k_mono(src: &Path, dst: &Path) -> Result<(), String> {
 
 /// Длительность файла в секундах (ffprobe format.duration). Порт media.duration.
 pub fn duration(path: &Path) -> Result<f64, String> {
-    let out = Command::new(FFPROBE)
+    let out = dub_core::proc::host_command(FFPROBE)
         .args(["-v", "error", "-show_entries", "format=duration", "-of", "default=nw=1:nk=1"])
         .arg(path)
         .output()
@@ -254,7 +253,7 @@ fn trim_ref_args(src: &Path, dst: &Path, start: f64, end: f64, rate: Option<u32>
 
 /// Частота первого звукового потока файла (ffprobe).
 pub fn audio_rate(src: &Path) -> Result<u32, String> {
-    let out = Command::new(FFPROBE)
+    let out = dub_core::proc::host_command(FFPROBE)
         .args(["-v", "error", "-select_streams", "a:0", "-show_entries", "stream=sample_rate", "-of", "csv=p=0"])
         .arg(src)
         .output()
