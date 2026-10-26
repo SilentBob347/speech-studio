@@ -3006,6 +3006,8 @@ pub(crate) fn fetch_components<T>(
         }
     }
     if planned.is_empty() {
+        #[cfg(unix)]
+        make_programs_executable(repo_root, &selected);
         return Ok(completed(&selected));
     }
     let need: u64 = planned.iter().map(|p| file_space_needed(repo_root, p.f)).sum();
@@ -3207,7 +3209,32 @@ pub(crate) fn fetch_components<T>(
     if let Some(e) = first_err {
         return Err(e);
     }
+    #[cfg(unix)]
+    make_programs_executable(repo_root, &selected);
     Ok(completed(&selected))
+}
+
+/// A marker naming a program: a file under tools/ without an extension, as Linux and macOS name programs.
+#[cfg(any(unix, test))]
+fn is_program_marker(rel: &str) -> bool {
+    rel.starts_with("tools/") && Path::new(rel).extension().is_none()
+}
+
+/// The programs of the components (their markers) are made executable: an archive packed on Windows carries no
+/// execute bit, and the program would answer «Permission denied».
+#[cfg(unix)]
+fn make_programs_executable(repo_root: &Path, selected: &[&Component]) {
+    use std::os::unix::fs::PermissionsExt;
+    for m in selected.iter().flat_map(|c| c.markers).filter(|m| is_program_marker(m.rel)) {
+        let path = repo_root.join(m.rel);
+        let Ok(meta) = std::fs::metadata(&path) else { continue };
+        let mode = meta.permissions().mode();
+        if mode & 0o111 != 0o111 {
+            if let Err(e) = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(mode | 0o755)) {
+                tracing::error!("[ERROR] {} was not made executable: {e}", path.display());
+            }
+        }
+    }
 }
 
 // ── Распаковка архивов (возвращают список положенных файлов для записи об установке) ──
@@ -3672,6 +3699,55 @@ mod tests {
         }
         assert_eq!(llama_build_for(Build::Cpu, Some((2, 35))), Build::Cpu);
         assert_eq!(llama_build_for(Build::Vulkan, Some((2, 35))), Build::Vulkan);
+    }
+
+    #[test]
+    fn a_program_marker_is_a_file_under_tools_without_an_extension() {
+        assert!(is_program_marker("tools/audiocpp/audiocpp_server"));
+        assert!(is_program_marker("tools/bsroformer/bs_roformer-cli"));
+        assert!(!is_program_marker("tools/audiocpp/audiocpp_server.exe"));
+        assert!(!is_program_marker("tools/llama/libggml.so"));
+        assert!(!is_program_marker("models/higgs-engine/libcudart.so.13"));
+        assert!(!is_program_marker("models/eng/engine"));
+    }
+
+    /// A Linux archive packed on Windows (no execute bit on its program) still installs a program that runs.
+    #[cfg(unix)]
+    #[test]
+    fn a_program_unpacked_without_its_execute_bit_is_made_executable() {
+        use std::os::unix::fs::PermissionsExt;
+        let root = temp_root("exec-bit");
+        let dir = root.join("tools/srv");
+        std::fs::create_dir_all(&dir).unwrap();
+        let archive = dir.join("_server.tar.gz");
+        {
+            let gz = flate2::write::GzEncoder::new(std::fs::File::create(&archive).unwrap(), flate2::Compression::fast());
+            let mut tar = tar::Builder::new(gz);
+            let mut h = tar::Header::new_gnu();
+            h.set_size(4);
+            h.set_mode(0o644);
+            h.set_cksum();
+            tar.append_data(&mut h, "srv/prog", &b"#!/x"[..]).unwrap();
+            tar.into_inner().unwrap().finish().unwrap();
+        }
+        let written = extract_archive(&archive, "tools/srv/_server.tar.gz", Extract::Flat, &dir).unwrap();
+        let prog = dir.join("prog");
+        assert!(written.contains(&prog), "{written:?}");
+        assert_eq!(std::fs::metadata(&prog).unwrap().permissions().mode() & 0o111, 0, "the archive's own mode");
+        let c = Component {
+            id: "srv",
+            name: "srv".into(),
+            purpose: String::new(),
+            requirement: Requirement::Required,
+            delivery: Delivery::Download,
+            size: 0,
+            files: &[],
+            markers: &[Marker { rel: "tools/srv/prog", expect: 0 }],
+            external_url: None,
+        };
+        make_programs_executable(&root, &[&c]);
+        assert_eq!(std::fs::metadata(&prog).unwrap().permissions().mode() & 0o777, 0o755);
+        std::fs::remove_dir_all(&root).ok();
     }
 
     #[test]
