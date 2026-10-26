@@ -27,6 +27,7 @@ release notes on GitHub are taken from the release's section.
 
 ### Fixed
 
+- **A hardware preset moves every stage and stays shown**: «CPU + cloud» left voicing, recognition and separation on the card when they had a device of their own, and Settings → Models showed the recommended preset again once reopened; now a preset sets the device of each stage, and the list shows the preset the settings are on, or Custom.
 - **Linux and macOS know the free space of the models folder**: First run said the free space is unknown, and a download too big for the disk was not stopped before it began.
 - **Nemotron under Auto keeps the first word of what is said** («Победа пришла…» was heard as «Пришла…»): Live and Listening tell it the language VoxLingua107 hears among its own, the first two seconds of speech in Live, before it recognises anything.
 - **Recognised Chinese, Japanese and Thai text has no spaces between its characters** in Live, Listening and the take check (it read «今天 天 气 很好 ,»), and no text has a space before a comma or a full stop.
