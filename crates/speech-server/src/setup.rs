@@ -3001,6 +3001,10 @@ pub(crate) fn fetch_components<T>(
                     }
                 }
                 if let Some(app) = take_from_neighbor(&dest, f, cancel) {
+                    // the program taken passed the pinned sha256; the record of the build it replaced would keep it uninstalled
+                    if installed::is_program(f) {
+                        write_record_of(repo_root, f, f.sha256, std::slice::from_ref(&dest))?;
+                    }
                     lock(taken()).insert(c.id.to_string(), app.clone());
                     progress(json!({ "stage": "download", "phase": "taken", "file": f.dest_rel, "from": app, "msg": t!("setup-taken-from", file = f.dest_rel, app = program_name(&app).to_string()) }));
                     continue;
