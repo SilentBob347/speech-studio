@@ -200,7 +200,7 @@ pub fn apply_fixes(words: &mut Vec<Word>, fixes: &[Fix]) -> usize {
 }
 
 fn join_words(words: &[Word]) -> String {
-    words.iter().map(|w| w.text.trim()).filter(|t| !t.is_empty()).collect::<Vec<_>>().join(" ")
+    dub_asr::join_text(words.iter().map(|w| w.text.as_str()))
 }
 
 /// Отделённый голос записи в 16 кГц (Roformer); ошибка — явная, без тихого перехода на сырую запись.
@@ -646,7 +646,7 @@ pub fn align_to_text(project: &ListenProject, reference: &str) -> Vec<Line> {
 }
 
 pub fn check_reference(project: &ListenProject, reference: &str) -> Result<Value, String> {
-    let heard: String = project.shown().map(|l| l.text.as_str()).collect::<Vec<_>>().join(" ");
+    let heard = dub_asr::join_text(project.shown().map(|l| l.text.as_str()));
     let (reference, heard) = crate::audio::qc::said_alike(reference, &heard, &crate::text::prep::block_lang(reference, &project.settings.lang))?;
     let e = crate::audio::qc::normalize(&reference);
     let h = crate::audio::qc::normalize(&heard);
@@ -680,6 +680,14 @@ mod tests {
         assert_eq!((lines[0].text.as_str(), lines[0].speaker.as_str()), ("Привет, GitHub!", "0"));
         assert_eq!((lines[1].text.as_str(), lines[1].speaker.as_str()), ("Как дела?", "1"));
         assert!((lines[0].start - 0.5).abs() < 1e-6 && (lines[1].words[0].start - 3.0).abs() < 1e-6, "{lines:?}");
+    }
+
+    /// A line's text joins its words as the language writes: Chinese without spaces, Russian with them.
+    #[test]
+    fn a_line_joins_its_words_as_the_language_writes() {
+        let words = |ws: &[&str]| ws.iter().map(|w| Word { text: (*w).into(), start: 0.0, end: 0.0, cut: false }).collect::<Vec<_>>();
+        assert_eq!(join_words(&words(&["今天", "天", "气", "很好", ","])), "今天天气很好,");
+        assert_eq!(join_words(&words(&["Победа", "пришла", "в", "1945", "году", "."])), "Победа пришла в 1945 году.");
     }
 
     fn word(text: &str, start: f64, end: f64) -> Word {

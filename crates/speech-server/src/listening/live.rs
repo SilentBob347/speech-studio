@@ -221,7 +221,7 @@ fn listen(choice: crate::engines::models::AsrChoice, models_root: &Path, lang: &
         }
         w.finalize().map_err(|e| e.to_string())?;
         let heard = asr.transcribe(&wav, if lang.is_empty() { "auto" } else { lang }).map_err(|e| e.localize())?;
-        Ok(heard.iter().map(|s| s.text.trim()).filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" "))
+        Ok(dub_asr::join_text(heard.iter().map(|s| s.text.as_str())))
     };
     while !ended {
         match from.recv_timeout(Duration::from_millis(300)) {
@@ -311,7 +311,8 @@ mod tests {
     use super::*;
 
     /// LIVE_WAV: a recording to feed as the microphone; SPEECH_STUDIO_ROOT: a studio root with its recognition model and
-    /// Silero VAD; LIVE_LANG: the language to hear in (`ru` when not set, `auto` for Auto).
+    /// Silero VAD; LIVE_LANG: the language to hear in (`ru` when not set, `auto` for Auto); LIVE_EXPECT: text a line
+    /// must hold (`1945` when not set).
     #[test]
     #[ignore]
     fn a_recording_fed_as_the_microphone_is_heard_phrase_by_phrase() {
@@ -362,7 +363,8 @@ mod tests {
         for l in &lines {
             eprintln!("{:.2}-{:.2} {}", l.0, l.1, l.2);
         }
-        assert!(!lines.is_empty() && lines.iter().any(|l| l.2.contains("1945")), "{lines:?}");
+        let expect = std::env::var("LIVE_EXPECT").unwrap_or_else(|_| "1945".into());
+        assert!(!lines.is_empty() && lines.iter().any(|l| l.2.contains(&expect)), "{lines:?}");
         assert!(lines.windows(2).all(|w| w[0].1 <= w[1].0 + 0.01));
     }
 

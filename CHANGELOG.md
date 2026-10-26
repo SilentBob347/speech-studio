@@ -26,6 +26,7 @@ release notes on GitHub are taken from the release's section.
 
 ### Fixed
 
+- **Recognised Chinese, Japanese and Thai text has no spaces between its characters** in Live, Listening and the take check (it read «今天 天 气 很好 ,»), and no text has a space before a comma or a full stop.
 - **ONNX Runtime sends Microsoft no usage telemetry**: the studio sets its environment with telemetry off before any model of it loads (stress marks, noise removal, speaker voices), and does not start if it cannot.
 - **Casting a book keeps the book's words whatever the model writes** («the director model changed the book's text twice»): the model only says who speaks and where each line begins, and every line's text is cut from the book itself; a chunk fails only when the model's answer is another text.
 - **Higgs stops a phrase that does not end a second past its runaway length**: the cap counted 75 tokens a second where audio.cpp counts 25 codec frames, so a phrase that would not stop ran three times longer than meant before it was judged and voiced again.

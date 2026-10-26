@@ -67,12 +67,7 @@ pub fn transcribe_many(
         let heard = engine.transcribe_many_words(&wavs, if lang.is_empty() { "auto" } else { lang });
         for (file, words) in ready.into_iter().zip(heard) {
             let heard = words.map_err(|e| e.localize()).map(|words| Heard {
-                text: words
-                    .iter()
-                    .map(|w| w.word.trim())
-                    .filter(|w| !w.is_empty())
-                    .collect::<Vec<_>>()
-                    .join(" "),
+                text: dub_asr::join_text(words.iter().map(|w| w.word.as_str())),
                 words: words
                     .iter()
                     .map(|w| Word {
@@ -224,7 +219,7 @@ fn run(choice: &crate::engines::models::AsrChoice, models_root: &Path, audio: &P
     std::env::set_var("DUB_ASR_BACKEND", crate::engines::models::stage_backend(models_root, "asr_backend"));
     let mut asr = crate::engines::asr::build_engine(choice, None)?;
     let segments = asr.transcribe(&wav, if lang.is_empty() { "auto" } else { lang }).map_err(|e| e.localize())?;
-    let text = segments.iter().map(|s| s.text.trim()).filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" ");
+    let text = dub_asr::join_text(segments.iter().map(|s| s.text.as_str()));
     let words = segments.iter().flat_map(|s| s.words.iter()).map(|w| Word { word: w.word.clone(), start: w.start, end: w.end }).collect();
     Ok(Heard { text, words })
 }

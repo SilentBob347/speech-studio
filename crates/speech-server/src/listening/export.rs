@@ -82,7 +82,7 @@ pub fn by_rules(rows: &[Row], p: &dub_captions::RulesProfile, lang: &str) -> (Ve
             }
         };
         // as many screens as the words need, cut into near equal parts at word edges, so no word is left alone
-        let fits = |r: &std::ops::Range<usize>| p.calc.count(&words[r.clone()].join(" ")) <= room;
+        let fits = |r: &std::ops::Range<usize>| p.calc.count(&dub_asr::join_text(words[r.clone()].iter().copied())) <= room;
         let need = (p.calc.count(&r.text) / room).ceil().max(1.0) as usize;
         // near each equal share the cut goes after a sentence's end, else after a comma, else at the nearest word
         let before: Vec<f64> = std::iter::once(0.0).chain(weight.iter().scan(0.0, |acc, w| { *acc += w; Some(*acc) })).collect();
@@ -134,7 +134,7 @@ pub fn by_rules(rows: &[Row], p: &dub_captions::RulesProfile, lang: &str) -> (Ve
         for (i, screen) in screens.into_iter().enumerate() {
             let a = if i == 0 { r.start } else { starts(screen.start) };
             let b = if i + 1 == count { r.end } else { starts(screen.end) };
-            let text = balanced_wrap(&words[screen].join(" "), p, lang).join("\n");
+            let text = balanced_wrap(&dub_asr::join_text(words[screen].iter().copied()), p, lang).join("\n");
             segs.push(TimingSeg::new(a, b.max(a), text).with_speaker(r.speaker.clone()));
         }
     }
