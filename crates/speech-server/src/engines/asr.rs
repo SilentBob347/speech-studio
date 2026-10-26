@@ -122,77 +122,6 @@ impl dub_asr::AsrEngine for ServerUnloading {
     }
 }
 
-/// The language of `model` VoxLingua107 hears in 16 kHz mono speech, chosen among the model's languages: None for
-/// speech shorter than the detector takes (the model then finds the language itself). Nemotron 3.5 told no
-/// language loses the first word of a recording, so «auto» is told what is heard.
-pub fn heard_language(models_root: &Path, build: crate::engines::tcpp_asr::Build, model: &crate::engines::tcpp_asr::Model, pcm16k: &[f32]) -> Result<Option<String>, String> {
-    if pcm16k.len() < dub_tcpp::LANGID_MIN_SAMPLES {
-        return Ok(None);
-    }
-    let head = &pcm16k[..pcm16k.len().min(acpp_server::language::LANGUAGE_ID_SECS * 16_000)];
-    let langid = dub_tcpp::helper_path(models_root, &dub_tcpp::LANGID);
-    // among the model's own languages: a second of Russian is heard as Belarusian sooner than as Russian
-    let guess = dub_tcpp::detect_language(&dub_tcpp::engine_dir(models_root, build), &langid, head, model.languages)?;
-    let Some((code, p)) = guess.ranked.into_iter().next() else {
-        return Ok(None);
-    };
-    if crate::engines::tcpp_asr::knows(model, &code) {
-        tracing::info!("recognition: {} is told {code}, heard by VoxLingua107 ({p:.2})", model.name);
-        Ok(Some(code))
-    } else {
-        tracing::info!("recognition: VoxLingua107 hears {code} ({p:.2}), which {} does not know; it finds the language itself", model.name);
-        Ok(None)
-    }
-}
-
-/// A recogniser of a model that must be told the language: «auto» is told the one heard in the first recording long
-/// enough to hear it, and that one stays for the rest of the job.
-struct HeardLanguage {
-    inner: Box<dyn dub_asr::AsrEngine>,
-    models_root: PathBuf,
-    build: crate::engines::tcpp_asr::Build,
-    model: &'static crate::engines::tcpp_asr::Model,
-    heard: Option<String>,
-}
-
-impl HeardLanguage {
-    fn language(&mut self, wav: &Path, lang: &str) -> Result<String, dub_asr::AsrError> {
-        if !(lang.is_empty() || lang == "auto") {
-            return Ok(lang.to_string());
-        }
-        if self.heard.is_none() {
-            let (pcm, sr) = crate::audio::wavio::read_mono_f32_head(wav, acpp_server::language::LANGUAGE_ID_SECS * 48_000)
-                .map_err(|e| dub_asr::AsrError::WavRead(wav.display().to_string(), e))?;
-            let pcm = crate::audio::wavio::to_16k(&pcm, sr);
-            self.heard = heard_language(&self.models_root, self.build, self.model, &pcm).map_err(dub_asr::AsrError::Parakeet)?;
-        }
-        Ok(self.heard.clone().unwrap_or_else(|| "auto".into()))
-    }
-}
-
-impl dub_asr::AsrEngine for HeardLanguage {
-    fn transcribe(&mut self, wav: &Path, lang: &str) -> Result<Vec<dub_asr::Segment>, dub_asr::AsrError> {
-        let lang = self.language(wav, lang)?;
-        self.inner.transcribe(wav, &lang)
-    }
-    fn transcribe_turns(&mut self, wav: &Path, turns: &[dub_asr::Turn], lang: &str) -> Result<Vec<dub_asr::SpeakerSegment>, dub_asr::AsrError> {
-        let lang = self.language(wav, lang)?;
-        self.inner.transcribe_turns(wav, turns, &lang)
-    }
-    fn transcribe_many(&mut self, files: &[PathBuf], lang: &str) -> Vec<Result<String, dub_asr::AsrError>> {
-        match files.first().map(|f| self.language(f, lang)).transpose() {
-            Ok(told) => self.inner.transcribe_many(files, told.as_deref().unwrap_or(lang)),
-            Err(e) => files.iter().map(|_| Err(dub_asr::AsrError::Parakeet(e.to_string()))).collect(),
-        }
-    }
-    fn transcribe_many_words(&mut self, files: &[PathBuf], lang: &str) -> Vec<Result<Vec<dub_asr::Word>, dub_asr::AsrError>> {
-        match files.first().map(|f| self.language(f, lang)).transpose() {
-            Ok(told) => self.inner.transcribe_many_words(files, told.as_deref().unwrap_or(lang)),
-            Err(e) => files.iter().map(|_| Err(dub_asr::AsrError::Parakeet(e.to_string()))).collect(),
-        }
-    }
-}
-
 /// The recogniser of a choice; CrisperWhisper starts audiocpp_server, and its refusal is an error with the cause.
 /// `prompt` — the topic and terms to expect; only CrisperWhisper takes one. Nemotron is told the language «auto» hears.
 
@@ -218,8 +147,8 @@ pub fn build_engine(choice: &AsrChoice, prompt: Option<String>) -> Result<Box<dy
         }
     };
     match choice {
-        AsrChoice::Ggml { models_root, build, model } | AsrChoice::Server { models_root, build, model, .. } if model.id == crate::engines::acpp::NEMOTRON => {
-            Ok(Box::new(HeardLanguage { inner: engine, models_root: models_root.clone(), build: *build, model, heard: None }))
+        AsrChoice::Ggml { models_root, build, model } | AsrChoice::Server { models_root, build, model, .. } => {
+            Ok(dub_asr::tcpp::with_heard_language(engine, models_root, *build, model))
         }
         _ => Ok(engine),
     }

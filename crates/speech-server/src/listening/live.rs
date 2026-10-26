@@ -263,7 +263,7 @@ fn listen(choice: crate::engines::models::AsrChoice, models_root: &Path, lang: &
         if let (Some((root, build, model)), true) = (&streaming, stream.is_none()) {
             let speech = &audio[from_a.min(audio.len())..];
             if speech.len() >= HEAR_LANGUAGE_SAMPLES || cut.is_some() {
-                match crate::engines::asr::heard_language(root, *build, model, speech)? {
+                match dub_asr::tcpp::heard_language(root, *build, model, speech)? {
                     Some(told) => stream = Some(open_stream(&told)?),
                     None if speech.len() >= HEAR_LANGUAGE_SAMPLES => stream = Some(open_stream("")?),
                     None => {}
