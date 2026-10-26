@@ -57,6 +57,24 @@ pub fn write_mono_f32(path: &Path, data: &[f32], sample_rate: u32) -> Result<(),
     Ok(())
 }
 
+/// Linear resampling to 16 kHz: enough for the speech detector and the language id, the recogniser gets the same.
+pub fn to_16k(x: &[f32], sr: u32) -> Vec<f32> {
+    if sr == 16_000 || x.is_empty() {
+        return x.to_vec();
+    }
+    let n = (x.len() as f64 * 16_000.0 / sr as f64) as usize;
+    (0..n)
+        .map(|i| {
+            let at = i as f64 * sr as f64 / 16_000.0;
+            let k = at as usize;
+            let f = (at - k as f64) as f32;
+            let a = x.get(k).copied().unwrap_or(0.0);
+            let b = x.get(k + 1).copied().unwrap_or(a);
+            a + (b - a) * f
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
 }

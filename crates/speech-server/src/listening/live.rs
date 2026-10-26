@@ -12,6 +12,7 @@ use std::time::Duration;
 use serde_json::{json, Value};
 
 use crate::app::Localize;
+use crate::audio::wavio::to_16k;
 
 /// A pause this long after speech ends the utterance.
 const PAUSE_SECS: f64 = 0.7;
@@ -21,6 +22,9 @@ const LONGEST_SECS: f64 = 20.0;
 const EDGE_SECS: f64 = 0.15;
 /// While a phrase goes on, what it says so far is recognised again this often.
 const INTERIM_SECS: f64 = 1.5;
+/// Under Auto, the language of the first speech is heard once it is this long (16 kHz samples), unless the phrase
+/// ends sooner.
+const HEAR_LANGUAGE_SAMPLES: usize = 2 * 16_000;
 
 /// A phrase heard live: where it starts and ends in the recording, seconds, and what was said.
 pub type Heard = (f64, f64, String);
@@ -175,33 +179,26 @@ pub fn finish() -> Result<Vec<Heard>, String> {
     }
 }
 
-/// Linear resampling to 16 kHz: enough for the speech detector, the recogniser gets the same.
-pub(crate) fn to_16k(x: &[f32], sr: u32) -> Vec<f32> {
-    if sr == 16_000 || x.is_empty() {
-        return x.to_vec();
-    }
-    let n = (x.len() as f64 * 16_000.0 / sr as f64) as usize;
-    (0..n)
-        .map(|i| {
-            let at = i as f64 * sr as f64 / 16_000.0;
-            let k = at as usize;
-            let f = (at - k as f64) as f32;
-            let a = x.get(k).copied().unwrap_or(0.0);
-            let b = x.get(k + 1).copied().unwrap_or(a);
-            a + (b - a) * f
-        })
-        .collect()
-}
-
 fn listen(choice: crate::engines::models::AsrChoice, models_root: &Path, lang: &str, from: Receiver<Vec<f32>>, stop: &AtomicBool, rate: &dyn Fn() -> u32, at: f64) -> Result<(), String> {
     let label = choice.label();
+    let lang = if lang == "auto" { "" } else { lang };
     // Nemotron 3.5 is a streaming model: a phrase is recognised as it is spoken instead of again from its start
-    let mut stream = match &choice {
+    let streaming = match &choice {
         crate::engines::models::AsrChoice::Ggml { models_root, build, model } | crate::engines::models::AsrChoice::Server { models_root, build, model, .. }
             if model.id == "nemotron" =>
         {
-            Some(dub_asr::tcpp::TcppStream::new(&dub_asr::tcpp::engine_dir(models_root, *build), &dub_asr::tcpp::model_path(models_root, model), lang)?)
+            Some((models_root.clone(), *build, *model))
         }
+        _ => None,
+    };
+    let open_stream = |told: &str| -> Result<dub_asr::tcpp::TcppStream, String> {
+        let (root, build, model) = streaming.as_ref().expect("a stream is opened for a streaming model");
+        dub_asr::tcpp::TcppStream::new(&dub_asr::tcpp::engine_dir(root, *build), &dub_asr::tcpp::model_path(root, model), told)
+    };
+    // under Auto the stream opens once the language of the first speech is heard (Nemotron told none loses its first
+    // word); until then nothing is shown of the phrase
+    let mut stream = match &streaming {
+        Some(_) if !lang.is_empty() => Some(open_stream(lang)?),
         _ => None,
     };
     // samples of `audio` the stream already has
@@ -263,6 +260,18 @@ fn listen(choice: crate::engines::models::AsrChoice, models_root: &Path, lang: &
         };
         let a = (first - EDGE_SECS).max(0.0);
         let from_a = (a * 16_000.0) as usize;
+        if let (Some((root, build, model)), true) = (&streaming, stream.is_none()) {
+            let speech = &audio[from_a.min(audio.len())..];
+            if speech.len() >= HEAR_LANGUAGE_SAMPLES || cut.is_some() {
+                match crate::engines::asr::heard_language(root, *build, model, speech)? {
+                    Some(told) => stream = Some(open_stream(&told)?),
+                    None if speech.len() >= HEAR_LANGUAGE_SAMPLES => stream = Some(open_stream("")?),
+                    None => {}
+                }
+            } else {
+                continue;
+            }
+        }
         let Some(z) = cut else {
             // the phrase goes on: show what it says so far
             if let Some(s) = stream.as_mut() {
