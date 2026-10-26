@@ -69,6 +69,11 @@ function useWide(): boolean {
   }, () => window.matchMedia(WIDE).matches);
 }
 
+/** A play() that a pause stopped before the sound started: the player is paused as asked, nothing failed. */
+function pausedBeforeStart(e: unknown): boolean {
+  return e instanceof DOMException && e.name === "AbortError";
+}
+
 export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: () => void }) {
   const { t } = useTranslation();
   const { project, error, saving, edit, undo, redo, canUndo, canRedo, flush, reload } = useSpeechProject(pid);
@@ -281,7 +286,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
     window.addEventListener(LAYER_OPENED, pause);
     return () => window.removeEventListener(LAYER_OPENED, pause);
   }, []);
-  const resumeAudio = () => { if (!playing || !audio.current) return; setPaused(false); audio.current.play().catch((e: unknown) => { setPlaying(null); setJobError(errorText(e)); }); };
+  const resumeAudio = () => { if (!playing || !audio.current) return; setPaused(false); audio.current.play().catch((e: unknown) => { if (pausedBeforeStart(e)) return; setPlaying(null); setJobError(errorText(e)); }); };
   const editSpoken = () => {
     const b = playing ? blocks.find((x) => x.id === playing) : null;
     if (!b) return;
@@ -314,7 +319,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
     setPaused(false);
     setQueue(rest);
     a.onended = () => setPlaying(null);
-    a.play().catch((e: unknown) => { setPlaying(null); setJobError(errorText(e)); });
+    a.play().catch((e: unknown) => { if (pausedBeforeStart(e)) return; setPlaying(null); setJobError(errorText(e)); });
   }, [pid]);
 
   useEffect(() => {
@@ -865,7 +870,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
             a.addEventListener("loadedmetadata", () => { a.currentTime = from; }, { once: true });
             a.addEventListener("timeupdate", () => { if (a.currentTime >= to) a.pause(); });
             audio.current = a;
-            a.play().catch((e: unknown) => setJobError(errorText(e)));
+            a.play().catch((e: unknown) => { if (!pausedBeforeStart(e)) setJobError(errorText(e)); });
           }}
           onPlay={(id) => { const b = blocks.find((x) => x.id === id); if (b) playBlock(b, []); }}
           onMontage={(id, change: Montage) => edit((p) => {
