@@ -1157,7 +1157,9 @@ fn synth_scope(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Valu
             Err(e) => failed.push(json!({ "block": id, "error": e })),
         }
     }
-    report_speed(p, pid, &made)?;
+    if let Err(e) = report_speed(p, pid, &made) {
+        tracing::warn!("hub: the voicing speed of project {pid} was not reported: {e}");
+    }
     let mut qc_failed = Vec::new();
     if checking && !made.is_empty() {
         qc_failed = check_takes(p, pid, &made, false, progress)?;
