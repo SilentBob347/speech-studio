@@ -8,6 +8,9 @@ release notes on GitHub are taken from the release's section.
 
 ### Changed
 
+- **Studio notices come as a window too**: a notice of the studio's feed can open as a window over the studio, once ready, after its delay and only while nothing is being voiced, recorded or said aloud; its buttons open a link, the news, Settings → Models or About. A strip or a window shows only in the sections it is meant for (making a work, the voice library, the news, the tools, Settings), and an advertisement carries its label and erid.
+- **News from the feed have their picture and buttons**, and a button can open a link, Settings or the news.
+- **The anonymous report says how fast voicing goes on the card**: seconds of speech voiced and seconds the engine worked for them, for local engines (Settings → Privacy says so). The window's own polling (microphone state, recording level, resource monitor, queue) is no longer counted as using the studio.
 - **Whisper is CrisperWhisper 2.0 turbo in the audio.cpp engine**, as in Dub Studio: 99 languages with word times, the language of Auto heard by VoxLingua107, the Listening prompt passed to it. Faster-Whisper, its six models and its CUDA 11 libraries are gone, and this program's copies of them are removed at start (a model folder shared with another program loses only its link).
 - **Higgs Audio v3 runs in the audio.cpp server** that CrisperWhisper runs in, as in Dub Studio, instead of its own engine library: the setup screen downloads the server once (131 MB, «Voice and recognition engine (audio.cpp)»), and the old library is removed. It has machine code for RTX 50 cards too.
 - **Higgs runs on graphics cards from GTX 900 and GTX 10 to Volta and on drivers 525-579**: the audio.cpp engine comes in a CUDA 12.9 build for the cards and drivers CUDA 13 left, with its CUDA 12.9 runtime; before, Higgs said such a card is too old. The engine's CUDA libraries are checked before it starts and a missing one is named.

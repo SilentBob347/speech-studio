@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, Copy, KeyRound, Loader2, Trash2 } from "lucide-react";
-import { BASE, getCoded, postCoded, type ApiError } from "../../lib/api";
+import { BASE, getCoded, getCodedPolled, postCoded, type ApiError } from "../../lib/api";
 import { errorText } from "../../lib/voices";
 import { named } from "../../lib/a11y";
 
@@ -46,7 +46,7 @@ export default function ApiSection() {
   const [onlyErrors, setOnlyErrors] = useState(false);
 
   useEffect(() => { getCoded<ApiSettings>("/openai/settings").then(setSettings, (e: unknown) => setProblem(errorText(e))); }, []);
-  const loadLog = useCallback(() => getCoded<{ requests: Logged[] }>("/openai/log").then((r) => setRows(r.requests), (e: unknown) => setProblem(errorText(e))), []);
+  const loadLog = useCallback(() => getCodedPolled<{ requests: Logged[] }>("/openai/log").then((r) => setRows(r.requests), (e: unknown) => setProblem(errorText(e))), []);
   useEffect(() => {
     void loadLog();
     const timer = window.setInterval(() => void loadLog(), 3000);

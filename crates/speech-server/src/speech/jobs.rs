@@ -1157,6 +1157,7 @@ fn synth_scope(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Valu
             Err(e) => failed.push(json!({ "block": id, "error": e })),
         }
     }
+    report_speed(p, pid, &made)?;
     let mut qc_failed = Vec::new();
     if checking && !made.is_empty() {
         qc_failed = check_takes(p, pid, &made, false, progress)?;
@@ -1177,6 +1178,23 @@ fn synth_scope(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Valu
         return Err(t!("speech-synth-all-failed", error = failed[0]["error"].as_str().unwrap_or("").to_string()));
     }
     Ok(json!({ "done": done, "failed": failed, "skipped": skipped, "qc_failed": qc_failed }))
+}
+
+/// The speed of the card the voicing ran on: the seconds of speech the local engines made in this job and the seconds
+/// they took, the job queue running one job at a time. Cloud engines run on no card of this computer.
+fn report_speed(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>) -> Result<(), String> {
+    let project = crate::speech::load(&p.workspace, pid)?;
+    let (mut media, mut work) = (0.0f64, 0.0f64);
+    for b in project.blocks().filter(|b| made.contains_key(&b.id) && !crate::engines::is_cloud(project.engine_of(b))) {
+        for take in b.takes.iter().filter(|t| made[&b.id].contains(&t.n)) {
+            media += take.duration;
+            work += take.synth_secs;
+        }
+    }
+    if media > 0.0 && work > 0.0 {
+        crate::app::hub_worked(crate::jobs::JobKind::Synth.as_str(), media, std::time::Duration::from_secs_f64(work));
+    }
+    Ok(())
 }
 
 /// Пауза между главами при сборке одним файлом (граница раздела у tts-audiobook-tool — 2–2,5 с).

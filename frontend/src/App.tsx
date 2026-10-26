@@ -3,8 +3,9 @@ import { useTranslation } from "react-i18next";
 import { Loader2 } from "lucide-react";
 import { api, SELECTION_CHANGED } from "./lib/api";
 import { useStore } from "./store";
-import { hubChanged, setTelemetry, useHubState } from "./lib/studioHub";
+import { hubChanged, setTelemetry, showsNow, useHubState, type HubView } from "./lib/studioHub";
 import { HubBars } from "./components/HubBars";
+import HubPopup from "./components/HubPopup";
 import ServerOffline from "./components/ServerOffline";
 import ResourceMonitor from "./components/ResourceMonitor";
 import BridgeHost from "./components/BridgeHost";
@@ -15,7 +16,7 @@ import FirstRun from "./components/setup/FirstRun";
 import ListeningPage from "./components/listening/ListeningPage";
 import SpeechPage from "./components/speech/SpeechPage";
 import TalkPage from "./components/talk/TalkPage";
-import { useAloudPlayback } from "./lib/livePlayback";
+import { aloudPlayback, useAloudPlayback } from "./lib/livePlayback";
 import { serveTalkFeed } from "./lib/talkFeed";
 
 const modelName = (p?: string) => (p ? (p.split(/[\\/]/).pop() || p).replace(/\.(gguf|onnx|bin|pt|safetensors)$/i, "") : "");
@@ -59,9 +60,32 @@ export default function App() {
       .then((s) => setStage(s.ready ? "ready" : "setup"))
       .catch((e: unknown) => setStage(e instanceof TypeError ? "offline" : "ready"));
   }, [setStage]);
+  // the hub's sections: Speech is where a work is made, Listening and Live are tools, the open window names its own
+  const overlay = useStore((s) => s.overlay);
+  const progress = useStore((s) => s.progress);
+  const view: HubView = overlay ?? (mode === "speech" ? "create" : "tools");
+  const busy = progress.pct != null || (!!progress.stage && !["", "done", "error"].includes(progress.stage));
+  const ready = stage === "ready";
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (!ready) return;
+    const readyAt = Date.now();
+    const tick = window.setInterval(() => setElapsed(Math.floor((Date.now() - readyAt) / 1000)), 1000);
+    return () => window.clearInterval(tick);
+  }, [ready]);
+  const [popupClosed, setPopupClosed] = useState<Set<string>>(() => new Set());
+  // a popup waits while something is being made: a job, or the agent's turn said aloud
+  const popup = ready && hub && !busy && !aloudPlayback()?.speaking
+    ? hub.items.find((item) => item.kind === "popup" && !popupClosed.has(item.id) && showsNow(item, elapsed, view))
+    : undefined;
+  const closePopup = (id: string) => {
+    setPopupClosed((previous) => new Set(previous).add(id));
+    hubChanged();
+  };
   return (
     <div className="h-full flex flex-col">
-      {hub && stage !== "setup" && <HubBars items={hub.items} />}
+      {hub && stage !== "setup" && <HubBars items={hub.items} view={view} />}
+      {popup && <HubPopup item={popup} onClose={() => closePopup(popup.id)} />}
       <TopBar />
       {stage === "boot" && <div className="flex-1 grid place-items-center"><Loader2 size={22} className="animate-spin text-[var(--color-muted)]" /></div>}
       {stage === "offline" && <ServerOffline />}

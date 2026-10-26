@@ -114,6 +114,14 @@ pub fn setup_failed(code: &str, ids: &[String], detail: &str) {
     }
 }
 
+/// Work that had the engine to itself (the job queue runs one job at a time): the seconds of sound it made and the
+/// seconds the engine took, for the speed of each class of card.
+pub(crate) fn worked(kind: &str, media_secs: f64, work: std::time::Duration) {
+    if let Some(hub) = HUB.get().and_then(Option::as_ref) {
+        hub.worked(kind, media_secs, work);
+    }
+}
+
 fn setup_failure(code: &str, ids: &[String], detail: &str) -> String {
     let host = detail.split("://").nth(1).map(|rest| rest.split(['/', ':', ' ', ')']).next().unwrap_or("")).unwrap_or("");
     [code, &ids.join(","), host].iter().filter(|s| !s.is_empty()).copied().collect::<Vec<_>>().join(" ")

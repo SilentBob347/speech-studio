@@ -190,6 +190,9 @@ export default function TopBar() {
   const [settings, setSettings] = useState<{ target: string; request: number } | null>(null);
   const [help, setHelp] = useState(false);
   const [voices, setVoices] = useState(false);
+  const setOverlay = useStore((s) => s.setOverlay);
+  const settingsOpen = settings !== null;
+  useEffect(() => { setOverlay(settingsOpen ? "settings" : voices ? "library" : null); }, [settingsOpen, voices, setOverlay]);
   const [assistant, setAssistant] = useState(false);
   const openSettingsAt = (target: string) => setSettings(settingsRequest(target));
   useEffect(() => {
