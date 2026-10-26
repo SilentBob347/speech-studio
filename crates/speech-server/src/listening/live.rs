@@ -316,7 +316,7 @@ mod tests {
     fn a_recording_fed_as_the_microphone_is_heard_phrase_by_phrase() {
         let root = std::path::PathBuf::from(std::env::var("SPEECH_STUDIO_ROOT").expect("SPEECH_STUDIO_ROOT"));
         let models = root.join("models");
-        crate::set_ort_dylib_env(&root, &root);
+        crate::set_ort_dylib_env(&root, &root).unwrap();
         let (x, sr) = crate::audio::wavio::read_mono_f32(Path::new(&std::env::var("LIVE_WAV").expect("LIVE_WAV"))).unwrap();
         let choice = crate::app::recognition::choice(&root, &models, "ru", "test").unwrap();
         std::env::set_var("DUB_ASR_BACKEND", crate::engines::models::stage_backend(&models, "asr_backend"));

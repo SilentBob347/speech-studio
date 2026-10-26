@@ -145,7 +145,9 @@ fn start_or_reuse_service(repo_root: &std::path::Path) -> Result<u16, String> {
 /// augment_path_for_tools внутри serve_blocking).
 fn setup_server_env(repo_root: &PathBuf) {
     speech_server::apply_gpu_choice(repo_root);
-    speech_server::set_ort_dylib_env(repo_root, &layout::executable_directory());
+    if let Err(e) = speech_server::set_ort_dylib_env(repo_root, &layout::executable_directory()) {
+        layout::fatal(&e);
+    }
 }
 
 /// Проверка обновления на GitHub-релизе и (по согласию юзера) установка. Драйвится из Rust: фронт

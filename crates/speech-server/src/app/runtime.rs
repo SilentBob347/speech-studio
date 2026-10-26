@@ -87,9 +87,10 @@ pub fn apply_gpu_choice(repo_root: &Path) {
     }
 }
 
-pub fn set_ort_dylib_env(repo_root: &Path, beside_exe: &Path) {
+pub fn set_ort_dylib_env(repo_root: &Path, beside_exe: &Path) -> Result<(), String> {
+    ort_telemetry_off()?;
     if std::env::var_os("ORT_DYLIB_PATH").is_some() {
-        return;
+        return Ok(());
     }
     ORT_PATH_OURS.store(true, std::sync::atomic::Ordering::Relaxed);
     let rt = repo_root.join("models").join("runtime");
@@ -110,6 +111,28 @@ pub fn set_ort_dylib_env(repo_root: &Path, beside_exe: &Path) {
             std::env::set_var("ORT_DYLIB_PATH", if hw::gpu_report().cuda13_ok { gpu } else { cpu });
             eprintln!("[ERROR] onnxruntime 1.28 not found in {}: recognition and diarization will not start until the ONNX Runtime component is downloaded", rt.display());
         }
+    }
+    Ok(())
+}
+
+/// Microsoft's ONNX Runtime builds send usage telemetry unless the environment turns it off. The options of the one
+/// environment of the process are set before any session makes it; an environment set up earlier is an error.
+fn ort_telemetry_off() -> Result<(), String> {
+    static OFF: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    if *OFF.get_or_init(|| ort::init().with_telemetry(false).commit()) {
+        Ok(())
+    } else {
+        Err("ONNX Runtime was set up before its telemetry could be turned off".to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn the_environment_turns_telemetry_off_once_and_keeps_it() {
+        assert_eq!(super::ort_telemetry_off(), Ok(()));
+        assert_eq!(super::ort_telemetry_off(), Ok(()), "a second start of the setup keeps the options it set");
+        assert!(!ort::init().with_telemetry(true).commit(), "options set later do not replace telemetry off");
     }
 }
 
