@@ -23,7 +23,7 @@ release notes on GitHub are taken from the release's section.
 
 ### Fixed
 
-- **A window opened over the editor pauses what the editor plays** (#14): the voice library, the settings or any other window covered the player while a project or a recording went on playing with no way to stop it; it pauses where it was, and Play goes on from there.
+- **A window opened over the editor pauses what the editor plays** (#14): the voice library, the settings or any other window covered the player while a project or a recording went on playing with no way to stop it; it pauses where it was, and Play goes on from there. Pausing right after Play no longer shows «The play() request was interrupted by a call to pause()».
 - **Another engine's built-in voice no longer fails voicing block by block** («There is no voice named F1»): choosing Higgs for a block or a speaker drops a Supertonic or Qwen voice it cannot speak, changing the project's engine clears such a voice from the voices by language too, and voicing names every block whose voice is neither in the library nor its engine's own before any model loads.
 - **A failed download tells the anonymous statistics which component failed and on which site** (for example `network asr-gguf-nemotron huggingface.co`), so a cause behind "network" can be found; nothing about the computer or the person is added.
 - **A recording of only silence is not saved as a voice**: when the system keeps the microphone closed or it is muted, recording a voice ends with what to check instead of a voice that recognition later finds empty.
