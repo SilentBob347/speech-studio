@@ -2002,21 +2002,26 @@ pub struct ImportReport {
 }
 
 /// Положить src на место dest: жёсткая ссылка (тот же том — мгновенно и без второй копии гигабайт), иначе
-/// копия через .part + rename (частичной копии под финальным именем не бывает).
+/// копия через .part + rename (частичной копии под финальным именем не бывает). The file already at dest is replaced
+/// only by a finished link or copy: a link that fails (another drive) leaves it as it was.
+
 fn adopt_file(src: &Path, dest: &Path, copy: bool) -> std::io::Result<()> {
     if let Some(parent) = dest.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    if dest.exists() {
-        std::fs::remove_file(dest)?;
-    }
-    let linked = std::fs::hard_link(src, dest);
-    if linked.is_ok() || !copy {
-        return linked;
-    }
     let tmp = with_suffix(dest, ".import");
-    std::fs::copy(src, &tmp)?;
-    std::fs::rename(&tmp, dest)
+    if tmp.exists() {
+        std::fs::remove_file(&tmp)?;
+    }
+    if let Err(e) = std::fs::hard_link(src, &tmp) {
+        if !copy {
+            return Err(e);
+        }
+        std::fs::copy(src, &tmp)?;
+    }
+    std::fs::rename(&tmp, dest).inspect_err(|_| {
+        let _ = std::fs::remove_file(&tmp);
+    })
 }
 
 /// Импорт готовых весов из папки без закачки: для каждого недостающего ПРЯМОГО файла компонента ищем в src_dir
@@ -3748,6 +3753,22 @@ mod tests {
         make_programs_executable(&root, &[&c]);
         assert_eq!(std::fs::metadata(&prog).unwrap().permissions().mode() & 0o777, 0o755);
         std::fs::remove_dir_all(&root).ok();
+    }
+
+    /// A neighbour's file that cannot be linked (another drive) leaves the program's own file in place.
+    #[test]
+    fn a_link_that_fails_keeps_the_file_it_was_to_replace() {
+        let root = tempfile::tempdir().unwrap();
+        let dest = root.path().join("tools/yt-dlp/yt-dlp.exe");
+        std::fs::create_dir_all(dest.parent().unwrap()).unwrap();
+        std::fs::write(&dest, b"older build").unwrap();
+        assert!(adopt_file(&root.path().join("nowhere/yt-dlp.exe"), &dest, false).is_err());
+        assert_eq!(std::fs::read(&dest).unwrap(), b"older build");
+        let src = root.path().join("neighbour.exe");
+        std::fs::write(&src, b"pinned build").unwrap();
+        adopt_file(&src, &dest, false).unwrap();
+        assert_eq!(std::fs::read(&dest).unwrap(), b"pinned build");
+        assert!(!with_suffix(&dest, ".import").exists());
     }
 
     #[test]
