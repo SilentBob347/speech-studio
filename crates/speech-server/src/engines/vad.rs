@@ -30,8 +30,20 @@ impl Default for VadConfig {
 
 /// Скачаны ли модель разметки речи и движок, что её запускает.
 pub fn installed(models_root: &Path) -> bool {
-    dub_asr::tcpp::helper_path(models_root, &dub_asr::tcpp::VAD).is_file()
-        && dub_asr::tcpp::engine_dir(models_root, crate::engines::models::tcpp_build(models_root)).join(dub_asr::tcpp::LIBRARY).is_file()
+    missing(models_root).is_empty()
+}
+
+/// Компоненты разметки речи, которых нет на диске: модель Silero VAD и сборка transcribe.cpp устройства распознавания.
+pub fn missing(models_root: &Path) -> Vec<String> {
+    let build = crate::engines::models::tcpp_build(models_root);
+    let mut ids = Vec::new();
+    if !dub_asr::tcpp::helper_path(models_root, &dub_asr::tcpp::VAD).is_file() {
+        ids.push("silero-vad".to_string());
+    }
+    if !dub_asr::tcpp::engine_dir(models_root, build).join(dub_asr::tcpp::LIBRARY).is_file() {
+        ids.push(build.dir().to_string());
+    }
+    ids
 }
 
 /// Вероятность речи на каждый кадр в 32 мс (16 кГц моно).
@@ -151,6 +163,20 @@ mod tests {
         let (a, b) = spans[0];
         assert!((a - (31.0 * 0.032 - 0.03)).abs() < 1e-6, "{a}");
         assert!((b - ((31.0 + 62.0 + 10.0 + 31.0) * 0.032 + 0.03)).abs() < 1e-6, "{b}");
+    }
+
+    /// The model on disk without the engine build names the build, not the model: Live asked to download Silero VAD,
+    /// which was there, and went on refusing.
+    #[test]
+    fn a_missing_engine_build_is_named_and_not_the_model() {
+        let root = tempfile::tempdir().unwrap();
+        let build = crate::engines::models::tcpp_build(root.path());
+        assert_eq!(missing(root.path()), vec!["silero-vad".to_string(), build.dir().to_string()]);
+        let vad = dub_asr::tcpp::helper_path(root.path(), &dub_asr::tcpp::VAD);
+        std::fs::create_dir_all(vad.parent().unwrap()).unwrap();
+        std::fs::write(&vad, b"gguf").unwrap();
+        assert_eq!(missing(root.path()), vec![build.dir().to_string()]);
+        assert!(!installed(root.path()));
     }
 
     #[test]
