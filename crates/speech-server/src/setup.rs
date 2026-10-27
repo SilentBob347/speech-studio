@@ -1698,6 +1698,52 @@ pub fn manifest() -> Vec<Component> {
     all
 }
 
+/// A component as the README tables name it: its id, how much it is needed and its files.
+pub struct Download {
+    pub id: &'static str,
+    pub requirement: Requirement,
+    pub files: &'static [FileSpec],
+}
+
+/// What the app downloads on Windows, for the README tables of `scripts/readme-downloads.rs`: the components of a
+/// computer whose NVIDIA card runs CUDA 13, then the other builds a computer is offered — CUDA 12.9, Vulkan and the
+/// processor — whatever card this one has.
+#[cfg(windows)]
+pub fn windows_downloads() -> Vec<Download> {
+    use acpp_server::asset::Build;
+    let card_bound = |id: &str| {
+        id.starts_with("audiocpp-") || matches!(id, "bsroformer-engine-cuda12" | "qwen3-tts-vulkan" | "qwen3-tts-cuda" | "cuda12-runtime")
+    };
+    let mut all: Vec<Download> = manifest()
+        .into_iter()
+        .filter(|c| c.delivery == Delivery::Download && !card_bound(c.id))
+        .map(|c| Download {
+            id: c.id,
+            requirement: c.requirement,
+            files: match c.id {
+                "higgs-engine" => platform::server_parts(Build::Cuda13).files,
+                "llama" => llama_parts(Build::Cuda13).files,
+                _ => c.files,
+            },
+        })
+        .collect();
+    let other = |id, files| Download { id, requirement: Requirement::Optional, files };
+    all.extend([
+        other("audiocpp-cuda12", platform::server_parts(Build::Cuda12).files),
+        other("audiocpp-vulkan", platform::server_parts(Build::Vulkan).files),
+        other("audiocpp-cpu", platform::server_parts(Build::Cpu).files),
+        other("cuda12-runtime", platform::CUDA12_RUNTIME.files),
+        other("qwen3-tts-cuda13", platform::QWEN_CUDA13.files),
+        other("qwen3-tts-cuda12", platform::QWEN_CUDA12.files),
+        other("qwen3-tts-vulkan", platform::QWEN_VULKAN.files),
+        other("bsroformer-engine-cuda12", platform::BSROFORMER_CUDA12.files),
+        other("llama-cuda12", llama_parts(Build::Cuda12).files),
+        other("llama-vulkan", llama_parts(Build::Vulkan).files),
+        other("llama-cpu", llama_parts(Build::Cpu).files),
+    ]);
+    all
+}
+
 /// The components only audiocpp_server runs: its program and the models no other engine of the studio reads.
 const SERVER_ONLY: &[&str] = &["higgs-engine", "higgs", "higgs-q6_k", "higgs-q4_k_m", "supertonic3", "crisperwhisper-turbo"];
 

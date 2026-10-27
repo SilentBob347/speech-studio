@@ -32,9 +32,10 @@ single-page UI (`frontend/`).
 - The REST and SSE map is `docs/PORT-CONTRACT.md`; the router is `build_router` in
   `crates/dub-server/src/lib.rs`. Change the document with the route.
 - Every external file the app downloads is one entry of `manifest()` in
-  `crates/dub-server/src/setup.rs` with its URL, size and markers. The README download table is
-  checked against it (see below); after a change to `manifest()` run
-  `node scripts/readme-downloads.mjs --write` to regenerate the tables of all six READMEs.
+  `crates/speech-server/src/setup.rs` with its URL, size and markers, or a pin of the Dub crates it
+  names. The README download table is checked against them (see below); after a change run
+  `cargo run -p speech-server --example readme-downloads -- --write` on Windows to regenerate the
+  tables of all six READMEs.
 
 ## Interface text
 
@@ -52,7 +53,7 @@ cd frontend && npm ci
 npm run build                    # the frontend gate: tsc -b and vite build; `tsc --noEmit` alone is weaker
 npm run lint                     # code you add must be clean
 npm test                         # where the script exists
-node scripts/readme-downloads.mjs   # README download tables against setup.rs
+cargo run -p speech-server --example readme-downloads   # README download tables against setup.rs (Windows)
 ```
 
 - Stop a running `dub-server.exe` before rebuilding it: Windows keeps the `.exe` locked, the

@@ -114,3 +114,8 @@ libc = "0.2"
 [dev-dependencies]
 # Поддельный HTTP-сервер для тестов провайдеров.
 dub-llm = { git = "https://github.com/timoncool/dub-studio", rev = "da880573b39115eb57aceab267b34cce593c28c5", features = ["test-support"] }
+
+# The README download tables (scripts/readme-downloads.rs), checked or rewritten from what the app downloads.
+[[example]]
+name = "readme-downloads"
+path = "../../scripts/readme-downloads.rs"
