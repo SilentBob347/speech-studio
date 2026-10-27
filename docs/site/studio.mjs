@@ -5,8 +5,8 @@ export const STUDIO = {
   name: 'Speech Studio',
   repo: 'https://github.com/timoncool/speech-studio',
   site: 'https://timoncool.github.io/speech-studio/',
-  installerMB: 15.69,
-  updated: '2026-10-20',
+  installerMB: 15.85,
+  updated: '2026-10-27',
   hero: '01-speech',
   bento: [
     { feature: 0, shot: '02-voices' },
@@ -17,5 +17,5 @@ export const STUDIO = {
     { feature: 7, shot: '07-agent' },
   ],
   faq: { stress: 1, mcp: 7 },
-  arch: "React UI ─┐\n          ├─ Speech Studio.exe   (Tauri window + Rust/axum speech-server)\nRust axum ┘        │\n                   ├─ Higgs Audio v3, Drama 3, Qwen3-TTS   (C++/CUDA, GGUF)\n                   ├─ Parakeet, Nemotron 3.5   (transcribe.cpp, GGUF)\n                   └─ Supertonic, RUAccent   (ONNX Runtime)",
+  arch: "React UI ─┐\n          ├─ Speech Studio.exe   (Tauri window + Rust/axum speech-server)\nRust axum ┘        │\n                   ├─ Drama 3, Qwen3-TTS   (C++/CUDA, GGUF)\n                   ├─ Parakeet, Nemotron 3.5   (transcribe.cpp, GGUF)\n                   ├─ RUAccent, DPDFNet   (ONNX Runtime)\n                   └─ audiocpp_server   (Higgs Audio v3, Supertonic 3, CrisperWhisper, diarization)",
 };
