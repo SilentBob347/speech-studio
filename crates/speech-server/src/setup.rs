@@ -3781,6 +3781,88 @@ mod tests {
         assert!(!with_suffix(&dest, ".import").exists());
     }
 
+    /// Libraries of other makers that pick their kernels by the processor themselves: the CUDA and VC++ runtimes,
+    /// ONNX Runtime (MLAS picks its kernels by the processor), denoland's deno (V8 and simdutf do the same).
+    const VENDOR_DISPATCHED: &[&str] = &[
+        "cublas64_", "cublaslt64_", "cufft64_", "cufftw64_", "cudnn", "cudart64_", "nvblas64_", "vcruntime140", "msvcp140", "vcomp140",
+        "onnxruntime", "libonnxruntime", "deno",
+    ];
+    /// What a package brings that the studio never loads: ONNX Runtime's TensorRT provider (the studio takes its CUDA
+    /// one), which imports TensorRT.
+    const NEVER_LOADED: &[&str] = &["onnxruntime_providers_tensorrt.dll", "libonnxruntime_providers_tensorrt.so"];
+
+    /// AVX-512 dub_core::compat does not yet see guarded: the aes crate's x86_vaes512 backend, which aes picks by
+    /// cpufeatures in its caller, and aws-lc's ML-DSA loops (mld_*, mldsa_*), which MSVC vectorized behind
+    /// `cmp [__isa_available], 6` and a jump a few instructions further than compat looks.
+    fn dispatched_here(p: &dub_core::compat::Problem) -> bool {
+        match p {
+            dub_core::compat::Problem::Avx512 { place, .. } => {
+                place.contains("3aes8backends11x86_vaes512") || place.starts_with("mld_") || place.starts_with("mldsa_")
+            }
+            _ => false,
+        }
+    }
+
+    /// Every binary of a program folder (SPEECH_COMPAT_ROOT: a dev root or an installed or unpacked release, read only)
+    /// against the release checks of dub_core::compat: AVX-512 outside CPUID dispatchers, the Ubuntu 22.04 limits and
+    /// RUNPATH of Linux libraries, imports Windows cannot resolve (the folders the studio puts on PATH count), and the
+    /// execute bit of the components' programs. SPEECH_COMPAT_MAPS: link maps of stripped binaries, `name=path` joined by
+    /// `;` (`Speech-Studio.exe=D:/…/speech-studio-desktop.map`).
+    #[test]
+    #[ignore]
+    fn a_program_folder_passes_the_release_checks() {
+        let Ok(root) = std::env::var("SPEECH_COMPAT_ROOT") else { return };
+        let root = PathBuf::from(root);
+        let mut maps = std::collections::BTreeMap::new();
+        for pair in std::env::var("SPEECH_COMPAT_MAPS").unwrap_or_default().split(';').filter(|p| !p.is_empty()) {
+            let (name, path) = pair.split_once('=').expect("name=path");
+            let text = std::fs::read_to_string(path).unwrap_or_else(|e| panic!("{path}: {e}"));
+            maps.insert(name.to_string(), dub_core::compat::Functions::from_link_map(&text));
+        }
+        // the VC++ runtime the studio takes from the system folder when it is there instead of downloading it
+        let system = system_dir();
+        let from_system: Vec<String> = manifest()
+            .into_iter()
+            .filter(|c| FOUND_IN_SYSTEM_DIR.contains(&c.id))
+            .flat_map(|c| c.markers)
+            .filter(|m| !root.join(m.rel).is_file())
+            .filter_map(|m| Path::new(m.rel).file_name().map(|n| n.to_string_lossy().into_owned()))
+            .filter(|name| system.as_ref().is_some_and(|dir| dir.join(name).is_file()))
+            .collect();
+        let provided: Vec<&str> = from_system.iter().map(String::as_str).collect();
+        let how = dub_core::compat::Tree {
+            path_folders: &["tools/ffmpeg", "tools/llama", "models/cuda12-runtime", "models/higgs-engine"],
+            provided: &provided,
+            maps,
+            vendor_dispatched: VENDOR_DISPATCHED,
+            unused: NEVER_LOADED,
+        };
+        let found = dub_core::compat::check_tree(&root, &how).unwrap();
+        let mut lines: Vec<String> = Vec::new();
+        for (path, problems) in &found {
+            let rel = path.strip_prefix(&root).unwrap_or(path);
+            // what WebView2 downloads into the person's data (its Widevine module) is not the program's
+            if rel.starts_with("webview-data") {
+                continue;
+            }
+            let rel = rel.display().to_string();
+            lines.extend(problems.iter().filter(|p| !dispatched_here(p)).map(|p| format!("{rel}: {p}")));
+        }
+        for c in manifest() {
+            for m in c.markers.iter().filter(|m| is_program_marker(m.rel)) {
+                let path = root.join(m.rel);
+                if path.is_file() && !dub_core::compat::executable(&path).unwrap() {
+                    lines.push(format!("{}: {}", m.rel, dub_core::compat::Problem::NotExecutable));
+                }
+            }
+        }
+        for line in &lines {
+            println!("[ERROR] {line}");
+        }
+        assert!(lines.is_empty(), "{} problems in {}", lines.len(), root.display());
+        println!("[OK] {}", root.display());
+    }
+
     #[test]
     fn manifest_ids_unique_and_nonempty() {
         let m = manifest();

@@ -27,6 +27,7 @@ release notes on GitHub are taken from the release's section.
 
 ### Fixed
 
+- **Supertonic 3 and speaker diarization run in the audio.cpp engine of this release** (server-6d6cb6a5 on Windows and Linux), which reads Supertonic's int8 model and Nemotron 3 Diarization in ONNX.
 - **An engine taken from another program counts as installed**: the record of the build it replaced stayed, so First run asked for the same engine again after taking it.
 - **Recognition engines of transcribe.cpp 0.1.4 on every platform**, the Mac with Metal included (it had 0.1.1): the studio takes their pins from the shared recognition crate, as Dub Studio does.
 - **A file another program has on another drive no longer removes this program's own copy first**: the studio's file is replaced only by a finished link or copy.
