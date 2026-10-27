@@ -117,6 +117,8 @@ h2 { font-size: clamp(26px, 3.6vw, 36px); letter-spacing: -.02em; margin: 0 0 8p
 .sample b { font-size: 15px; }
 .sample span { color: var(--muted); font-size: 13px; }
 .sample audio { width: 100%; height: 36px; }
+.lang-group .samples + .samples { margin-top: 12px; }
+.sample-note { color: var(--muted); font-size: 13px; margin: 10px 0 0; }
 details.more summary { cursor: pointer; color: var(--muted); font-weight: 600; margin: 16px 0 12px; }
 
 /* each tile is title, picture, text; the three rows line up across tiles side by side */
@@ -246,40 +248,42 @@ footer p { margin: 0 0 8px; }
 
   <section id="listen">
     <h2>Ejemplos</h2>
-    <p class="sub">Hechos en este ordenador con el estudio tal como se distribuye, cada toma comprobada de oído y exportada tal como la guardó el estudio. Todos los motores leen el mismo texto.</p>
+    <p class="sub">Hechos en este ordenador con el estudio tal como se distribuye, cada toma reconocida de vuelta y comparada con su texto, exportada tal como la guardó el estudio. Todos los motores leen el mismo texto con las mismas voces de dos actores, Ruslán Gabidullin e Ingrid Olerínskaya, clonadas del paquete de voces del estudio.</p>
     <div class="lang-group" lang="es">
       <h3>Español</h3>
 
       <blockquote>¿Qué es poesía?, dices mientras clavas en mi pupila tu pupila azul. ¿Qué es poesía? ¿Y tú me lo preguntas? Poesía… eres tú.</blockquote>
       <div class="samples">
-      <figure class="sample"><figcaption><b>Higgs Audio v3</b><span>Spanish Male<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/es-becquer-higgs-spanish-male.mp3"></audio></figure>
-      <figure class="sample"><figcaption><b>Fish Audio Drama 3</b><span>Spanish Male<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/es-becquer-drama3-spanish-male.mp3"></audio></figure>
-      <figure class="sample"><figcaption><b>Supertonic 3</b><span>F2<span class="kind">voz integrada</span></span></figcaption><audio controls preload="none" src="samples/es-becquer-supertonic-f2.mp3"></audio></figure>
-      <figure class="sample"><figcaption><b>Qwen3-TTS</b><span>Serena<span class="kind">voz integrada</span></span></figcaption><audio controls preload="none" src="samples/es-becquer-qwen3-tts-serena.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Higgs Audio v3</b><span>Ruslan Gabidullin<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/es-becquer-higgs-ru-male-gabidullin-ruslan.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Fish Audio Drama 3</b><span>Ruslan Gabidullin<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/es-becquer-drama3-ru-male-gabidullin-ruslan.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Qwen3-TTS</b><span>Ruslan Gabidullin<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/es-becquer-qwen3-tts-ru-male-gabidullin-ruslan.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Supertonic 3</b><span>M1<span class="kind">voz integrada, el motor no clona</span></span></figcaption><audio controls preload="none" src="samples/es-becquer-supertonic-m1.mp3"></audio></figure>
+      </div>
+      <div class="samples">
+      <figure class="sample"><figcaption><b>Higgs Audio v3</b><span>Ingrid Olerinskaya<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/es-becquer-higgs-ru-female-ingridolerinskaya-judy.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Fish Audio Drama 3</b><span>Ingrid Olerinskaya<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/es-becquer-drama3-ru-female-ingridolerinskaya-judy.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Qwen3-TTS</b><span>Ingrid Olerinskaya<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/es-becquer-qwen3-tts-ru-female-ingridolerinskaya-judy.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Supertonic 3</b><span>F2<span class="kind">voz integrada, el motor no clona</span></span></figcaption><audio controls preload="none" src="samples/es-becquer-supertonic-f2.mp3"></audio></figure>
       </div>
     </div>
-    <details class="more"><summary>Otros idiomas (6)</summary>
+    <details class="more"><summary>Otros idiomas (5)</summary>
     <div class="lang-group" lang="ru">
       <h3>Ruso</h3>
 
       <blockquote>Я помню чудное мгновенье — передо мной явилась ты, как мимолётное виденье, как гений чистой красоты.</blockquote>
       <div class="samples">
-      <figure class="sample"><figcaption><b>Higgs Audio v3</b><span>Dmitry Puchkov (Goblin)<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/ru-pushkin-higgs-ru-male-goblin-puchkov.mp3"></audio></figure>
-      <figure class="sample"><figcaption><b>Fish Audio Drama 3</b><span>Vasily Livanov (Sherlock Holmes)<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/ru-pushkin-drama3-ru-male-livanov-sherlockholmes.mp3"></audio></figure>
-      <figure class="sample"><figcaption><b>Qwen3-TTS + ru stress LoRA</b><span>Dmitry Nagiev<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/ru-pushkin-qwen3-tts-ru-ru-male-nagiev.mp3"></audio></figure>
-      <figure class="sample"><figcaption><b>Supertonic 3</b><span>F3<span class="kind">voz integrada</span></span></figcaption><audio controls preload="none" src="samples/ru-pushkin-supertonic-f3.mp3"></audio></figure>
-      <figure class="sample"><figcaption><b>Qwen3-TTS</b><span>Ryan<span class="kind">voz integrada</span></span></figcaption><audio controls preload="none" src="samples/ru-pushkin-qwen3-tts-ryan.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Higgs Audio v3</b><span>Ruslan Gabidullin<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/ru-pushkin-higgs-ru-male-gabidullin-ruslan.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Fish Audio Drama 3</b><span>Ruslan Gabidullin<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/ru-pushkin-drama3-ru-male-gabidullin-ruslan.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Qwen3-TTS</b><span>Ruslan Gabidullin<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/ru-pushkin-qwen3-tts-ru-male-gabidullin-ruslan.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Qwen3-TTS + ru stress LoRA</b><span>Ruslan Gabidullin<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/ru-pushkin-qwen3-tts-ru-ru-male-gabidullin-ruslan.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Supertonic 3</b><span>M1<span class="kind">voz integrada, el motor no clona</span></span></figcaption><audio controls preload="none" src="samples/ru-pushkin-supertonic-m1.mp3"></audio></figure>
       </div>
-    </div>
-    <div class="lang-group" lang="ru">
-
-      <blockquote>Встреча 12.03 в 18:30, билет стоит 150 руб., а на улице −5 °C.</blockquote>
       <div class="samples">
-      <figure class="sample"><figcaption><b>Higgs Audio v3</b><span>Dmitry Puchkov (Goblin)<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/ru-numbers-higgs-ru-male-goblin-puchkov.mp3"></audio></figure>
-      <figure class="sample"><figcaption><b>Fish Audio Drama 3</b><span>Vasily Livanov (Sherlock Holmes)<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/ru-numbers-drama3-ru-male-livanov-sherlockholmes.mp3"></audio></figure>
-      <figure class="sample"><figcaption><b>Qwen3-TTS + ru stress LoRA</b><span>Dmitry Nagiev<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/ru-numbers-qwen3-tts-ru-ru-male-nagiev.mp3"></audio></figure>
-      <figure class="sample"><figcaption><b>Supertonic 3</b><span>F3<span class="kind">voz integrada</span></span></figcaption><audio controls preload="none" src="samples/ru-numbers-supertonic-f3.mp3"></audio></figure>
-      <figure class="sample"><figcaption><b>Qwen3-TTS</b><span>Ryan<span class="kind">voz integrada</span></span></figcaption><audio controls preload="none" src="samples/ru-numbers-qwen3-tts-ryan.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Higgs Audio v3</b><span>Ingrid Olerinskaya<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/ru-pushkin-higgs-ru-female-ingridolerinskaya-judy.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Fish Audio Drama 3</b><span>Ingrid Olerinskaya<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/ru-pushkin-drama3-ru-female-ingridolerinskaya-judy.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Qwen3-TTS</b><span>Ingrid Olerinskaya<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/ru-pushkin-qwen3-tts-ru-female-ingridolerinskaya-judy.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Qwen3-TTS + ru stress LoRA</b><span>Ingrid Olerinskaya<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/ru-pushkin-qwen3-tts-ru-ru-female-ingridolerinskaya-judy.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Supertonic 3</b><span>F2<span class="kind">voz integrada, el motor no clona</span></span></figcaption><audio controls preload="none" src="samples/ru-pushkin-supertonic-f2.mp3"></audio></figure>
       </div>
     </div>
     <div class="lang-group" lang="en">
@@ -287,10 +291,16 @@ footer p { margin: 0 0 8px; }
 
       <blockquote>Shall I compare thee to a summer's day? Thou art more lovely and more temperate: rough winds do shake the darling buds of May, and summer's lease hath all too short a date.</blockquote>
       <div class="samples">
-      <figure class="sample"><figcaption><b>Higgs Audio v3</b><span>English Female 2<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/en-sonnet18-higgs-english-female2.mp3"></audio></figure>
-      <figure class="sample"><figcaption><b>Fish Audio Drama 3</b><span>English Female<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/en-sonnet18-drama3-english-female.mp3"></audio></figure>
-      <figure class="sample"><figcaption><b>Supertonic 3</b><span>M2<span class="kind">voz integrada</span></span></figcaption><audio controls preload="none" src="samples/en-sonnet18-supertonic-m2.mp3"></audio></figure>
-      <figure class="sample"><figcaption><b>Qwen3-TTS</b><span>Ryan<span class="kind">voz integrada</span></span></figcaption><audio controls preload="none" src="samples/en-sonnet18-qwen3-tts-ryan.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Higgs Audio v3</b><span>Ruslan Gabidullin<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/en-sonnet18-higgs-ru-male-gabidullin-ruslan.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Fish Audio Drama 3</b><span>Ruslan Gabidullin<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/en-sonnet18-drama3-ru-male-gabidullin-ruslan.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Qwen3-TTS</b><span>Ruslan Gabidullin<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/en-sonnet18-qwen3-tts-ru-male-gabidullin-ruslan.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Supertonic 3</b><span>M1<span class="kind">voz integrada, el motor no clona</span></span></figcaption><audio controls preload="none" src="samples/en-sonnet18-supertonic-m1.mp3"></audio></figure>
+      </div>
+      <div class="samples">
+      <figure class="sample"><figcaption><b>Higgs Audio v3</b><span>Ingrid Olerinskaya<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/en-sonnet18-higgs-ru-female-ingridolerinskaya-judy.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Fish Audio Drama 3</b><span>Ingrid Olerinskaya<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/en-sonnet18-drama3-ru-female-ingridolerinskaya-judy.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Qwen3-TTS</b><span>Ingrid Olerinskaya<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/en-sonnet18-qwen3-tts-ru-female-ingridolerinskaya-judy.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Supertonic 3</b><span>F2<span class="kind">voz integrada, el motor no clona</span></span></figcaption><audio controls preload="none" src="samples/en-sonnet18-supertonic-f2.mp3"></audio></figure>
       </div>
     </div>
     <div class="lang-group" lang="fr">
@@ -298,10 +308,16 @@ footer p { margin: 0 0 8px; }
 
       <blockquote>Il pleure dans mon cœur comme il pleut sur la ville ; quelle est cette langueur qui pénètre mon cœur ?</blockquote>
       <div class="samples">
-      <figure class="sample"><figcaption><b>Higgs Audio v3</b><span>French Female<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/fr-verlaine-higgs-french-female.mp3"></audio></figure>
-      <figure class="sample"><figcaption><b>Fish Audio Drama 3</b><span>French Female<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/fr-verlaine-drama3-french-female.mp3"></audio></figure>
-      <figure class="sample"><figcaption><b>Supertonic 3</b><span>F4<span class="kind">voz integrada</span></span></figcaption><audio controls preload="none" src="samples/fr-verlaine-supertonic-f4.mp3"></audio></figure>
-      <figure class="sample"><figcaption><b>Qwen3-TTS</b><span>Vivian<span class="kind">voz integrada</span></span></figcaption><audio controls preload="none" src="samples/fr-verlaine-qwen3-tts-vivian.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Higgs Audio v3</b><span>Ruslan Gabidullin<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/fr-verlaine-higgs-ru-male-gabidullin-ruslan.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Fish Audio Drama 3</b><span>Ruslan Gabidullin<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/fr-verlaine-drama3-ru-male-gabidullin-ruslan.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Qwen3-TTS</b><span>Ruslan Gabidullin<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/fr-verlaine-qwen3-tts-ru-male-gabidullin-ruslan.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Supertonic 3</b><span>M1<span class="kind">voz integrada, el motor no clona</span></span></figcaption><audio controls preload="none" src="samples/fr-verlaine-supertonic-m1.mp3"></audio></figure>
+      </div>
+      <div class="samples">
+      <figure class="sample"><figcaption><b>Higgs Audio v3</b><span>Ingrid Olerinskaya<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/fr-verlaine-higgs-ru-female-ingridolerinskaya-judy.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Fish Audio Drama 3</b><span>Ingrid Olerinskaya<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/fr-verlaine-drama3-ru-female-ingridolerinskaya-judy.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Qwen3-TTS</b><span>Ingrid Olerinskaya<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/fr-verlaine-qwen3-tts-ru-female-ingridolerinskaya-judy.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Supertonic 3</b><span>F2<span class="kind">voz integrada, el motor no clona</span></span></figcaption><audio controls preload="none" src="samples/fr-verlaine-supertonic-f2.mp3"></audio></figure>
       </div>
     </div>
     <div class="lang-group" lang="pt">
@@ -309,9 +325,16 @@ footer p { margin: 0 0 8px; }
 
       <blockquote>Amor é fogo que arde sem se ver, é ferida que dói, e não se sente; é um contentamento descontente, é dor que desatina sem doer.</blockquote>
       <div class="samples">
-      <figure class="sample"><figcaption><b>Higgs Audio v3</b><span>voz propia del modelo<span class="kind">voz integrada</span></span></figcaption><audio controls preload="none" src="samples/pt-camoes-higgs-base.mp3"></audio></figure>
-      <figure class="sample"><figcaption><b>Supertonic 3</b><span>M3<span class="kind">voz integrada</span></span></figcaption><audio controls preload="none" src="samples/pt-camoes-supertonic-m3.mp3"></audio></figure>
-      <figure class="sample"><figcaption><b>Qwen3-TTS</b><span>Dylan<span class="kind">voz integrada</span></span></figcaption><audio controls preload="none" src="samples/pt-camoes-qwen3-tts-dylan.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Higgs Audio v3</b><span>Ruslan Gabidullin<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/pt-camoes-higgs-ru-male-gabidullin-ruslan.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Fish Audio Drama 3</b><span>Ruslan Gabidullin<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/pt-camoes-drama3-ru-male-gabidullin-ruslan.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Qwen3-TTS</b><span>Ruslan Gabidullin<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/pt-camoes-qwen3-tts-ru-male-gabidullin-ruslan.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Supertonic 3</b><span>M1<span class="kind">voz integrada, el motor no clona</span></span></figcaption><audio controls preload="none" src="samples/pt-camoes-supertonic-m1.mp3"></audio></figure>
+      </div>
+      <div class="samples">
+      <figure class="sample"><figcaption><b>Higgs Audio v3</b><span>Ingrid Olerinskaya<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/pt-camoes-higgs-ru-female-ingridolerinskaya-judy.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Fish Audio Drama 3</b><span>Ingrid Olerinskaya<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/pt-camoes-drama3-ru-female-ingridolerinskaya-judy.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Qwen3-TTS</b><span>Ingrid Olerinskaya<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/pt-camoes-qwen3-tts-ru-female-ingridolerinskaya-judy.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Supertonic 3</b><span>F2<span class="kind">voz integrada, el motor no clona</span></span></figcaption><audio controls preload="none" src="samples/pt-camoes-supertonic-f2.mp3"></audio></figure>
       </div>
     </div>
     <div class="lang-group" lang="zh">
@@ -319,11 +342,13 @@ footer p { margin: 0 0 8px; }
 
       <blockquote>床前明月光，疑是地上霜。举头望明月，低头思故乡。</blockquote>
       <div class="samples">
-      <figure class="sample"><figcaption><b>Higgs Audio v3</b><span>voz propia del modelo<span class="kind">voz integrada</span></span></figcaption><audio controls preload="none" src="samples/zh-libai-higgs-base.mp3"></audio></figure>
-      <figure class="sample"><figcaption><b>Fish Audio Drama 3</b><span>English Female<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/zh-libai-drama3-english-female.mp3"></audio></figure>
-      <figure class="sample"><figcaption><b>Qwen3-TTS</b><span>Vivian<span class="kind">voz integrada</span></span></figcaption><audio controls preload="none" src="samples/zh-libai-qwen3-tts-vivian.mp3"></audio></figure>
-      <figure class="sample"><figcaption><b>Qwen3-TTS</b><span>Dylan<span class="kind">voz integrada</span></span></figcaption><audio controls preload="none" src="samples/zh-libai-qwen3-tts-dylan.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Higgs Audio v3</b><span>Ruslan Gabidullin<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/zh-libai-higgs-ru-male-gabidullin-ruslan.mp3"></audio></figure>
+      <figure class="sample"><figcaption><b>Fish Audio Drama 3</b><span>Ruslan Gabidullin<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/zh-libai-drama3-ru-male-gabidullin-ruslan.mp3"></audio></figure>
       </div>
+      <div class="samples">
+      <figure class="sample"><figcaption><b>Higgs Audio v3</b><span>Ingrid Olerinskaya<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/zh-libai-higgs-ru-female-ingridolerinskaya-judy.mp3"></audio></figure>
+      </div>
+      <p class="sample-note">Qwen3-TTS no traslada una muestra rusa al chino: para el chino, clona desde una muestra en chino.</p>
     </div>
     </details>
     <p class="disclaimer">Las voces de personas conocidas son síntesis: un clon hecho a partir de una muestra corta del paquete de voces del estudio, no una grabación de esas personas. Los poemas son de dominio público.</p>
@@ -334,8 +359,8 @@ footer p { margin: 0 0 8px; }
     <div class="lang-group" lang="ru">
       <blockquote>Старинный замок стоял на холме, а дверь в него запирали на тяжёлый замок. Из этой муки пекут хлеб, но для пекаря это настоящие муки.</blockquote>
       <div class="pair">
-      <figure class="sample before"><figcaption><b>Supertonic 3 · Sin las marcas de acento del estudio</b><span>F3<span class="kind">voz integrada</span></span></figcaption><audio controls preload="none" src="samples/ru-homographs-supertonic-before.mp3"></audio></figure>
-      <figure class="sample after"><figcaption><b>Supertonic 3 · Con las marcas de acento del estudio</b><span>F3<span class="kind">voz integrada</span></span></figcaption><audio controls preload="none" src="samples/ru-homographs-supertonic-after.mp3"></audio></figure>
+      <figure class="sample before"><figcaption><b>Supertonic 3 · Sin las marcas de acento del estudio</b><span>F3<span class="kind">voz integrada, el motor no clona</span></span></figcaption><audio controls preload="none" src="samples/ru-homographs-supertonic-before.mp3"></audio></figure>
+      <figure class="sample after"><figcaption><b>Supertonic 3 · Con las marcas de acento del estudio</b><span>F3<span class="kind">voz integrada, el motor no clona</span></span></figcaption><audio controls preload="none" src="samples/ru-homographs-supertonic-after.mp3"></audio></figure>
       </div>
       <div class="pair">
       <figure class="sample before"><figcaption><b>Qwen3-TTS + ru stress LoRA · Sin las marcas de acento del estudio</b><span>Dmitry Nagiev<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/ru-homographs-qwen3-tts-ru-before.mp3"></audio></figure>
@@ -345,8 +370,8 @@ footer p { margin: 0 0 8px; }
     <div class="lang-group" lang="ru">
       <blockquote>Мы долго стояли у берега и смотрели, как белки прыгают по веткам. В яйце много белка, а в этой задаче много лишних белков.</blockquote>
       <div class="pair">
-      <figure class="sample before"><figcaption><b>Supertonic 3 · Sin las marcas de acento del estudio</b><span>F3<span class="kind">voz integrada</span></span></figcaption><audio controls preload="none" src="samples/ru-homographs2-supertonic-before.mp3"></audio></figure>
-      <figure class="sample after"><figcaption><b>Supertonic 3 · Con las marcas de acento del estudio</b><span>F3<span class="kind">voz integrada</span></span></figcaption><audio controls preload="none" src="samples/ru-homographs2-supertonic-after.mp3"></audio></figure>
+      <figure class="sample before"><figcaption><b>Supertonic 3 · Sin las marcas de acento del estudio</b><span>F3<span class="kind">voz integrada, el motor no clona</span></span></figcaption><audio controls preload="none" src="samples/ru-homographs2-supertonic-before.mp3"></audio></figure>
+      <figure class="sample after"><figcaption><b>Supertonic 3 · Con las marcas de acento del estudio</b><span>F3<span class="kind">voz integrada, el motor no clona</span></span></figcaption><audio controls preload="none" src="samples/ru-homographs2-supertonic-after.mp3"></audio></figure>
       </div>
       <div class="pair">
       <figure class="sample before"><figcaption><b>Qwen3-TTS + ru stress LoRA · Sin las marcas de acento del estudio</b><span>Dmitry Nagiev<span class="kind">clon de voz</span></span></figcaption><audio controls preload="none" src="samples/ru-homographs2-qwen3-tts-ru-before.mp3"></audio></figure>
