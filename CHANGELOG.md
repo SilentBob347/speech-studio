@@ -4,6 +4,12 @@ What changed, newest first. Dates are release dates; the app is versioned by its
 build. Every change a user can see is written here in the commit that makes it, and the
 release notes on GitHub are taken from the release's section.
 
+## Unreleased
+
+### Fixed
+
+- **Drama 3 starts again on a processor without AVX2, FMA or BMI2**, as it did before 0.3.0: its engine is built for any x86-64 processor, and 0.3.0 refused it with «Drama 3 needs a processor with AVX2…». Qwen3-TTS, the voice separator and the audio.cpp engine are built for AVX2, FMA, F16C and BMI2 and still say so on a processor without them.
+
 ## 0.3.0 — 2026-10-27
 
 ### Changed
