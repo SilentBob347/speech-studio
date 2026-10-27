@@ -11,6 +11,13 @@ import { STUDIO } from '../docs/site/studio.mjs';
 import { ASR_BENCH, ENGINE_BENCH, LIVE_BENCH } from '../docs/site/engines.mjs';
 // the studio's version, from the one place it is written
 const VERSION = JSON.parse(readFileSync(new URL('../desktop/src-tauri/tauri.conf.json', import.meta.url), 'utf8')).version;
+// the release's packages by system, named as the release scripts name them; `ends` finds each in the latest release
+const PACKAGES = [
+  { id: 'windows', file: `Speech.Studio_${VERSION}_x64-setup.exe`, ends: '-setup.exe' },
+  { id: 'macos', file: `Speech-Studio-${VERSION}-macos-arm64.dmg`, ends: '-macos-arm64.dmg' },
+  { id: 'appimage', file: `Speech-Studio-${VERSION}-linux-x86_64-experimental.AppImage`, ends: '.AppImage' },
+  { id: 'deb', file: `Speech-Studio-${VERSION}-linux-amd64-experimental.deb`, ends: '.deb' },
+];
 
 const docs = join(dirname(fileURLToPath(import.meta.url)), '..', 'docs');
 const css = readFileSync(join(docs, 'site', 'page.css'), 'utf8');
@@ -75,6 +82,7 @@ function page(lang) {
     .join('\n');
 
   const download = `<a class="btn primary" href="${REPO}/releases/latest">${escape(s.ctaDownload)}<small data-release>v${VERSION} · ${STUDIO.installerMB} MB</small></a>`;
+  const platforms = `<p class="platforms">${PACKAGES.map(({ id, file: name }) => `<a href="${REPO}/releases/latest/download/${name}" data-package="${id}">${escape(s.platforms[id])}</a>`).join(' · ')}</p>`;
 
   const tiles = STUDIO.bento.map(({ feature, shot: name }) => {
     const [title, body] = s.features[feature];
@@ -125,14 +133,16 @@ ${others.map((g, at, all) => group(g, at, all)).join('\n')}
 
   const u = s.engineUnits;
   const number = (value) => value.toLocaleString(lang, { minimumFractionDigits: value < 10 ? 1 : 0, maximumFractionDigits: 1 });
-  const first = (ms) => (ms < 1000 ? `${number(ms)} ${u.ms}` : `${number(ms / 1000)} ${u.s}`);
+  const first = (ms) => (ms == null ? '—' : ms < 1000 ? `${number(ms)} ${u.ms}` : `${number(ms / 1000)} ${u.s}`);
+  const gb = (value, approx) => (value == null ? '—' : `${approx ? '~' : ''}${number(value)} ${u.gb}`);
+  const times = (value) => (value == null ? '—' : `${number(value)}${u.x}`);
   const engines = `  <section id="engines">
     <h2>${escape(s.enginesTitle)}</h2>
     <p class="sub">${escape(s.enginesSub)}</p>
     <div class="scroll"><table>
       <thead><tr>${s.engineCols.map((col) => `<th>${escape(col)}</th>`).join('')}</tr></thead>
       <tbody>
-${ENGINE_BENCH.map((row) => `        <tr><td><b>${escape(ENGINES[row.engine])}</b></td><td>${escape(s.engineRoles[row.engine])}</td><td>${number(row.speed)}${u.x}</td><td>${first(row.firstMs)}</td><td>${escape(u[row.stream])}</td><td>${number(row.diskGB)} ${u.gb}</td><td>${number(row.vramGB)} ${u.gb}</td></tr>`).join('\n')}
+${ENGINE_BENCH.map((row) => `        <tr><td><b>${escape(ENGINES[row.engine])}</b></td><td>${escape(s.engineRoles[row.engine])}</td><td>${times(row.speed)}</td><td>${first(row.firstMs)}</td><td>${escape(u[row.stream])}</td><td>${gb(row.diskGB)}</td><td>${gb(row.vramGB, row.vramApprox)}</td></tr>`).join('\n')}
       </tbody>
     </table></div>
     <h3>${escape(s.asrTitle)}</h3>
@@ -140,7 +150,7 @@ ${ENGINE_BENCH.map((row) => `        <tr><td><b>${escape(ENGINES[row.engine])}</
     <div class="scroll"><table>
       <thead><tr>${s.asrCols.map((col) => `<th>${escape(col)}</th>`).join('')}</tr></thead>
       <tbody>
-${ASR_BENCH.map((row) => `        <tr><td><b>${escape(row.name)}</b></td><td>${escape(s.asrRoles[row.model])}</td><td>${number(row.gpu)}${u.x}</td><td>${number(row.cpu)}${u.x}</td><td>${row.langs}</td><td>${number(row.diskGB)} ${u.gb}</td><td>${number(row.vramGB)} ${u.gb}</td></tr>`).join('\n')}
+${ASR_BENCH.map((row) => `        <tr><td><b>${escape(row.name)}</b></td><td>${escape(s.asrRoles[row.model])}</td><td>${times(row.gpu)}</td><td>${times(row.cpu)}</td><td>${row.langs}</td><td>${gb(row.diskGB)}</td><td>${gb(row.vramGB)}</td></tr>`).join('\n')}
       </tbody>
     </table></div>
     <h3>${escape(s.liveTitle)}</h3>
@@ -178,7 +188,7 @@ ${LIVE_BENCH.map((row) => `        <tr><td>${escape(s.liveSteps[row.step])}</td>
       {
         '@type': 'SoftwareApplication', '@id': `${SITE}#app`, name: NAME, url: pageUrl(lang), inLanguage: lang,
         description: s.description, applicationCategory: 'MultimediaApplication', applicationSubCategory: 'Text to speech and speech recognition',
-        operatingSystem: 'Windows 10, Windows 11', softwareVersion: VERSION, fileSize: `${STUDIO.installerMB} MB`,
+        operatingSystem: 'Windows 10, Windows 11, macOS 13, Linux', softwareVersion: VERSION, fileSize: `${STUDIO.installerMB} MB`,
         downloadUrl: `${REPO}/releases/latest`, isAccessibleForFree: true, license: 'https://opensource.org/licenses/MIT',
         offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
         image: `${SITE}og-${lang}.jpg`, screenshot: `${SITE}${shot(lang, STUDIO.hero)}`,
@@ -243,6 +253,7 @@ ${nav}
       ${download}
       <a class="btn" href="${REPO}">${escape(s.starCta)}${starsBadge(escape(s.stars))}</a>
     </div>
+    ${platforms}
     <p class="note">${escape(s.ctaNote)}</p>
     <figure class="hero-shot"><img src="${shot(lang, STUDIO.hero)}" alt="${escape(shotAlt(STUDIO.hero))}" width="${pictureSize(lang, STUDIO.hero)[0]}" height="${pictureSize(lang, STUDIO.hero)[1]}" fetchpriority="high" /></figure>
   </section>
@@ -328,6 +339,11 @@ fetch('https://api.github.com/repos/${REPO.replace('https://github.com/', '')}/r
     if (!installer) throw new Error('the latest release has no installer');
     const label = release.tag_name + ' · ' + Math.round(installer.size / 1048576) + ' MB';
     document.querySelectorAll('[data-release]').forEach((element) => { element.textContent = label; });
+    const ends = ${JSON.stringify(Object.fromEntries(PACKAGES.map(({ id, ends }) => [id, ends])))};
+    document.querySelectorAll('[data-package]').forEach((link) => {
+      const asset = release.assets.find((item) => item.name.endsWith(ends[link.dataset.package]));
+      link.href = asset ? asset.browser_download_url : release.html_url;
+    });
   })
   .catch((error) => console.warn('Latest release not read; the page shows the one it was built with:', error));
 </script>

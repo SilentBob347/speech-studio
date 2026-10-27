@@ -68,6 +68,8 @@ h1 { font-size: clamp(34px, 6.4vw, 64px); line-height: 1.05; letter-spacing: -.0
 .btn img { display: block; }
 .btn.primary { background: linear-gradient(90deg, var(--accent-2), var(--accent)); border-color: transparent; color: #041019; }
 .note { color: var(--muted); font-size: 13px; margin: 6px auto 0; max-width: 60em; }
+.platforms { color: var(--muted); font-size: 14px; margin: 4px auto 0; }
+.platforms a { color: var(--text); }
 .hero-shot { margin: 36px 0 0; }
 .hero-shot img {
   width: 100%; height: auto; display: block; border-radius: 16px; border: 1px solid var(--line); cursor: zoom-in;
