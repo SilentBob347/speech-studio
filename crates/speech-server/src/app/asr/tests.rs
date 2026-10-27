@@ -22,7 +22,8 @@ fn asr_preparation_uses_its_stage_backend_instead_of_other_stages() {
         json!({"local_backend":"cpu", "asr_backend":"gpu", "sep_backend":"cpu", "diar_backend":"cpu"}),
     );
     // CrisperWhisper: its weights, the language id on transcribe.cpp, and the server build of the card with its runtime
-    let mut whisper: Vec<String> = ["crisperwhisper-turbo", "langid", "transcribe-engine"].map(String::from).to_vec();
+    let mut whisper: Vec<String> =
+        ["crisperwhisper-turbo", "langid", crate::engines::models::tcpp_build(&models).dir()].map(String::from).to_vec();
     if let Ok(build) = crate::engines::acpp::build_for("gpu") {
         whisper.push(crate::engines::acpp::component(build).to_string());
         whisper.extend(crate::engines::acpp::runtime_component(build).map(String::from));
