@@ -1180,6 +1180,7 @@ speech-ab-side = Locutando a variante { $n } de 2…
 speech-fix-no-take = O bloco não tem tomada para consertar: locute-o primeiro.
 speech-fix-sentence = Locutando de novo a frase { $n }…
 speech-restore-gone = O projeto não está na lixeira: ela foi esvaziada ou o projeto foi apagado em outro lugar.
+speech-restore-finder = No macOS, o projeto apagado é recuperado da Lixeira no Finder: selecione-o lá e escolha «Colocar de Volta».
 speech-restore-exists = O projeto já está no lugar.
 speak-aloud-no-window = Não há onde dizer em voz alta: a janela do Speech Studio não está aberta. Abra-a, e o som sai do estúdio enquanto a frase é falada.
 say-session-name = Conversa { $time }

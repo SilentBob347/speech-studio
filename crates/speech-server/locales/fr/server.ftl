@@ -1180,6 +1180,7 @@ speech-ab-side = Doublage de la variante { $n } sur 2…
 speech-fix-no-take = Le bloc n’a pas de prise à réparer : doublez-le d’abord.
 speech-fix-sentence = Nouveau doublage de la phrase { $n }…
 speech-restore-gone = Le projet n’est pas dans la corbeille : elle a été vidée ou le projet a été supprimé ailleurs.
+speech-restore-finder = Sur macOS, un projet supprimé se récupère depuis la Corbeille dans le Finder : sélectionnez-le et choisissez « Remettre ».
 speech-restore-exists = Le projet est déjà en place.
 speak-aloud-no-window = Impossible de le dire à voix haute : la fenêtre de Speech Studio n’est pas ouverte. Ouvrez-la, et le son sortira du studio pendant que la phrase est dite.
 say-session-name = Conversation { $time }

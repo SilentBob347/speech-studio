@@ -979,6 +979,7 @@ speech-ab-side = 正在配音第 { $n } 个版本（共 2 个）…
 speech-fix-no-take = 该块没有可修复的配音：请先配音。
 speech-fix-sentence = 正在重新配音第 { $n } 句…
 speech-restore-gone = 回收站中没有该项目：回收站已清空，或项目是在别处删除的。
+speech-restore-finder = 在 macOS 上，已删除的项目需在访达的废纸篓中找回：选中它并选择“放回原处”。
 speech-restore-exists = 项目已在原位。
 speak-aloud-no-window = 无处朗读：Speech Studio 窗口没有打开。打开窗口后，声音会在配音时从工作室直接播放。
 say-session-name = 对话 { $time }
