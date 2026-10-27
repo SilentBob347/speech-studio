@@ -184,7 +184,7 @@ Live — голосовой разговор с ИИ-агентом: что вы
 
 ## Быстрый старт
 
-1. **Скачайте** из [последнего релиза](https://github.com/timoncool/speech-studio/releases/latest): для Windows — портативную `Speech-Studio-<версия>-portable-windows-x64.zip` (распакуйте куда угодно) или установщик `Speech.Studio_<версия>_x64-setup.exe` / `.msi`; для macOS — `Speech-Studio-<версия>-macos-arm64.dmg`; для Linux — `Speech-Studio-<версия>-linux-x86_64-experimental.AppImage` или `Speech-Studio-<версия>-linux-amd64-experimental.deb`.
+1. **Скачайте** из [последнего релиза](https://github.com/timoncool/speech-studio/releases/latest): для Windows — портативную `Speech-Studio-<версия>-portable-windows-x64.zip` (распакуйте куда угодно) или установщик `Speech.Studio_<версия>_x64-setup.exe`; для macOS — `Speech-Studio-<версия>-macos-arm64.dmg`; для Linux — `Speech-Studio-<версия>-linux-x86_64-experimental.AppImage` или `Speech-Studio-<версия>-linux-amd64-experimental.deb`.
 2. **Запустите** `Speech Studio.exe` (Windows), Speech Studio из «Программ» (macOS) или AppImage (Linux).
 3. На панели **Первый запуск** нажмите **Скачать отмеченное** — программа один раз скачает модели, движки и библиотеки.
 4. **Вставьте текст** и нажмите **Создать** или переключитесь в **Listening** и бросьте запись.

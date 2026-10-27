@@ -184,7 +184,7 @@ On an NVIDIA machine the only thing you install by hand is a recent **[NVIDIA dr
 
 ## Quick start
 
-1. **Download** from the [latest release](https://github.com/timoncool/speech-studio/releases/latest): for Windows the portable `Speech-Studio-<version>-portable-windows-x64.zip` (unzip anywhere) or the installer `Speech.Studio_<version>_x64-setup.exe` / `.msi`; for macOS `Speech-Studio-<version>-macos-arm64.dmg`; for Linux `Speech-Studio-<version>-linux-x86_64-experimental.AppImage` or `Speech-Studio-<version>-linux-amd64-experimental.deb`.
+1. **Download** from the [latest release](https://github.com/timoncool/speech-studio/releases/latest): for Windows the portable `Speech-Studio-<version>-portable-windows-x64.zip` (unzip anywhere) or the installer `Speech.Studio_<version>_x64-setup.exe`; for macOS `Speech-Studio-<version>-macos-arm64.dmg`; for Linux `Speech-Studio-<version>-linux-x86_64-experimental.AppImage` or `Speech-Studio-<version>-linux-amd64-experimental.deb`.
 2. **Run** `Speech Studio.exe` (Windows), Speech Studio from Applications (macOS) or the AppImage (Linux).
 3. On the **First run** panel press **Download selected** — the app fetches models, engines and runtime once.
 4. **Paste a text** and press **Create**, or switch to **Listening** and drop a recording.

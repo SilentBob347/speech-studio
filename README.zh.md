@@ -184,7 +184,7 @@ Live——与 AI 智能体语音对话：你说了什么、它回答了什么，
 
 ## 快速开始
 
-1. 从[最新发布](https://github.com/timoncool/speech-studio/releases/latest)**下载**：Windows 用便携版 `Speech-Studio-<版本>-portable-windows-x64.zip`（解压到任意位置）或安装程序 `Speech.Studio_<版本>_x64-setup.exe` / `.msi`；macOS 用 `Speech-Studio-<版本>-macos-arm64.dmg`；Linux 用 `Speech-Studio-<版本>-linux-x86_64-experimental.AppImage` 或 `Speech-Studio-<版本>-linux-amd64-experimental.deb`。
+1. 从[最新发布](https://github.com/timoncool/speech-studio/releases/latest)**下载**：Windows 用便携版 `Speech-Studio-<版本>-portable-windows-x64.zip`（解压到任意位置）或安装程序 `Speech.Studio_<版本>_x64-setup.exe`；macOS 用 `Speech-Studio-<版本>-macos-arm64.dmg`；Linux 用 `Speech-Studio-<版本>-linux-x86_64-experimental.AppImage` 或 `Speech-Studio-<版本>-linux-amd64-experimental.deb`。
 2. **运行** `Speech Studio.exe`（Windows）、“应用程序”中的 Speech Studio（macOS）或 AppImage（Linux）。
 3. 在**首次运行**面板点击**下载所选**——程序一次性下载模型、引擎和运行库。
 4. **粘贴文本**并点击**创建**，或切换到 **Listening** 拖入录音。
