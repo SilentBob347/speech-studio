@@ -100,10 +100,10 @@ function page(lang) {
   const group = (g, at, all) => `    <div class="lang-group" lang="${g.lang}">
 ${at > 0 && all[at - 1].lang === g.lang ? '' : `      <h3>${escape(s.langNames[g.lang])}</h3>\n`}
       <blockquote>${escape(g.text)}</blockquote>
-      <div class="samples">
-${g.clips.map((clip) => clipCard(clip)).join('\n')}
-      </div>
-    </div>`;
+${g.rows.map((row) => `      <div class="samples">
+${row.clips.map((clip) => clipCard(clip)).join('\n')}
+      </div>`).join('\n')}
+${g.note ? `      <p class="sample-note">${escape(s[g.note])}</p>\n` : ''}    </div>`;
   const own = GROUPS.filter((g) => g.lang === lang);
   const others = GROUPS.filter((g) => g.lang !== lang);
   const stress = `  <section id="stress">
