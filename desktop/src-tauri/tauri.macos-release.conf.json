@@ -2,6 +2,9 @@
   "build": {
     "beforeBundleCommand": ""
   },
+  "app": {
+    "macOSPrivateApi": true
+  },
   "bundle": {
     "active": true,
     "createUpdaterArtifacts": false,
