@@ -188,7 +188,7 @@ fn text_of(lang: &str) -> Text {
 fn name_of(id: &str) -> Option<&'static str> {
     Some(match id {
         "higgs" => "Higgs Audio v3 Q8_0",
-        "higgs-engine" => "audio.cpp server, CUDA 13 (Higgs, Supertonic, CrisperWhisper, diarization)",
+        "higgs-engine" => "audio.cpp server, CUDA 13 (Higgs, Supertonic, Parakeet, Nemotron, CrisperWhisper, diarization)",
         "audiocpp-cuda12" => "audio.cpp server, CUDA 12.9 (cards and drivers CUDA 13 left)",
         "audiocpp-vulkan" => "audio.cpp server, Vulkan",
         "audiocpp-cpu" => "audio.cpp server, CPU",
@@ -196,7 +196,7 @@ fn name_of(id: &str) -> Option<&'static str> {
         "gemma-q5_0" => "Gemma-4 12B Q5_K_M + vision",
         "gemma-q6_k" => "Gemma-4 12B Q6_K + vision",
         "gemma-q8_0" => "Gemma-4 12B Q8_0 + vision",
-        "parakeet" => "Parakeet-TDT 0.6B v3 Q8_0 (transcribe.cpp)",
+        "parakeet" => "Parakeet-TDT 0.6B v3 Q8_0",
         "higgs-q6_k" => "Higgs Audio v3 Q6_K",
         "higgs-q4_k_m" => "Higgs Audio v3 Q4_K_M",
         "parakeet-ultra" => "Parakeet Ultra 0.6B Q8_0 (Moondream, transcribe.cpp)",
