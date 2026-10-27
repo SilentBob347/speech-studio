@@ -15,7 +15,7 @@ fn asr_preparation_uses_its_stage_backend_instead_of_other_stages() {
         json!({"local_backend":"gpu", "asr_backend":"cpu", "sep_backend":"gpu", "diar_backend":"gpu"}),
     );
     // Parakeet v3 runs in the server's processor build
-    let cpu = crate::engines::acpp::component(acpp_server::asset::Build::Cpu).to_string();
+    let cpu = crate::engines::acpp::component(crate::engines::acpp::build_for("cpu").unwrap()).to_string();
     assert_eq!(missing_parts(root.path(), &models, "parakeet"), ["parakeet".to_string(), cpu]);
     selection(
         root.path(),

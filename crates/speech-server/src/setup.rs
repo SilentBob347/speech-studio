@@ -4032,6 +4032,7 @@ mod tests {
     /// Архив установлен, только если его запись называет закреплённый sha256 и файлы на месте: у обновившихся
     /// пользователей CUDA-DLL прошлой версии (того же имени и даже размера) дают «недостающий компонент».
     #[test]
+    #[cfg(not(target_os = "macos"))]
     fn an_archive_counts_only_with_the_pinned_version_recorded() {
         let root = temp_root("record");
         let all = manifest();
@@ -4200,7 +4201,9 @@ mod tests {
         if cfg!(windows) {
             assert_eq!(remove_components(&root, &["vcruntime".to_string()]).unwrap_err().code, "not_removable");
         }
-        assert_eq!(remove_components(&root, &["nvidia-driver".to_string()]).unwrap_err().code, "not_removable");
+        if !cfg!(target_os = "macos") {
+            assert_eq!(remove_components(&root, &["nvidia-driver".to_string()]).unwrap_err().code, "not_removable");
+        }
         assert_eq!(remove_components(&root, &["nope".to_string()]).unwrap_err().code, "unknown_component");
         let _busy = try_claim(&["roformer-q5".to_string()]).unwrap();
         assert_eq!(remove_components(&root, &["roformer-q5".to_string()]).unwrap_err().code, "busy");

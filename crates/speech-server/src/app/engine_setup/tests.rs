@@ -100,8 +100,9 @@ fn each_gpu_stage_requests_its_runtime_independently() {
             Ok(json!({}))
         })
         .unwrap();
-        let expected = vec!["cuda-runtime", "onnxruntime-gpu", "cudnn"];
-        assert_eq!(calls.into_inner(), [expected], "{gpu_stage}");
+        let expected: Vec<Vec<&str>> =
+            if cfg!(target_os = "macos") { vec![] } else { vec![vec!["cuda-runtime", "onnxruntime-gpu", "cudnn"]] };
+        assert_eq!(calls.into_inner(), expected, "{gpu_stage}");
     }
     // diarization runs on the audio.cpp server, not ONNX Runtime
     let models = selection(
@@ -122,7 +123,7 @@ fn required_preparation_failure_prevents_optional_diarization_download() {
     })
     .unwrap_err();
     assert_eq!(err, "required download failed");
-    let server = crate::engines::acpp::component(acpp_server::asset::Build::Cpu).to_string();
+    let server = crate::engines::acpp::component(crate::engines::acpp::build_for("cpu").unwrap()).to_string();
     assert_eq!(calls.into_inner(), [vec!["wespeaker".to_string(), server]]);
 }
 
@@ -149,7 +150,7 @@ fn optional_diarization_failure_stays_visible_and_does_not_abort_the_job() {
         },
     )
     .unwrap();
-    let server = crate::engines::acpp::component(acpp_server::asset::Build::Cpu).to_string();
+    let server = crate::engines::acpp::component(crate::engines::acpp::build_for("cpu").unwrap()).to_string();
     assert_eq!(calls.into_inner(), [vec![server], vec!["sortformer".to_string()]]);
     let events = events.into_inner();
     assert_eq!(events.len(), 2);
@@ -365,6 +366,7 @@ fn a_small_card_gets_the_largest_quant_that_fits_and_no_model_it_cannot_hold() {
 }
 
 #[test]
+#[cfg(not(target_os = "macos"))]
 fn drama_downloads_on_a_6_gb_card_and_not_on_a_4_gb_one() {
     let drama = || {
         let mut comps = vec![model("drama3", 0.0, Requirement::Optional)];
