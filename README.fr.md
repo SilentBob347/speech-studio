@@ -184,7 +184,7 @@ Sur une machine NVIDIA, la seule chose à installer à la main est un **[pilote 
 
 ## Démarrage rapide
 
-1. **Téléchargez** depuis la [dernière version](https://github.com/timoncool/speech-studio/releases/latest) : pour Windows la version portable `Speech-Studio-<version>-portable-windows-x64.zip` (à décompresser où vous voulez) ou l’installeur `Speech.Studio_<version>_x64-setup.exe` / `.msi` ; pour macOS `Speech-Studio-<version>-macos-arm64.dmg` ; pour Linux `Speech-Studio-<version>-linux-x86_64-experimental.AppImage` ou `Speech-Studio-<version>-linux-amd64-experimental.deb`.
+1. **Téléchargez** depuis la [dernière version](https://github.com/timoncool/speech-studio/releases/latest) : pour Windows la version portable `Speech-Studio-<version>-portable-windows-x64.zip` (à décompresser où vous voulez) ou l’installeur `Speech.Studio_<version>_x64-setup.exe` ; pour macOS `Speech-Studio-<version>-macos-arm64.dmg` ; pour Linux `Speech-Studio-<version>-linux-x86_64-experimental.AppImage` ou `Speech-Studio-<version>-linux-amd64-experimental.deb`.
 2. **Lancez** `Speech Studio.exe` (Windows), Speech Studio depuis Applications (macOS) ou l’AppImage (Linux).
 3. Dans le panneau **Premier lancement**, cliquez sur **Télécharger la sélection** — l’application récupère une fois les modèles, moteurs et bibliothèques.
 4. **Collez un texte** et cliquez sur **Créer**, ou passez à **Listening** et déposez un enregistrement.
