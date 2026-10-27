@@ -6,11 +6,14 @@
 /// kind, phrase, how it is read (normalised and stress-marked).
 const CORPUS: &str = include_str!("../../data/ru_hard_corpus.tsv");
 
+#[cfg(test)]
 pub const KINDS: [&str; 6] = ["homograph", "yo", "stress", "number", "abbr", "mixed"];
 
 pub struct Phrase {
+    #[cfg_attr(not(test), allow(dead_code))]
     pub kind: &'static str,
     pub text: &'static str,
+    #[cfg_attr(not(test), allow(dead_code))]
     pub read: &'static str,
 }
 
@@ -68,7 +71,7 @@ mod tests {
     #[ignore]
     fn the_hard_phrases_read_as_pinned() {
         let root = PathBuf::from(std::env::var("SPEECH_STUDIO_ROOT").expect("SPEECH_STUDIO_ROOT"));
-        crate::set_ort_dylib_env(&root, &root);
+        crate::set_ort_dylib_env(&root, &root).unwrap();
         let s = crate::engines::stress::Stresser::load(&crate::engines::stress::dir(Path::new(&root.join("models")))).expect("RUAccent");
         let mut wrong = Vec::new();
         for p in phrases() {

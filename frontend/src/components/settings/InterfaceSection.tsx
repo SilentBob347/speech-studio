@@ -1,6 +1,6 @@
 import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { AudioLines, Footprints, Languages, Music, SunMoon } from "lucide-react";
+import { AudioLines, Footprints, Languages, Music, SunMoon, Volume2 } from "lucide-react";
 import { livePlaybackEnabled, setLivePlaybackEnabled } from "../../lib/livePlayback";
 import { setSimpleMode, useSimpleMode } from "../../lib/simpleMode";
 import { DUB_LANGS, LANGS, setLang, type Lang } from "../../lib/i18n";
@@ -8,6 +8,7 @@ import { playSfx, setSfxEnabled, sfxEnabled } from "../../lib/sfx";
 import SettingSwitch from "./SettingSwitch";
 import ShortcutsSection from "./ShortcutsSection";
 import { THEMES, savedTheme, setTheme, type Theme } from "../../lib/theme";
+import { masterVolume, setMasterVolume } from "../../lib/masterVolume";
 
 const langName = (code: Lang) => DUB_LANGS.find((l) => l.code === code)?.name ?? code;
 
@@ -16,9 +17,11 @@ export default function InterfaceSection() {
   const [sfx, setSfx] = useState(sfxEnabled());
   const [live, setLive] = useState(livePlaybackEnabled());
   const [theme, setThemeState] = useState<Theme>(savedTheme());
+  const [volume, setVolume] = useState(Math.round(masterVolume() * 100));
   const simple = useSimpleMode();
   const selectId = useId();
   const themeId = useId();
+  const volumeId = useId();
   return (
     <div className="space-y-3">
     <div className="max-w-2xl rounded-lg border border-[var(--color-border)] divide-y divide-[var(--color-border)] bg-[var(--color-surface-2)]/40">
@@ -43,6 +46,17 @@ export default function InterfaceSection() {
           className="shrink-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[12px] focus:border-[var(--color-accent)] focus:outline-none">
           {THEMES.map((v) => <option key={v} value={v}>{t(`prefs.theme_${v}`)}</option>)}
         </select>
+      </div>
+      <div className="flex items-center gap-3 px-3 py-2.5">
+        <Volume2 size={15} className="shrink-0 text-[var(--color-accent-2)]" />
+        <label htmlFor={volumeId} className="min-w-0 flex-1">
+          <span className="block text-[13px] font-medium">{t("prefs.volume")}</span>
+          <span className="block text-[11px] leading-snug text-[var(--color-muted)]">{t("prefs.volumeHint")}</span>
+        </label>
+        <input id={volumeId} type="range" min={0} max={100} step={1} value={volume}
+          onChange={(e) => { const v = Number(e.target.value); setVolume(v); setMasterVolume(v / 100); }}
+          className="shrink-0 w-32 accent-[var(--color-accent)]" />
+        <span className="w-9 text-right mono text-[11px] tabular-nums text-[var(--color-muted)]">{volume}%</span>
       </div>
       <SettingSwitch icon={Music} label={t("settings.sounds")} hint={t("prefs.soundsHint")} on={sfx}
         onToggle={() => { const v = !sfx; setSfx(v); setSfxEnabled(v); if (v) playSfx("notify"); }} />

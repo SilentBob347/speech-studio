@@ -10,9 +10,6 @@ const VARIANT_SLOT: Record<string, [string, string]> = {
   "parakeet-ultra": ["asr", "ultra-int8"],
   gemma: ["mt", "q4_0"], "gemma-q5_0": ["mt", "q5_0"], "gemma-q6_k": ["mt", "q6_k"], "gemma-q8_0": ["mt", "q8_0"],
   roformer: ["sep", "Q8_0"], "roformer-q5": ["sep", "Q5_0"], "roformer-q4": ["sep", "Q4_0"],
-  "whisper-tiny": ["whisper_model", "tiny"], "whisper-base": ["whisper_model", "base"],
-  "whisper-small": ["whisper_model", "small"], "whisper-medium": ["whisper_model", "medium"],
-  "whisper-large-v3": ["whisper_model", "large-v3"], "whisper-large-v3-turbo": ["whisper_model", "large-v3-turbo"],
 };
 // Какой из ids сейчас активен по выбору (active.json из capabilities.selection).
 export const activeVariantId = (ids: string[], sel: Selection): string | undefined =>

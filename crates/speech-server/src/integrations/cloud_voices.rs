@@ -52,75 +52,14 @@ pub fn model_supports_russian(model: &str) -> Option<bool> {
     db().get(catalog_model(model)).map(|m| m.supports_russian)
 }
 
+/// The voice a model starts with when none is chosen: its first adult voice in the catalog.
+pub fn default_voice(model: &str) -> Option<&'static str> {
+    list(model)?.iter().find(|v| v.age != "child" && v.age != "teen").map(|v| v.name.as_str())
+}
+
 /// Список голосов модели с метаданными (для дропдауна в UI). Нет в справочнике -> None.
 pub fn list(model: &str) -> Option<&'static Vec<VoiceMeta>> {
     db().get(catalog_model(model)).map(|m| &m.voices)
-}
-
-/// Голоса модели «взрослого» звучания (age adult/unknown/elderly) — не teen/child. Для обычного кастинга,
-/// чтобы взрослому спикеру не достался детский голос (детские зарезервированы под будущий child-детект).
-fn is_adultish(v: &VoiceMeta) -> bool {
-    matches!(v.age.as_str(), "adult" | "unknown" | "elderly")
-}
-
-/// speaker_id -> голос выбранной облачной TTS-модели по полу спикера и языку дубляжа. `genders`: speaker ->
-/// "male"/"female" (F0-замер). `tgt_lang` — код языка дубляжа ("ru" и пр.): для русского фильтруем на ru=true.
-/// Пусто -> облачный TTS уйдёт на дефолтный голос настроек. Детерминизм: спикеры отсортированы, ротация.
-pub fn assign(model: &str, genders: &HashMap<String, String>, tgt_lang: &str) -> HashMap<String, String> {
-    let mut out = HashMap::new();
-    let Some(mv) = db().get(catalog_model(model)) else {
-        return out; // модель не в справочнике -> без автокастинга (дефолтный голос настроек)
-    };
-    let want_ru = tgt_lang.eq_ignore_ascii_case("ru");
-    // Кандидаты: для русского — только тянущие русский; иначе все. Пусто после фильтра -> все (best-effort).
-    let pool: Vec<&VoiceMeta> = mv.voices.iter().filter(|v| !want_ru || v.ru).collect();
-    let pool = if pool.is_empty() {
-        mv.voices.iter().collect::<Vec<_>>()
-    } else {
-        pool
-    };
-    if pool.is_empty() {
-        return out;
-    }
-
-    // Пул на пол: сперва взрослые голоса нужного пола, если их нет — любые голоса этого пола.
-    let by_gender = |g: &str| -> Vec<String> {
-        let adultish: Vec<String> = pool
-            .iter()
-            .filter(|v| v.gender == g && is_adultish(v))
-            .map(|v| v.name.clone())
-            .collect();
-        if !adultish.is_empty() {
-            adultish
-        } else {
-            pool.iter().filter(|v| v.gender == g).map(|v| v.name.clone()).collect()
-        }
-    };
-    let male = by_gender("male");
-    let female = by_gender("female");
-    let all: Vec<String> = pool.iter().map(|v| v.name.clone()).collect();
-
-    let mut spks: Vec<String> = genders.keys().cloned().collect();
-    spks.sort();
-    let (mut mi, mut fi, mut ai) = (0usize, 0usize, 0usize);
-    for spk in spks {
-        let g = genders.get(&spk).map(String::as_str).unwrap_or("");
-        let voice = if g == "male" && !male.is_empty() {
-            let v = male[mi % male.len()].clone();
-            mi += 1;
-            v
-        } else if g == "female" && !female.is_empty() {
-            let v = female[fi % female.len()].clone();
-            fi += 1;
-            v
-        } else {
-            let v = all[ai % all.len()].clone();
-            ai += 1;
-            v
-        };
-        out.insert(spk, voice);
-    }
-    out
 }
 
 #[cfg(test)]
@@ -138,17 +77,4 @@ mod tests {
         assert_eq!(model_supports_russian("openai/gpt-audio"), Some(true));
     }
 
-    #[test]
-    fn casting_uses_the_model_supplied_by_its_caller_and_keeps_the_speaker_order() {
-        let genders = HashMap::from([("second".into(), "female".into()), ("first".into(), "male".into())]);
-        let assigned = assign("google/gemini-3.1-flash-tts-preview", &genders, "ru");
-        assert_eq!(assigned.len(), 2);
-        for (speaker, voice) in &assigned {
-            let meta = voice_meta("google/gemini-3.1-flash-tts-preview", voice).unwrap();
-            assert_eq!(&meta.gender, &genders[speaker]);
-            assert!(meta.ru);
-        }
-        assert_eq!(assigned, assign("google/gemini-3.1-flash-tts-preview", &genders, "ru"));
-        assert!(assign("unknown-model", &genders, "ru").is_empty());
-    }
 }

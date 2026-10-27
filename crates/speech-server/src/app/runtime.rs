@@ -47,11 +47,14 @@ pub fn ensure_library_path(repo_root: &Path) {
 /// чтобы `Command::new("ffmpeg")` и подобные находили их без перезапуска после автозакачки. Вызывается
 /// один раз при старте сервера (main.rs / Tauri-shell). Идемпотентно: не дублирует уже присутствующие.
 pub fn augment_path_for_tools(repo_root: &Path) {
-    let dirs = [
+    let mut dirs = vec![
         repo_root.join("tools").join("ffmpeg"),
-        repo_root.join("tools").join("llama"),
+        crate::setup::llama_dir(repo_root, crate::setup::llama_build()),
         repo_root.join("models").join("higgs-engine"),
     ];
+    if crate::engines::hw::gpu_report().cuda_build == Some(crate::engines::hw::CudaBuild::Cuda12) {
+        dirs.push(repo_root.join("models").join("cuda12-runtime"));
+    }
     let sep = if cfg!(windows) { ";" } else { ":" };
     let cur = std::env::var("PATH").unwrap_or_default();
     let mut prefix = String::new();
@@ -72,9 +75,22 @@ pub fn augment_path_for_tools(repo_root: &Path) {
 /// Прописать ORT_DYLIB_PATH (onnxruntime 1.28) в окружение процесса до старта сервера: ort грузит dylib лениво,
 /// а по голому имени Windows нашла бы раньше PATH onnxruntime.dll другой версии из System32 (Windows AI).
 /// GPU-сборка (cuda13) приоритетнее — суперсет CPU+CUDA; `beside_exe` — копия рядом с exe (портатив).
-pub fn set_ort_dylib_env(repo_root: &Path, beside_exe: &Path) {
+/// The graphics card chosen in the settings goes into the process environment before anything starts CUDA: the studio's
+/// engines and every engine process it starts see that card alone, counted in PCI bus order as NVML and nvidia-smi
+/// count. Applies from the next start.
+pub fn apply_gpu_choice(repo_root: &Path) {
+    let sel = crate::engines::models::load_selection(&models_root(repo_root));
+    if let Some(i) = sel.get("gpu_index").and_then(serde_json::Value::as_str).and_then(|v| v.parse::<u32>().ok()) {
+        std::env::set_var("CUDA_DEVICE_ORDER", "PCI_BUS_ID");
+        std::env::set_var("CUDA_VISIBLE_DEVICES", i.to_string());
+        tracing::info!("graphics card: {i} (chosen in the settings)");
+    }
+}
+
+pub fn set_ort_dylib_env(repo_root: &Path, beside_exe: &Path) -> Result<(), String> {
+    ort_telemetry_off()?;
     if std::env::var_os("ORT_DYLIB_PATH").is_some() {
-        return;
+        return Ok(());
     }
     ORT_PATH_OURS.store(true, std::sync::atomic::Ordering::Relaxed);
     let rt = repo_root.join("models").join("runtime");
@@ -95,6 +111,28 @@ pub fn set_ort_dylib_env(repo_root: &Path, beside_exe: &Path) {
             std::env::set_var("ORT_DYLIB_PATH", if hw::gpu_report().cuda13_ok { gpu } else { cpu });
             eprintln!("[ERROR] onnxruntime 1.28 not found in {}: recognition and diarization will not start until the ONNX Runtime component is downloaded", rt.display());
         }
+    }
+    Ok(())
+}
+
+/// Microsoft's ONNX Runtime builds send usage telemetry unless the environment turns it off. The options of the one
+/// environment of the process are set before any session makes it; an environment set up earlier is an error.
+fn ort_telemetry_off() -> Result<(), String> {
+    static OFF: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    if *OFF.get_or_init(|| ort::init().with_telemetry(false).commit()) {
+        Ok(())
+    } else {
+        Err("ONNX Runtime was set up before its telemetry could be turned off".to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn the_environment_turns_telemetry_off_once_and_keeps_it() {
+        assert_eq!(super::ort_telemetry_off(), Ok(()));
+        assert_eq!(super::ort_telemetry_off(), Ok(()), "a second start of the setup keeps the options it set");
+        assert!(!ort::init().with_telemetry(true).commit(), "options set later do not replace telemetry off");
     }
 }
 

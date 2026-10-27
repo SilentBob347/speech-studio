@@ -1,22 +1,28 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api } from "../../lib/api";
+import { api, SELECTION_CHANGED } from "../../lib/api";
+import { SETTINGS_CHANGED, useChanged } from "../../lib/mcpBridge";
 
 // Пресет под железо: автоопределение GPU/VRAM -> рекомендованные кванты, но юзер применяет любой сам.
 // Облачный пресет включает OpenRouter на все стадии — работает даже на слабом ПК без своей GPU.
 export default function PresetsSection({ onApplied }: { onApplied?: () => void }) {
   const { t } = useTranslation();
   const [data, setData] = useState<Awaited<ReturnType<typeof api.hwPresets>> | null>(null);
-  const [applied, setApplied] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  useEffect(() => { api.hwPresets().then(setData).catch(() => {}); }, []);
+  // «custom» writes nothing, so the settings still hold the preset they were on
+  const [custom, setCustom] = useState(false);
+  const load = () => { api.hwPresets().then(setData).catch(() => {}); };
+  useEffect(() => { load(); }, []);
+  useChanged(SETTINGS_CHANGED, load);
+  useChanged(SELECTION_CHANGED, load);
   const apply = async (id: string) => {
     setBusy(true);
-    try { await api.applyPreset(id); setApplied(id); onApplied?.(); } catch { /* ignore */ }
+    setCustom(id === "custom");
+    try { await api.applyPreset(id); onApplied?.(); } catch { /* ignore */ }
     setBusy(false);
   };
   const hw = data?.hardware;
-  const cur = applied ?? hw?.recommended ?? "";
+  const cur = custom ? "custom" : data?.current ?? "";
   const curP = data?.presets.find((p) => p.id === cur);
   return (
     <div className="mb-4 pb-3 border-b border-[var(--color-border)]">

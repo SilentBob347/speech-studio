@@ -14,14 +14,7 @@ pub fn component_selection(id: &str) -> Vec<(&'static str, String)> {
         "parakeet" => vec![("asr_engine", "parakeet".into()), ("asr", "int8".into())],
         "parakeet-ultra" => vec![("asr_engine", "parakeet".into()), ("asr", "ultra-int8".into())],
         "asr-gguf-nemotron" => vec![("asr_engine", "nemotron".into())],
-        "whisper-tiny" => vec![("asr_engine", "whisper".into()), ("whisper_model", "tiny".into())],
-        "whisper-base" => vec![("asr_engine", "whisper".into()), ("whisper_model", "base".into())],
-        "whisper-small" => vec![("asr_engine", "whisper".into()), ("whisper_model", "small".into())],
-        "whisper-medium" => vec![("asr_engine", "whisper".into()), ("whisper_model", "medium".into())],
-        "whisper-large-v3" => vec![("asr_engine", "whisper".into()), ("whisper_model", "large-v3".into())],
-        "whisper-large-v3-turbo" => {
-            vec![("asr_engine", "whisper".into()), ("whisper_model", "large-v3-turbo".into())]
-        }
+        "crisperwhisper-turbo" => vec![("asr_engine", "whisper".into())],
         "gemma" => vec![("mt", "q4_0".into())],
         "gemma-q5_0" => vec![("mt", "q5_0".into())],
         "gemma-q6_k" => vec![("mt", "q6_k".into())],

@@ -9,8 +9,6 @@ async fn a_missing_project_is_refused_before_aloud_or_queue_work() {
         workspace: root.path().join("workspace"),
         voices_dir: root.path().join("voices"),
         models_root: root.path().join("models"),
-        higgs_dll: root.path().join("missing.dll"),
-        threads: 1,
     };
     let queue = jobs::JobQueue::new();
     let response = enqueue(&paths, &queue, "absent".into(), json!({"aloud":true,"ids":["block"]})).await;

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Mic, X } from "lucide-react";
-import { getCoded, postCoded, sendCoded } from "../../lib/api";
+import { getCodedPolled, postCoded, sendCoded } from "../../lib/api";
 import { named } from "../../lib/a11y";
 import { errorText } from "../../lib/voices";
 import { Tip } from "../Hint";
@@ -26,7 +26,7 @@ export default function MicIndicator() {
 
   useEffect(() => {
     let alive = true;
-    const read = () => getCoded<MicState>("/mic/state").then((m) => { if (alive) setMic(m); }, (e: unknown) => { if (alive) setProblem(errorText(e)); });
+    const read = () => getCodedPolled<MicState>("/mic/state").then((m) => { if (alive) setMic(m); }, (e: unknown) => { if (alive) setProblem(errorText(e)); });
     void read();
     const id = window.setInterval(() => void read(), 1000);
     return () => { alive = false; window.clearInterval(id); };

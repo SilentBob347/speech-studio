@@ -2,7 +2,6 @@
 //! code and its arguments and speak English in `Display` (for logs); here each becomes a message of the
 //! catalogues in the language the window shows.
 
-use audiocpp::EngineError;
 use dub_asr::{AsrError, SpeakerMatchError};
 use dub_core::glossary::GlossaryError;
 use dub_llm::LlmError;
@@ -46,6 +45,7 @@ impl Localize for LlmError {
             LlmError::LogFile { path, error } => t!("llm-log-file", path = shown(path), error = error.clone()),
             LlmError::ExitedEarly { status, stderr } => t!("llm-exited-early", status = status.clone(), stderr = stderr.clone()),
             LlmError::NotReady { secs, port, stderr } => t!("llm-not-ready", secs = *secs, port = *port, stderr = stderr.clone()),
+            LlmError::NoGpuDevice { detail } => t!("llm-no-gpu-device", detail = detail.clone()),
             LlmError::Http(error) => t!("llm-http", error = error.clone()),
             LlmError::Api(error) => t!("llm-api", error = error.clone()),
             LlmError::Rejected { status, body, .. } => t!("llm-rejected", status = status.clone(), body = body.clone()),
@@ -95,22 +95,11 @@ impl Localize for SepError {
             SepError::EngineFailed { code: None, tail } => t!("sep-engine-killed", tail = tail.clone()),
             SepError::NoOutput(path) => t!("sep-no-output", path = shown(path)),
             SepError::Wav(error) => t!("sep-audio-io", error = error.clone()),
+            SepError::FellBackToCpu(why) => t!("sep-fell-back-to-cpu", why = why.clone()),
         }
     }
 }
 
-
-impl Localize for EngineError {
-    fn localize(&self) -> String {
-        match self {
-            EngineError::LibraryLoad(error) => t!("tts-library-load", error = error.clone()),
-            EngineError::Cancelled => t!("tts-cancelled"),
-            EngineError::Generation(error) => t!("tts-generation", error = error.clone()),
-            EngineError::InvalidParam(error) => t!("tts-invalid-param", error = error.clone()),
-            EngineError::StreamingUnsupported => t!("tts-streaming-unsupported"),
-        }
-    }
-}
 
 
 
@@ -245,21 +234,6 @@ mod tests {
     }
 }
 
-/// ffmpeg отказывает в NVENC строкой «...nvidia driver for nvenc is 610.00 or newer»: версия драйвера,
-/// которой не хватает, — чтобы сказать человеку, что обновить, а не показывать хвост лога.
-fn nvenc_driver_needed(tail: &str) -> Option<String> {
-    let lower = tail.to_ascii_lowercase();
-    let at = lower.find("driver for nvenc is ")? + "driver for nvenc is ".len();
-    let version: String = lower[at..].chars().take_while(|c| c.is_ascii_digit() || *c == '.').collect();
-    (!version.is_empty() && lower[at + version.len()..].trim_start().starts_with("or newer")).then_some(version)
-}
-
 #[cfg(test)]
 mod nvenc_tests {
-    #[test]
-    fn an_old_driver_for_nvenc_names_the_version_needed() {
-        let tail = "[h264_nvenc] The minimum required Nvidia driver for nvenc is 610.00 or newer [vost#0:0/h264_nvenc] Error while opening encoder";
-        assert_eq!(super::nvenc_driver_needed(tail).as_deref(), Some("610.00"));
-        assert_eq!(super::nvenc_driver_needed("Error while opening encoder"), None);
-    }
 }

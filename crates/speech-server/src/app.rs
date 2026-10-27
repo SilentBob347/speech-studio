@@ -30,6 +30,7 @@ mod timings;
 mod tools;
 mod url_api;
 mod url_import;
+mod voice_rename;
 
 mod asr;
 mod downloads;
@@ -53,12 +54,13 @@ pub use bootstrap::{serve, serve_blocking};
 pub(crate) use files::{reveal_in_explorer, serve_file_range};
 pub(crate) use jobs_api::enqueue_error;
 pub use router::build_router;
-pub use runtime::{augment_path_for_tools, ensure_library_path, init_proxy_route, set_ort_dylib_env};
+pub use runtime::{apply_gpu_choice, augment_path_for_tools, ensure_library_path, init_proxy_route, set_ort_dylib_env};
 pub(crate) use runtime::{models_root, point_ort};
 pub use state::AppState;
 
 pub(crate) use downloads::Downloads;
 pub use hub::flush_on_exit as flush_hub_on_exit;
+pub(crate) use hub::worked as hub_worked;
 pub(crate) use url_import::Fetches;
 
 pub(crate) use guard::{foreign_origin, local_origin};
@@ -89,6 +91,7 @@ pub(crate) use listening::{paths as listening_paths, watch_dependencies};
 pub(crate) use listening_to_speech::convert as convert_listening_to_speech;
 
 pub(crate) use listening_voices::extract as extract_listening_voices;
+pub(crate) use voice_rename::rename_voice;
 
 pub(crate) mod recognition {
     #[cfg(test)]

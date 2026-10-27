@@ -12,6 +12,7 @@ use std::time::Duration;
 use serde_json::{json, Value};
 
 use crate::app::Localize;
+use crate::audio::wavio::to_16k;
 
 /// A pause this long after speech ends the utterance.
 const PAUSE_SECS: f64 = 0.7;
@@ -21,6 +22,9 @@ const LONGEST_SECS: f64 = 20.0;
 const EDGE_SECS: f64 = 0.15;
 /// While a phrase goes on, what it says so far is recognised again this often.
 const INTERIM_SECS: f64 = 1.5;
+/// Under Auto, the language of the first speech is heard once it is this long (16 kHz samples), unless the phrase
+/// ends sooner.
+const HEAR_LANGUAGE_SAMPLES: usize = 2 * 16_000;
 
 /// A phrase heard live: where it starts and ends in the recording, seconds, and what was said.
 pub type Heard = (f64, f64, String);
@@ -175,36 +179,31 @@ pub fn finish() -> Result<Vec<Heard>, String> {
     }
 }
 
-/// Linear resampling to 16 kHz: enough for the speech detector, the recogniser gets the same.
-pub(crate) fn to_16k(x: &[f32], sr: u32) -> Vec<f32> {
-    if sr == 16_000 || x.is_empty() {
-        return x.to_vec();
-    }
-    let n = (x.len() as f64 * 16_000.0 / sr as f64) as usize;
-    (0..n)
-        .map(|i| {
-            let at = i as f64 * sr as f64 / 16_000.0;
-            let k = at as usize;
-            let f = (at - k as f64) as f32;
-            let a = x.get(k).copied().unwrap_or(0.0);
-            let b = x.get(k + 1).copied().unwrap_or(a);
-            a + (b - a) * f
-        })
-        .collect()
-}
-
 fn listen(choice: crate::engines::models::AsrChoice, models_root: &Path, lang: &str, from: Receiver<Vec<f32>>, stop: &AtomicBool, rate: &dyn Fn() -> u32, at: f64) -> Result<(), String> {
     let label = choice.label();
+    let lang = if lang == "auto" { "" } else { lang };
     // Nemotron 3.5 is a streaming model: a phrase is recognised as it is spoken instead of again from its start
-    let mut stream = match &choice {
-        crate::engines::models::AsrChoice::Ggml { models_root, build, model } if model.id == "nemotron" => Some(
-            dub_asr::tcpp::TcppStream::new(&dub_asr::tcpp::engine_dir(models_root, *build), &dub_asr::tcpp::model_path(models_root, model), lang)?,
-        ),
+    let streaming = match &choice {
+        crate::engines::models::AsrChoice::Ggml { models_root, build, model } | crate::engines::models::AsrChoice::Server { models_root, build, model, .. }
+            if model.id == "nemotron" =>
+        {
+            Some((models_root.clone(), *build, *model))
+        }
+        _ => None,
+    };
+    let open_stream = |told: &str| -> Result<dub_asr::tcpp::TcppStream, String> {
+        let (root, build, model) = streaming.as_ref().expect("a stream is opened for a streaming model");
+        dub_asr::tcpp::TcppStream::new(&dub_asr::tcpp::engine_dir(root, *build), &dub_asr::tcpp::model_path(root, model), told)
+    };
+    // under Auto the stream opens once the language of the first speech is heard (Nemotron told none loses its first
+    // word); until then nothing is shown of the phrase
+    let mut stream = match &streaming {
+        Some(_) if !lang.is_empty() => Some(open_stream(lang)?),
         _ => None,
     };
     // samples of `audio` the stream already has
     let mut streamed = 0usize;
-    let mut asr = crate::engines::asr::build_engine(&choice, None);
+    let mut asr = crate::engines::asr::build_engine(&choice, None)?;
     let work = tempfile::Builder::new().prefix("live-").tempdir().map_err(|e| e.to_string())?;
     let mut pending: Vec<f32> = Vec::new();
     let mut offset = at;
@@ -219,7 +218,7 @@ fn listen(choice: crate::engines::models::AsrChoice, models_root: &Path, lang: &
         }
         w.finalize().map_err(|e| e.to_string())?;
         let heard = asr.transcribe(&wav, if lang.is_empty() { "auto" } else { lang }).map_err(|e| e.localize())?;
-        Ok(heard.iter().map(|s| s.text.trim()).filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" "))
+        Ok(dub_asr::join_text(heard.iter().map(|s| s.text.as_str())))
     };
     while !ended {
         match from.recv_timeout(Duration::from_millis(300)) {
@@ -261,6 +260,18 @@ fn listen(choice: crate::engines::models::AsrChoice, models_root: &Path, lang: &
         };
         let a = (first - EDGE_SECS).max(0.0);
         let from_a = (a * 16_000.0) as usize;
+        if let (Some((root, build, model)), true) = (&streaming, stream.is_none()) {
+            let speech = &audio[from_a.min(audio.len())..];
+            if speech.len() >= HEAR_LANGUAGE_SAMPLES || cut.is_some() {
+                match dub_asr::tcpp::heard_language(root, *build, model, speech)? {
+                    Some(told) => stream = Some(open_stream(&told)?),
+                    None if speech.len() >= HEAR_LANGUAGE_SAMPLES => stream = Some(open_stream("")?),
+                    None => {}
+                }
+            } else {
+                continue;
+            }
+        }
         let Some(z) = cut else {
             // the phrase goes on: show what it says so far
             if let Some(s) = stream.as_mut() {
@@ -308,17 +319,28 @@ fn listen(choice: crate::engines::models::AsrChoice, models_root: &Path, lang: &
 mod tests {
     use super::*;
 
-    /// LIVE_WAV: a recording to feed as the microphone; SPEECH_STUDIO_ROOT: a studio root with Parakeet and Silero VAD.
+    /// LIVE_WAV: a recording to feed as the microphone; SPEECH_STUDIO_ROOT: a studio root with its recognition model and
+    /// Silero VAD; LIVE_LANG: the language to hear in (`ru` when not set, `auto` for Auto); LIVE_EXPECT: text a line
+    /// must hold (`1945` when not set).
     #[test]
     #[ignore]
     fn a_recording_fed_as_the_microphone_is_heard_phrase_by_phrase() {
         let root = std::path::PathBuf::from(std::env::var("SPEECH_STUDIO_ROOT").expect("SPEECH_STUDIO_ROOT"));
         let models = root.join("models");
-        crate::set_ort_dylib_env(&root, &root);
+        // a test process has no job object of the studio: the engine servers it starts outlive it unless stopped here
+        struct StopServers;
+        impl Drop for StopServers {
+            fn drop(&mut self) {
+                acpp_server::SERVERS.stop_all();
+            }
+        }
+        let _servers = StopServers;
+        crate::set_ort_dylib_env(&root, &root).unwrap();
         let (x, sr) = crate::audio::wavio::read_mono_f32(Path::new(&std::env::var("LIVE_WAV").expect("LIVE_WAV"))).unwrap();
-        let choice = crate::app::recognition::choice(&root, &models, "ru", "test").unwrap();
+        let lang = std::env::var("LIVE_LANG").unwrap_or_else(|_| "ru".into());
+        let choice = crate::app::recognition::choice(&root, &models, &lang, "test").unwrap();
         std::env::set_var("DUB_ASR_BACKEND", crate::engines::models::stage_backend(&models, "asr_backend"));
-        *live().lock().unwrap() = Some(Live { lines: Vec::new(), partial: None, error: None, muted: false, typed: Default::default(), engine: String::new(), lang: "ru".into(), stop: Arc::new(AtomicBool::new(false)), worker: None });
+        *live().lock().unwrap() = Some(Live { lines: Vec::new(), partial: None, error: None, muted: false, typed: Default::default(), engine: String::new(), lang: lang.clone(), stop: Arc::new(AtomicBool::new(false)), worker: None });
         let (to, from) = channel::<Vec<f32>>();
         let feeder = std::thread::spawn(move || {
             for chunk in x.chunks((sr / 10) as usize) {
@@ -339,7 +361,7 @@ mod tests {
             seen
         });
         let stop = AtomicBool::new(false);
-        listen(choice, &models, "ru", from, &stop, &move || sr, 0.0).unwrap();
+        listen(choice, &models, &lang, from, &stop, &move || sr, 0.0).unwrap();
         feeder.join().unwrap();
         let seen = partials.join().unwrap();
         for p in &seen {
@@ -350,7 +372,8 @@ mod tests {
         for l in &lines {
             eprintln!("{:.2}-{:.2} {}", l.0, l.1, l.2);
         }
-        assert!(!lines.is_empty() && lines.iter().any(|l| l.2.contains("1945")), "{lines:?}");
+        let expect = std::env::var("LIVE_EXPECT").unwrap_or_else(|_| "1945".into());
+        assert!(!lines.is_empty() && lines.iter().any(|l| l.2.contains(&expect)), "{lines:?}");
         assert!(lines.windows(2).all(|w| w[0].1 <= w[1].0 + 0.01));
     }
 

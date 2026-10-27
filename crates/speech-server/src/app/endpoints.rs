@@ -193,16 +193,24 @@ pub async fn proxy_test(State(st): State<AppState>, Json(body): Json<Value>) -> 
     }
 }
 
-// ─── Пресеты железа: GET /engine/presets (список + детект GPU + рекомендация), POST /engine/preset {id} ──
-pub async fn presets_list(State(_st): State<AppState>) -> Response {
-    let rec = tokio::task::spawn_blocking(crate::engines::presets::recommend)
-        .await
-        .unwrap_or_else(|_| crate::engines::presets::recommend());
+// ─── Пресеты железа: GET /engine/presets (список + детект GPU + рекомендация + текущий), POST /engine/preset {id} ──
+
+pub async fn presets_list(State(st): State<AppState>) -> Response {
+    let models_root = st.models_root.clone();
+    let lookup = move || {
+        let rec = crate::engines::presets::recommend();
+        let current = crate::engines::presets::current(&models_root, rec.recommended);
+        (rec, current)
+    };
+    let (rec, current) = match tokio::task::spawn_blocking(lookup.clone()).await {
+        Ok(found) => found,
+        Err(_) => lookup(),
+    };
     let list: Vec<Value> = crate::engines::presets::PRESETS
         .iter()
         .map(|p| json!({ "id": p.id, "title": (p.title)(), "subtitle": (p.subtitle)() }))
         .collect();
-    Json(json!({ "presets": list, "hardware": rec })).into_response()
+    Json(json!({ "presets": list, "hardware": rec, "current": current })).into_response()
 }
 
 pub async fn preset_apply(State(st): State<AppState>, Json(body): Json<Value>) -> Response {
@@ -226,32 +234,6 @@ pub async fn openrouter_voices(Query(q): Query<HashMap<String, String>>) -> Resp
     let voices = crate::integrations::cloud_voices::list(&model).cloned().unwrap_or_default();
     let ru = crate::integrations::cloud_voices::model_supports_russian(&model);
     Json(json!({ "voices": voices, "supportsRussian": ru })).into_response()
-}
-
-// ─── PATCH /engine/opts ─────────────────────────────────────────────────────
-// Свап слота модели (asr/tts/llm/vision) в рантайме. У порта OPTS иммутабелен внутри AppState
-// (Arc<EngineOpts>), а модели резолвятся путями из окружения/дефолтов — рантайм-свап без пересоздания
-// стейта не предусмотрен архитектурой (в отличие от питоновского живого OPTS). Валидируем вход как
-// питон (непустые строки -> 400 иначе) и возвращаем ТЕКУЩИЙ стек — контракт формы {models:{...}}
-// соблюдён; фактический свап слота — вне scope порта (модель-стек задаётся при старте сервера).
-pub async fn set_opts(State(st): State<AppState>, Json(edit): Json<Value>) -> Response {
-    for key in ["asr", "tts", "llm", "vision"] {
-        if let Some(v) = edit.get(key) {
-            let ok = v.as_str().map(|s| !s.trim().is_empty()).unwrap_or(false);
-            if !ok {
-                return (StatusCode::BAD_REQUEST, format!("{key:?} must be a non-empty path"))
-                    .into_response();
-            }
-        }
-    }
-    let o = &st.opts;
-    Json(json!({ "models": {
-        "asr": o.asr_model,
-        "llm": o.mt_model_path.to_string_lossy(),
-        "vision": o.mmproj_path.to_string_lossy(),
-        "tts": o.tts_model,
-    }}))
-    .into_response()
 }
 
 // ─── POST /engine/select ────────────────────────────────────────────────────
@@ -278,7 +260,7 @@ pub async fn select_model(State(st): State<AppState>, Json(body): Json<Value>) -
         }
         return Json(crate::engines::models::public_selection(&st.models_root)).into_response();
     }
-    // Форма 2: {"id":"whisper-small"} — id компонента манифеста -> набор слотов (активация при скачивании
+    // Форма 2: {"id":"crisperwhisper-turbo"} — id компонента манифеста -> набор слотов (активация при скачивании
     // и переключение варианта). Пустой набор -> неизвестный компонент.
     let id = body.get("id").and_then(Value::as_str).unwrap_or("");
     let pairs = crate::setup::component_selection(id);

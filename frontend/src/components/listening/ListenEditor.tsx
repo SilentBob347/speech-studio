@@ -11,6 +11,7 @@ import { findTranscriptWordMatches } from "../../lib/transcriptFuzzy";
 import { followJob } from "../../lib/followJob";
 import { errorText, prettyVoice } from "../../lib/voices";
 import { named } from "../../lib/a11y";
+import { LAYER_OPENED } from "../../lib/escape";
 import { useStore } from "../../store";
 import { usePublishEditor } from "../../lib/editorBridge";
 import ErrorNote from "../ErrorNote";
@@ -110,6 +111,12 @@ export default function ListenEditor({ pid, onBack, onOpen }: { pid: string; onB
       },
     },
   });
+
+  useEffect(() => {
+    const pause = () => audio.current?.pause();
+    window.addEventListener(LAYER_OPENED, pause);
+    return () => window.removeEventListener(LAYER_OPENED, pause);
+  }, []);
 
   useEffect(() => {
     if (!playing) return;

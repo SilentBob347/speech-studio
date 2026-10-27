@@ -55,11 +55,6 @@ fn now_ms() -> u64 {
         .unwrap_or(0)
 }
 
-/// Пометить в SSE, что стадия взята из чекпоинта: {"type":"progress","stage":..,"resumed":true,..}.
-pub fn emit_resumed(progress: &dyn Fn(Value), stage: &str, msg: &str) {
-    progress(json!({ "stage": stage, "msg": msg, "resumed": true }));
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum JobKind {
     Analyze,
@@ -309,6 +304,13 @@ impl JobCtl {
         };
         obj.insert("type".into(), json!("progress"));
         let stage = obj.get("stage").and_then(Value::as_str).map(str::to_string);
+        // each new step goes to the log: after a crash its last line says where the work was
+        if let Some(msg) = obj.get("msg").and_then(Value::as_str).filter(|m| !m.is_empty()) {
+            let before = self.last.lock().unwrap_or_else(|p| p.into_inner()).as_ref().and_then(|l| l.get("msg").and_then(Value::as_str).map(str::to_string));
+            if before.as_deref() != Some(msg) {
+                tracing::info!("[{}] {msg}", stage.as_deref().unwrap_or("job"));
+            }
+        }
         self.publish_last(Value::Object(obj));
         if let Some(stage) = stage {
             self.note_stage(&stage);
@@ -369,8 +371,26 @@ impl JobCtl {
 }
 
 /// Убить процесс по pid (TerminateProcess на Windows). Pid берётся из учёта, пока хэндл процесса у
-/// владельца открыт, поэтому переиспользован другим процессом быть не может.
-fn kill_pid(pid: u32) -> bool {
+/// владельца открыт, поэтому переиспользован другим процессом быть не может. Не через sysinfo: на Windows он
+/// зовёт taskkill.exe, а тот висит там, где завис WMI, и отмена ждёт конца процесса.
+#[cfg(windows)]
+pub(crate) fn kill_pid(pid: u32) -> bool {
+    use windows_sys::Win32::Foundation::CloseHandle;
+    use windows_sys::Win32::System::Threading::{OpenProcess, TerminateProcess, PROCESS_TERMINATE};
+    // SAFETY: the handle is checked before use and closed after it.
+    unsafe {
+        let handle = OpenProcess(PROCESS_TERMINATE, 0, pid);
+        if handle.is_null() {
+            return false;
+        }
+        let killed = TerminateProcess(handle, 1) != 0;
+        CloseHandle(handle);
+        killed
+    }
+}
+
+#[cfg(not(windows))]
+pub(crate) fn kill_pid(pid: u32) -> bool {
     let p = sysinfo::Pid::from_u32(pid);
     let mut sys = sysinfo::System::new();
     sys.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[p]), true);
@@ -414,13 +434,6 @@ pub fn check_cancelled() -> Result<(), String> {
     } else {
         Ok(())
     }
-}
-
-/// Обновить job.json джобы этого потока (пока запись принадлежит ей).
-pub fn update_record(f: impl FnOnce(&mut job_store::JobRecord)) -> Result<(), String> {
-    let ctl = current().ok_or("the thread is not bound to a job")?;
-    let (dir, id) = ctl.store.as_ref().ok_or("the job has no job.json")?;
-    job_store::update_owned(dir, id, f)
 }
 
 fn child_hook(pid: u32, alive: bool) {
@@ -637,6 +650,7 @@ impl JobQueue {
                                     (JobStatus::Done, None, ev)
                                 }
                                 Err(e) => {
+                                    tracing::warn!("[ERROR] job {job_id} ({kind:?}) failed: {e}");
                                     j.error = Some(e.clone());
                                     (JobStatus::Error, Some(e.clone()), json!({ "type": "error", "error": e }))
                                 }

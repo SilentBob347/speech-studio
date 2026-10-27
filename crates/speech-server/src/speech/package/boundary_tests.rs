@@ -14,8 +14,6 @@ fn paths(root: &std::path::Path) -> SpeechPaths {
         workspace: root.join("workspace"),
         voices_dir: root.join("voices"),
         models_root: root.join("models"),
-        higgs_dll: root.join("none.dll"),
-        threads: 1,
     }
 }
 

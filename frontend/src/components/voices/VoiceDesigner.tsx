@@ -58,7 +58,7 @@ export default function VoiceDesigner({ onClose, onKept }: { onClose: () => void
   };
   const field = "w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-md px-2 py-1.5 text-[13px] focus:border-[var(--color-accent)] focus:outline-none";
   return (
-    <div className="fixed inset-0 z-[70] grid place-items-center glass-scrim anim-fade" onClick={() => { if (!busy) onClose(); }}>
+    <div className="fixed inset-0 z-[70] grid place-items-center glass-scrim anim-fade" onClick={(e) => { e.stopPropagation(); if (!busy && !batch && !description.trim() && !sample.trim()) onClose(); }}>
       <div role="dialog" aria-modal="true" aria-labelledby="vd-title" className="w-[min(94vw,560px)] max-h-[90vh] overflow-y-auto rounded-xl glass-panel anim-pop p-5 space-y-3" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h2 id="vd-title" className="font-semibold flex items-center gap-2"><Wand2 size={16} className="text-[var(--color-accent)]" />{t("voices.designTitle")}</h2>

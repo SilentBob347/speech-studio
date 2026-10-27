@@ -26,9 +26,9 @@ function Bar({ label, pct, right }: { label: string; pct: number; right: string 
     <div>
       <div className="flex items-baseline justify-between text-[11px] mb-1">
         <span className="text-[var(--color-muted)]">{label}</span>
-        <span className="mono tabular-nums text-[var(--color-fg,#e5e7eb)]">{right}</span>
+        <span className="mono tabular-nums text-[var(--color-text)]">{right}</span>
       </div>
-      <div className="h-1.5 rounded-full bg-white/8 overflow-hidden">
+      <div className="h-1.5 rounded-full bg-[var(--color-surface-2)] overflow-hidden">
         <div className="h-full rounded-full transition-[width] duration-500 ease-out"
           style={{ width: `${p}%`, background: c, boxShadow: `0 0 8px ${c}` }} />
       </div>
@@ -85,9 +85,9 @@ export default function ResourceMonitor() {
   // оторванная драг-панель
   return (
     <div className="fixed z-50 select-none w-[248px]" style={{ left: fl.pos.x, top: fl.pos.y }}>
-      <div className="rounded-xl border border-white/10 bg-[var(--color-panel,rgba(18,20,26,0.94))] backdrop-blur-md shadow-[0_10px_36px_rgba(0,0,0,0.5)] overflow-hidden">
+      <div className="rounded-xl glass-panel overflow-hidden">
         <div onPointerDown={fl.onDragStart}
-          className={`flex items-center gap-2 px-3 py-2 ${fl.dragging ? "cursor-grabbing" : "cursor-grab"} border-b border-white/5`}>
+          className={`flex items-center gap-2 px-3 py-2 ${fl.dragging ? "cursor-grabbing" : "cursor-grab"} border-b border-[var(--color-border)]`}>
           <Move size={12} className="text-[var(--color-muted)]" />
           <Dot pct={lead} />
           <span className="text-[12px] font-semibold truncate flex-1">{hasGpu ? hw.gpuName.replace(/NVIDIA GeForce /i, "") : t("monitor.title")}</span>
@@ -103,7 +103,7 @@ export default function ResourceMonitor() {
                 <span className="text-[var(--color-muted)]">{t("monitor.power")}</span>
                 <span className="mono tabular-nums">{Math.round(hw.powerDraw)} / {Math.round(hw.powerLimit)} {t("units.watt")}</span>
               </div>
-              <div className="h-1 rounded-full bg-white/8 overflow-hidden">
+              <div className="h-1 rounded-full bg-[var(--color-surface-2)] overflow-hidden">
                 <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${Math.min(100, powerPct)}%`, background: heat(powerPct) }} />
               </div>
             </>

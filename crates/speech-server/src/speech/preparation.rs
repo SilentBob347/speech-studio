@@ -201,8 +201,6 @@ mod tests {
             workspace: root.join("workspace"),
             models_root: root.join("models"),
             voices_dir: root.join("voices"),
-            higgs_dll: root.join("unused.dll"),
-            threads: 1,
         }
     }
 

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ASR_VARIANT_I18N, activeVariantId, type VariantI18n } from "../../lib/modelVariants";
 import { useTranslation } from "react-i18next";
 import { Download, FolderDown, RefreshCw, X } from "lucide-react";
-import { api, llmProviderOf, slot, SetupError, type Capabilities, type SetupComponent } from "../../lib/api";
+import { api, llmProviderOf, SELECTION_CHANGED, slot, SetupError, type Capabilities, type SetupComponent } from "../../lib/api";
 import { openSettings } from "../../lib/settingsNav";
 import { SETTINGS_CHANGED, useChanged } from "../../lib/mcpBridge";
 import { useSetupStatus } from "../../lib/useSetupStatus";
@@ -19,7 +19,7 @@ import DownloadProgress from "../DownloadProgress";
 import RemoveComponent from "../RemoveComponent";
 import ConfirmDialog from "../ConfirmDialog";
 import Hint from "../Hint";
-import { PROGRAMS } from "../../lib/programs";
+import { takenFromLabel } from "../../lib/programs";
 
 // Модели и компоненты в настройках: список из /setup/status с кнопками скачки/докачки и прогрессом.
 // part="cloud" — раздел «Облако» (ключ OpenRouter и потоки) на том же состоянии выбора.
@@ -28,10 +28,9 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
   const { t } = useTranslation();
   const errText = useDownloadErrorText();
   const gpuReasonText = useGpuReasonText();
-  // Выбор ASR-движка (parakeet|whisper) + квант Whisper (compute) — из capabilities.selection.
+  // Выбор ASR-движка (parakeet | nemotron | whisper = CrisperWhisper) — из capabilities.selection.
   const [cap, setCap] = useState<Capabilities | null>(null);
   const [asrEngine, setAsrEngine] = useState<string>("parakeet");
-  const [whisperCompute, setWhisperCompute] = useState<string>("int8");
   const [dramaVram, setDramaVram] = useState<string>("0");
   // Сохранения по очереди: при быстрой смене (стрелками) последним на сервер приходит последнее значение.
   const dramaSaves = useRef<Promise<unknown>>(Promise.resolve());
@@ -46,7 +45,6 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
   const loadCap = () => api.capabilities().then((c) => {
     setCap(c);
     setAsrEngine(slot(c.selection, "asr_engine") ?? "parakeet");
-    setWhisperCompute(slot(c.selection, "whisper_compute") ?? "int8");
     setDramaVram(slot(c.selection, "drama_vram_gb") || "0");
   }).catch(() => {});
   // Статус компонентов + фоновая закачка (опрос, пока она идёт). Скачанный вариант становится активным на
@@ -60,7 +58,8 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
   useEffect(() => { loadCap(); }, []);
   const selv = (k: string) => slot(cap?.selection, k) ?? "";
   const hasOrKey = cap?.selection?.or_key_set === true;
-  const setSel = (k: string, v: string) => api.setSelection(k, v).then(loadCap).catch(() => {});
+  // the status follows too: which engine build and which components a choice owes is the server's answer
+  const setSel = (k: string, v: string) => api.setSelection(k, v).catch(() => {});
   // Голоса выбранной облачной TTS-модели (пол/возраст/русский) для дропдауна + предупреждения о русском.
   const ttsProvider = slot(cap?.selection, "tts_provider") ?? (selv("or_tts_on") === "1" ? "openrouter" : "local");
   const orTtsModel = slot(cap?.selection, ttsProvider === "google" ? "google_tts_model" : "or_tts_model") ?? "";
@@ -95,6 +94,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
   };
   const pause = () => { api.setupCancel().then(() => refreshStatus()).catch(setupErr); };
   useChanged(SETTINGS_CHANGED, () => { loadCap(); refreshStatus().catch(setupErr); });
+  useChanged(SELECTION_CHANGED, () => { loadCap(); refreshStatus().catch(setupErr); });
   const browseId = async (id: string) => {
     if (prog) return;
     try {
@@ -145,7 +145,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
         <div className="min-w-0 flex-1">
           <div className="text-[12px] font-medium truncate">{c.name} {c.purpose && <Hint text={c.purpose} />}</div>
           <div className="mono text-[10px] text-[var(--color-muted)] break-words">{c.vram ? `${fmtBytes(c.vram)} VRAM · ` : ""}{fmtBytes(c.size)} {t("settings.disk")}</div>
-          {c.takenFrom && <div className="text-[10px] text-[var(--color-accent)]">{t("setup.takenFrom", { app: PROGRAMS[c.takenFrom] ?? c.takenFrom })}</div>}
+          {c.takenFrom && <div className="text-[10px] text-[var(--color-accent)]">{takenFromLabel(t, c.takenFrom)}</div>}
         </div>
         {active ? (
           <div className="w-24 shrink-0">
@@ -225,17 +225,25 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
   );
 
   const rowOf = (id: string) => { const c = get(id); return c ? rowView(c) : null; };
+  // the build of an engine the voicing device runs; the device «auto» picks is the component itself
+  const voicingBuild = (component: string, prefix: string) => {
+    const device = selv("tts_backend");
+    const build = device === "cpu" ? `${prefix}-cpu` : device === "vulkan" ? `${prefix}-vulkan` : null;
+    return build && get(build) ? build : component;
+  };
 
   // Тумблер движка «локально | OpenRouter» — тот же вид, что переключатель Parakeet|Whisper в группе ASR.
   const orRowCls = "px-2.5 py-2 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border)]";
-  // На чём считать стадию (устройство): Авто / GPU (CUDA) / CPU — свои табы в каждом разделе, по
-  // аналогии с провайдерами. Независимый ключ на стадию (sep_backend / diar_backend / asr_backend).
+  // На чём считать стадию (устройство): Авто / GPU (CUDA) / Vulkan / CPU — свои табы в каждом разделе, по
+  // аналогии с провайдерами. Независимый ключ на стадию (tts_backend / sep_backend / diar_backend / asr_backend).
+  // Озвучка, распознавание, сепарация и диаризация идут на audio.cpp, transcribe.cpp и BSRoformer, у которых
+  // есть сборки Vulkan и CUDA 12.9.
   const backendTabs = (k: string) => {
     const cur = selv(k) || "auto";
-    const gpuOff = !status.gpu.cuda13Ok;
+    const gpuOff = !status.gpu.cudaBuild;
     return (
       <div className="flex gap-1 mb-1.5">
-        {([["auto", t("settings.auto")], ["gpu", "GPU (CUDA)"], ["cpu", "CPU"]] as const).map(([id, label]) => (
+        {([["auto", t("settings.auto")], ["gpu", "GPU (CUDA)"], ["vulkan", "Vulkan"], ["cpu", "CPU"]] as const).map(([id, label]) => (
           <button key={id} onClick={() => setSel(k, id)} disabled={id === "gpu" && gpuOff && cur !== "gpu"}
             title={id === "gpu" && gpuOff ? gpuReasonText(status.gpu) : undefined}
             className={`flex-1 px-2 py-1.5 rounded-md text-[12px] font-medium border transition-colors ${cur === id ? "border-[var(--color-accent)] bg-[color-mix(in_oklab,var(--color-accent)_14%,transparent)] text-[var(--color-text)]" : "border-[var(--color-border)] text-[var(--color-muted)] hover:text-[var(--color-text)]"} disabled:opacity-40`}>{label}</button>
@@ -266,6 +274,17 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
       <div className="mb-3 space-y-2">
         <ModelsFolder status={status} />
         <GpuNotice gpu={status.gpu} driverUrl={driverUrl} />
+        {(status.gpu.cards.length > 1 || status.gpu.reason === "gpu_missing") && (
+          <label className="block px-2.5 py-2 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border)] text-[12px]">
+            <span className="font-medium">{t("downloads.gpuCard")}</span>
+            <select value={selv("gpu_index") || "auto"} onChange={(e) => setSel("gpu_index", e.target.value)} className={`mt-1 ${orSelectCls}`}>
+              <option value="auto">{t("downloads.gpuCardAuto")}</option>
+              {status.gpu.cards.map((c) => <option key={c.index} value={String(c.index)}>{`${c.index}: ${c.name} · ${Math.round(c.memoryMb / 1024)} ${t("units.gb")}`}</option>)}
+              {status.gpu.chosen != null && !status.gpu.cards.some((c) => c.index === status.gpu.chosen) && <option value={String(status.gpu.chosen)} disabled>{`${status.gpu.chosen}: —`}</option>}
+            </select>
+            <span className="block mt-1 text-[11px] text-[var(--color-muted)]">{t("downloads.gpuCardHint")}</span>
+          </label>
+        )}
         {status.active && status.active.status !== "completed" && (
           <DownloadProgress job={status.active} onPause={pause} onResume={(ids) => { void startDownload(ids); }} />
         )}
@@ -306,8 +325,9 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
           </div>
         ) : (
           <>
+            {backendTabs("tts_backend")}
             {variantPicker("Higgs Audio v3", ["higgs", "higgs-q6_k", "higgs-q4_k_m"])}
-            {rowOf("higgs-engine")}
+            {rowOf(voicingBuild("higgs-engine", "audiocpp"))}
             {rowOf("drama3")}
             {get("drama3") && <>
               <p className="text-[11px] text-[var(--color-muted)] px-1">{t("settings.dramaNote")}</p>
@@ -326,7 +346,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
             </>}
             {rowOf("supertonic3")}
             {variantPicker("Qwen3-TTS 1.7B", ["qwen3-tts", "qwen3-tts-q8_0"])}
-            {rowOf("qwen3-tts-engine")}
+            {rowOf(voicingBuild("qwen3-tts-engine", "qwen3-tts"))}
             {rowOf("qwen3-tts-ru-stress")}
             {rowOf(selv("qwen_tts_quant") === "Q8_0" ? "qwen3-tts-design-q8_0" : "qwen3-tts-design")}
           </>
@@ -334,9 +354,9 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
       </>)}
       {group(t("settings.roleText"), <>{rowOf("ruaccent")}{rowOf("ruaccent-omograph-big")}</>)}
       {group(t("settings.roleAsr"), <>
-        {/* Модель ASR — одна кнопка на модель: Parakeet-TDT и Nemotron 3.5 на transcribe.cpp, Whisper на whisper-faster, OpenRouter (облако). */}
+        {/* Модель ASR — одна кнопка на модель: Parakeet-TDT и Nemotron 3.5 на transcribe.cpp, CrisperWhisper в audiocpp_server, OpenRouter (облако). */}
         <div className="flex gap-1 mb-1.5">
-          {[{ id: "parakeet", label: "Parakeet-TDT", cloud: false }, { id: "nemotron", label: "Nemotron 3.5", cloud: false }, { id: "whisper", label: "Whisper", cloud: false }, { id: "openrouter", label: "OpenRouter", cloud: true }].map((e) => {
+          {[{ id: "parakeet", label: "Parakeet-TDT", cloud: false }, { id: "nemotron", label: "Nemotron 3.5", cloud: false }, { id: "whisper", label: "CrisperWhisper", cloud: false }, { id: "openrouter", label: "OpenRouter", cloud: true }].map((e) => {
             const asrCloud = selv("or_asr_on") === "1";
             const active = e.cloud ? asrCloud : (!asrCloud && asrEngine === e.id);
             const dis = e.cloud && !hasOrKey;
@@ -357,31 +377,17 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
           </div>
         ) : asrEngine === "parakeet" ? (
           <>
-            {get("transcribe-engine-cpu")?.requirement === "required" ? rowOf("transcribe-engine-cpu") : rowOf("transcribe-engine")}
+            {rowOf(["transcribe-engine", "transcribe-engine-vulkan", "transcribe-engine-cpu"].find((x) => get(x)?.requirement === "required") ?? "transcribe-engine")}
             {variantPicker("Parakeet-TDT 0.6B v3", ["parakeet", "parakeet-ultra"], ASR_VARIANT_I18N)}
           </>
         ) : asrEngine === "nemotron" ? (
           <>
-            {get("transcribe-engine-cpu")?.requirement === "required" ? rowOf("transcribe-engine-cpu") : rowOf("transcribe-engine")}
+            {rowOf(["transcribe-engine", "transcribe-engine-vulkan", "transcribe-engine-cpu"].find((x) => get(x)?.requirement === "required") ?? "transcribe-engine")}
             {rowOf("asr-gguf-nemotron")}
           </>
         ) : (
           <>
-            {rowOf("whisper-engine")}
-            {variantPicker(t("settings.whisperModel"), ["whisper-tiny", "whisper-base", "whisper-small", "whisper-medium", "whisper-large-v3", "whisper-large-v3-turbo"])}
-            {/* Квант Whisper (compute_type) — точность/скорость вычислений, без отдельной скачки. */}
-            <div className="px-2.5 py-2 rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-border)]">
-              <div className="flex items-center gap-2.5">
-                <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-[var(--color-accent)]" />
-                <div className="min-w-0 flex-1">
-                  <div className="text-[12px] font-medium truncate">{t("settings.whisperCompute")} <Hint text={t("settings.whisperComputeHint")} /></div>
-                </div>
-                <select value={whisperCompute} onChange={(e) => { setWhisperCompute(e.target.value); api.setSelection("whisper_compute", e.target.value).catch(() => {}); }}
-                  className="shrink-0 bg-[var(--color-surface)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[11px] mono focus:border-[var(--color-accent)] focus:outline-none">
-                  {(cap?.whisper_computes ?? ["int8", "int8_float16", "float16", "int8_float32", "float32"]).map((q) => <option key={q} value={q}>{q}</option>)}
-                </select>
-              </div>
-            </div>
+            {rowOf("crisperwhisper-turbo")}
           </>
         )}
         {rowOf("silero-vad")}
@@ -394,6 +400,7 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
           <>
             {variantPicker("Gemma-4 12B QAT + vision", ["gemma", "gemma-q5_0", "gemma-q6_k", "gemma-q8_0"])}
             {rowOf("llama")}
+            {status.llamaNote && <p className="text-[11px] text-[var(--color-muted)] px-1">{status.llamaNote}</p>}
           </>
         )}
       </>)}
@@ -401,15 +408,15 @@ export default function ModelsSection({ part = "models" }: { part?: "models" | "
         {/* На чём считать сепарацию — свои табы (GPU CUDA-сборка / CPU-сборка BSRoformer). */}
         {backendTabs("sep_backend")}
         {variantPicker("Mel-Band Roformer voc_fv6", ["roformer", "roformer-q5", "roformer-q4"])}
-        {selv("sep_backend") === "cpu" ? rowOf("bsroformer-engine-cpu") : rowOf("bsroformer-engine")}
+        {rowOf(selv("sep_backend") === "cpu" ? "bsroformer-engine-cpu" : selv("sep_backend") === "vulkan" ? "bsroformer-engine-vulkan" : get("bsroformer-engine-cuda12") ? "bsroformer-engine-cuda12" : "bsroformer-engine")}
         {rowOf("dpdfnet")}
       </>)}
       {group(t("settings.roleDiar"), <>
-        {/* На чём считать диаризацию — свои табы (Nemotron 3 Diarization onnx: CUDA-EP / CPU-провайдер). */}
+        {/* На чём считать диаризацию — свои табы (Nemotron 3 Diarization на сервере audio.cpp). */}
         {backendTabs("diar_backend")}
         {rowOf("sortformer")}
       </>)}
-      {group(t("settings.roleRuntime"), <>{rowOf("onnxruntime")}{(selv("diar_backend") === "gpu" || selv("asr_backend") === "gpu") && rowOf("onnxruntime-gpu")}{(selv("diar_backend") === "gpu" || selv("asr_backend") === "gpu") && rowOf("cudnn")}{rowOf("ffmpeg")}{rowOf("cuda-runtime")}{rowOf("vcruntime")}</>)}
+      {group(t("settings.roleRuntime"), <>{rowOf("onnxruntime")}{selv("asr_backend") === "gpu" && rowOf("onnxruntime-gpu")}{selv("asr_backend") === "gpu" && rowOf("cudnn")}{rowOf("ffmpeg")}{rowOf("cuda-runtime")}{rowOf("cuda12-runtime")}{rowOf("vcruntime")}</>)}
       <YtDlpTool installed={!!get("ytdlp")?.installed} row={rowOf("ytdlp")} />
       {/* Производительность / экономия RAM — ВИДИМЫЕ контролы (не авто-магия): против OOM на слабой памяти. */}
       {group(t("settings.perfTitle"), <>

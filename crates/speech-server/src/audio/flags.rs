@@ -9,6 +9,7 @@
 use realfft::RealFftPlanner;
 
 /// Every kind, in the order the settings list them.
+#[cfg(test)]
 pub const KINDS: [&str; 10] = ["defect", "clipping", "length", "edge", "long_pause", "little_speech", "loudness", "pause_noise", "audio_repeat", "whistle"];
 /// On unless the project turns them off.
 pub const CHEAP: [&str; 8] = ["defect", "clipping", "length", "edge", "long_pause", "little_speech", "loudness", "pause_noise"];

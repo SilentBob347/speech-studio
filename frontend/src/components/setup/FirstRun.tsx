@@ -16,7 +16,7 @@ import OpenRouterKey from "../OpenRouterKey";
 import HubTelemetryPreview from "../HubTelemetryPreview";
 import PresetsSection from "./PresetsSection";
 import { ASR_VARIANT_I18N } from "../../lib/modelVariants";
-import { PROGRAMS } from "../../lib/programs";
+import { takenFromLabel } from "../../lib/programs";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
@@ -29,17 +29,17 @@ const QUANT_GROUP: Record<string, string> = {
   roformer: "roformer", "roformer-q5": "roformer", "roformer-q4": "roformer",
   "qwen3-tts": "qwen3", "qwen3-tts-q8_0": "qwen3",
   "qwen3-tts-design": "qwen3design", "qwen3-tts-design-q8_0": "qwen3design",
-  "whisper-tiny": "whisper", "whisper-base": "whisper", "whisper-small": "whisper", "whisper-medium": "whisper",
-  "whisper-large-v3": "whisper", "whisper-large-v3-turbo": "whisper",
 };
 
 // Engines, runtimes and helper models: the studio takes them for the models chosen and for this computer's card, so they
 // are not a choice on this screen.
-const SERVICE = new Set([
-  "higgs-engine", "qwen3-tts-engine", "transcribe-engine", "transcribe-engine-cpu", "whisper-engine", "whisper-cuda",
+const SERVICE_IDS = new Set([
+  "higgs-engine", "qwen3-tts-engine", "transcribe-engine", "transcribe-engine-cpu", "transcribe-engine-vulkan",
   "langid", "silero-vad", "bsroformer-engine", "bsroformer-engine-cpu", "llama", "onnxruntime", "onnxruntime-gpu",
-  "ffmpeg", "cuda-runtime", "cudnn", "vcruntime",
+  "ffmpeg", "cuda-runtime", "cuda12-runtime", "cudnn", "vcruntime",
 ]);
+// the other builds of the audio.cpp server and of Qwen3-TTS, fetched when a stage is set to their device
+const isService = (id: string) => SERVICE_IDS.has(id) || /^(audiocpp|qwen3-tts)-(cuda13|cuda12|vulkan|cpu)$/.test(id);
 
 /** The service parts a chosen model runs on; of two builds of one engine, the one the server asks for on this computer. */
 function needs(id: string, s: SetupStatus): string[] {
@@ -51,8 +51,16 @@ function needs(id: string, s: SetupStatus): string[] {
   };
   if (id.startsWith("higgs")) return ["higgs-engine"];
   if (id.startsWith("qwen3-tts")) return ["qwen3-tts-engine"];
-  if (id.startsWith("parakeet") || id === "asr-gguf-nemotron") return [build("transcribe-engine", "transcribe-engine-cpu"), "langid", "silero-vad"];
-  if (QUANT_GROUP[id] === "whisper") return s.gpu?.nvidia ? ["whisper-engine", "whisper-cuda"] : ["whisper-engine"];
+  if (id.startsWith("parakeet") || id === "asr-gguf-nemotron") {
+    // the build the server owes for this computer (CUDA, Vulkan or the processor)
+    const owed = ["transcribe-engine", "transcribe-engine-vulkan", "transcribe-engine-cpu"].find((x) => s.components.find((c) => c.id === x)?.requirement === "required");
+    return [owed ?? build("transcribe-engine", "transcribe-engine-cpu"), "langid", "silero-vad"];
+  }
+  if (id === "crisperwhisper-turbo") {
+    // «auto» is heard by VoxLingua107 on the transcribe.cpp build the server owes for this computer
+    const owed = ["transcribe-engine", "transcribe-engine-vulkan", "transcribe-engine-cpu"].find((x) => s.components.find((c) => c.id === x)?.requirement === "required");
+    return [owed ?? build("transcribe-engine", "transcribe-engine-cpu"), "langid"];
+  }
   if (id.startsWith("roformer")) return [build("bsroformer-engine", "bsroformer-engine-cpu")];
   if (id.startsWith("gemma")) return ["llama"];
   return [];
@@ -115,7 +123,7 @@ export default function FirstRun() {
   const fetchIds = new Set<string>(sel);
   if (status) for (const id of sel) needs(id, status).forEach((x) => fetchIds.add(x));
   const selectedComps = status ? status.components.filter((c) => fetchIds.has(c.id) && c.delivery === "download" && !c.installed) : [];
-  const serviceComps = selectedComps.filter((c) => SERVICE.has(c.id));
+  const serviceComps = selectedComps.filter((c) => isService(c.id));
   const selectedBytes = selectedComps.reduce((a, c) => a + Math.max(0, c.size - c.bytesOnDisk), 0);
   const selectedSpace = selectedComps.reduce((a, c) => a + c.spaceNeeded, 0);
   const noSpace = status?.freeBytes != null && selectedSpace > status.freeBytes;
@@ -125,7 +133,7 @@ export default function FirstRun() {
     c.delivery === "bundled" ? t("setup.reinstallHint") : c.delivery === "external" ? t("setup.external") : "";
   const GROUP_LABEL: Record<string, string> = {
     higgs: t("setup.grpHiggs"), gemma: t("setup.grpGemma"), parakeet: t("setup.grpParakeet"), roformer: t("setup.grpRoformer"),
-    qwen3: t("setup.grpQwen"), qwen3design: t("setup.grpQwenDesign"), whisper: t("setup.grpWhisper"),
+    qwen3: t("setup.grpQwen"), qwen3design: t("setup.grpQwenDesign"),
   };
   const pickOne = (id: string | null, group: string) => setSel((prev) => {   // radio внутри семейства: выбрать этот квант, снять остальные того же семейства
     const n = new Set(prev);
@@ -133,7 +141,7 @@ export default function FirstRun() {
     if (id) n.add(id);
     return n;
   });
-  const comps = (status?.components ?? []).filter((c) => !SERVICE.has(c.id) && !(c.delivery === "external" && c.installed));
+  const comps = (status?.components ?? []).filter((c) => !isService(c.id) && !(c.delivery === "external" && c.installed));
   const gseen = new Set<string>();
   type SetupRow = { kind: "one"; c: SetupComponent } | { kind: "group"; group: string; members: SetupComponent[] };
   const rows: SetupRow[] = comps.flatMap((c): SetupRow[] => {   // одиночные компоненты + по одной группе квантов (на первом её члене)
@@ -217,7 +225,7 @@ export default function FirstRun() {
                               {isDefault
                                 ? <span className="text-[9px] px-1.5 py-0.5 rounded bg-[color-mix(in_oklab,var(--color-accent)_16%,transparent)] text-[var(--color-accent)] uppercase tracking-wide shrink-0">{t("setup.default")}</span>
                                 : <span className="text-[9px] px-1.5 py-0.5 rounded bg-[var(--color-surface-2)] text-[var(--color-muted)] uppercase tracking-wide shrink-0">{t("setup.alt")}</span>}
-                              {c.installed && <span className="text-[10px] text-[var(--color-accent)] shrink-0">{c.takenFrom ? t("setup.takenFrom", { app: PROGRAMS[c.takenFrom] ?? c.takenFrom }) : t("setup.installed")}</span>}
+                              {c.installed && <span className="text-[10px] text-[var(--color-accent)] shrink-0">{c.takenFrom ? takenFromLabel(t, c.takenFrom) : t("setup.installed")}</span>}
                             </div>
                             {ASR_VARIANT_I18N[c.id] && <div className="text-[11px] leading-snug text-[var(--color-muted)]">{t(ASR_VARIANT_I18N[c.id].hint)}</div>}
                             {c.fitsVram === false && !c.installed && <div className="text-[11px] leading-snug text-[var(--color-warn)]">{t("setup.noVram")}</div>}
@@ -266,7 +274,7 @@ export default function FirstRun() {
                         : <button onClick={() => c.externalUrl && window.open(c.externalUrl, "_blank")}
                             className="inline-flex items-center gap-1 text-[12px] text-[var(--color-accent-2)] hover:underline"><ExternalLink size={13} />{t("setup.openDriver")}</button>
                     ) : c.installed ? (
-                      <span className="text-[12px] text-[var(--color-accent)]">{c.takenFrom ? t("setup.takenFrom", { app: PROGRAMS[c.takenFrom] ?? c.takenFrom }) : t("setup.installed")}</span>
+                      <span className="text-[12px] text-[var(--color-accent)]">{c.takenFrom ? takenFromLabel(t, c.takenFrom) : t("setup.installed")}</span>
                     ) : c.delivery === "bundled" ? (
                       <span className="text-[11px] text-[var(--color-muted)] max-w-[120px] inline-block leading-tight">{deliveryNote(c)}</span>
                     ) : (

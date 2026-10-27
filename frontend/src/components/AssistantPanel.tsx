@@ -56,7 +56,7 @@ function ToolChip({ tool }: { tool: ChatEntry["tools"][number] }) {
  */
 export default function AssistantPanel({ onClose }: { onClose: () => void }) {
   const { t, i18n } = useTranslation();
-  useEscapeLayer(onClose);
+  useEscapeLayer(onClose, true, false);
   const mode = useStore((s) => s.mode);
   const entries = useChatStore((s) => s.entries);
   const model = useChatStore((s) => s.model);

@@ -96,6 +96,8 @@ pub fn is_provided_by_the_system(name: &str) -> bool {
         || name.starts_with("ext-ms-win-")
         // Библиотека самого драйвера NVIDIA: по правилам NVIDIA не распространяется, её ставит драйвер.
         || name == "nvcuda.dll"
+        // the Vulkan loader comes with every current graphics driver (NVIDIA, AMD, Intel)
+        || name == "vulkan-1.dll"
         || [
             "kernel32.dll", "kernelbase.dll", "ntdll.dll", "user32.dll", "gdi32.dll", "advapi32.dll", "shell32.dll",
             "shlwapi.dll", "ole32.dll", "oleaut32.dll", "combase.dll", "ws2_32.dll", "crypt32.dll", "bcrypt.dll",

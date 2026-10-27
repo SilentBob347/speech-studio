@@ -76,10 +76,19 @@ fn engine_for(p: &ListenPaths, project: &ListenProject, lang: &str) -> Result<En
     }
     let choice = crate::engines::models::resolve_asr_choice(&p.repo_root, &p.models_root, &sel);
     match &choice {
-        crate::engines::models::AsrChoice::Whisper { .. } => Ok(Engine::Local(choice, "whisper")),
+        crate::engines::models::AsrChoice::CrisperWhisper { .. } => Ok(Engine::Local(choice, "whisper")),
         _ if picked == "whisper" => Err(if for_lang { t!("listen-whisper-for-lang", lang = lang.to_string()) } else { t!("listen-whisper-missing") }),
         crate::engines::models::AsrChoice::Ggml { build, model, .. } => {
             if !crate::engines::tcpp_asr::installed(&p.models_root, *build, model) {
+                return Err(t!("listen-gguf-missing", engine = model.name));
+            }
+            if !crate::engines::tcpp_asr::knows(model, lang) {
+                return Err(t!("listen-gguf-lang", engine = model.name, lang = lang.to_string()));
+            }
+            Ok(Engine::Local(choice.clone(), if model.id == "nemotron" { "nemotron" } else { "parakeet" }))
+        }
+        crate::engines::models::AsrChoice::Server { model, .. } => {
+            if !dub_asr::tcpp::model_path(&p.models_root, model).is_file() {
                 return Err(t!("listen-gguf-missing", engine = model.name));
             }
             if !crate::engines::tcpp_asr::knows(model, lang) {
@@ -191,14 +200,14 @@ pub fn apply_fixes(words: &mut Vec<Word>, fixes: &[Fix]) -> usize {
 }
 
 fn join_words(words: &[Word]) -> String {
-    words.iter().map(|w| w.text.trim()).filter(|t| !t.is_empty()).collect::<Vec<_>>().join(" ")
+    dub_asr::join_text(words.iter().map(|w| w.text.as_str()))
 }
 
 /// Отделённый голос записи в 16 кГц (Roformer); ошибка — явная, без тихого перехода на сырую запись.
 fn separate(p: &ListenPaths, src: &Path, work: &Path) -> Result<PathBuf, String> {
     crate::engines::tts_host::make_room();
     let sel = crate::engines::models::load_selection(&p.models_root);
-    let cli = dub_sep::engine_cli(&p.repo_root, crate::engines::models::stage_backend(&p.models_root, "sep_backend"));
+    let cli = crate::engines::models::sep_cli(&p.repo_root, &p.models_root)?;
     let model = crate::engines::models::resolve_sep(&p.models_root, &sel);
     if !cli.is_file() || !model.is_file() {
         return Err(t!("listen-separate-missing"));
@@ -206,6 +215,8 @@ fn separate(p: &ListenPaths, src: &Path, work: &Path) -> Result<PathBuf, String>
     let hq = work.join("mix-44k.wav");
     crate::audio::media::extract_audio(src, &hq, 44_100, 2)?;
     let stems = work.join("stems");
+    dub_tcpp::cpu_floor("BSRoformer")?;
+    tracing::info!("separation: {}", cli.display());
     let res = dub_sep::separate(&hq, &stems, &cli, &model).map_err(|e| e.localize())?;
     let clean = work.join("vocals16.wav");
     crate::audio::media::to_16k_mono(&res.vocals, &clean)?;
@@ -217,8 +228,9 @@ fn separate(p: &ListenPaths, src: &Path, work: &Path) -> Result<PathBuf, String>
 pub fn separate_to(repo_root: &Path, models_root: &Path, src: &Path, out: &Path, progress: &dyn Fn(Value)) -> Result<Value, String> {
     crate::engines::tts_host::make_room();
     crate::app::ensure_job_components(repo_root, models_root, false, false, &|ev| progress(ev))?;
+    crate::app::ensure_components(repo_root, &crate::engines::models::sep_components(models_root)?, &|ev| progress(ev))?;
     let sel = crate::engines::models::load_selection(models_root);
-    let cli = dub_sep::engine_cli(repo_root, crate::engines::models::stage_backend(models_root, "sep_backend"));
+    let cli = crate::engines::models::sep_cli(repo_root, models_root)?;
     let model = crate::engines::models::resolve_sep(models_root, &sel);
     if !cli.is_file() || !model.is_file() {
         return Err(t!("listen-separate-missing"));
@@ -227,6 +239,8 @@ pub fn separate_to(repo_root: &Path, models_root: &Path, src: &Path, out: &Path,
     let work = tempfile::Builder::new().prefix("separate-").tempdir().map_err(|e| e.to_string())?;
     let hq = work.path().join("mix-44k.wav");
     crate::audio::media::extract_audio(src, &hq, 44_100, 2)?;
+    dub_tcpp::cpu_floor("BSRoformer")?;
+    tracing::info!("separation: {} ({})", cli.display(), crate::engines::models::server_choice(models_root, "sep_backend"));
     let res = dub_sep::separate(&hq, &work.path().join("stems"), &cli, &model).map_err(|e| e.localize())?;
     std::fs::create_dir_all(out).map_err(|e| format!("{}: {e}", out.display()))?;
     let vocals = out.join("vocals.flac");
@@ -238,26 +252,31 @@ pub fn separate_to(repo_root: &Path, models_root: &Path, src: &Path, out: &Path,
 }
 
 fn diarize(p: &ListenPaths, wav: &Path, speakers: u8) -> Result<Vec<dub_asr::Turn>, String> {
-    std::env::set_var("DUB_ASR_BACKEND", crate::engines::models::stage_backend(&p.models_root, "diar_backend"));
-    let turns = match speakers {
-        1 => return Ok(Vec::new()),
-        0 => dub_asr::turns(wav, &p.sortformer_onnx, 0.8, 2.5).map_err(|e| e.localize())?,
+    if speakers == 1 {
+        return Ok(Vec::new());
+    }
+    let build = crate::engines::acpp::build_for(crate::engines::models::server_choice(&p.models_root, "diar_backend"))?;
+    let server = crate::engines::acpp::server(&p.repo_root, &p.models_root, build, crate::engines::acpp::DIAR)?;
+    tracing::info!("diarization: Nemotron 3 Diarization on audiocpp_server {}", crate::engines::models::build_name(build));
+    let diarizer = dub_asr::Diarizer::Server { server, model: crate::engines::acpp::DIAR };
+    let turns = (|| match speakers {
+        0 => dub_asr::turns(wav, &diarizer, 0.8, 2.5).map_err(|e| e.localize()),
         n => {
             let mut embedder = dub_faces::VoiceEmbedder::load(&dub_faces::wespeaker_path(&p.models_root)).map_err(|e| e.to_string())?;
             let mut embed = |samples: &[f32]| embedder.embed_samples(samples).map_err(|e| e.to_string());
-            dub_asr::turns_with_speaker_count(wav, &p.sortformer_onnx, n as usize, &mut embed).map_err(|e| e.localize())?
+            dub_asr::turns_with_speaker_count(wav, &diarizer, n as usize, &mut embed).map_err(|e| e.localize())
         }
-    };
-    Ok(turns.turns)
+    })();
+    crate::engines::acpp::unload(&[crate::engines::acpp::DIAR]);
+    Ok(turns?.turns)
 }
 
 /// Распознать по кускам, на которые запись режут паузы (Silero VAD): тишина не идёт в распознаватель, а длинная
 /// запись не грузится в него целиком.
 #[allow(clippy::too_many_arguments)]
-fn recognise_by_pauses(p: &ListenPaths, choice: &crate::engines::models::AsrChoice, wav: &Path, work: &Path, lang: &str, vad: &crate::engines::vad::VadConfig, prompt: Option<String>, progress: &dyn Fn(Value)) -> Result<Vec<dub_asr::Segment>, String> {
-    if !crate::engines::vad::installed(&p.models_root) {
-        return Err(t!("vad-missing"));
-    }
+fn recognise_by_pauses(p: &ListenPaths, choice: &crate::engines::models::AsrChoice, wav: &Path, work: &Path, lang: &str, vad: &crate::engines::vad::VadConfig, progress: &dyn Fn(Value)) -> Result<Vec<dub_asr::Segment>, String> {
+    let lacking = crate::engines::vad::missing(&p.models_root);
+    crate::app::ensure_components(&p.repo_root, &lacking.iter().map(String::as_str).collect::<Vec<_>>(), &|ev| progress(ev))?;
     let (samples, sr) = crate::audio::wavio::read_mono_f32(wav)?;
     if sr as usize != crate::engines::vad::SR {
         return Err(format!("{}: {sr} Hz, the speech finder takes {} Hz", wav.display(), crate::engines::vad::SR));
@@ -268,7 +287,7 @@ fn recognise_by_pauses(p: &ListenPaths, choice: &crate::engines::models::AsrChoi
     if windows.is_empty() {
         return Err(t!("listen-no-speech", threshold = format!("{:.2}", vad.threshold)));
     }
-    let mut asr = crate::engines::asr::build_engine(choice, prompt);
+    let mut asr = crate::engines::asr::build_engine(choice, None)?;
     let mut all = Vec::new();
     for (k, &(a, b)) in windows.iter().enumerate() {
         step(progress, t!("listen-step-asr-piece", n = (k + 1) as i64, total = windows.len() as i64), 45 + (k * 40 / windows.len().max(1)) as i64);
@@ -294,10 +313,12 @@ fn recognise(p: &ListenPaths, engine: &Engine, wav: &Path, work: &Path, s: &lp::
     let lines = match engine {
         Engine::Local(choice, _) => {
             std::env::set_var("DUB_ASR_BACKEND", crate::engines::models::stage_backend(&p.models_root, "asr_backend"));
-            // Whisper windows a long recording itself; the others get it in pieces cut at pauses
+            // the server's models window a long recording themselves; transcribe.cpp's get it in pieces cut at pauses
             let segments = match choice {
-                crate::engines::models::AsrChoice::Whisper { .. } => crate::engines::asr::build_engine(choice, prompt).transcribe(wav, lang).map_err(|e| e.localize())?,
-                crate::engines::models::AsrChoice::Ggml { .. } => recognise_by_pauses(p, choice, wav, work, lang, &s.vad, prompt, progress)?,
+                crate::engines::models::AsrChoice::CrisperWhisper { .. } | crate::engines::models::AsrChoice::Server { .. } => {
+                    crate::engines::asr::build_engine(choice, prompt)?.transcribe(wav, lang).map_err(|e| e.localize())?
+                }
+                crate::engines::models::AsrChoice::Ggml { .. } => recognise_by_pauses(p, choice, wav, work, lang, &s.vad, progress)?,
             };
             dub_asr::split_at_speaker_turns(segments, turns)
                 .into_iter()
@@ -406,7 +427,11 @@ pub fn transcribe(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Resul
     let mix = work.join("audio16.wav");
     crate::audio::media::to_16k_mono(&src, &mix)?;
     let studio_model = match &engine {
-        Engine::Local(crate::engines::models::AsrChoice::Ggml { model, .. }, _) if matches!(s.lang.as_str(), "" | "auto") => Some(*model),
+        Engine::Local(crate::engines::models::AsrChoice::Ggml { model, .. } | crate::engines::models::AsrChoice::Server { model, .. }, _)
+            if matches!(s.lang.as_str(), "" | "auto") =>
+        {
+            Some(*model)
+        }
         _ => None,
     };
     if let Some(model) = studio_model {
@@ -419,6 +444,7 @@ pub fn transcribe(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Resul
     }
     let clean = if s.separate {
         step(progress, t!("listen-step-separate"), 8);
+        crate::app::ensure_components(&p.repo_root, &crate::engines::models::sep_components(&p.models_root)?, &|ev| progress(ev))?;
         Some(separate(p, &src, &work)?)
     } else {
         None
@@ -461,7 +487,7 @@ pub fn transcribe(p: &ListenPaths, pid: &str, progress: &dyn Fn(Value)) -> Resul
         }
     }
     let by = match &engine {
-        Engine::Local(crate::engines::models::AsrChoice::Whisper { model, .. }, _) => format!("whisper:{model}"),
+        Engine::Local(crate::engines::models::AsrChoice::CrisperWhisper { .. }, _) => "whisper:crisperwhisper-2.0-turbo".to_string(),
         Engine::Local(_, tag) => tag.to_string(),
         Engine::Cloud(model) => format!("openrouter:{model}"),
         Engine::Fal(model) => format!("fal:{model}"),
@@ -620,7 +646,7 @@ pub fn align_to_text(project: &ListenProject, reference: &str) -> Vec<Line> {
 }
 
 pub fn check_reference(project: &ListenProject, reference: &str) -> Result<Value, String> {
-    let heard: String = project.shown().map(|l| l.text.as_str()).collect::<Vec<_>>().join(" ");
+    let heard = dub_asr::join_text(project.shown().map(|l| l.text.as_str()));
     let (reference, heard) = crate::audio::qc::said_alike(reference, &heard, &crate::text::prep::block_lang(reference, &project.settings.lang))?;
     let e = crate::audio::qc::normalize(&reference);
     let h = crate::audio::qc::normalize(&heard);
@@ -654,6 +680,14 @@ mod tests {
         assert_eq!((lines[0].text.as_str(), lines[0].speaker.as_str()), ("Привет, GitHub!", "0"));
         assert_eq!((lines[1].text.as_str(), lines[1].speaker.as_str()), ("Как дела?", "1"));
         assert!((lines[0].start - 0.5).abs() < 1e-6 && (lines[1].words[0].start - 3.0).abs() < 1e-6, "{lines:?}");
+    }
+
+    /// A line's text joins its words as the language writes: Chinese without spaces, Russian with them.
+    #[test]
+    fn a_line_joins_its_words_as_the_language_writes() {
+        let words = |ws: &[&str]| ws.iter().map(|w| Word { text: (*w).into(), start: 0.0, end: 0.0, cut: false }).collect::<Vec<_>>();
+        assert_eq!(join_words(&words(&["今天", "天", "气", "很好", ","])), "今天天气很好,");
+        assert_eq!(join_words(&words(&["Победа", "пришла", "в", "1945", "году", "."])), "Победа пришла в 1945 году.");
     }
 
     fn word(text: &str, start: f64, end: f64) -> Word {

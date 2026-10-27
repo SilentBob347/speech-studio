@@ -52,7 +52,7 @@ function ModeSwitcher() {
           <button key={id} type="button" role="tab" aria-selected={active} onClick={() => setMode(id)} title={t(hint, { keys: id === "speech" ? keys.modeSpeech : id === "listening" ? keys.modeListening : keys.modeLive })} aria-label={t(label)}
             className={`flex h-7 items-center gap-1.5 rounded-md px-3 text-[12px] font-medium transition-colors ${active ? "bg-[var(--color-surface)] text-[var(--color-text)] shadow-sm" : "text-[var(--color-muted)] hover:text-[var(--color-text)]"}`}>
             <Icon size={14} className={active ? "text-[var(--color-accent)]" : ""} />
-            <span className="hidden md:inline">{t(label)}</span>
+            <span className="hidden lg:inline">{t(label)}</span>
           </button>
         );
       })}
@@ -190,6 +190,9 @@ export default function TopBar() {
   const [settings, setSettings] = useState<{ target: string; request: number } | null>(null);
   const [help, setHelp] = useState(false);
   const [voices, setVoices] = useState(false);
+  const setOverlay = useStore((s) => s.setOverlay);
+  const settingsOpen = settings !== null;
+  useEffect(() => { setOverlay(settingsOpen ? "settings" : voices ? "library" : null); }, [settingsOpen, voices, setOverlay]);
   const [assistant, setAssistant] = useState(false);
   const openSettingsAt = (target: string) => setSettings(settingsRequest(target));
   useEffect(() => {

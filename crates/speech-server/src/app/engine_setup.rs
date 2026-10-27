@@ -25,6 +25,8 @@ pub struct SetupStatus {
     pub driver_ok: bool,
     /// build-строки для диагностики (llama-билд и т.п.).
     pub llama_build: String,
+    /// Why the assistant runs another build than the card's (a CUDA build the system cannot start); None when it does not.
+    pub llama_note: Option<String>,
     /// Папка моделей (куда кладёт «Первый запуск»).
     pub models_dir: String,
     /// Свободно на томе моделей, байт; None — ОС не ответила, место не проверяется.
@@ -101,7 +103,7 @@ pub fn setup_status(repo_root: &Path) -> SetupStatus {
         let is_gemma = c.id.starts_with("gemma") || c.id == "llama";
         let is_higgs = c.id.starts_with("higgs");
         let is_asr =
-            c.id.starts_with("parakeet") || c.id.starts_with("whisper") || c.id.starts_with("transcribe-engine") || c.id == "langid";
+            c.id.starts_with("parakeet") || c.id.starts_with("crisperwhisper") || c.id.starts_with("transcribe-engine") || c.id == "langid";
         if (cloud_llm && is_gemma) || (cloud_tts && is_higgs) || (cloud_asr && is_asr) {
             c.requirement = Requirement::Optional;
         }
@@ -111,12 +113,10 @@ pub fn setup_status(repo_root: &Path) -> SetupStatus {
     // первом запуске), а CUDA-движок + CUDA-рантайм — необязательными (не тянем лишние гигабайты).
     // В GPU-режиме наоборот: CPU-движок не нужен.
     let backend = crate::engines::models::local_backend(&mroot);
-    let asr_cpu = crate::engines::models::tcpp_build(&mroot) == dub_asr::tcpp::Build::Cpu;
+    let asr_build = crate::engines::models::tcpp_build(&mroot);
     for c in comps.iter_mut() {
-        if !cloud_asr && c.id == "transcribe-engine" {
-            c.requirement = if asr_cpu { Requirement::Optional } else { Requirement::Required };
-        } else if !cloud_asr && c.id == "transcribe-engine-cpu" {
-            c.requirement = if asr_cpu { Requirement::Required } else { Requirement::Optional };
+        if !cloud_asr && dub_asr::tcpp::Build::ALL.iter().any(|b| b.dir() == c.id) {
+            c.requirement = if c.id == asr_build.dir() { Requirement::Required } else { Requirement::Optional };
         }
         if backend == "cpu" {
             if c.id == "bsroformer-engine-cpu" {
@@ -153,6 +153,7 @@ pub fn setup_status(repo_root: &Path) -> SetupStatus {
         download_pending,
         driver_ok: gpu.nvidia,
         llama_build: GH_LLAMA_BUILD.to_string(),
+        llama_note: crate::setup::llama_note(),
         models_dir: mroot.to_string_lossy().to_string(),
         free_bytes: free_bytes(&mroot),
         gpu,
@@ -303,24 +304,27 @@ fn ensure_job_components_with(
     if similarity && missing("wespeaker") {
         need.push("wespeaker".to_string());
     }
-    // Любая локальная стадия на GPU → полный CUDA-стек: диаризация/ASR грузят onnxruntime-GPU + cuDNN,
+    // Любая локальная стадия на GPU → полный CUDA-стек: ASR грузит onnxruntime-GPU + cuDNN,
     // ggml-движки (сепарация/Higgs) — cuda-runtime (cudart/cublas/cuFFT). Без cuFFT CUDA-EP не поднимется.
-    let gpu = ["sep_backend", "diar_backend", "asr_backend"]
+    let gpu = ["sep_backend", "asr_backend"]
         .iter()
         .any(|k| models::stage_backend(models_root, k) == "gpu");
     if gpu {
-        for id in ["cuda-runtime", "onnxruntime-gpu", "cudnn", "bsroformer-engine"] {
+        for id in ["cuda-runtime", "onnxruntime-gpu", "cudnn"] {
             if missing(id) {
                 need.push(id.to_string());
             }
         }
     }
-    // Whisper на GPU: CTranslate2 требует cuBLAS12 + cuDNN8 РЯДОМ с whisper-faster.exe (наш ONNX-стек
-    // выше — CUDA 13, whisper'у не подходит). Без них whisper молча идёт на CPU. Тянем их только когда
-    // движок ASR = Whisper И стадия ASR на GPU.
-    let asr_whisper = models::load_selection(models_root).get("asr_engine").and_then(|v| v.as_str()) == Some("whisper");
-    if asr_whisper && models::stage_backend(models_root, "asr_backend") == "gpu" && missing("whisper-cuda") {
-        need.push("whisper-cuda".to_string());
+    // Диаризация идёт на сервере audio.cpp: сборка устройства диаризации и её CUDA-рантайм.
+    if diarization {
+        let build = crate::engines::acpp::build_for(models::server_choice(models_root, "diar_backend"))?;
+        let parts = std::iter::once(crate::engines::acpp::component(build)).chain(crate::engines::acpp::runtime_component(build));
+        for id in parts {
+            if missing(id) && !need.iter().any(|n| n == id) {
+                need.push(id.to_string());
+            }
+        }
     }
     // Диаризация (дубляж/транскрипт) → модель Nemotron 3 Diarization. Её сбой закачки не валит джобу:
     // анализ штатно деградирует в single-speaker и пишет об этом в журнал (см. analyze::run).

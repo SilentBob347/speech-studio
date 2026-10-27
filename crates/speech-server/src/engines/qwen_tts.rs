@@ -6,6 +6,7 @@ use std::ffi::{c_char, c_void, CStr, CString};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use acpp_server::asset::Build;
 use libloading::Library;
 
 pub const ENGINE: &str = "qwen3-tts";
@@ -27,8 +28,11 @@ pub const QUANTS: &[(&str, &str, &str)] = &[
 ];
 #[cfg(windows)]
 pub const LIBRARY: &str = "qwen.dll";
-#[cfg(not(windows))]
+#[cfg(target_os = "linux")]
 pub const LIBRARY: &str = "libqwen.so";
+/// macOS: the CPU backend and Metal are linked into the library, so no device has a module beside it.
+#[cfg(target_os = "macos")]
+pub const LIBRARY: &str = "libqwen.dylib";
 /// The speakers of the CustomVoice checkpoints with the native language the model card gives them.
 pub const SPEAKERS: &[(&str, &str, &str, &str, &str)] = &[
     ("vivian", "Vivian", "female", "zh", "Bright, slightly edgy young female voice."),
@@ -133,7 +137,8 @@ struct Api {
 
 /// The library, loaded once and kept for the life of the process: ggml's static initialiser refuses a second load
 /// at the address it had (its terminate handler would already be the one it installs), so freeing the library and
-/// loading it again aborts the process.
+/// loading it again aborts the process. Its device backends are modules it loads beside itself as a device is first
+/// used, so one library serves every device and a device change only reloads the model.
 static LOADED: std::sync::Mutex<Option<(Library, Api)>> = std::sync::Mutex::new(None);
 
 fn library(dir: &Path) -> Result<Api, String> {
@@ -198,6 +203,63 @@ pub fn dir(models_root: &Path) -> PathBuf {
     models_root.join(DIR)
 }
 
+/// The ggml backend module of a device the library loads beside itself; the CPU one ships with the library.
+#[cfg(windows)]
+fn module(build: Build) -> Option<&'static str> {
+    match build {
+        Build::Cuda13 | Build::Cuda12 => Some("ggml-cuda.dll"),
+        Build::Vulkan => Some("ggml-vulkan.dll"),
+        Build::Cpu | Build::Metal => None,
+    }
+}
+#[cfg(not(windows))]
+fn module(build: Build) -> Option<&'static str> {
+    match build {
+        Build::Cuda13 | Build::Cuda12 => Some("libggml-cuda.so"),
+        Build::Vulkan => Some("libggml-vulkan.so"),
+        Build::Cpu | Build::Metal => None,
+    }
+}
+
+/// The ggml device the library runs a build on; the studio exposes one card, so the CUDA device is the first.
+pub fn device(build: Build) -> &'static str {
+    match build {
+        Build::Cuda13 | Build::Cuda12 => "CUDA0",
+        Build::Vulkan => "Vulkan0",
+        Build::Cpu => "CPU",
+        Build::Metal => "MTL0",
+    }
+}
+
+/// The component of a device's backend module: the CUDA one is the build of this computer's card.
+pub fn module_component(build: Build) -> Option<&'static str> {
+    match build {
+        Build::Cuda13 | Build::Cuda12 => Some("qwen3-tts-cuda"),
+        Build::Vulkan => Some("qwen3-tts-vulkan"),
+        Build::Cpu | Build::Metal => None,
+    }
+}
+
+/// The components the voicing device needs: the engine, the device's backend module and its CUDA runtime.
+pub fn build_components(models_root: &Path) -> Result<Vec<&'static str>, String> {
+    let build = build(models_root)?;
+    Ok(std::iter::once("qwen3-tts-engine")
+        .chain(module_component(build))
+        .chain(crate::engines::acpp::runtime_component(build))
+        .collect())
+}
+
+/// The build the voicing device of the settings runs Qwen on (`tts_backend`, see `acpp::build_for`).
+pub fn build(models_root: &Path) -> Result<Build, String> {
+    crate::engines::acpp::build_for(crate::engines::models::server_choice(models_root, "tts_backend"))
+}
+
+/// The library and the backend module of the voicing device are on disk.
+fn library_installed(models_root: &Path) -> bool {
+    let d = dir(models_root);
+    d.join(LIBRARY).is_file() && build(models_root).is_ok_and(|b| module(b).is_none_or(|m| d.join(m).is_file()))
+}
+
 pub fn is_engine(id: &str) -> bool {
     id == ENGINE || id == ENGINE_STRESS
 }
@@ -215,13 +277,12 @@ pub fn design_talker(models_root: &Path, quant: &str) -> PathBuf {
 
 /// The engine, its codec and the VoiceDesign talker of the quantisation are on disk.
 pub fn design_installed(models_root: &Path, quant: &str) -> bool {
-    let d = dir(models_root);
-    d.join(LIBRARY).is_file() && d.join(CODEC).is_file() && design_talker(models_root, quant).is_file()
+    library_installed(models_root) && dir(models_root).join(CODEC).is_file() && design_talker(models_root, quant).is_file()
 }
 
 pub fn installed(models_root: &Path, quant: &str, clone: bool, stress: bool) -> bool {
     let d = dir(models_root);
-    d.join(LIBRARY).is_file()
+    library_installed(models_root)
         && d.join(CODEC).is_file()
         && talker(models_root, quant, clone).is_some_and(|t| t.is_file())
         && (!stress || d.join(STRESS_LORA).is_file())
@@ -263,35 +324,38 @@ unsafe extern "C" fn cancel_trampoline(user: *mut c_void) -> bool {
 impl Engine {
     /// Loads the library (its CUDA libraries are found on PATH) and the talker of `quant`: Base when `clone`, else
     /// CustomVoice; `stress` adds the Russian stress adapter to the Base talker.
-    pub fn load(models_root: &Path, quant: &str, clone: bool, stress: bool) -> Result<Engine, String> {
+    pub fn load(models_root: &Path, build: Build, quant: &str, clone: bool, stress: bool) -> Result<Engine, String> {
         if stress && !clone {
             return Err("qwen3-tts: the stress adapter is trained on the Base talker".into());
         }
         let talker = talker(models_root, quant, clone).ok_or_else(|| format!("qwen3-tts: no quantisation {quant}"))?;
-        Engine::open(models_root, &talker, stress, if clone { "base" } else { "custom_voice" })
+        Engine::open(models_root, build, &talker, stress, if clone { "base" } else { "custom_voice" })
     }
 
     /// The VoiceDesign talker: a voice made from the description in `Say::instruct`, no speaker, no reference.
-    pub fn load_design(models_root: &Path, quant: &str) -> Result<Engine, String> {
-        Engine::open(models_root, &design_talker(models_root, quant), false, "voice_design")
+    pub fn load_design(models_root: &Path, build: Build, quant: &str) -> Result<Engine, String> {
+        Engine::open(models_root, build, &design_talker(models_root, quant), false, "voice_design")
     }
 
-    fn open(models_root: &Path, talker: &Path, stress: bool, expected: &str) -> Result<Engine, String> {
+    fn open(models_root: &Path, build: Build, talker: &Path, stress: bool, expected: &str) -> Result<Engine, String> {
         let d = dir(models_root);
+        let lib = d.clone();
         // its ggml libraries sit beside it under names other engines' libraries could share: this folder comes first
         let path = std::env::var("PATH").unwrap_or_default();
-        if !std::env::split_paths(&path).any(|p| p == d) {
-            let joined = std::env::join_paths(std::iter::once(d.clone()).chain(std::env::split_paths(&path))).map_err(|e| e.to_string())?;
+        if !std::env::split_paths(&path).any(|p| p == lib) {
+            let joined = std::env::join_paths(std::iter::once(lib.clone()).chain(std::env::split_paths(&path))).map_err(|e| e.to_string())?;
             std::env::set_var("PATH", joined);
         }
-        let api = library(&d)?;
+        let api = library(&lib)?;
         let (t, c) = (cstring(&talker.to_string_lossy(), "talker path")?, cstring(&d.join(CODEC).to_string_lossy(), "codec path")?);
         let lora = if stress { Some(cstring(&d.join(STRESS_LORA).to_string_lossy(), "adapter path")?) } else { None };
+        let device = cstring(device(build), "device")?;
         let mut p: InitParams = unsafe { std::mem::zeroed() };
         unsafe { (api.init_default)(&mut p) };
         p.abi_version = ABI_VERSION;
         p.talker_path = t.as_ptr();
         p.codec_path = c.as_ptr();
+        p.device = device.as_ptr();
         if let Some(lora) = &lora {
             p.lora_path = lora.as_ptr();
             p.lora_scale = STRESS_LORA_SCALE;
@@ -421,7 +485,7 @@ mod tests {
     fn speaks_russian_on_the_gpu_and_streams() {
         let root = PathBuf::from(std::env::var("QWEN_ROOT").expect("QWEN_ROOT"));
         let quant = std::env::var("QWEN_QUANT").unwrap_or_else(|_| "Q4_K_M".into());
-        let e = Engine::load(&root, &quant, false, false).unwrap();
+        let e = Engine::load(&root, Build::Cuda13, &quant, false, false).unwrap();
         eprintln!("qwentts {}", e.version());
         let say = Say { text: "Сегодня в восемь вечера мы встретимся у старого моста.", lang: "ru", speaker: Some("ryan"), reference: None, instruct: None, seed: 42, temperature: 0.7, top_k: 50, top_p: 0.9, max_new_tokens: 0 };
         let chunks = std::sync::atomic::AtomicUsize::new(0);
@@ -447,7 +511,7 @@ mod tests {
     #[ignore]
     fn pauses_by_sampling() {
         let root = PathBuf::from(std::env::var("QWEN_ROOT").expect("QWEN_ROOT"));
-        let e = Engine::load(&root, "Q4_K_M", false, false).unwrap();
+        let e = Engine::load(&root, Build::Cuda13, "Q4_K_M", false, false).unwrap();
         let text = "Сегодня утром мы обсудили выпуск, договорились перенести его на пятницу, отдать субтитры Анне, а голоса оставить такими, какие они есть сейчас, потому что менять их перед самым выпуском слишком рискованно.";
         let pauses = |wav: &[f32]| -> Vec<f64> {
             let hop = SAMPLE_RATE as usize / 50;
@@ -491,8 +555,8 @@ mod tests {
     #[ignore]
     fn clones_a_reference_after_the_named_voices_were_freed() {
         let root = PathBuf::from(std::env::var("QWEN_ROOT").expect("QWEN_ROOT"));
-        drop(Engine::load(&root, "Q4_K_M", false, false).unwrap());
-        let e = Engine::load(&root, "Q4_K_M", true, false).unwrap();
+        drop(Engine::load(&root, Build::Cuda13, "Q4_K_M", false, false).unwrap());
+        let e = Engine::load(&root, Build::Cuda13, "Q4_K_M", true, false).unwrap();
         let (reference, sr) = crate::audio::wavio::read_mono_f32(Path::new(&std::env::var("QWEN_REF").expect("QWEN_REF"))).unwrap();
         assert_eq!(sr, SAMPLE_RATE);
         let text = std::env::var("QWEN_REF_TEXT").ok();
@@ -519,9 +583,9 @@ mod tests {
             "Мука\u{301} была\u{301} в мешке\u{301}, а му\u{301}ка — в душе\u{301}.",
             "В а\u{301}тласе на столе\u{301} лежа\u{301}л кусо\u{301}к атла\u{301}са.",
         ];
-        assert!(Engine::load(&root, "Q4_K_M", false, true).is_err(), "the adapter is for the Base talker");
+        assert!(Engine::load(&root, Build::Cuda13, "Q4_K_M", false, true).is_err(), "the adapter is for the Base talker");
         for stress in [false, true] {
-            let e = Engine::load(&root, "Q4_K_M", true, stress).unwrap();
+            let e = Engine::load(&root, Build::Cuda13, "Q4_K_M", true, stress).unwrap();
             for (n, text) in phrases.iter().enumerate() {
                 let say = Say { text, lang: "ru", speaker: None, reference: Some((&reference, ref_text.as_deref())), instruct: None, seed: 11, temperature: 0.7, top_k: 50, top_p: 0.9, max_new_tokens: 0 };
                 let started = std::time::Instant::now();

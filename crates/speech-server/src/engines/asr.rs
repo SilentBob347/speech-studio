@@ -5,46 +5,59 @@ use std::path::{Path, PathBuf};
 /// Выбор ASR-движка для одной джобы: модель transcribe.cpp (Parakeet, Nemotron) либо Whisper (бинарь + модель + квант + девайс).
 #[derive(Debug, Clone)]
 pub enum AsrChoice {
-    /// A GGUF model run by the selected transcribe.cpp build.
-    Ggml {
-        models_root: PathBuf,
-        build: crate::engines::tcpp_asr::Build,
-        model: &'static crate::engines::tcpp_asr::Model,
-    },
-    Whisper {
-        bin: PathBuf,
-        model_dir: PathBuf,
-        model: String,
-        compute: String,
-        device: String,
-    },
+    /// A GGUF model run by transcribe.cpp on the GPU.
+    Ggml { models_root: PathBuf, build: crate::engines::tcpp_asr::Build, model: &'static crate::engines::tcpp_asr::Model },
+    /// CrisperWhisper 2.0 turbo in the studio's audiocpp_server on the build of the recognition device (`choice`, see
+    /// `acpp::build_for`); the language of «auto» is heard by VoxLingua107 on the transcribe.cpp build of that device.
+    CrisperWhisper { repo_root: PathBuf, models_root: PathBuf, choice: &'static str, build: crate::engines::tcpp_asr::Build },
+    /// A model of transcribe.cpp's catalogue (Parakeet TDT v3, Nemotron 3.5) run by the studio's audiocpp_server on the build of the
+    /// recognition device, reading the same GGUF; Live streams it through transcribe.cpp's `build`.
+    Server { repo_root: PathBuf, models_root: PathBuf, choice: &'static str, build: crate::engines::tcpp_asr::Build, model: &'static crate::engines::tcpp_asr::Model },
+}
+
+/// What the window names as the device of a server build.
+fn server_device(choice: &str) -> &'static str {
+    match crate::engines::acpp::build_for(choice) {
+        Ok(acpp_server::asset::Build::Cuda13 | acpp_server::asset::Build::Cuda12) => "CUDA",
+        Ok(acpp_server::asset::Build::Vulkan) => "Vulkan",
+        Ok(acpp_server::asset::Build::Cpu) => "CPU",
+        Ok(acpp_server::asset::Build::Metal) => "Metal",
+        Err(_) => "CUDA",
+    }
 }
 
 impl AsrChoice {
-    /// Participates in ASR cache keys: catalog tokens only, never absolute paths.
+    /// Строка для лога `[models]` — видно, каким движком реально пойдёт транскрипция.
+    /// ВАЖНО: участвует в param_hash ASR-стадии (analyze.rs) — только СТАБИЛЬНЫЕ токены (вариант
+    /// каталога, не абсолютный путь), иначе кэш/чекпоинты инвалидируются от переноса репо между
+    /// машинами/папками (ревью-находка).
+    /// What the window names as the recogniser: the model, its quantization and the transcribe.cpp build, or Whisper's
+    /// model and compute.
     pub fn label(&self) -> String {
         match self {
             AsrChoice::Ggml { model, build, .. } => {
                 let quant = model.file.trim_end_matches(".gguf").rsplit('-').next().unwrap_or(model.file);
                 let on = match build {
                     crate::engines::tcpp_asr::Build::Cuda => "CUDA",
+                    crate::engines::tcpp_asr::Build::Cuda12 => "CUDA 12.9",
                     crate::engines::tcpp_asr::Build::Vulkan => "Vulkan",
                     crate::engines::tcpp_asr::Build::Cpu => "CPU",
                 };
                 format!("{} {quant} ({on})", model.name)
             }
-            AsrChoice::Whisper { model, compute, .. } => format!("Whisper {model} {compute}"),
+            AsrChoice::CrisperWhisper { choice, .. } => format!("CrisperWhisper 2.0 turbo ({})", server_device(choice)),
+            AsrChoice::Server { model, choice, .. } => {
+                let quant = model.file.trim_end_matches(".gguf").rsplit('-').next().unwrap_or(model.file);
+                format!("{} {quant} (audio.cpp, {})", model.name, server_device(choice))
+            }
         }
     }
 
     pub fn describe(&self) -> String {
         match self {
             AsrChoice::Ggml { model, .. } => format!("transcribe.cpp ({})", model.file),
-            AsrChoice::Whisper {
-                model, compute, device, ..
-            } => {
-                format!("Whisper {model} (compute={compute}, device={device})")
-            }
+            AsrChoice::CrisperWhisper { choice, .. } => format!("CrisperWhisper 2.0 turbo (intended, {choice})"),
+            AsrChoice::Server { model, .. } => format!("audiocpp_server ({})", model.file),
         }
     }
 
@@ -53,8 +66,11 @@ impl AsrChoice {
         lang.is_empty()
             || lang == "auto"
             || match self {
-                AsrChoice::Ggml { model, .. } => crate::engines::tcpp_asr::knows(model, lang),
-                AsrChoice::Whisper { .. } => true,
+                AsrChoice::Ggml { model, .. } | AsrChoice::Server { model, .. } => crate::engines::tcpp_asr::knows(model, lang),
+                AsrChoice::CrisperWhisper { .. } => {
+                    let primary = lang.split(['-', '_']).next().unwrap_or("").to_ascii_lowercase();
+                    acpp_server::language::whisper_code(&primary).is_ok()
+                }
             }
     }
 }
@@ -73,12 +89,7 @@ impl dub_asr::AsrEngine for Unloading {
     fn transcribe(&mut self, wav: &Path, lang: &str) -> Result<Vec<dub_asr::Segment>, dub_asr::AsrError> {
         self.0.transcribe(wav, lang)
     }
-    fn transcribe_turns(
-        &mut self,
-        wav: &Path,
-        turns: &[dub_asr::Turn],
-        lang: &str,
-    ) -> Result<Vec<dub_asr::SpeakerSegment>, dub_asr::AsrError> {
+    fn transcribe_turns(&mut self, wav: &Path, turns: &[dub_asr::Turn], lang: &str) -> Result<Vec<dub_asr::SpeakerSegment>, dub_asr::AsrError> {
         self.0.transcribe_turns(wav, turns, lang)
     }
     fn transcribe_many(&mut self, files: &[PathBuf], lang: &str) -> Vec<Result<String, dub_asr::AsrError>> {
@@ -89,16 +100,59 @@ impl dub_asr::AsrEngine for Unloading {
     }
 }
 
-pub fn build_engine(choice: &AsrChoice, prompt: Option<String>) -> Box<dyn dub_asr::AsrEngine> {
-    match choice {
+/// A recogniser in the server of a job: its weights leave the card when the job lets it go, the server stays.
+struct ServerUnloading(dub_asr::acpp::AcppAsr, &'static str);
+
+impl Drop for ServerUnloading {
+    fn drop(&mut self) {
+        crate::engines::acpp::unload(&[self.1]);
+    }
+}
+
+impl dub_asr::AsrEngine for ServerUnloading {
+    fn transcribe(&mut self, wav: &Path, lang: &str) -> Result<Vec<dub_asr::Segment>, dub_asr::AsrError> {
+        self.0.transcribe(wav, lang)
+    }
+    fn transcribe_turns(&mut self, wav: &Path, turns: &[dub_asr::Turn], lang: &str) -> Result<Vec<dub_asr::SpeakerSegment>, dub_asr::AsrError> {
+        self.0.transcribe_turns(wav, turns, lang)
+    }
+    fn transcribe_many(&mut self, files: &[PathBuf], lang: &str) -> Vec<Result<String, dub_asr::AsrError>> {
+        self.0.transcribe_many(files, lang)
+    }
+    fn transcribe_many_words(&mut self, files: &[PathBuf], lang: &str) -> Vec<Result<Vec<dub_asr::Word>, dub_asr::AsrError>> {
+        self.0.transcribe_many_words(files, lang)
+    }
+}
+
+/// The recogniser of a choice; CrisperWhisper starts audiocpp_server, and its refusal is an error with the cause.
+/// `prompt` — the topic and terms to expect; only CrisperWhisper takes one. Nemotron is told the language «auto» hears.
+
+pub fn build_engine(choice: &AsrChoice, prompt: Option<String>) -> Result<Box<dyn dub_asr::AsrEngine>, String> {
+    tracing::info!("recognition: {} [{}]", choice.label(), choice.describe());
+    let engine: Box<dyn dub_asr::AsrEngine> = match choice {
         AsrChoice::Ggml { models_root, build, model } => Box::new(Unloading(dub_asr::tcpp::TcppEngine::new(models_root, *build, model))),
-        AsrChoice::Whisper {
-            bin,
-            model_dir,
-            model,
-            compute,
-            device,
-        } => Box::new(dub_asr::WhisperAsr::new(bin, model_dir, model, compute, device).with_prompt(prompt)),
+        AsrChoice::CrisperWhisper { repo_root, models_root, choice, build } => {
+            let id = crate::engines::acpp::CRISPERWHISPER;
+            let server = crate::engines::acpp::server(repo_root, models_root, crate::engines::acpp::build_for(choice)?, id)?;
+            let language = dub_asr::acpp::Language::Whisper {
+                engine_dir: dub_asr::tcpp::engine_dir(models_root, *build),
+                langid: dub_asr::tcpp::helper_path(models_root, &dub_asr::tcpp::LANGID),
+            };
+            return Ok(Box::new(ServerUnloading(dub_asr::acpp::AcppAsr::new(server, id, language).with_prompt(prompt), id)));
+        }
+        AsrChoice::Server { repo_root, models_root, choice, model, .. } => {
+            let id = model.id;
+            // Nemotron is told the language; Parakeet finds it itself
+            let language = if id == crate::engines::acpp::NEMOTRON { dub_asr::acpp::Language::Told } else { dub_asr::acpp::Language::Own };
+            let server = crate::engines::acpp::server(repo_root, models_root, crate::engines::acpp::build_for(choice)?, id)?;
+            Box::new(ServerUnloading(dub_asr::acpp::AcppAsr::new(server, id, language), id))
+        }
+    };
+    match choice {
+        AsrChoice::Ggml { models_root, build, model } | AsrChoice::Server { models_root, build, model, .. } => {
+            Ok(dub_asr::tcpp::with_heard_language(engine, models_root, *build, model))
+        }
+        _ => Ok(engine),
     }
 }
 
@@ -123,5 +177,29 @@ mod tests {
             spec("models", crate::engines::tcpp_asr::Build::Cpu).label(),
             spec("models", crate::engines::tcpp_asr::Build::Cuda).label()
         );
+    }
+
+    /// SPEECH_STUDIO_ROOT: a studio root whose recognition is Nemotron 3.5; ASR_WAV: a recording; ASR_EXPECT: text the
+    /// recognised recording must hold. Under Auto Nemotron is told the language VoxLingua107 hears.
+    #[test]
+    #[ignore]
+    fn nemotron_under_auto_is_told_the_language_it_hears() {
+        struct StopServers;
+        impl Drop for StopServers {
+            fn drop(&mut self) {
+                acpp_server::SERVERS.stop_all();
+            }
+        }
+        let _servers = StopServers;
+        let root = PathBuf::from(std::env::var("SPEECH_STUDIO_ROOT").expect("SPEECH_STUDIO_ROOT"));
+        let models = root.join("models");
+        crate::set_ort_dylib_env(&root, &root).unwrap();
+        std::env::set_var("DUB_ASR_BACKEND", crate::engines::models::stage_backend(&models, "asr_backend"));
+        let choice = crate::app::recognition::choice(&root, &models, "auto", "test").unwrap();
+        let mut asr = build_engine(&choice, None).unwrap();
+        let heard = asr.transcribe(Path::new(&std::env::var("ASR_WAV").expect("ASR_WAV")), "auto").unwrap();
+        let text = dub_asr::join_text(heard.iter().map(|s| s.text.as_str()));
+        eprintln!("{} {text}", choice.label());
+        assert!(text.contains(&std::env::var("ASR_EXPECT").expect("ASR_EXPECT")), "{text}");
     }
 }

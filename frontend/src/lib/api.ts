@@ -168,10 +168,10 @@ export const slot = (sel: Selection | undefined, key: string): string | undefine
 };
 export type Capabilities = {
   device: string; tts_quant: string; asr_model: string; asr_label: string; ffmpeg: boolean;
-  languages: string[]; voice_modes: string[]; models?: ModelStack;
-  // Выбор ASR-движка (active.json): движок parakeet|whisper + модель/квант Whisper.
+  languages: string[]; voice_modes: string[]; models?: ModelStack; llm_provider?: LlmProviderKind; tts_provider?: "local" | "openrouter" | "google";
+  // Выбор ASR-движка (active.json): parakeet | nemotron | whisper (CrisperWhisper).
   selection?: Selection;
-  asr_engines?: string[]; whisper_models?: string[]; whisper_computes?: string[];
+  asr_engines?: string[];
   // Видимые лимиты RAM (настройки): prefill-батч Gemma + длина реф-клипа клона.
   llama_ubatches?: string[]; higgs_ref_secs_opts?: string[];
 };
@@ -206,14 +206,16 @@ export type DownloadJob = {
   errorCode?: string | null; error?: string | null; startedAt: number; updatedAt: number;
 };
 // Видеокарта против требований CUDA 13 (драйвер 580+, compute capability 7.5+).
-export type GpuReason = "no_nvidia" | "no_device" | "cuda_init" | "driver_old" | "gpu_old";
+export type GpuReason = "no_nvidia" | "no_device" | "cuda_init" | "driver_old" | "gpu_old" | "gpu_missing";
+export type GpuCard = { index: number; name: string; memoryMb: number };
 export type GpuReport = {
   nvidia: boolean; name?: string | null; driverVersion?: string | null; cudaDriver?: string | null;
-  compute?: string | null; cuda13Ok: boolean; reason?: GpuReason | null; minDriver: number; minCompute: string;
+  compute?: string | null; cuda13Ok: boolean; cudaBuild?: "cuda13" | "cuda12" | null; reason?: GpuReason | null; minDriver: number; minCompute: string;
+  pciBusId?: string | null; cards: GpuCard[]; chosen?: number | null;
 };
 export type SetupStatus = {
   components: SetupComponent[]; ready: boolean;
-  downloadPending: number; driverOk: boolean; llamaBuild: string;
+  downloadPending: number; driverOk: boolean; llamaBuild: string; llamaNote: string | null;
   modelsDir: string; freeBytes: number | null; gpu: GpuReport; active: DownloadJob | null;
 };
 export type ImportResult = { imported: string[]; files: number; errors: string[]; status: SetupStatus };
@@ -283,6 +285,10 @@ export const editsSettled = (): Promise<void> => _patchChain.then(() => undefine
 
 // Общие обёртки: GET/POST c JSON-телом -> j<T>. Убирают повтор fetch+headers+JSON.stringify.
 const getJson = <T>(path: string): Promise<T> => fetch(`${BASE}${path}`).then(j<T>);
+/** A read the window makes by itself to keep a screen current (statuses, levels, hardware, queues): the hub counts it
+ * as no feature, so a feature count means a person or an agent asked for it. */
+const POLLED = { "x-hub-skip": "1" };
+const getPolled = <T>(path: string): Promise<T> => fetch(`${BASE}${path}`, { headers: POLLED }).then(j<T>);
 const postJson = <T>(path: string, body: unknown): Promise<T> =>
   fetch(`${BASE}${path}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify(body) }).then(j<T>);
 // POST маршрутов /setup/*: отказ приходит {code, detail} -> SetupError (тело не JSON — код по HTTP-статусу).
@@ -320,6 +326,8 @@ export async function coded<T>(r: Response): Promise<T> {
 export const sendCoded = <T>(method: "POST" | "PUT" | "DELETE", path: string, body?: unknown): Promise<T> =>
   fetch(`${BASE}${path}`, body === undefined ? { method } : { method, headers: JSON_HEADERS, body: JSON.stringify(body) }).then(coded<T>);
 export const getCoded = <T>(path: string): Promise<T> => fetch(`${BASE}${path}`).then(coded<T>);
+/** `getCoded` for a read the window makes by itself (see `POLLED`). */
+export const getCodedPolled = <T>(path: string): Promise<T> => fetch(`${BASE}${path}`, { headers: POLLED }).then(coded<T>);
 export const postCoded = <T>(path: string, body: unknown): Promise<T> =>
   fetch(`${BASE}${path}`, { method: "POST", headers: JSON_HEADERS, body: JSON.stringify(body) }).then(coded<T>);
 
@@ -361,11 +369,11 @@ export const urlApi = {
   probe: (url: string, cookiesText: string | null) => postCoded<UrlProbe>("/url/probe", { url, cookies_text: cookiesText }),
   start: (req: { url: string; quality: UrlQuality; subs_lang: string | null; cookies_text: string | null }) => postCoded<{ fetch: UrlFetch }>("/projects/from_url", req),
   list: () => getCoded<{ fetches: UrlFetch[] }>("/url/fetches"),
-  get: (id: string) => getCoded<UrlFetch>(`/url/fetches/${encodeURIComponent(id)}`),
+  get: (id: string) => getCodedPolled<UrlFetch>(`/url/fetches/${encodeURIComponent(id)}`),
   cancel: (id: string) => postCoded<{ fetch: UrlFetch }>(`/url/fetches/${encodeURIComponent(id)}/cancel`, {}),
   resume: (id: string) => postCoded<{ fetch: UrlFetch }>(`/url/fetches/${encodeURIComponent(id)}/resume`, {}),
   forget: (id: string) => sendCoded<{ ok: boolean }>("DELETE", `/url/fetches/${encodeURIComponent(id)}`),
-  tool: () => getCoded<UrlTool>("/url/tool"),
+  tool: () => getCodedPolled<UrlTool>("/url/tool"),
   updateTool: () => postCoded<{ started: boolean; tool: UrlTool }>("/url/tool/update", {}),
 };
 
@@ -389,22 +397,29 @@ export const llmProviderOf = (sel: Selection | undefined, stage: "llm" | "vision
   return v === "server" || v === "openrouter" || v === "agent" ? v : "local";
 };
 
+/** Fired after the server took a new engine, model or device choice. */
+export const SELECTION_CHANGED = "speech:selection-changed";
+const selectionChanged = <T,>(answer: T): T => {
+  window.dispatchEvent(new Event(SELECTION_CHANGED));
+  return answer;
+};
+
 export const api = {
   capabilities: () => getJson<Capabilities>("/engine/capabilities"),
-  setupStatus: () => getJson<SetupStatus>("/setup/status"),
+  setupStatus: () => getPolled<SetupStatus>("/setup/status"),
   setupDownload: (ids: string[]) => setupPost<{ download: DownloadJob }>("/setup/download", { ids }),
   setupCancel: () => setupPost<{ paused: boolean }>("/setup/cancel", {}),   // пауза: скачанное остаётся, «Продолжить» докачивает
   setupRemove: (ids: string[]) => setupPost<{ removed: string[]; freedBytes: number; errors: string[]; status: SetupStatus }>("/setup/remove", { ids }),
   setupOpenModels: () => setupPost<{ path: string }>("/setup/open-models", {}),
-  hwSnapshot: () => getJson<HwSnapshot>("/hw/snapshot"),
+  hwSnapshot: () => getPolled<HwSnapshot>("/hw/snapshot"),
   setupBrowse: (id?: string) => setupPost<ImportResult & { picked: boolean }>("/setup/browse", id ? { id } : {}),
   fonts: () => getJson<{ fonts: Record<string, string> }>("/fonts"),
   setOpts: (edit: Partial<ModelStack>) =>
     fetch(`${BASE}/engine/opts`, { method: "PATCH", headers: JSON_HEADERS, body: JSON.stringify(edit) }).then(j<{ models: ModelStack }>),
   // Сделать вариант модели (квант) активным: id компонента настроек -> пишет models/active.json на бэке.
-  selectModel: (id: string) => postJson<Selection>("/engine/select", { id }),
+  selectModel: (id: string) => postJson<Selection>("/engine/select", { id }).then(selectionChanged),
   // Прямая установка слота выбора (движок/модель/квант ASR) без скачивания: {key,value} -> active.json.
-  setSelection: (key: string, value: string) => postJson<Selection>("/engine/select", { key, value }),
+  setSelection: (key: string, value: string) => postJson<Selection>("/engine/select", { key, value }).then(selectionChanged),
   // Облачные модели (OpenRouter): проверка ключа + фильтрованный каталог по модальности (llm/vision/tts).
   openrouterVerify: (key: string) => postJson<{ ok: boolean; data?: { label?: string; limit?: number; usage?: number }; error?: unknown }>("/engine/openrouter/verify", { key }),
   // Ключ OpenRouter: сервер отдаёт только «задан ли» и источник; PUT сначала проверяет ключ в OpenRouter.
@@ -433,8 +448,8 @@ export const api = {
   // Прокси: проверить связность до HF (закачка моделей) и OpenRouter при таком режиме/адресе — до сохранения.
   proxyTest: (form: { mode: ProxyMode; kind: ProxyKind; url: string; password?: string }) => postJson<ProxyProbe>("/engine/proxy/test", form),
   // Пресеты железа: список + детект GPU/VRAM + рекомендация; применение пишет кванты/облако в active.json.
-  hwPresets: () => getJson<{ presets: { id: string; title: string; subtitle: string }[]; hardware: { gpuName: string; totalVramGb: number; totalRamGb: number; hasGpu: boolean; recommended: string; reason: string } }>("/engine/presets"),
-  applyPreset: (id: string) => postJson<{ ok: boolean; id: string; applied: { key: string; value: string }[] }>("/engine/preset", { id }),
+  hwPresets: () => getJson<{ presets: { id: string; title: string; subtitle: string }[]; hardware: { gpuName: string; totalVramGb: number; totalRamGb: number; hasGpu: boolean; recommended: string; reason: string }; current: string }>("/engine/presets"),
+  applyPreset: (id: string) => postJson<{ ok: boolean; id: string; applied: { key: string; value: string }[] }>("/engine/preset", { id }).then(selectionChanged),
   voices: () => getCoded<VoiceListing>("/voices"),
   // Дефолты запуска дубляжа (форма стартового экрана) хранит сервис: одни на все окна и агента.
   launchDefaults: () => getJson<LaunchDefaultsState>("/settings/launch"),
@@ -447,7 +462,7 @@ export const api = {
     throw e;
   }),
   recordDevices: () => getJson<{ devices: string[] }>("/record/devices"),
-  recordLevel: () => getJson<{ level: number }>("/record/level"),
+  recordLevel: () => getPolled<{ level: number }>("/record/level"),
   recordStart: (name: string, device?: string) => postJson<{ ok: boolean; name?: string; error?: string }>("/record/start", { name, device }),
   recordStop: (opts: { clean: boolean; transcribe: boolean }) => postCoded<VoiceListing & { name: string; job_id: string | null }>("/record/stop", opts),
   voicesDownloadPack: () => fetch(`${BASE}/voices/download-pack`, { method: "POST" }).then(j<{ job_id: string }>),
@@ -568,7 +583,7 @@ export const api = {
   resumeProject: (pid: string) => fetch(`${BASE}/projects/${pid}/resume`, { method: "POST" }).then(j<{ job_id: string; kind: string; project_id: string }>),
   // MCP-сервер студии: адрес для подключения агента и его статус для раздела настроек «Агент (MCP)».
   mcpUrl: () => `${BASE || window.location.origin}/mcp`,
-  mcpStatus: () => getJson<McpStatus>("/mcp/status"),
+  mcpStatus: () => getPolled<McpStatus>("/mcp/status"),
   // SSE job progress -> onEvent per message; resolves on done, rejects on error
   // signal: the watcher went away (unmount, project switch) — the stream closes, the promise rejects with AbortError.
   watchJob: (jobId: string, onEvent: (e: JobEvent) => void, signal?: AbortSignal) =>

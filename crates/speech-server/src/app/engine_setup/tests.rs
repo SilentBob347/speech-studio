@@ -24,10 +24,10 @@ fn install_files(root: &Path, id: &str) {
 #[test]
 fn ready_components_do_not_start_preparation_or_emit_progress() {
     let root = tempfile::tempdir().unwrap();
-    install_files(root.path(), "whisper-tiny");
+    install_files(root.path(), "parakeet-ultra");
     ensure_components_with(
         root.path(),
-        &["unknown", "whisper-tiny"],
+        &["unknown", "parakeet-ultra"],
         &|_| panic!("already ready"),
         &|_, _, _, _| panic!("already ready"),
     )
@@ -39,17 +39,17 @@ fn ready_components_do_not_start_preparation_or_emit_progress() {
 fn preparation_keeps_missing_order_progress_and_error_details() {
     let _language = crate::i18n::test_language("ru");
     let root = tempfile::tempdir().unwrap();
-    install_files(root.path(), "whisper-tiny");
-    let first = manifest().into_iter().find(|c| c.id == "whisper-tiny").unwrap().files[0].clone();
+    install_files(root.path(), "parakeet-ultra");
+    let first = manifest().into_iter().find(|c| c.id == "parakeet-ultra").unwrap().files[0].clone();
     sized(&root.path().join(first.dest_rel), first.size - 1);
     let events = RefCell::new(Vec::new());
     let err = ensure_components_with(
         root.path(),
-        &["unknown", "whisper-base", "whisper-tiny", "whisper-base"],
+        &["unknown", "parakeet", "parakeet-ultra", "parakeet"],
         &|event| events.borrow_mut().push(event),
         &|path, ids, cancel, progress| {
             assert_eq!(path, root.path());
-            assert_eq!(ids, ["whisper-base", "whisper-tiny", "whisper-base"]);
+            assert_eq!(ids, ["parakeet", "parakeet-ultra", "parakeet"]);
             assert!(!cancel());
             assert_eq!(
                 events.borrow()[0],
@@ -89,7 +89,7 @@ fn local_llm_preparation_reports_its_components_before_returning_failure() {
 #[test]
 fn each_gpu_stage_requests_its_runtime_independently() {
     let root = tempfile::tempdir().unwrap();
-    for gpu_stage in ["sep_backend", "diar_backend", "asr_backend"] {
+    for gpu_stage in ["sep_backend", "asr_backend"] {
         let mut sel =
             json!({"local_backend":"cpu", "sep_backend":"cpu", "diar_backend":"cpu", "asr_backend":"cpu", "asr_engine":"whisper"});
         sel[gpu_stage] = json!("gpu");
@@ -100,15 +100,14 @@ fn each_gpu_stage_requests_its_runtime_independently() {
             Ok(json!({}))
         })
         .unwrap();
-        let mut expected = vec!["cuda-runtime", "onnxruntime-gpu", "cudnn", "bsroformer-engine"];
-        if gpu_stage == "asr_backend" {
-            expected.push("whisper-cuda");
-        }
-        assert_eq!(calls.into_inner(), [expected], "{gpu_stage}");
+        let expected: Vec<Vec<&str>> =
+            if cfg!(target_os = "macos") { vec![] } else { vec![vec!["cuda-runtime", "onnxruntime-gpu", "cudnn"]] };
+        assert_eq!(calls.into_inner(), expected, "{gpu_stage}");
     }
+    // diarization runs on the audio.cpp server, not ONNX Runtime
     let models = selection(
         root.path(),
-        json!({"local_backend":"gpu", "sep_backend":"cpu", "diar_backend":"cpu", "asr_backend":"cpu"}),
+        json!({"local_backend":"gpu", "sep_backend":"cpu", "diar_backend":"gpu", "asr_backend":"cpu"}),
     );
     ensure_job_components_with(root.path(), &models, false, false, &|_| panic!("CPU"), &|_, _, _, _| panic!("CPU")).unwrap();
 }
@@ -124,7 +123,8 @@ fn required_preparation_failure_prevents_optional_diarization_download() {
     })
     .unwrap_err();
     assert_eq!(err, "required download failed");
-    assert_eq!(calls.into_inner(), [vec!["wespeaker"]]);
+    let server = crate::engines::acpp::component(crate::engines::acpp::build_for("cpu").unwrap()).to_string();
+    assert_eq!(calls.into_inner(), [vec!["wespeaker".to_string(), server]]);
 }
 
 #[test]
@@ -133,6 +133,7 @@ fn optional_diarization_failure_stays_visible_and_does_not_abort_the_job() {
     let root = tempfile::tempdir().unwrap();
     let models = selection(root.path(), json!({"local_backend":"cpu"}));
     let events = RefCell::new(Vec::new());
+    let calls = RefCell::new(Vec::new());
     ensure_job_components_with(
         root.path(),
         &models,
@@ -140,11 +141,17 @@ fn optional_diarization_failure_stays_visible_and_does_not_abort_the_job() {
         true,
         &|ev| events.borrow_mut().push(ev),
         &|_, ids, _, _| {
-            assert_eq!(ids, ["sortformer"]);
-            Err(DlError::new("io", "diarization fixture error"))
+            calls.borrow_mut().push(ids.to_vec());
+            if ids == ["sortformer"] {
+                Err(DlError::new("io", "diarization fixture error"))
+            } else {
+                Ok(json!({}))
+            }
         },
     )
     .unwrap();
+    let server = crate::engines::acpp::component(crate::engines::acpp::build_for("cpu").unwrap()).to_string();
+    assert_eq!(calls.into_inner(), [vec![server], vec!["sortformer".to_string()]]);
     let events = events.into_inner();
     assert_eq!(events.len(), 2);
     assert_eq!(
@@ -191,22 +198,22 @@ fn completed_installation_activates_only_ready_variants_in_component_order() {
     let root = tempfile::tempdir().unwrap();
     let models = selection(
         root.path(),
-        json!({"whisper_model":"large-v3", "asr_engine":"parakeet", "sep_backend":"cpu"}),
+        json!({"asr":"int8", "asr_engine":"nemotron", "sep_backend":"cpu"}),
     );
-    install_files(root.path(), "whisper-tiny");
+    install_files(root.path(), "parakeet-ultra");
     let all = manifest();
-    let selected: Vec<_> = ["whisper-tiny", "whisper-base"]
+    let selected: Vec<_> = ["parakeet-ultra", "parakeet"]
         .iter()
         .map(|id| all.iter().find(|c| c.id == *id).unwrap())
         .collect();
     let result = finish(root.path(), &selected);
     let active = models::load_selection(&models);
-    assert_eq!(active["asr_engine"], "whisper");
-    assert_eq!(active["whisper_model"], "tiny");
+    assert_eq!(active["asr_engine"], "parakeet");
+    assert_eq!(active["asr"], "ultra-int8");
     assert_eq!(active["sep_backend"], "cpu");
     assert_eq!(
         result["components"][0],
-        json!({"id":"whisper-tiny", "installed":true, "missing":[]})
+        json!({"id":"parakeet-ultra", "installed":true, "missing":[]})
     );
     assert_eq!(result["components"][1]["installed"], false);
     assert!(!result["components"][1]["missing"].as_array().unwrap().is_empty());
@@ -218,26 +225,26 @@ fn removal_clears_only_the_matching_variant_and_keeps_the_engine_and_other_stage
     let root = tempfile::tempdir().unwrap();
     let models = selection(
         root.path(),
-        json!({"asr_engine":"whisper", "whisper_model":"medium", "sep_backend":"gpu"}),
+        json!({"asr_engine":"parakeet", "asr":"ultra-int8", "sep_backend":"gpu"}),
     );
-    let report = remove_components(root.path(), &["whisper-medium".into()]).unwrap();
+    let report = remove_components(root.path(), &["parakeet-ultra".into()]).unwrap();
     assert!(report.removed.is_empty());
     assert!(report.errors.is_empty());
     assert_eq!(
         models::load_selection(&models),
-        json!({"asr_engine":"whisper", "sep_backend":"gpu"})
+        json!({"asr_engine":"parakeet", "sep_backend":"gpu"})
     );
-    selection(root.path(), json!({"asr_engine":"whisper", "whisper_model":"large-v3"}));
-    remove_components(root.path(), &["whisper-medium".into()]).unwrap();
-    assert_eq!(models::load_selection(&models)["whisper_model"], "large-v3");
+    selection(root.path(), json!({"asr_engine":"parakeet", "asr":"int8"}));
+    remove_components(root.path(), &["parakeet-ultra".into()]).unwrap();
+    assert_eq!(models::load_selection(&models)["asr"], "int8");
 }
 
 #[test]
 fn removal_reports_selection_write_failure_after_removing_files() {
     let root = tempfile::tempdir().unwrap();
-    let models = selection(root.path(), json!({"whisper_model":"large-v3"}));
+    let models = selection(root.path(), json!({"asr":"int8"}));
     std::fs::create_dir(models.join("active.json.tmp")).unwrap();
-    let c = manifest().into_iter().find(|c| c.id == "whisper-large-v3").unwrap();
+    let c = manifest().into_iter().find(|c| c.id == "parakeet").unwrap();
     let path = root.path().join(c.files[0].dest_rel);
     sized(&path, 7);
     let report = remove_components(root.path(), &[c.id.into()]).unwrap();
@@ -245,8 +252,8 @@ fn removal_reports_selection_write_failure_after_removing_files() {
     assert_eq!(report.freed_bytes, 7);
     assert_eq!(report.removed, [c.id]);
     assert_eq!(report.errors.len(), 1);
-    assert!(report.errors[0].starts_with("active.json (whisper_model): "));
-    assert_eq!(models::load_selection(&models)["whisper_model"], "large-v3");
+    assert!(report.errors[0].starts_with("active.json (asr): "));
+    assert_eq!(models::load_selection(&models)["asr"], "int8");
 }
 
 #[test]
@@ -254,14 +261,14 @@ fn status_is_read_only_even_with_invalid_engine_and_model_files() {
     let root = tempfile::tempdir().unwrap();
     let models = selection(
         root.path(),
-        json!({"local_backend":"cpu", "asr_engine":"whisper", "whisper_model":"tiny"}),
+        json!({"local_backend":"cpu", "asr_engine":"parakeet", "asr":"ultra-int8"}),
     );
     let before = std::fs::read(models.join("active.json")).unwrap();
-    install_files(root.path(), "whisper-tiny");
+    install_files(root.path(), "parakeet-ultra");
     let engine = manifest().into_iter().find(|c| c.id == "transcribe-engine-cpu").unwrap();
     sized(&root.path().join(engine.markers[0].rel), 1);
     let st = setup_status(root.path());
-    assert!(st.components.iter().find(|c| c.id == "whisper-tiny").unwrap().installed);
+    assert!(st.components.iter().find(|c| c.id == "parakeet-ultra").unwrap().installed);
     assert!(!st.ready);
     assert_eq!(std::fs::read(models.join("active.json")).unwrap(), before);
     assert!(!models.join("active.json.tmp").exists());
@@ -359,6 +366,7 @@ fn a_small_card_gets_the_largest_quant_that_fits_and_no_model_it_cannot_hold() {
 }
 
 #[test]
+#[cfg(not(target_os = "macos"))]
 fn drama_downloads_on_a_6_gb_card_and_not_on_a_4_gb_one() {
     let drama = || {
         let mut comps = vec![model("drama3", 0.0, Requirement::Optional)];

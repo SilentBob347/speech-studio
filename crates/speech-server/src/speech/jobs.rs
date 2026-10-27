@@ -14,7 +14,6 @@ use crate::speech::{project as sp, text as stx};
 use crate::speech::project::{Block, SpeechProject, Take};
 use crate::speech::text::Piece;
 use crate::engines::tts_host;
-use crate::engines::tts_host::HiggsConfig;
 use super::preparation::{self, opts as prep_opts};
 
 pub const SR: u32 = 24_000;
@@ -25,8 +24,6 @@ pub struct SpeechPaths {
     pub workspace: PathBuf,
     pub voices_dir: PathBuf,
     pub models_root: PathBuf,
-    pub higgs_dll: PathBuf,
-    pub threads: i32,
 }
 
 /// Loads what voicing `engine` with `voice` in `lang` takes before its first phrase: the engine as that phrase will
@@ -55,11 +52,11 @@ fn load(p: &SpeechPaths, engine: &str, voice: Option<&str>, lang: &str) -> Resul
     if engine == crate::engines::models::DRAMA_TTS {
         tts_host::drama(&p.models_root)?;
     } else if engine == crate::engines::supertonic::ENGINE {
-        tts_host::supertonic(&p.models_root)?;
+        tts_host::supertonic(&p.repo_root, &p.models_root)?;
     } else if crate::engines::qwen_tts::is_engine(engine) {
         tts_host::qwen(&p.models_root, clones, engine == crate::engines::qwen_tts::ENGINE_STRESS)?;
     } else if engine == "higgs" {
-        tts_host::engine(&higgs_config(p))?;
+        tts_host::higgs(&p.repo_root, &p.models_root)?;
     }
     if matches!(lang, "ru" | "auto" | "") && crate::engines::stress::installed(&p.repo_root) {
         crate::engines::stress::shared(&p.models_root)?;
@@ -67,11 +64,9 @@ fn load(p: &SpeechPaths, engine: &str, voice: Option<&str>, lang: &str) -> Resul
     Ok(())
 }
 
-pub fn higgs_config(p: &SpeechPaths) -> HiggsConfig {
-    let sel = crate::engines::models::load_selection(&p.models_root);
-    let (model_root, quant) = crate::engines::models::resolve_tts(&p.models_root, &sel);
-    let backend = if crate::engines::hw::gpu_report().nvidia { "cuda" } else { "cpu" };
-    HiggsConfig { dll: p.higgs_dll.clone(), model_root, quant, backend: backend.into(), threads: p.threads }
+/// The Higgs quantization the settings pick.
+pub fn higgs_quant(p: &SpeechPaths) -> String {
+    crate::engines::models::resolve_tts(&p.models_root, &crate::engines::models::load_selection(&p.models_root)).1
 }
 
 pub fn ref_limit(models_root: &Path) -> f64 {
@@ -110,6 +105,35 @@ pub fn keys(p: &SpeechPaths, project: &SpeechProject) -> BTreeMap<String, String
         .collect()
 }
 
+/// Renames a library voice (`rename` moves its files) and the Speech projects that speak with it follow: they name
+/// the new voice, and a take made with the old name stays the block's voiced take, the voice being the same sound.
+pub fn rename_voice(p: &SpeechPaths, from: &str, to: &str, rename: impl FnOnce() -> Result<(), String>) -> Result<(), String> {
+    let mut using: Vec<(String, BTreeMap<String, String>)> = Vec::new();
+    for entry in std::fs::read_dir(&p.workspace).into_iter().flatten().flatten() {
+        let pid = entry.file_name().to_string_lossy().into_owned();
+        if !crate::speech::project_path(&p.workspace, &pid).is_file() {
+            continue;
+        }
+        let Ok(project) = crate::speech::load(&p.workspace, &pid) else { continue };
+        if project.clone().rename_voice(from, to) {
+            using.push((pid, keys(p, &project)));
+        }
+    }
+    rename()?;
+    for (pid, before) in using {
+        crate::speech::edit(&p.workspace, &pid, |project| {
+            project.rename_voice(from, to);
+            let after = keys(p, project);
+            for b in project.chapters.iter_mut().flat_map(|c| c.blocks.iter_mut()) {
+                if let (Some(old), Some(new)) = (before.get(&b.id), after.get(&b.id)) {
+                    b.takes.iter_mut().filter(|t| &t.key == old).for_each(|t| t.key = new.clone());
+                }
+            }
+        })?;
+    }
+    Ok(())
+}
+
 /// Что за движок и модель озвучивают блок — часть ключа дубля.
 pub(crate) fn engine_tag(p: &SpeechPaths, project: &SpeechProject, engine: &str) -> String {
     if engine == "openrouter" {
@@ -128,7 +152,7 @@ pub(crate) fn engine_tag(p: &SpeechPaths, project: &SpeechProject, engine: &str)
     } else if crate::engines::qwen_tts::is_engine(&engine) {
         format!("{}:{}", engine, crate::engines::models::qwen_quant(&p.models_root))
     } else {
-        format!("higgs:{}", higgs_config(p).quant)
+        format!("higgs:{}", higgs_quant(p))
     }
 }
 
@@ -356,20 +380,27 @@ fn synth_block_with(p: &SpeechPaths, pid: &str, project: &SpeechProject, b: &Blo
         let vp = crate::voices::VoicePaths { repo_root: p.repo_root.clone(), models_root: p.models_root.clone(), voices_dir: p.voices_dir.clone() };
         crate::voices::ensure_words(&vp, v, limit)?;
     }
-    let engine = if drama {
-        tts_host::drama(&p.models_root)?
-    } else if own == crate::engines::supertonic::ENGINE {
-        tts_host::supertonic(&p.models_root)?
-    } else if crate::engines::qwen_tts::is_engine(own) {
-        tts_host::qwen(&p.models_root, preset.is_none(), own == crate::engines::qwen_tts::ENGINE_STRESS)?
-    } else {
-        tts_host::engine(&higgs_config(p))?
-    };
     let reference = match (own_ref, continued, voice.as_deref().filter(|_| clones)) {
         (Some(r), _, _) => Some(own_reference(&p.workspace.join(pid), r, limit)?),
         (None, Some((src, take)), _) => Some(continuation_ref(&takes_dir(p, pid), take, &src.text)?),
         (None, None, Some(v)) => Some(crate::voices::prepare_reference(&p.voices_dir, v, limit, n)?),
         (None, None, None) => None,
+    };
+    if drama && reference.as_ref().is_some_and(|(_, text)| text.as_deref().is_none_or(|t| t.trim().is_empty())) {
+        return Err(match voice.as_deref().filter(|_| own_ref.is_none()) {
+            Some(v) if crate::voices::read_transcript(&p.voices_dir, v).is_some() => t!("drama-voice-no-piece", name = v.to_string(), secs = format!("{limit:.0}")),
+            Some(v) => t!("drama-voice-no-text", name = v.to_string()),
+            None => t!("render-drama-no-ref-text"),
+        });
+    }
+    let engine = if drama {
+        tts_host::drama(&p.models_root)?
+    } else if own == crate::engines::supertonic::ENGINE {
+        tts_host::supertonic(&p.repo_root, &p.models_root)?
+    } else if crate::engines::qwen_tts::is_engine(own) {
+        tts_host::qwen(&p.models_root, preset.is_none(), own == crate::engines::qwen_tts::ENGINE_STRESS)?
+    } else {
+        tts_host::higgs(&p.repo_root, &p.models_root)?
     };
     let lang = match project.lang_of(b) {
         "auto" => "",
@@ -646,7 +677,7 @@ pub fn try_rule(p: &SpeechPaths, pid: &str, phrase: &str, rule: crate::text::pro
     for (name, entries) in [("before", Vec::new()), ("after", vec![rule])] {
         let stress = project.settings.auto_stress && crate::engines::stress::is_russian(&b.text, project.lang_of(&b));
         let read = preparation::prepare(&b.text, &prep_opts(p, &project, project.lang_of(&b), project.engine_of(&b), Some(voice_of.as_str()).filter(|v| !v.is_empty()), &entries, stress)).map_err(|e| t!("stress-failed", detail = e))?.text;
-        let made_of = format!("{read}|{voice_of}|{}|{}|{}", project.engine_of(&b), higgs_config(p).quant, serde_json::to_string(project.params_of(&b)).unwrap_or_default());
+        let made_of = format!("{read}|{voice_of}|{}|{}|{}", project.engine_of(&b), higgs_quant(p), serde_json::to_string(project.params_of(&b)).unwrap_or_default());
         let file = format!("{}.flac", &blake3::hash(made_of.as_bytes()).to_hex()[..20]);
         let path = dir.join(&file);
         if !path.is_file() {
@@ -781,9 +812,6 @@ fn voice_embedding(embedder: &mut dub_faces::VoiceEmbedder, audio: &Path) -> Res
 /// «прошёл всё → WER → похожесть» становится активным; блоки, где не прошёл ни один, — в ответе.
 /// Дубль, где вместо речи музыка или шум: его звук в 16 кГц через Silero VAD.
 fn non_speech(p: &SpeechPaths, file: &Path) -> Result<bool, String> {
-    if !crate::engines::vad::installed(&p.models_root) {
-        return Err(t!("vad-missing"));
-    }
     let tmp = tempfile::Builder::new().prefix("vad-").tempdir().map_err(|e| e.to_string())?;
     let wav = tmp.path().join("take16.wav");
     crate::audio::media::to_16k_mono(file, &wav)?;
@@ -854,7 +882,8 @@ fn check_takes(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>, re
     crate::app::ensure_job_components(&p.repo_root, &p.models_root, sim_on, false, &|ev| progress(ev))?;
     if asr_on {
         crate::app::recognition::ensure(&p.repo_root, &p.models_root, "", &|ev| progress(ev))?;
-        crate::app::ensure_components(&p.repo_root, &["silero-vad"], &|ev| progress(ev))?;
+        let vad = crate::engines::vad::missing(&p.models_root);
+        crate::app::ensure_components(&p.repo_root, &vad.iter().map(String::as_str).collect::<Vec<_>>(), &|ev| progress(ev))?;
     }
     let mut embedder = if sim_on {
         Some(dub_faces::VoiceEmbedder::load(&dub_faces::wespeaker_path(&p.models_root)).map_err(|e| e.to_string())?)
@@ -1040,7 +1069,7 @@ fn synth_scope(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Valu
             used.push(project.engine_of(b));
         }
     }
-    for id in used {
+    for id in &used {
         crate::engines::get(id).ok_or_else(|| t!("speech-engine-unknown", engine = id.to_string()))?;
     }
     for b in project.blocks().filter(|b| wanted.contains(&b.id)) {
@@ -1048,6 +1077,55 @@ fn synth_scope(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Valu
         if !crate::engines::supports(&engine, project.lang_of(b)) {
             return Err(t!("speech-lang-unsupported", lang = project.lang_of(b).to_uppercase(), engine = engine.name.to_string()));
         }
+    }
+    // one error naming every block that cannot be voiced, before any model loads
+    let silent: Vec<String> = project
+        .blocks()
+        .enumerate()
+        .filter(|(_, b)| wanted.contains(&b.id) && !b.hidden && project.voice_of(b).is_none())
+        .filter(|(_, b)| crate::engines::get(project.engine_of(b)).is_some_and(|e| e.needs_voice))
+        .map(|(n, b)| format!("{} «{}»", n + 1, sp::visible_snippet(&b.text)))
+        .collect();
+    if !silent.is_empty() {
+        let mut blocks = silent.iter().take(10).cloned().collect::<Vec<_>>().join(", ");
+        if silent.len() > 10 {
+            blocks.push_str(", …");
+        }
+        return Err(t!("speech-no-voice-blocks", blocks = blocks));
+    }
+    let library = crate::voices::list(&p.voices_dir).0;
+    let unknown: Vec<String> = project
+        .blocks()
+        .enumerate()
+        .filter(|(_, b)| wanted.contains(&b.id) && !b.hidden)
+        .filter_map(|(n, b)| {
+            let engine = crate::engines::get(project.engine_of(b))?;
+            let voice = project.voice_of(b)?;
+            let missing = engine.clone != "none" && !engine.presets.iter().any(|x| x.id == voice) && !library.iter().any(|x| x.name == voice);
+            missing.then(|| format!("{} «{}» ({voice})", n + 1, sp::visible_snippet(&b.text)))
+        })
+        .collect();
+    if !unknown.is_empty() {
+        let mut blocks = unknown.iter().take(10).cloned().collect::<Vec<_>>().join(", ");
+        if unknown.len() > 10 {
+            blocks.push_str(", …");
+        }
+        return Err(t!("speech-unknown-voice-blocks", blocks = blocks));
+    }
+    // the build of the voicing device the local engines run on, once their models are here
+    let mut builds: Vec<&str> = Vec::new();
+    let higgs = used.contains(&"higgs") && crate::engines::acpp::higgs_gguf(&p.models_root).is_file();
+    let supertonic = used.contains(&crate::engines::supertonic::ENGINE) && crate::engines::supertonic::installed(&p.models_root);
+    if higgs || supertonic {
+        let build = crate::engines::acpp::build_for(crate::engines::models::server_choice(&p.models_root, "tts_backend"))?;
+        builds.push(crate::engines::acpp::component(build));
+        builds.extend(crate::engines::acpp::runtime_component(build));
+    }
+    if used.iter().any(|e| crate::engines::qwen_tts::is_engine(e)) && crate::engines::qwen_tts::dir(&p.models_root).join(crate::engines::qwen_tts::CODEC).is_file() {
+        builds.extend(crate::engines::qwen_tts::build_components(&p.models_root)?);
+    }
+    if !builds.is_empty() {
+        crate::app::ensure_components(&p.repo_root, &builds, &|ev| progress(ev))?;
     }
     if project.settings.auto_stress && wanted.iter().any(|id| project.blocks().any(|b| &b.id == id && crate::engines::stress::is_russian(&b.text, project.lang_of(b)))) {
         crate::app::ensure_components(&p.repo_root, &[crate::engines::stress::COMPONENT, "onnxruntime"], &|ev| progress(ev))?;
@@ -1079,6 +1157,9 @@ fn synth_scope(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Valu
             Err(e) => failed.push(json!({ "block": id, "error": e })),
         }
     }
+    if let Err(e) = report_speed(p, pid, &made) {
+        tracing::warn!("hub: the voicing speed of project {pid} was not reported: {e}");
+    }
     let mut qc_failed = Vec::new();
     if checking && !made.is_empty() {
         qc_failed = check_takes(p, pid, &made, false, progress)?;
@@ -1099,6 +1180,23 @@ fn synth_scope(p: &SpeechPaths, pid: &str, scope: &Scope, progress: &dyn Fn(Valu
         return Err(t!("speech-synth-all-failed", error = failed[0]["error"].as_str().unwrap_or("").to_string()));
     }
     Ok(json!({ "done": done, "failed": failed, "skipped": skipped, "qc_failed": qc_failed }))
+}
+
+/// The speed of the card the voicing ran on: the seconds of speech the local engines made in this job and the seconds
+/// they took, the job queue running one job at a time. Cloud engines run on no card of this computer.
+fn report_speed(p: &SpeechPaths, pid: &str, made: &BTreeMap<String, Vec<u32>>) -> Result<(), String> {
+    let project = crate::speech::load(&p.workspace, pid)?;
+    let (mut media, mut work) = (0.0f64, 0.0f64);
+    for b in project.blocks().filter(|b| made.contains_key(&b.id) && !crate::engines::is_cloud(project.engine_of(b))) {
+        for take in b.takes.iter().filter(|t| made[&b.id].contains(&t.n)) {
+            media += take.duration;
+            work += take.synth_secs;
+        }
+    }
+    if media > 0.0 && work > 0.0 {
+        crate::app::hub_worked(crate::jobs::JobKind::Synth.as_str(), media, std::time::Duration::from_secs_f64(work));
+    }
+    Ok(())
 }
 
 /// Пауза между главами при сборке одним файлом (граница раздела у tts-audiobook-tool — 2–2,5 с).
@@ -2207,7 +2305,7 @@ mod tests {
     #[test]
     fn export_check_names_a_changed_take_file_and_a_take_too_long_for_its_cue() {
         let root = tempfile::tempdir().unwrap();
-        let p = SpeechPaths { repo_root: root.path().into(), workspace: root.path().join("ws"), voices_dir: root.path().join("voices"), models_root: root.path().join("models"), higgs_dll: root.path().join("none.dll"), threads: 1 };
+        let p = SpeechPaths { repo_root: root.path().into(), workspace: root.path().join("ws"), voices_dir: root.path().join("voices"), models_root: root.path().join("models") };
         let block = |id: &str| Block { id: id.into(), speaker: "A".into(), text: "Текст.".into(), ..Default::default() };
         let mut project = SpeechProject::default();
         project.chapters = vec![sp::Chapter { id: "c".into(), title: String::new(), blocks: vec![block("a"), block("b"), block("c"), block("d")] }];
@@ -2225,6 +2323,34 @@ mod tests {
         assert_eq!(states, vec![("b".to_string(), "modified".to_string()), ("c".to_string(), "duration".to_string())], "a take of an old project has no size and is not compared");
         std::fs::remove_file(dir.join("a-1.flac")).unwrap();
         assert_eq!(export_check(&p, "pid", &project)[0]["state"], "missing");
+    }
+
+    /// A renamed library voice stays the project's voice and its takes stay voiced; before, the project kept the old
+    /// name and voicing failed with «There is no voice named …».
+    #[test]
+    fn a_renamed_voice_is_followed_by_its_projects_and_their_takes() {
+        let root = tempfile::tempdir().unwrap();
+        let p = SpeechPaths { repo_root: root.path().into(), workspace: root.path().join("ws"), voices_dir: root.path().join("voices"), models_root: root.path().join("models") };
+        std::fs::create_dir_all(&p.voices_dir).unwrap();
+        std::fs::write(p.voices_dir.join("Designed voice.wav"), b"RIFF0000WAVE").unwrap();
+        let mut project = SpeechProject::default();
+        project.settings.voice = Some("Designed voice".into());
+        project.cast.insert("A".into(), "Designed voice".into());
+        project.chapters = vec![sp::Chapter { id: "c".into(), title: String::new(), blocks: vec![Block { id: "a".into(), speaker: "A".into(), text: "Текст.".into(), ..Default::default() }] }];
+        let before = keys(&p, &project);
+        project.chapters[0].blocks[0].takes.push(Take { n: 1, key: before["a"].clone(), voice: "Designed voice".into(), ..Default::default() });
+        project.chapters[0].blocks[0].active = Some(1);
+        let pid = "0123456789";
+        crate::speech::save(&p.workspace, pid, &project).unwrap();
+
+        rename_voice(&p, "Designed voice", "Narrator", || crate::voices::rename(&p.voices_dir, "Designed voice", "Narrator")).unwrap();
+
+        let after = crate::speech::load(&p.workspace, pid).unwrap();
+        assert_eq!(after.settings.voice.as_deref(), Some("Narrator"));
+        assert_eq!(after.cast["A"], "Narrator");
+        let b = &after.chapters[0].blocks[0];
+        assert_eq!(b.takes[0].voice, "Narrator");
+        assert_eq!(sp::status(b, &keys(&p, &after)["a"]), "ready", "the take made with the old name is still the block's voice");
     }
 
     #[test]

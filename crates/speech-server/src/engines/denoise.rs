@@ -237,6 +237,7 @@ mod tests {
 
     #[test]
     fn a_missing_model_does_not_start_file_processing() {
+        let _language = crate::i18n::test_language("en");
         let root = tempfile::tempdir().unwrap();
         let destination = root.path().join("clean.wav");
         let error = denoise_file(root.path(), &root.path().join("missing.wav"), &destination, None, &|_| {}).unwrap_err();

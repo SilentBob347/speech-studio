@@ -8,8 +8,44 @@ pub(super) fn archive_installed(repo_root: &Path, f: &FileSpec) -> bool {
         .is_some_and(|r| r.sha256 == f.sha256 && !r.files.is_empty() && r.files.iter().all(|x| file_ok(&repo_root.join(&x.path), x.size)))
 }
 
+/// A program in one file (engine, CLI): builds with other flags can match in size, only sha256 tells them apart.
+pub(super) fn is_program(f: &FileSpec) -> bool {
+    f.extract == Extract::None && (f.dest_rel.starts_with("tools/") || [".dll", ".so", ".dylib", ".exe"].iter().any(|ext| f.dest_rel.ends_with(ext)))
+}
+
+/// A program counts when it has the pinned size and its record names the pinned sha256. A file without a record
+/// (laid down before records or taken from a neighbouring program) is hashed once and the record keeps its real
+/// sha256, so a foreign build stays not installed and is not hashed again.
+fn program_installed(repo_root: &Path, f: &FileSpec) -> bool {
+    let dest = repo_root.join(f.dest_rel);
+    if !file_ok(&dest, f.size) {
+        return false;
+    }
+    if let Some(r) = read_record(repo_root, f) {
+        return r.sha256 == f.sha256;
+    }
+    match sha256_file(&dest, &|| false) {
+        Ok(Some(h)) => {
+            if h != f.sha256 {
+                tracing::warn!("{} is not the pinned build (sha256 {h}, pinned {}); it counts as not installed", f.dest_rel, f.sha256);
+            }
+            if let Err(e) = write_record_of(repo_root, f, &h, &[dest]) {
+                tracing::error!("[ERROR] the install record of {}: {e}", f.dest_rel);
+                return false;
+            }
+            h == f.sha256
+        }
+        Ok(None) => false,
+        Err(e) => {
+            tracing::error!("[ERROR] {}: {e}", f.dest_rel);
+            false
+        }
+    }
+}
+
 pub(super) fn file_installed(repo_root: &Path, f: &FileSpec) -> bool {
     match f.extract {
+        Extract::None if is_program(f) => program_installed(repo_root, f),
         Extract::None => file_ok(&repo_root.join(f.dest_rel), f.size),
         _ => archive_installed(repo_root, f),
     }

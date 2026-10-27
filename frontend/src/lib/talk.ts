@@ -1,4 +1,4 @@
-import { getCoded, postCoded, sendCoded } from "./api";
+import { getCoded, getCodedPolled, postCoded, sendCoded } from "./api";
 import type { SpeechParams } from "./speech";
 
 export type SayPhrase = { id: string; text: string; state: "said" | "waiting" | "failed" | "interrupted"; first_ms: number | null; seconds: number | null };
@@ -13,8 +13,8 @@ export const talkApi = {
   listenStop: () => sendCoded<unknown>("DELETE", "/speech/listen"),
   toggleMute: () => postCoded<{ muted: boolean }>("/speech/listen/mute", { toggle: true }),
   type: (text: string) => postCoded<{ ok: boolean }>("/speech/listen/text", { text }),
-  heard: () => getCoded<LiveHeard>("/listen/record/live"),
-  level: () => getCoded<{ level: number }>("/record/level"),
+  heard: () => getCodedPolled<LiveHeard>("/listen/record/live"),
+  level: () => getCodedPolled<{ level: number }>("/record/level"),
   voice: () => getCoded<TalkVoice>("/speech/say/voice"),
   setVoice: (v: TalkVoice) => postCoded<TalkVoice>("/speech/say/voice", v),
   micTest: (device: string) => postCoded<{ testing: boolean }>("/record/test", { device }),

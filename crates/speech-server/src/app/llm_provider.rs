@@ -79,7 +79,12 @@ fn start_gemma(o: &LlmOpen, with_mmproj: bool) -> Result<LlmProvider, String> {
     if with_mmproj && !o.mmproj.is_file() {
         return Err(t!("llm-mmproj-missing", path = o.mmproj.display().to_string()));
     }
-    let mut opts = ServerOpts::new(o.llama_bin, o.mt_model)
+    let mut opts = ServerOpts::new(o.llama_bin, o.mt_model);
+    // the processor's build has no card to put layers on
+    if crate::setup::llama_build() == acpp_server::asset::Build::Cpu {
+        opts.n_gpu_layers = 0;
+    }
+    let mut opts = opts
         .with_ubatch(crate::engines::models::sel_num(o.models_root, "llama_ubatch").map(|f| f as u32))
         .with_log_file(llama_log_path(o.models_root));
     if with_mmproj {
@@ -134,9 +139,13 @@ fn open_openrouter(o: &LlmOpen, mode: LlmMode) -> Result<LlmProvider, String> {
 
 /// The agent connected over MCP: the studio's own chat client, pointed at this server's `/mcp/agent-llm`, which
 /// hands each request to the application's agent broker. One attempt: a repeat would ask the agent twice.
-fn open_agent(mode: LlmMode) -> Result<LlmProvider, String> {
+fn open_agent(mode: LlmMode, connected: bool) -> Result<LlmProvider, String> {
     if mode == LlmMode::Vision {
         return Err(t!("llm-agent-no-vision"));
+    }
+    // without an agent its route answers 409, which the window would show as a bare HTTP code
+    if !connected {
+        return Err(t!("llm-agent-absent"));
     }
     let port = crate::app::service::bound_port().ok_or_else(|| t!("llm-agent-no-port"))?;
     let client = ChatClient::openai_compatible(&format!("http://127.0.0.1:{port}/mcp/agent-llm"), "agent", None)
@@ -152,69 +161,8 @@ pub fn open(o: &LlmOpen, mode: LlmMode) -> Result<LlmProvider, String> {
         LlmBackend::Local => start_gemma(o, mode == LlmMode::Vision),
         LlmBackend::Server => open_server(o, mode),
         LlmBackend::OpenRouter => open_openrouter(o, mode),
-        LlmBackend::Agent => open_agent(mode),
+        LlmBackend::Agent => open_agent(mode, crate::app::tools::agent_present()),
     }
-}
-
-/// Перевод и vision одного прохода анализа. Обе стадии на своей Gemma — один llama-server с mmproj на обе.
-pub struct LlmPair {
-    text: LlmProvider,
-    vision: VisionSlot,
-}
-
-enum VisionSlot {
-    /// Кадры смотрит тот же сервер, что переводит (своя Gemma с mmproj).
-    Shared,
-    Own(Box<LlmProvider>),
-    /// vision недоступен — с причиной.
-    Missing(String),
-}
-
-impl LlmPair {
-    pub fn text(&self) -> &ChatClient {
-        self.text.client()
-    }
-
-    pub fn vision(&self) -> Option<&ChatClient> {
-        match &self.vision {
-            VisionSlot::Shared => Some(self.text.client()),
-            VisionSlot::Own(provider) => Some(provider.client()),
-            VisionSlot::Missing(_) => None,
-        }
-    }
-
-    /// Строка прогресса: кто переводит, кто смотрит кадры (или почему не смотрит никто).
-    pub fn describe(&self) -> String {
-        let vision = match &self.vision {
-            VisionSlot::Shared => self.text.describe(),
-            VisionSlot::Own(provider) => provider.describe(),
-            VisionSlot::Missing(reason) => t!("llm-vision-missing", reason = reason.clone()),
-        };
-        t!("llm-pair", text = self.text.describe(), vision = vision)
-    }
-}
-
-/// Открыть перевод и vision анализа. Перевод обязателен (Err — перевод невозможен); vision без модели не
-/// роняет перевод — фазы кадров и аудио-контекста пропускаются с причиной.
-pub fn open_pair(o: &LlmOpen) -> Result<LlmPair, String> {
-    let text_backend = crate::engines::models::llm_backend(o.models_root, "llm");
-    let vision_backend = crate::engines::models::llm_backend(o.models_root, "vision");
-    if text_backend == LlmBackend::Local && vision_backend == LlmBackend::Local {
-        let with_mmproj = o.mmproj.is_file();
-        let text = start_gemma(o, with_mmproj)?;
-        let vision = if with_mmproj {
-            VisionSlot::Shared
-        } else {
-            VisionSlot::Missing(t!("llm-mmproj-missing", path = o.mmproj.display().to_string()))
-        };
-        return Ok(LlmPair { text, vision });
-    }
-    let text = open(o, LlmMode::Text)?;
-    let vision = match open(o, LlmMode::Vision) {
-        Ok(provider) => VisionSlot::Own(Box::new(provider)),
-        Err(reason) => VisionSlot::Missing(reason),
-    };
-    Ok(LlmPair { text, vision })
 }
 
 /// Лог llama-server рядом с данными приложения: <корень>/logs/llama-server.log (models_root = <корень>/models).
@@ -237,16 +185,18 @@ mod tests {
         open(&LlmOpen { llama_bin: &missing, mt_model: &missing, mmproj: &missing, models_root: root }, mode)
     }
 
-    fn pair_in(root: &Path) -> Result<LlmPair, String> {
-        let missing = root.join("missing.gguf");
-        open_pair(&LlmOpen { llama_bin: &missing, mt_model: &missing, mmproj: &missing, models_root: root })
-    }
-
     fn error<T>(result: Result<T, String>) -> String {
         match result {
             Ok(_) => panic!("an error was expected"),
             Err(e) => e,
         }
+    }
+
+    #[test]
+    fn the_agent_as_the_model_is_named_absent_before_any_request() {
+        let _language = crate::i18n::test_language("ru");
+        assert!(error(open_agent(LlmMode::Text, false)).contains("агент сейчас не подключён"));
+        assert!(error(open_agent(LlmMode::Vision, true)).contains("картинки"));
     }
 
     #[test]
@@ -273,29 +223,9 @@ mod tests {
     }
 
     #[test]
-    fn translation_goes_on_when_vision_has_no_model() {
-        let _language = crate::i18n::test_language("ru");
-        let root = scratch("pair");
-        crate::engines::models::set_selection(&root, "llm_provider", "server").unwrap();
-        crate::engines::models::set_selection(&root, "srv_llm", "qwen3:8b").unwrap();
-        crate::engines::models::set_selection(&root, "vision_provider", "local").unwrap();
-        let pair = pair_in(&root).unwrap();
-        assert_eq!(pair.text().model(), Some("qwen3:8b"));
-        assert!(pair.vision().is_none(), "no Gemma on disk: vision is skipped, translation is not");
-        assert!(pair.describe().contains("llama-server не найден"), "{}", pair.describe());
-
-        crate::engines::models::set_selection(&root, "srv_vision", "qwen2.5vl:7b").unwrap();
-        crate::engines::models::set_selection(&root, "vision_provider", "server").unwrap();
-        let pair = pair_in(&root).unwrap();
-        assert_eq!(pair.vision().and_then(ChatClient::model), Some("qwen2.5vl:7b"));
-        std::fs::remove_dir_all(&root).unwrap();
-    }
-
-    #[test]
     fn the_own_gemma_is_required_only_when_chosen() {
         let _language = crate::i18n::test_language("ru");
         let root = scratch("local");
-        assert!(error(pair_in(&root)).contains("llama-server не найден"));
         assert!(error(open_in(&root, LlmMode::Text)).contains("llama-server не найден"));
         std::fs::remove_dir_all(&root).unwrap();
     }

@@ -9,12 +9,12 @@ single-page UI (`frontend/`).
 - Do not add Python or Node.js to the runtime path. Node is for building the UI only; nothing of
   the shipped app may need it. The Python code of the first era (`backend/`, `dub-engine/`) is
   legacy and is not a reference for behaviour.
-- The model stack is fixed: Parakeet-TDT v3 (int8 ONNX) and Whisper-Faster for recognition,
-  Nemotron 3 Diarization (Streaming Sortformer v3) for diarization, Gemma-4 12B (GGUF) through llama-server for translation and
-  vision, Higgs Audio v3 through `audiocpp_engine.dll` for voice, Mel-Band Roformer through
-  BSRoformer.cpp for separation, PP-OCR (ONNX) for on-screen text, SCRFD / LVFace / anime_face /
-  CCIP / WeSpeaker for casting. Do not swap a model, a quantization or an engine without the
-  maintainer's agreement; a proposal goes into an issue.
+- The model stack is fixed: Parakeet-TDT v3, Parakeet Ultra and Nemotron 3.5 (GGUF Q8_0 through transcribe.cpp)
+  and CrisperWhisper 2.0 turbo (audiocpp_server) for recognition, Nemotron 3 Diarization (Streaming Sortformer v3,
+  ONNX) for diarization, Higgs Audio v3 (audiocpp_server), Fish Audio Drama 3 (drama-rs), Qwen3-TTS (qwentts.cpp)
+  and Supertonic 3 (ONNX) for voice, RUAccent for Russian stress, Gemma-4 12B (GGUF) through llama-server for the
+  director, Mel-Band Roformer through BSRoformer.cpp for separation, WeSpeaker for voice similarity. Do not swap a
+  model, a quantization or an engine without the maintainer's agreement; a proposal goes into an issue.
 - One engine per stage. When a stage fails it degrades (diarization becomes a single speaker) and
   says so; there is no silent second engine behind it.
 - Each stage picks its device on its own (`sep_backend`, `diar_backend`, `asr_backend`: GPU, CPU,
@@ -32,9 +32,10 @@ single-page UI (`frontend/`).
 - The REST and SSE map is `docs/PORT-CONTRACT.md`; the router is `build_router` in
   `crates/dub-server/src/lib.rs`. Change the document with the route.
 - Every external file the app downloads is one entry of `manifest()` in
-  `crates/dub-server/src/setup.rs` with its URL, size and markers. The README download table is
-  checked against it (see below); after a change to `manifest()` run
-  `node scripts/readme-downloads.mjs --write` to regenerate the tables of all six READMEs.
+  `crates/speech-server/src/setup.rs` with its URL, size and markers, or a pin of the Dub crates it
+  names. The README download table is checked against them (see below); after a change run
+  `cargo run -p speech-server --example readme-downloads -- --write` on Windows to regenerate the
+  tables of all six READMEs.
 
 ## Interface text
 
@@ -52,7 +53,7 @@ cd frontend && npm ci
 npm run build                    # the frontend gate: tsc -b and vite build; `tsc --noEmit` alone is weaker
 npm run lint                     # code you add must be clean
 npm test                         # where the script exists
-node scripts/readme-downloads.mjs   # README download tables against setup.rs
+cargo run -p speech-server --example readme-downloads   # README download tables against setup.rs (Windows)
 ```
 
 - Stop a running `dub-server.exe` before rebuilding it: Windows keeps the `.exe` locked, the

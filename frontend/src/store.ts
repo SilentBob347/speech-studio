@@ -26,6 +26,9 @@ type State = {
   activities: Activity[];            // журнал «что делает приложение» — статус-строка в шапке + разворот в лог; хранится сервером
   speechEngine: string | null;       // имя движка открытого проекта Speech: его и показывает подвал
   setSpeechEngine: (engine: string | null) => void;
+  /** The window over the page that names the hub's section for notices: settings, news or a library. */
+  overlay: "settings" | "news" | "library" | null;
+  setOverlay: (overlay: "settings" | "news" | "library" | null) => void;
   setStage: (s: Stage) => void;
   setMode: (m: Mode) => void;
   startFresh: () => void;
@@ -59,6 +62,8 @@ export const useStore = create<State>((set) => ({
   activities: [],
   speechEngine: null,
   setSpeechEngine: (speechEngine) => set({ speechEngine }),
+  overlay: null,
+  setOverlay: (overlay) => set({ overlay }),
   setStage: (stage) => set({ stage }),
   setMode: (mode) => {
     try { localStorage.setItem(MODE_KEY, mode); } catch { /* the mode is only remembered where storage works */ }

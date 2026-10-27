@@ -204,7 +204,7 @@ fn existing_cache_key_and_contents_are_reused_without_decoding_the_source() {
         .unwrap();
     let cache = dir.path().join(".work/refs");
     fs::create_dir_all(&cache).unwrap();
-    let tag = blake3::hash(b"Speaker|13|1700000000|3.0|false|0").to_hex()[..16].to_string();
+    let tag = blake3::hash(b"Speaker|13|1700000000|3.0|0||").to_hex()[..16].to_string();
     let wav = cache.join(format!("{tag}.wav"));
     let spec = hound::WavSpec {
         channels: 1,

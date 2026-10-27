@@ -2,11 +2,13 @@ import { useTranslation } from "react-i18next";
 import { useEngines } from "../../lib/engines";
 import { CLOUD_ENGINE_NAMES } from "../../lib/cloudConsent";
 import type { EngineCaps } from "../../lib/speech";
+import { defaultLibraryVoice, useVoices } from "../../lib/voices";
 
 /** The engine of one speaker or block over the project's: local engines and the project's own (a cloud engine is set up
  * for the whole project). An engine that is not ready is greyed with the reason; one that cannot speak the voice in use
- * says which of its own voices it takes instead, and choosing it hands that voice over with the engine. */
-export default function EngineSelect({ value, onChange, inherit, inheritEngine, projectEngine, voice, label, className }: {
+ * says which of its own voices it takes instead, and choosing it hands that voice over with the engine; an engine that
+ * only clones gets a library voice of `lang` when there is no voice at all. */
+export default function EngineSelect({ value, onChange, inherit, inheritEngine, projectEngine, voice, lang, label, className }: {
   value: string | null;
   /** `voice` is set when the voice in use does not suit the engine chosen: its first own voice, or null to drop an
    * own voice the inherited engine cannot speak. */
@@ -17,16 +19,22 @@ export default function EngineSelect({ value, onChange, inherit, inheritEngine, 
   projectEngine: string;
   /** The voice the block or speaker would speak with. */
   voice: string | null;
+  /** The language the block or speaker speaks. */
+  lang: string;
   label: string;
   className?: string;
 }) {
   const { t } = useTranslation();
   const engines = useEngines() ?? [];
+  const { listing } = useVoices();
   const isPreset = voice ? engines.some((e) => e.presets.some((p) => p.id === voice)) : false;
-  const swap = (e: EngineCaps): string | undefined => {
+  const swap = (e: EngineCaps): string | null | undefined => {
     const library = !!voice && !isPreset;
     const fits = e.presets.some((p) => p.id === voice) || (library && e.clone !== "none") || (!voice && !e.needs_voice);
-    return fits ? undefined : e.presets[0]?.id;
+    if (fits) return undefined;
+    if (e.presets[0]) return e.presets[0].id;
+    if (!voice && e.needs_voice) return defaultLibraryVoice(listing, lang, e.ref_text_required) ?? undefined;
+    return isPreset && !e.needs_voice ? null : undefined;
   };
   /** An engine that speaks only library voices while the voice in use is another engine's own one. */
   const needsLibrary = (e: EngineCaps) => e.needs_voice && !e.presets.length && isPreset;

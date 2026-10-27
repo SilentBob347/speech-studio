@@ -12,28 +12,7 @@ const THRESHOLD_FLOOR_DBFS: f64 = -70.0;
 /// запаса и ложится только на тихие кадры.
 const EDGE_MARGIN_FRAMES: usize = 3;
 const EDGE_FADE_SECS: f64 = 0.030;
-/// Пауза длиннее 20 тихих кадров (0.4 с) становится 10 кадрами (0.2 с) со стыком в 1 кадр (20 мс).
-const LONG_PAUSE_FRAMES: usize = 20;
-const SHORT_PAUSE_FRAMES: usize = 10;
 const PAUSE_XFADE_FRAMES: usize = 1;
-
-/// Клип после подготовки и сколько сэмплов снято.
-pub struct Tightened {
-    pub samples: Vec<f32>,
-    pub edge_cut: usize,
-    pub pause_cut: usize,
-}
-
-/// Снять тишину по краям; паузы сжать, только если клип и после этого длиннее `room_secs` (длительности,
-/// выше которой его пришлось бы ускорять).
-pub fn tighten(x: &[f32], sr: u32, room_secs: f64) -> Tightened {
-    let (edged, edge_cut) = trim_edges(x, sr);
-    if edged.len() as f64 <= room_secs * sr as f64 {
-        return Tightened { samples: edged, edge_cut, pause_cut: 0 };
-    }
-    let (samples, pause_cut) = compress_pauses(&edged, sr);
-    Tightened { samples, edge_cut, pause_cut }
-}
 
 struct Level {
     hop: usize,
@@ -105,13 +84,6 @@ fn edge_bounds(x: &[f32], sr: u32) -> Option<(usize, usize)> {
     let lv = level(x, sr)?;
     let (first, last) = (lv.loud.iter().position(|&l| l)?, lv.loud.iter().rposition(|&l| l)?);
     Some((first.saturating_sub(EDGE_MARGIN_FRAMES) * lv.hop, ((last + 1 + EDGE_MARGIN_FRAMES) * lv.hop).min(x.len())))
-}
-
-/// Сжать паузы между громкими кадрами длиннее LONG_PAUSE_FRAMES до SHORT_PAUSE_FRAMES: от паузы остаются
-/// её начало и конец, сшитые косинусным кроссфейдом. Возвращает клип и число снятых сэмплов.
-pub fn compress_pauses(x: &[f32], sr: u32) -> (Vec<f32>, usize) {
-    let (y, cuts) = squeeze_pauses(x, sr, LONG_PAUSE_FRAMES, SHORT_PAUSE_FRAMES);
-    (y, cuts.iter().map(|c| c.1).sum())
 }
 
 /// Пауза дубля длиннее 60 кадров (1,2 с) — сбой движка, а не замысел: она становится 30 кадрами (0,6 с).
@@ -293,19 +265,6 @@ mod tests {
     }
 
     #[test]
-    fn leading_and_trailing_silence_go_with_a_60ms_margin() {
-        let body = tone(1.0, 0.5);
-        let x = cat(&[silence(0.5), body.clone(), silence(0.8)]);
-        let t = tighten(&x, SR, 100.0);
-        assert_eq!(t.samples.len(), secs(1.12), "1 с речи и по 60 мс запаса с каждой стороны");
-        assert_eq!(t.edge_cut, secs(1.18));
-        assert_eq!(t.pause_cut, 0);
-        assert_eq!(&t.samples[secs(0.06)..secs(1.06)], &body[..], "речь не тронута");
-        assert_eq!(t.samples[0], 0.0);
-        assert_eq!(*t.samples.last().unwrap(), 0.0);
-    }
-
-    #[test]
     fn quiet_final_consonant_below_threshold_survives() {
         let body = tone(1.0, 0.5);
         let consonant = tone(0.03, db_to_amp(-55.0) as f32);
@@ -313,54 +272,6 @@ mod tests {
         let (y, _) = trim_edges(&x, SR);
         assert_eq!(&y[secs(1.06)..secs(1.09)], &consonant[..], "согласная −55 dBFS при пике −6 цела");
         assert_eq!(y.len(), secs(1.12));
-    }
-
-    #[test]
-    fn long_inner_pause_shrinks_only_when_the_clip_does_not_fit() {
-        let second = tone(1.0, 0.5);
-        let x = cat(&[tone(1.0, 0.5), silence(0.9), second.clone()]);
-        let fits = tighten(&x, SR, 3.0);
-        assert_eq!(fits.samples, x, "места хватает — естественная пауза остаётся");
-        let tight = tighten(&x, SR, 2.0);
-        assert_eq!(tight.samples.len(), secs(2.2), "пауза 0.9 с стала 0.2 с");
-        assert_eq!(tight.pause_cut, secs(0.7));
-        assert_eq!(&tight.samples[secs(1.2)..], &second[..], "вторая фраза цела");
-        let gap = &tight.samples[secs(1.0)..secs(1.2)];
-        assert!(gap.iter().all(|v| v.abs() < 1e-6), "на месте паузы тишина");
-    }
-
-    #[test]
-    fn short_inner_pause_is_kept_even_when_the_clip_does_not_fit() {
-        let x = cat(&[tone(1.0, 0.5), silence(0.3), tone(1.0, 0.5)]);
-        let t = tighten(&x, SR, 1.0);
-        assert_eq!(t.samples, x);
-    }
-
-    #[test]
-    fn second_pass_over_a_trimmed_clip_changes_nothing() {
-        let consonant = tone(0.03, db_to_amp(-55.0) as f32);
-        let x = cat(&[silence(0.5), tone(1.0, 0.5), silence(0.9), tone(0.7, 0.3), consonant, silence(0.8)]);
-        for room in [100.0, 1.5] {
-            let once = tighten(&x, SR, room);
-            assert!(once.edge_cut > 0);
-            let twice = tighten(&once.samples, SR, room);
-            assert_eq!(twice.samples, once.samples, "room={room}");
-            assert_eq!((twice.edge_cut, twice.pause_cut), (0, 0));
-        }
-        let unaligned = cat(&[silence(0.4567), tone(0.8, 0.4), silence(0.3333)]);
-        let once = tighten(&unaligned, SR, 100.0);
-        assert_eq!(tighten(&once.samples, SR, 100.0).samples, once.samples);
-    }
-
-    #[test]
-    fn silent_clip_is_left_as_is() {
-        let zeros = silence(1.0);
-        let t = tighten(&zeros, SR, 0.1);
-        assert_eq!(t.samples, zeros);
-        assert_eq!((t.edge_cut, t.pause_cut), (0, 0));
-        let hiss = tone(1.0, db_to_amp(-80.0) as f32);
-        assert_eq!(tighten(&hiss, SR, 0.1).samples, hiss, "шум ниже −70 dBFS — не речь");
-        assert!(tighten(&[], SR, 0.1).samples.is_empty());
     }
 
     #[test]

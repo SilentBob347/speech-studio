@@ -10,9 +10,23 @@ pub(super) async fn capabilities(State(st): State<AppState>) -> Json<Value> {
     let ffmpeg = which_ffmpeg();
     // Текущий выбор вариантов (active.json) — фронт рисует по нему селекторы движка/модели/кванта ASR.
     // Без секретов: вместо ключа OpenRouter и пароля прокси — флаги or_key_set / proxy_password_set.
-    let sel = models::public_selection(&st.models_root);
+    let sel = crate::app::cloud_tts::with_defaults(models::public_selection(&st.models_root));
     // Языки контента = полный набор Whisper (99). Единый источник — dub_translate::WHISPER_LANGS.
     let langs: Vec<&str> = dub_translate::WHISPER_LANGS.iter().map(|(c, _)| *c).collect();
+    let tts_provider = models::tts_provider(&st.models_root);
+    let chosen = |key: &str| sel.get(key).and_then(Value::as_str).unwrap_or("").to_string();
+    let tts = match tts_provider {
+        "openrouter" => chosen("or_tts_model"),
+        "google" => chosen("google_tts_model"),
+        _ => o.tts_model.to_string(),
+    };
+    let llm_provider = models::llm_backend(&st.models_root, "llm");
+    let llm = match llm_provider {
+        models::LlmBackend::Local => models::resolve_mt(&st.models_root, &models::load_selection(&st.models_root)).0.to_string_lossy().into_owned(),
+        models::LlmBackend::Server => models::server_model(&st.models_root, "llm"),
+        models::LlmBackend::OpenRouter => models::openrouter_model(&st.models_root, "llm"),
+        models::LlmBackend::Agent => String::new(),
+    };
     Json(json!({
         "device": o.device,
         "tts_quant": o.tts_quant,
@@ -20,19 +34,20 @@ pub(super) async fn capabilities(State(st): State<AppState>) -> Json<Value> {
         "asr_label": models::resolve_asr_choice(&st.repo_root, &st.models_root, &models::load_selection(&st.models_root)).label(),
         "models": {
             "asr": o.asr_model,
-            "llm": o.mt_model_path.to_string_lossy(),
+            "llm": llm,
             "vision": o.mmproj_path.to_string_lossy(),
-            "tts": o.tts_model,
+            "tts": tts,
         },
+        // the voicing model is `models.tts`: the local engine's, or the OpenRouter or Google model id
+        "tts_provider": tts_provider,
+        // the assistant's model is `models.llm`: a Gemma file, the server's or OpenRouter's model id, none for the agent
+        "llm_provider": llm_provider.as_str(),
         "ffmpeg": ffmpeg,
         "languages": langs,
         "modes": ["speech","listening"],
-        // Выбор ASR: движок (parakeet|nemotron|whisper), модель Whisper, квант Whisper (compute_type).
+        // ASR: parakeet | nemotron | whisper (CrisperWhisper 2.0 turbo).
         "selection": sel,
         "asr_engines": ["parakeet","nemotron","whisper"],
-        "whisper_models": ["tiny","base","small","medium","large-v3","large-v3-turbo"],
-        // Кванты Whisper (compute_type): float16 / int8_float16 задействуют Tensor Cores на CUDA GPU.
-        "whisper_computes": ["int8","int8_float16","int8_float32"],
         // Видимые лимиты RAM (настройки, не авто-магия): против OOM на слабой памяти. "0" = авто (дефолт).
         "llama_ubatches": ["0","512","256","128"],      // prefill-батч Gemma (меньше = меньше RAM)
         "higgs_ref_secs_opts": ["12","8","6","4"],       // длина реф-клипа клона (сек; <12 спасает 32ГБ)

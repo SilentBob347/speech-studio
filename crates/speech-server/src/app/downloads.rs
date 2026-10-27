@@ -204,8 +204,16 @@ impl Downloads {
         let stop = move || pause.load(Ordering::SeqCst);
         let on_progress = |ev: Value| self.apply_progress(id, &ev);
         // what another program has is taken first, by copy too when it sits on another drive: still faster than the network
-        setup::import_from_neighbors(&self.inner.repo_root, &crate::app::hub::neighbors(), true);
-        let res = super::engine_setup::download_components(&self.inner.repo_root, &ids, &stop, &on_progress);
+        // a panic in the download must end the job as failed: a thread gone silently leaves it «downloading» for good
+        let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            setup::import_from_neighbors(&self.inner.repo_root, &crate::app::hub::neighbors(), true);
+            super::engine_setup::download_components(&self.inner.repo_root, &ids, &stop, &on_progress)
+        }))
+        .unwrap_or_else(|panic| {
+            let why = panic.downcast_ref::<String>().cloned().or_else(|| panic.downcast_ref::<&str>().map(|s| s.to_string())).unwrap_or_default();
+            tracing::error!("[ERROR] the download thread panicked: {why}");
+            Err(setup::DlError::new("panic", t!("downloads-panicked", error = why)))
+        });
         let mut state = lock(&self.inner.state);
         // Закачку уже сменила следующая — итог этой никому не нужен.
         if let Some(job) = state.active.as_mut().filter(|j| j.id == id) {
@@ -226,7 +234,7 @@ impl Downloads {
                 }
                 Err(e) => {
                     tracing::warn!("download {:?}: {} ({})", job.ids, e.detail, e.code);
-                    crate::app::hub::setup_failed(&e.code);
+                    crate::app::hub::setup_failed(e.code, &job.ids, &e.detail);
                     job.status = DownloadStatus::Failed;
                     job.error_code = Some(e.code.to_string());
                     job.error = Some(e.detail);
@@ -345,7 +353,7 @@ mod tests {
         let d = Downloads::open(&root);
         assert_eq!(d.active().unwrap().status, DownloadStatus::Interrupted);
         assert!(!d.pause(), "пауза без идущей закачки ничего не делает");
-        d.forget_covering(&["whisper-tiny".into()]);
+        d.forget_covering(&["langid".into()]);
         assert!(d.active().is_some(), "чужие компоненты не забываются");
         d.forget_covering(&["gemma-q8_0".into()]);
         assert!(d.active().is_none());

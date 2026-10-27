@@ -1,4 +1,4 @@
-import { BASE, coded, getCoded, postCoded, sendCoded } from "./api";
+import { BASE, coded, getCoded, getCodedPolled, postCoded, sendCoded } from "./api";
 
 export type HallucinationFlag = "wordless" | "numeric" | "bracketed" | "credit" | "subtitle_word" | "shouted" | "known_phrase";
 export type ListenWord = { text: string; start: number; end: number; cut: boolean };
@@ -76,7 +76,7 @@ export const listenApi = {
   },
   /** With `live` the recording is recognised phrase by phrase while it records (recordLive), in `lang`. */
   recordStart: (device?: string, live = false, lang = "auto") => postCoded<{ pid: string }>("/listen/record/start", { device: device ?? "", live, lang }),
-  recordLive: () => getCoded<{ running: boolean; lines: { start: number; end: number; text: string }[]; partial: { start: number; text: string } | null; error: string | null }>("/listen/record/live"),
+  recordLive: () => getCodedPolled<{ running: boolean; lines: { start: number; end: number; text: string }[]; partial: { start: number; text: string } | null; error: string | null }>("/listen/record/live"),
   recordStop: () => postCoded<{ pid: string; project: ListenProject }>("/listen/record/stop", {}),
   get: (pid: string) => getCoded<ListenProject>(`/listen/${pid}`),
   put: (pid: string, project: ListenProject) => sendCoded<ListenProject>("PUT", `/listen/${pid}`, project),
@@ -88,7 +88,7 @@ export const listenApi = {
   export: (pid: string, format: TranscriptFormat, speakers: boolean, times: boolean, rules = "", digits = false) => postCoded<{ file: string; text: string; too_fast: number | null; digits_unknown: number | null }>(`/listen/${pid}/export`, { format, speakers, times, rules: rules || undefined, digits: digits || undefined }),
   subtitleRules: () => getCoded<{ rules: SubtitleRules[] }>("/listen/subtitle-rules"),
   stats: (pid: string) => getCoded<SpeakerStats>(`/listen/${pid}/stats`),
-  watchStatus: () => getCoded<WatchStatus>("/listen/watch"),
+  watchStatus: () => getCodedPolled<WatchStatus>("/listen/watch"),
   watchStart: (config: WatchConfig) => postCoded<WatchStatus>("/listen/watch", config),
   watchStop: () => postCoded<WatchStatus>("/listen/watch/stop", {}),
   check: (pid: string, reference: string) => postCoded<ReferenceCheck>(`/listen/${pid}/check`, { reference }),

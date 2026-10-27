@@ -156,7 +156,7 @@ pub(crate) fn seen(what: &str) {
     agent().calls.fetch_add(1, Ordering::Relaxed);
 }
 
-pub(super) fn agent_present() -> bool {
+pub(crate) fn agent_present() -> bool {
     agent()
         .last_call
         .lock()

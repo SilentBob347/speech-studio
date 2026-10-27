@@ -38,7 +38,8 @@ fn sysinfo() -> &'static Mutex<System> {
 pub fn snapshot() -> HardwareSnapshot {
     let mut snap = HardwareSnapshot::default();
 
-    // GPU через NVML (ленивая инициализация на первом опросе).
+    // GPU через NVML (ленивая инициализация на первом опросе); карта — та, что у CUDA.
+    let pci = gpu_report().pci_bus_id;
     let mut ng = nvml().lock().unwrap();
     if ng.is_none() {
         match Nvml::init() {
@@ -47,7 +48,7 @@ pub fn snapshot() -> HardwareSnapshot {
         }
     }
     if let Some(n) = ng.as_ref() {
-        match n.device_by_index(0) {
+        match our_device(n, pci.as_deref()) {
             Ok(d) => {
                 snap.gpu_name = d.name().unwrap_or_else(|_| "NVIDIA GPU".into());
                 if let Ok(m) = d.memory_info() {
@@ -96,14 +97,15 @@ pub fn total_ram() -> u64 {
     sg.total_memory()
 }
 
-/// Видеопамять карты 0, байт (NVML); 0 — карты нет или NVML не ответил.
+/// Видеопамять карты, на которой считает CUDA, байт (NVML); 0 — карты нет или NVML не ответил.
 pub fn total_vram() -> u64 {
+    let pci = gpu_report().pci_bus_id;
     let mut ng = nvml().lock().unwrap();
     if ng.is_none() {
         *ng = Nvml::init().ok();
     }
     ng.as_ref()
-        .and_then(|n| n.device_by_index(0).ok())
+        .and_then(|n| our_device(n, pci.as_deref()).ok())
         .and_then(|d| d.memory_info().ok())
         .map_or(0, |m| m.total)
 }
@@ -125,6 +127,27 @@ pub const CUDA13_DRIVER: u32 = 580;
 pub const CUDA13_OLDEST: (u32, u32) = (7, 5);
 /// cuDriverGetVersion драйвера, поддерживающего CUDA 13.0 (1000 * major + 10 * minor).
 const CUDA13_DRIVER_API: u32 = 13_000;
+pub const CUDA12_OLDEST: (u32, u32) = (5, 2);
+const CUDA12_DRIVER_API: u32 = 12_000;
+
+/// Which CUDA build of an engine runs on this card: CUDA 13 where it can, else CUDA 12.9.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum CudaBuild {
+    Cuda13,
+    Cuda12,
+}
+
+/// The CUDA build for a card of this compute capability on a driver of this CUDA version; None — neither runs.
+pub fn cuda_build(compute: (u32, u32), cuda_driver: u32) -> Option<CudaBuild> {
+    if cuda13_verdict(compute, cuda_driver).is_ok() {
+        Some(CudaBuild::Cuda13)
+    } else if compute >= CUDA12_OLDEST && cuda_driver >= CUDA12_DRIVER_API {
+        Some(CudaBuild::Cuda12)
+    } else {
+        None
+    }
+}
 
 #[derive(Clone, Debug, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -140,10 +163,26 @@ pub struct GpuReport {
     pub compute: Option<String>,
     /// Локальные стадии можно считать на GPU этой сборкой.
     pub cuda13_ok: bool,
-    /// Почему нельзя: no_nvidia | no_device | cuda_init | driver_old | gpu_old.
+    /// The CUDA build the card runs (engines that have both); None — neither.
+    pub cuda_build: Option<CudaBuild>,
+    /// Почему нельзя: no_nvidia | no_device | cuda_init | driver_old | gpu_old | gpu_missing.
     pub reason: Option<&'static str>,
     pub min_driver: u32,
     pub min_compute: String,
+    /// PCI bus id of the card CUDA uses, by which NVML names it: NVML does not follow CUDA_VISIBLE_DEVICES.
+    pub pci_bus_id: Option<String>,
+    /// Every NVIDIA card in PCI bus order, the order CUDA_VISIBLE_DEVICES counts in with CUDA_DEVICE_ORDER=PCI_BUS_ID.
+    pub cards: Vec<GpuCard>,
+    /// The card chosen in the settings, when one is.
+    pub chosen: Option<u32>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GpuCard {
+    pub index: u32,
+    pub name: String,
+    pub memory_mb: u64,
 }
 
 impl GpuReport {
@@ -174,6 +213,83 @@ pub fn cuda13_verdict(compute: (u32, u32), cuda_driver: u32) -> Result<(), &'sta
     }
 }
 
+/// The display adapter that is not Microsoft's software one (Windows: the adapter with the most memory in the display
+/// class of the registry; Linux: the first DRM card on PCI), named for the log, as YuE2 Studio finds it. None without
+/// one, and on a Mac, whose one build is the processor's. Probed once a process.
+pub fn display_adapter() -> Option<String> {
+    static ADAPTER: OnceLock<Option<String>> = OnceLock::new();
+    ADAPTER.get_or_init(probe_adapter).clone()
+}
+
+#[cfg(windows)]
+fn probe_adapter() -> Option<String> {
+    use std::os::windows::process::CommandExt;
+    const CLASS: &str = r"HKLM\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}";
+    let query = |value: &str| -> Option<String> {
+        let output = std::process::Command::new("reg").args(["query", CLASS, "/s", "/v", value]).creation_flags(0x0800_0000).output().ok()?;
+        output.status.success().then(|| String::from_utf8_lossy(&output.stdout).into_owned())
+    };
+    best_adapter(&query("DriverDesc")?, &query("HardwareInformation.qwMemorySize")?)
+}
+
+/// Joins `reg query /s` listings of the adapter names and memory sizes by their subkey and keeps the adapter with the
+/// most memory that is not Microsoft's.
+#[cfg(any(windows, test))]
+fn best_adapter(names: &str, sizes: &str) -> Option<String> {
+    fn values(listing: &str) -> Vec<(String, String)> {
+        let mut key = String::new();
+        let mut out = Vec::new();
+        for line in listing.lines() {
+            if line.starts_with("HKEY_") {
+                key = line.trim().to_owned();
+            } else if let Some((_, value)) = line.trim().split_once("    REG_") {
+                if let Some((_, data)) = value.split_once("    ") {
+                    out.push((key.clone(), data.trim().to_owned()));
+                }
+            }
+        }
+        out
+    }
+    let names = values(names);
+    values(sizes)
+        .into_iter()
+        .filter_map(|(key, size)| {
+            let bytes = u64::from_str_radix(size.trim_start_matches("0x"), 16).ok()?;
+            let name = names.iter().find(|(name_key, _)| *name_key == key)?.1.clone();
+            (!name.starts_with("Microsoft")).then_some((name, bytes))
+        })
+        .max_by_key(|(_, bytes)| *bytes)
+        .map(|(name, _)| name)
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn probe_adapter() -> Option<String> {
+    let mut cards: Vec<std::path::PathBuf> = std::fs::read_dir("/sys/class/drm")
+        .ok()?
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| path.file_name().and_then(|n| n.to_str()).is_some_and(|n| n.starts_with("card") && n.len() > 4 && n[4..].chars().all(|c| c.is_ascii_digit())))
+        .collect();
+    cards.sort();
+    cards.into_iter().find_map(|path| {
+        let read = |name: &str| std::fs::read_to_string(path.join("device").join(name)).ok().map(|v| v.trim().to_owned());
+        let vendor = read("vendor")?;
+        let device = read("device").unwrap_or_default();
+        let who = match vendor.trim_start_matches("0x").to_ascii_lowercase().as_str() {
+            "8086" => "Intel",
+            "1002" | "1022" => "AMD",
+            "10de" => "NVIDIA",
+            _ => "PCI",
+        };
+        Some(format!("{who} display adapter ({vendor}:{device})"))
+    })
+}
+
+#[cfg(target_os = "macos")]
+fn probe_adapter() -> Option<String> {
+    None
+}
+
 /// Отчёт о видеокарте (считается один раз за процесс: драйвер не меняется без перезапуска приложения).
 pub fn gpu_report() -> GpuReport {
     static R: OnceLock<GpuReport> = OnceLock::new();
@@ -182,6 +298,7 @@ pub fn gpu_report() -> GpuReport {
 
 fn probe_gpu() -> GpuReport {
     let mut r = GpuReport { min_driver: CUDA13_DRIVER, min_compute: format!("{}.{}", CUDA13_OLDEST.0, CUDA13_OLDEST.1), ..Default::default() };
+    r.chosen = chosen_card();
     match cuda_driver_probe() {
         CudaProbe::NoDriver => {
             r.reason = Some("no_nvidia");
@@ -196,14 +313,16 @@ fn probe_gpu() -> GpuReport {
             tracing::warn!("the CUDA driver does not answer: {what}");
             r.reason = Some("cuda_init");
         }
-        CudaProbe::Ok { version, compute } => {
+        CudaProbe::Ok { version, compute, pci } => {
             r.nvidia = true;
+            r.pci_bus_id = pci;
             r.cuda_driver = Some(format!("{}.{}", version / 1000, (version % 1000) / 10));
             r.compute = Some(format!("{}.{}", compute.0, compute.1));
             match cuda13_verdict(compute, version) {
                 Ok(()) => r.cuda13_ok = true,
                 Err(why) => r.reason = Some(why),
             }
+            r.cuda_build = cuda_build(compute, version);
         }
     }
     let mut ng = nvml().lock().unwrap_or_else(|e| e.into_inner());
@@ -215,16 +334,46 @@ fn probe_gpu() -> GpuReport {
     }
     if let Some(n) = ng.as_ref() {
         r.driver_version = n.sys_driver_version().ok();
-        r.name = n.device_by_index(0).and_then(|d| d.name()).ok();
+        let count = n.device_count().unwrap_or(0);
+        r.cards = (0..count)
+            .filter_map(|i| {
+                let d = n.device_by_index(i).ok()?;
+                Some(GpuCard { index: i, name: d.name().ok()?, memory_mb: d.memory_info().map(|m| m.total >> 20).unwrap_or(0) })
+            })
+            .collect();
+        r.name = our_device(n, r.pci_bus_id.as_deref()).and_then(|d| d.name()).ok();
+        if let Some(i) = r.chosen.filter(|i| *i >= count) {
+            tracing::warn!("the graphics card {i} chosen in the settings is not in this computer ({count} NVIDIA cards)");
+            r.reason = Some("gpu_missing");
+            r.cuda13_ok = false;
+            r.cuda_build = None;
+        }
     }
     r
+}
+
+/// The card chosen in the settings, as the process environment carries it (see app::runtime::apply_gpu_choice).
+fn chosen_card() -> Option<u32> {
+    (std::env::var("CUDA_DEVICE_ORDER").as_deref() == Ok("PCI_BUS_ID"))
+        .then(|| std::env::var("CUDA_VISIBLE_DEVICES").ok()?.trim().parse().ok())
+        .flatten()
+}
+
+/// The NVML device of the card CUDA uses: by its PCI bus id; with no id (a driver without cuDeviceGetPCIBusId) only a
+/// single card is unambiguous.
+fn our_device<'a>(n: &'a Nvml, pci: Option<&str>) -> Result<nvml_wrapper::Device<'a>, nvml_wrapper::error::NvmlError> {
+    match pci {
+        Some(id) => n.device_by_pci_bus_id(id),
+        None if n.device_count()? == 1 => n.device_by_index(0),
+        None => Err(nvml_wrapper::error::NvmlError::NotFound),
+    }
 }
 
 enum CudaProbe {
     NoDriver,
     NoDevice,
     Failed(String),
-    Ok { version: u32, compute: (u32, u32) },
+    Ok { version: u32, compute: (u32, u32), pci: Option<String> },
 }
 
 #[cfg(windows)]
@@ -304,7 +453,15 @@ fn driver_api_probe(sym: impl Fn(&[u8]) -> *mut std::ffi::c_void) -> CudaProbe {
         if rc != 0 || rc2 != 0 {
             return CudaProbe::Failed(format!("cuDeviceGetAttribute: CUresult {rc}/{rc2}"));
         }
-        CudaProbe::Ok { version: v.max(0) as u32, compute: (major.max(0) as u32, minor.max(0) as u32) }
+        let bus = sym(b"cuDeviceGetPCIBusId\0");
+        let pci = (!bus.is_null()).then(|| {
+            type CuDeviceGetPciBusId = unsafe extern "system" fn(*mut u8, i32, i32) -> i32;
+            let bus = std::mem::transmute::<*mut c_void, CuDeviceGetPciBusId>(bus);
+            let mut buf = [0u8; 32];
+            (bus(buf.as_mut_ptr(), buf.len() as i32, 0) == 0)
+                .then(|| String::from_utf8_lossy(&buf[..buf.iter().position(|b| *b == 0).unwrap_or(buf.len())]).into_owned())
+        }).flatten();
+        CudaProbe::Ok { version: v.max(0) as u32, compute: (major.max(0) as u32, minor.max(0) as u32), pci }
     }
 }
 
@@ -322,6 +479,17 @@ mod tests {
         assert_eq!(cuda13_verdict((6, 1), 13_000), Err("gpu_old"), "Pascal CUDA 13 не поддерживает");
         assert_eq!(cuda13_verdict((7, 0), 12_000), Err("gpu_old"), "старая карта важнее старого драйвера");
         assert_eq!(cuda13_verdict((5, 2), 13_040), Err("gpu_old"));
+    }
+
+    #[test]
+    fn cuda12_takes_the_cards_and_drivers_cuda13_left() {
+        assert_eq!(cuda_build((8, 9), 13_040), Some(CudaBuild::Cuda13));
+        assert_eq!(cuda_build((8, 6), 12_080), Some(CudaBuild::Cuda12), "RTX 30 on driver 566");
+        assert_eq!(cuda_build((6, 1), 13_000), Some(CudaBuild::Cuda12), "Pascal");
+        assert_eq!(cuda_build((7, 0), 12_020), Some(CudaBuild::Cuda12), "V100");
+        assert_eq!(cuda_build(CUDA12_OLDEST, 12_000), Some(CudaBuild::Cuda12), "Maxwell 2 on driver 525");
+        assert_eq!(cuda_build((5, 0), 13_000), None, "Maxwell 1");
+        assert_eq!(cuda_build((8, 6), 11_080), None, "driver of the CUDA 11 branch");
     }
 
     #[test]

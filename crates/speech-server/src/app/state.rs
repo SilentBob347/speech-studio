@@ -7,7 +7,6 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::response::Response;
 use dub_core::EngineOpts;
-use dub_core::Project;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -28,10 +27,6 @@ pub struct AppState {
     pub bsroformer_cli: PathBuf,
     /// GGUF модель сепарации. Env SPEECH_STUDIO_BSROFORMER_MODEL, иначе <repo>/models/bsroformer/voc_fv6-Q8_0.gguf.
     pub bsroformer_model: PathBuf,
-    /// Higgs audiocpp_engine.dll (TTS). Env SPEECH_STUDIO_HIGGS_DLL, иначе <models>/higgs-engine/audiocpp_engine.dll.
-    pub higgs_dll: PathBuf,
-    /// Каталог весов Higgs (q8_0). Env SPEECH_STUDIO_HIGGS_MODEL, иначе <models>/higgs-q8_0.
-    pub higgs_model_root: PathBuf,
     /// Каталог bundled-шрифтов субтитров. Env SPEECH_STUDIO_FONTS_DIR, иначе <repo>/fonts.
     pub fonts_dir: PathBuf,
     /// Корень моделей (для OCR: <root>/ocr/…). Env SPEECH_STUDIO_MODELS_ROOT, иначе <repo>/models.
@@ -65,6 +60,7 @@ impl AppState {
         let web_root = spa::find_web_root(&repo_root);
         let mroot = models_root(&repo_root);
         setup::remove_retired(&mroot);
+        setup::remove_retired_whisper(&repo_root);
         match app::credential_migration::migrate_legacy_selection(&mroot) {
             Ok(moved) if moved.openrouter_key || moved.proxy_password => {
                 tracing::info!("secrets moved from active.json to the secret store: {moved:?}")
@@ -72,26 +68,14 @@ impl AppState {
             Ok(_) => {}
             Err(e) => tracing::error!("secrets from active.json were not moved to the store: {e:#}"),
         }
-        let sortformer_onnx = std::env::var("SPEECH_STUDIO_SORTFORMER")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| mroot.join(dub_asr::DIAR_MODEL_DIR).join(dub_asr::DIAR_MODEL_FILE));
+        let sortformer_onnx = crate::engines::acpp::diar_onnx(&mroot);
         // llama-server: env-override, иначе <repo>/tools/llama/llama-server(.exe) (негитуемый каталог,
         // кладёт установщик/раунд 3). Существование проверяет сама стадия перевода (fail-safe).
-        let llama_bin = dub_llm::resolve_llama_bin(&repo_root.join("tools").join("llama"));
+        let llama_bin = dub_llm::resolve_llama_bin(&crate::setup::llama_dir(&repo_root, crate::setup::llama_build()));
         let bsroformer_cli = std::env::var("SPEECH_STUDIO_BSROFORMER_DIR")
             .map(|d| PathBuf::from(d).join(dub_sep::ENGINE_CLI_FILE))
             .unwrap_or_else(|_| dub_sep::engine_dir(&repo_root).join(dub_sep::ENGINE_CLI_FILE));
         let bsroformer_model = dub_sep::model_path(&repo_root);
-        let higgs_dll = std::env::var("SPEECH_STUDIO_HIGGS_DLL").map(PathBuf::from).unwrap_or_else(|_| {
-            mroot.join("higgs-engine").join(if cfg!(windows) {
-                "audiocpp_engine.dll"
-            } else {
-                "libaudiocpp_engine.so"
-            })
-        });
-        let higgs_model_root = std::env::var("SPEECH_STUDIO_HIGGS_MODEL")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| mroot.join("higgs-q8_0"));
         let fonts_dir = std::env::var("SPEECH_STUDIO_FONTS_DIR")
             .map(PathBuf::from)
             .unwrap_or_else(|_| repo_root.join("fonts"));
@@ -110,8 +94,6 @@ impl AppState {
             llama_bin,
             bsroformer_cli,
             bsroformer_model,
-            higgs_dll,
-            higgs_model_root,
             fonts_dir,
             models_root: mroot,
             voices_dir,
@@ -132,13 +114,4 @@ impl AppState {
         Ok(d)
     }
 
-    fn load_project(&self, pid: &str) -> Result<Project, Response> {
-        let d = self.proj_dir(pid)?;
-        let f = d.join("project.json");
-        if !f.is_file() {
-            return Err((StatusCode::CONFLICT, "project not analyzed yet").into_response());
-        }
-        let text = std::fs::read_to_string(&f).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response())?;
-        Project::from_json(&text).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response())
-    }
 }

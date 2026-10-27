@@ -19,7 +19,7 @@ mod text;
 mod tracks;
 
 pub(crate) use creation::from_transcript;
-pub(crate) use jobs::SpeechPaths;
+pub(crate) use jobs::{rename_voice, SpeechPaths};
 pub(crate) use preparation::{dictionary_counts, prepare_text, unknown_words, PrepareText};
 
 mod naming;

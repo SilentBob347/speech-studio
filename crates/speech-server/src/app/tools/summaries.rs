@@ -147,9 +147,9 @@ pub(super) fn shape(name: &str, args: &Value, value: Value) -> Value {
         "settings_get" => json!({
             "settings": value["selection"],
             "choices": {
-                "asr_engine": value["asr_engines"], "whisper_model": value["whisper_models"], "whisper_compute": value["whisper_computes"],
+                "asr_engine": value["asr_engines"],
                 "llama_ubatch": value["llama_ubatches"], "higgs_ref_secs": value["higgs_ref_secs_opts"],
-                "local_backend": ["auto", "gpu", "cpu"], "sep_backend": ["auto", "gpu", "cpu"], "diar_backend": ["auto", "gpu", "cpu"], "asr_backend": ["auto", "gpu", "cpu"],
+                "local_backend": ["auto", "gpu", "vulkan", "cpu"], "tts_backend": ["auto", "gpu", "vulkan", "cpu"], "sep_backend": ["auto", "gpu", "vulkan", "cpu"], "diar_backend": ["auto", "gpu", "vulkan", "cpu"], "asr_backend": ["auto", "gpu", "vulkan", "cpu"],
             },
         }),
         "projects_list" => {

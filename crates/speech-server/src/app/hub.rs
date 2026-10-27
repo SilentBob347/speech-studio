@@ -106,12 +106,25 @@ pub fn setup_ready() {
     }
 }
 
-/// A model download failed, with its error code (network, disk_space, hash_mismatch...): the detail is in the
-/// window's language and would split one cause into rows per language.
-pub fn setup_failed(reason: &str) {
+/// A model download failed: its error code (network, disk_space, hash_mismatch...), the components and the host it
+/// failed on. The detail itself is in the window's language and would split one cause into rows per language.
+pub fn setup_failed(code: &str, ids: &[String], detail: &str) {
     if let Some(hub) = HUB.get().and_then(Option::as_ref) {
-        hub.setup_failed(reason);
+        hub.setup_failed(&setup_failure(code, ids, detail));
     }
+}
+
+/// Work that had the engine to itself (the job queue runs one job at a time): the seconds of sound it made and the
+/// seconds the engine took, for the speed of each class of card.
+pub(crate) fn worked(kind: &str, media_secs: f64, work: std::time::Duration) {
+    if let Some(hub) = HUB.get().and_then(Option::as_ref) {
+        hub.worked(kind, media_secs, work);
+    }
+}
+
+fn setup_failure(code: &str, ids: &[String], detail: &str) -> String {
+    let host = detail.split("://").nth(1).map(|rest| rest.split(['/', ':', ' ', ')']).next().unwrap_or("")).unwrap_or("");
+    [code, &ids.join(","), host].iter().filter(|s| !s.is_empty()).copied().collect::<Vec<_>>().join(" ")
 }
 
 /// A finished job, counted as `<kind>_done`, `<kind>_failed` or `<kind>_cancelled` (frame previews are not counted);
@@ -186,7 +199,7 @@ fn models_in_use(mroot: &Path, stages: &[&str]) -> Vec<String> {
                 provider => format!("tts:{provider}:{}", models::tts_model(mroot)),
             },
             "asr" if models::openrouter_asr_on(mroot) => format!("asr:openrouter:{}", slot("or_asr")),
-            "asr" if slot("asr_engine") == "whisper" => format!("asr:whisper-{}", slot("whisper_model")),
+            "asr" if slot("asr_engine") == "whisper" => "asr:crisperwhisper-turbo".to_string(),
             "asr" if slot("asr_engine") == "nemotron" => "asr:nemotron-3.5-int8".to_string(),
             "asr" if slot("asr_engine").starts_with("gguf-") => format!("asr:{}", slot("asr_engine")),
             "asr" => format!("asr:parakeet-{}", slot("asr")),
@@ -204,6 +217,14 @@ fn models_in_use(mroot: &Path, stages: &[&str]) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_download_failure_names_its_components_and_host() {
+        let ids = vec!["asr-gguf-nemotron".to_string(), "transcribe-engine".to_string()];
+        let detail = "https://huggingface.co/handy-computer/x/resolve/abc/m.gguf: io: connection reset";
+        assert_eq!(setup_failure("network", &ids, detail), "network asr-gguf-nemotron,transcribe-engine huggingface.co");
+        assert_eq!(setup_failure("disk_space", &[], "нет места на диске"), "disk_space");
+    }
 
     #[test]
     fn completion_counters_keep_outcomes_and_exclude_frames() {

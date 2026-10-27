@@ -9,16 +9,17 @@ description = "axum-сервис Speech Studio: озвучка (Speech) и ра�
 tempfile = "3"
 trash = "5"
 fluent-templates = "0.15.1"
-dub-core = { git = "https://github.com/timoncool/dub-studio", rev = "8d9aea7635774fbbcc1d3b903cfba2ba4be72383" }
-dub-asr = { git = "https://github.com/timoncool/dub-studio", rev = "8d9aea7635774fbbcc1d3b903cfba2ba4be72383", features = ["cuda"] }
-dub-llm = { git = "https://github.com/timoncool/dub-studio", rev = "8d9aea7635774fbbcc1d3b903cfba2ba4be72383" }
-dub-translate = { git = "https://github.com/timoncool/dub-studio", rev = "8d9aea7635774fbbcc1d3b903cfba2ba4be72383" }
-dub-captions = { git = "https://github.com/timoncool/dub-studio", rev = "8d9aea7635774fbbcc1d3b903cfba2ba4be72383" }
-dub-sep = { git = "https://github.com/timoncool/dub-studio", rev = "8d9aea7635774fbbcc1d3b903cfba2ba4be72383" }
-dub-faces = { git = "https://github.com/timoncool/dub-studio", rev = "8d9aea7635774fbbcc1d3b903cfba2ba4be72383" }
+dub-core = { git = "https://github.com/timoncool/dub-studio", rev = "da880573b39115eb57aceab267b34cce593c28c5" }
+dub-asr = { git = "https://github.com/timoncool/dub-studio", rev = "da880573b39115eb57aceab267b34cce593c28c5", features = ["cuda"] }
+dub-tcpp = { git = "https://github.com/timoncool/dub-studio", rev = "da880573b39115eb57aceab267b34cce593c28c5" }
+acpp-server = { git = "https://github.com/timoncool/dub-studio", rev = "da880573b39115eb57aceab267b34cce593c28c5", features = ["langid"] }
+dub-llm = { git = "https://github.com/timoncool/dub-studio", rev = "da880573b39115eb57aceab267b34cce593c28c5" }
+dub-translate = { git = "https://github.com/timoncool/dub-studio", rev = "da880573b39115eb57aceab267b34cce593c28c5" }
+dub-captions = { git = "https://github.com/timoncool/dub-studio", rev = "da880573b39115eb57aceab267b34cce593c28c5" }
+dub-sep = { git = "https://github.com/timoncool/dub-studio", rev = "da880573b39115eb57aceab267b34cce593c28c5" }
+dub-faces = { git = "https://github.com/timoncool/dub-studio", rev = "da880573b39115eb57aceab267b34cce593c28c5" }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
-audiocpp = { git = "https://github.com/timoncool/dub-studio", rev = "8d9aea7635774fbbcc1d3b903cfba2ba4be72383" }
-drama = { git = "https://github.com/timoncool/dub-studio", rev = "8d9aea7635774fbbcc1d3b903cfba2ba4be72383" }
+drama = { git = "https://github.com/timoncool/dub-studio", rev = "da880573b39115eb57aceab267b34cce593c28c5" }
 hound = "3"
 axum = { version = "0.8", features = ["multipart"] }
 tower = { version = "0.5", features = ["util"] }
@@ -47,7 +48,7 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "std"
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "rustls", "stream"] }
 # Многопоточная (aria2-style) загрузка byte-range'ами через ureq (метод Higgs-Ultimate). HF Xet-CAS отдаёт
 # 206 на Range-запросы с ureq-UA (reqwest/curl-UA душит 403). Параллельные диапазоны сатурируют канал HF CDN.
-ureq = { version = "3", features = ["socks-proxy"] }   # socks-proxy: без него socks5:// паникует «Enable feature socks-proxy»
+ureq = { version = "3", features = ["socks-proxy", "platform-verifier"] }   # socks-proxy: без него socks5:// паникует «Enable feature socks-proxy»
 zip = { version = "8", default-features = false, features = ["deflate"] }
 csv = "1.4"
 text2num = "2.8"
@@ -77,7 +78,7 @@ studio-hub-client = { git = "https://github.com/timoncool/studio-hub-client", re
 regex = "1"
 # ударения и омографы (stress.rs): ONNX-сети RUAccent на той же onnxruntime 1.28, что ASR, их токенизатор и словарь как FST.
 ort = { version = "=2.0.0-rc.13", default-features = false, features = ["load-dynamic", "tracing", "api-28", "cuda"] }
-# Supertonic: NFKD of the text, as its unicode indexer expects.
+# the director's check of a rewritten text: NFKC of its letters.
 unicode-normalization = "0.1"
 # Qwen3-TTS: qwentts.cpp's C ABI loaded at run time.
 libloading = "0.9"
@@ -104,7 +105,7 @@ rust-genai = { version = "=0.3.1", default-features = false }
 
 # job object с kill-on-close: сайдкары не переживают студию (process_group.rs).
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Threading"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_System_Diagnostics_Debug", "Win32_System_JobObjects", "Win32_System_Kernel", "Win32_System_LibraryLoader", "Win32_System_Threading"] }
 
 # Linux: CUDA driver API из libcuda.so.1 (hw.rs) через dlopen.
 [target.'cfg(not(windows))'.dependencies]
@@ -112,4 +113,9 @@ libc = "0.2"
 
 [dev-dependencies]
 # Поддельный HTTP-сервер для тестов провайдеров.
-dub-llm = { git = "https://github.com/timoncool/dub-studio", rev = "8d9aea7635774fbbcc1d3b903cfba2ba4be72383", features = ["test-support"] }
+dub-llm = { git = "https://github.com/timoncool/dub-studio", rev = "da880573b39115eb57aceab267b34cce593c28c5", features = ["test-support"] }
+
+# The README download tables (scripts/readme-downloads.rs), checked or rewritten from what the app downloads.
+[[example]]
+name = "readme-downloads"
+path = "../../scripts/readme-downloads.rs"

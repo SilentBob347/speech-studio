@@ -144,7 +144,10 @@ fn start_or_reuse_service(repo_root: &std::path::Path) -> Result<u16, String> {
 /// Окружение сервера до старта: путь к onnxruntime 1.28 (PATH под движок/инструменты добавит
 /// augment_path_for_tools внутри serve_blocking).
 fn setup_server_env(repo_root: &PathBuf) {
-    speech_server::set_ort_dylib_env(repo_root, &layout::executable_directory());
+    speech_server::apply_gpu_choice(repo_root);
+    if let Err(e) = speech_server::set_ort_dylib_env(repo_root, &layout::executable_directory()) {
+        layout::fatal(&e);
+    }
 }
 
 /// Проверка обновления на GitHub-релизе и (по согласию юзера) установка. Драйвится из Rust: фронт
@@ -216,7 +219,13 @@ fn spawn_update_check(app: tauri::AppHandle, portable: bool) {
             if open {
                 // Браузер, запущенный изнутри job студии, закрылся бы вместе с ней.
                 let opened = speech_server::process_group::detach_from_group(
-                    &mut std::process::Command::new(if cfg!(windows) { "explorer" } else { "xdg-open" }),
+                    &mut speech_server::process_group::host_command(if cfg!(windows) {
+                        "explorer"
+                    } else if cfg!(target_os = "macos") {
+                        "open"
+                    } else {
+                        "xdg-open"
+                    }),
                 )
                 .arg(RELEASES_URL)
                 .spawn();
@@ -396,6 +405,7 @@ pub fn run() {
         Err(e) => layout::fatal(&e),
     };
     let repo_root = placed.server_root;
+    speech_server::diagnostics::log_to_file(&repo_root);
     speech_server::ensure_library_path(&repo_root);
     setup_server_env(&repo_root);
     // Маршрут прокси до проверки обновлений: сервер ставит его в своём потоке, без гарантии, что раньше.
@@ -515,7 +525,11 @@ pub fn run() {
                 let app = app.clone();
                 std::thread::spawn(move || confirm_close(&app));
             }
-            tauri::RunEvent::Exit => speech_server::flush_hub_on_exit(),
+            tauri::RunEvent::Exit => {
+                speech_server::flush_hub_on_exit();
+                // the servers and engines the studio started end with it, also where no job object ends them (macOS)
+                speech_server::process_group::terminate_group_members();
+            }
             _ => {}
         });
 }

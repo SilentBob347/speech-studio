@@ -9,6 +9,7 @@ import { useSpeechProject } from "../../lib/useSpeechProject";
 import BookImport from "./BookImport";
 import { sentenceAt, wordAt, wordTimes } from "../../lib/readAlong";
 import { useLivePlayback } from "../../lib/livePlayback";
+import { LAYER_OPENED } from "../../lib/escape";
 import { useEngines } from "../../lib/engines";
 import { followJob } from "../../lib/followJob";
 import { errorText } from "../../lib/voices";
@@ -68,6 +69,11 @@ function useWide(): boolean {
   }, () => window.matchMedia(WIDE).matches);
 }
 
+/** A play() that a pause stopped before the sound started: the player is paused as asked, nothing failed. */
+function pausedBeforeStart(e: unknown): boolean {
+  return e instanceof DOMException && e.name === "AbortError";
+}
+
 export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: () => void }) {
   const { t } = useTranslation();
   const { project, error, saving, edit, undo, redo, canUndo, canRedo, flush, reload } = useSpeechProject(pid);
@@ -80,6 +86,8 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
   const [exporting, setExporting] = useState(false);
   const [dictionary, setDictionary] = useState(false);
   const [searching, setSearching] = useState(false);
+  const [found, setFound] = useState<{ re: RegExp | null; current: string | null }>({ re: null, current: null });
+  const onFound = useCallback((re: RegExp | null, current: string | null) => setFound({ re, current }), []);
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [musicOpen, setMusicOpen] = useState(false);
   const [history, setHistory] = useState(false);
@@ -271,7 +279,14 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
 
   const stopAudio = useCallback(() => { audio.current?.pause(); setPlaying(null); setPaused(false); setQueue([]); }, []);
   const pauseAudio = () => { if (!playing) return; audio.current?.pause(); setPaused(true); };
-  const resumeAudio = () => { if (!playing || !audio.current) return; setPaused(false); audio.current.play().catch((e: unknown) => { setPlaying(null); setJobError(errorText(e)); }); };
+  const pauseLatest = useRef(pauseAudio);
+  useEffect(() => { pauseLatest.current = pauseAudio; });
+  useEffect(() => {
+    const pause = () => pauseLatest.current();
+    window.addEventListener(LAYER_OPENED, pause);
+    return () => window.removeEventListener(LAYER_OPENED, pause);
+  }, []);
+  const resumeAudio = () => { if (!playing || !audio.current) return; setPaused(false); audio.current.play().catch((e: unknown) => { if (pausedBeforeStart(e)) return; setPlaying(null); setJobError(errorText(e)); }); };
   const editSpoken = () => {
     const b = playing ? blocks.find((x) => x.id === playing) : null;
     if (!b) return;
@@ -304,7 +319,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
     setPaused(false);
     setQueue(rest);
     a.onended = () => setPlaying(null);
-    a.play().catch((e: unknown) => { setPlaying(null); setJobError(errorText(e)); });
+    a.play().catch((e: unknown) => { if (pausedBeforeStart(e)) return; setPlaying(null); setJobError(errorText(e)); });
   }, [pid]);
 
   useEffect(() => {
@@ -720,7 +735,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
       )}
       {musicOpen && <MusicDialog pid={pid} tracks={(project.tracks ?? []).map((tr) => ({ id: tr.id, name: tr.name }))} flush={flush} onClose={() => setMusicOpen(false)} onDone={() => { setMusicOpen(false); reload(); }} />}
       {searching && (
-        <SearchReplace blocks={blocks} onClose={() => setSearching(false)}
+        <SearchReplace blocks={blocks} onClose={() => { setSearching(false); setFound({ re: null, current: null }); }} onFound={onFound}
           onJump={(id) => document.getElementById(`block-${id}`)?.scrollIntoView({ block: "center", behavior: "smooth" })}
           onReplace={(changes) => edit((p) => { for (const b of blockList(p)) if (changes[b.id] !== undefined) b.text = changes[b.id]; return p; })} />
       )}
@@ -746,7 +761,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
               <span className="flex items-baseline gap-1.5"><span className="font-semibold" style={{ color: tintOf(s) }}>{s}</span><span className="text-[10px] tabnum text-[var(--color-muted)]">{t("speech.castBlocks", { n: blocks.filter((b) => b.speaker === s && !b.hidden).length })}</span><Hint text={t("hint.castCard")} /></span>
               <VoicePicker engine={project.cast_engines?.[s] || project.settings.engine} value={project.cast[s] ?? null} onChange={(v) => castVoice(s, v)} inherit={t("speech.voiceAsProject")} label={t("speech.voiceFor", { speaker: s })}
                 className="mt-1 w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-2 py-1.5 text-[12px]" />
-              <EngineSelect value={project.cast_engines?.[s] ?? null} projectEngine={project.settings.engine} inheritEngine={project.settings.engine} voice={project.cast[s] || project.settings.voice || null}
+              <EngineSelect value={project.cast_engines?.[s] ?? null} projectEngine={project.settings.engine} inheritEngine={project.settings.engine} voice={project.cast[s] || project.settings.voice || null} lang={project.settings.lang}
                 onChange={(e, v) => edit((p) => { const all = { ...(p.cast_engines ?? {}) }; if (e) all[s] = e; else delete all[s]; p.cast_engines = all; if (v) p.cast[s] = v; else if (v === null) delete p.cast[s]; return p; })}
                 inherit={t("speech.engineAsProject")} label={t("speech.engineFor", { speaker: s })}
                 className="mt-1 w-full bg-[var(--color-surface-2)] border border-[var(--color-border)] rounded-lg px-2 py-1 text-[11px] text-[var(--color-muted)]" />
@@ -810,9 +825,10 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
                   const index = blocks.indexOf(b);
                   const rendering = !!job && (job.ids === null ? ["pending", "stale", "failed"].includes(stateOf(b)) : job.ids.includes(b.id));
                   const note = notes[b.id];
-                  return <BlockRow key={b.id} pid={pid} engine={engineOf(project, b)} projectEngine={project.settings.engine} speakerEngine={project.cast_engines?.[b.speaker] || null} voice={voiceOf(project, b)} block={b} index={index} state={stateOf(b)} fit={project.status?.[b.id]?.fit} rendering={rendering} playing={playing === b.id} playingTake={playing === b.id ? playingTake : null} playhead={playing === b.id ? audio : undefined} simple={simple} variants={variantsFor(b)} inheritedParams={(project.settings.one_voice ? undefined : project.cast_params?.[b.speaker]) ?? project.settings.params} tint={tintOf(b.speaker)}
+                  return <BlockRow key={b.id} pid={pid} engine={engineOf(project, b)} projectEngine={project.settings.engine} projectLang={project.settings.lang} speakerEngine={project.cast_engines?.[b.speaker] || null} voice={voiceOf(project, b)} block={b} index={index} state={stateOf(b)} fit={project.status?.[b.id]?.fit} rendering={rendering} playing={playing === b.id} playingTake={playing === b.id ? playingTake : null} playhead={playing === b.id ? audio : undefined} simple={simple} variants={variantsFor(b)} inheritedParams={(project.settings.one_voice ? undefined : project.cast_params?.[b.speaker]) ?? project.settings.params} tint={tintOf(b.speaker)}
                     stressing={!!stressing?.includes(b.id)} doubts={note && note.text === b.text ? note.words : []}
-                    selected={selected.includes(b.id)} selecting={selected.length > 0} open={panel === b.id} side={wide ? side : null} a={actions(b)} />;
+                    selected={selected.includes(b.id)} selecting={selected.length > 0} open={panel === b.id} side={wide ? side : null} a={actions(b)}
+                    found={found.re} foundHere={found.current === b.id} />;
                 })}
               </ol>
             </section>
@@ -854,7 +870,7 @@ export default function ProjectEditor({ pid, onBack }: { pid: string; onBack: ()
             a.addEventListener("loadedmetadata", () => { a.currentTime = from; }, { once: true });
             a.addEventListener("timeupdate", () => { if (a.currentTime >= to) a.pause(); });
             audio.current = a;
-            a.play().catch((e: unknown) => setJobError(errorText(e)));
+            a.play().catch((e: unknown) => { if (!pausedBeforeStart(e)) setJobError(errorText(e)); });
           }}
           onPlay={(id) => { const b = blocks.find((x) => x.id === id); if (b) playBlock(b, []); }}
           onMontage={(id, change: Montage) => edit((p) => {

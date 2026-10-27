@@ -29,8 +29,6 @@ pub fn paths(st: &AppState) -> SpeechPaths {
         workspace: st.workspace.clone(),
         voices_dir: st.voices_dir.clone(),
         models_root: st.models_root.clone(),
-        higgs_dll: st.higgs_dll.clone(),
-        threads: st.opts.num_threads,
     }
 }
 
@@ -139,6 +137,8 @@ pub async fn create(State(st): State<AppState>, Json(body): Json<Value>) -> Resp
             project.settings.lang = l;
         }
         if let Some(e) = engine {
+            // the setup component's id names the same engine
+            let e = if e == crate::engines::supertonic::DIR { crate::engines::supertonic::ENGINE.to_string() } else { e };
             let Some(manifest) = crate::engines::get(&e) else {
                 return Err(t!("speech-engine-unknown", engine = e));
             };
@@ -239,16 +239,7 @@ pub async fn restore(State(st): State<AppState>, AxPath(pid): AxPath<String>) ->
     if dir.join("project.json").is_file() {
         return refuse(StatusCode::CONFLICT, "project_exists", t!("speech-restore-exists"));
     }
-    let res = joined(tokio::task::spawn_blocking(move || -> Result<(), String> {
-        let item = trash::os_limited::list()
-            .map_err(|e| e.to_string())?
-            .into_iter()
-            .filter(|i| i.original_path() == dir)
-            .max_by_key(|i| i.time_deleted)
-            .ok_or_else(|| t!("speech-restore-gone"))?;
-        trash::os_limited::restore_all([item]).map_err(|e| e.to_string())
-    })
-    .await);
+    let res = joined(tokio::task::spawn_blocking(move || restore_from_bin(&dir)).await);
     match res {
         Ok(Ok(())) => {
             let by = crate::app::current_actor();
@@ -258,6 +249,24 @@ pub async fn restore(State(st): State<AppState>, AxPath(pid): AxPath<String>) ->
         Ok(Err(e)) => refuse(StatusCode::NOT_FOUND, "restore_failed", e),
         Err(r) => r,
     }
+}
+
+/// The item of the system's recycle bin deleted last from `dir`, put back where it was.
+#[cfg(not(target_os = "macos"))]
+fn restore_from_bin(dir: &std::path::Path) -> Result<(), String> {
+    let item = trash::os_limited::list()
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .filter(|i| i.original_path() == dir)
+        .max_by_key(|i| i.time_deleted)
+        .ok_or_else(|| t!("speech-restore-gone"))?;
+    trash::os_limited::restore_all([item]).map_err(|e| e.to_string())
+}
+
+/// macOS gives programs no way to list the Bin or put an item back from it; Finder's Put Back does it.
+#[cfg(target_os = "macos")]
+fn restore_from_bin(_dir: &std::path::Path) -> Result<(), String> {
+    Err(t!("speech-restore-finder"))
 }
 
 pub async fn synth(State(st): State<AppState>, AxPath(pid): AxPath<String>, Json(body): Json<Value>) -> Response {

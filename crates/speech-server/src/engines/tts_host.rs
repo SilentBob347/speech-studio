@@ -1,45 +1,30 @@
 //! Модель озвучки на весь процесс — Higgs Audio или Drama 3, одна на видеокарте: загрузка при первом синтезе,
 //! выгрузка по команде (перед другой тяжёлой моделью). Синтез — в отдельном потоке под сторожем: отмена задачи и
 //! таймаут доходят до движка, зависший вызов DLL называется прямо. У Higgs нет своего потолка длины, поэтому
-//! `max_new_tokens` считается по ожидаемой длине фразы; дефектный дубль (разнос, обрыв, тишина, гул) повторяется
+//! `max_tokens` считается по ожидаемой длине фразы; дефектный дубль (разнос, обрыв, тишина, гул) повторяется
 //! с другой температурой, потому что сид движок может не учитывать.
 
 use std::path::{Path, PathBuf};
 use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use audiocpp::AudiocppEngine;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-use crate::app::Localize;
 
 const GUARD_GRACE_SECS: u64 = 20;
 pub const ENGINE_STUCK: &str = "ENGINE_STUCK";
-/// Кодек Higgs выдаёт 25–75 токенов в секунду в зависимости от версии: потолок считается по верхней границе с запасом.
-const TOKENS_PER_SEC: f64 = 75.0;
+/// Higgs v3 in audio.cpp counts `max_tokens` in codec frames of 40 ms (model_specs/higgs_audio_tts.json).
+const FRAMES_PER_SEC: f64 = 25.0;
+/// Frames the delay of the codebooks adds after the last sound.
+const CODEBOOK_DELAY: u32 = 8;
 /// Движок принимает сид как небольшое беззнаковое целое.
 pub const SEED_RANGE: u64 = 1 << 31;
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct HiggsConfig {
-    pub dll: PathBuf,
-    pub model_root: PathBuf,
-    pub quant: String,
-    pub backend: String,
-    pub threads: i32,
-}
-
-impl HiggsConfig {
-    fn key(&self) -> String {
-        format!("{}|{}|{}|{}", self.dll.display(), self.model_root.display(), self.quant, self.backend)
-    }
-}
 
 /// Модель на видеокарте: одна на процесс — Higgs или Drama 3 (Drama 3 занимает почти всю карту 24 ГБ).
 #[derive(Clone)]
 pub enum Tts {
-    Higgs(Arc<AudiocppEngine>),
+    Higgs(Arc<crate::engines::acpp::Higgs>),
     Drama(Arc<drama::DramaEngine>),
     Supertonic(Arc<crate::engines::supertonic::Model>),
     Qwen(Arc<crate::engines::qwen_tts::Engine>),
@@ -53,6 +38,15 @@ impl Tts {
             Tts::Drama(e) => e.cancel(),
             Tts::Supertonic(_) => {}
             Tts::Qwen(e) => e.cancel(),
+        }
+    }
+
+    fn name(&self) -> &'static str {
+        match self {
+            Tts::Higgs(_) => "Higgs Audio v3",
+            Tts::Drama(_) => "Drama 3",
+            Tts::Supertonic(_) => "Supertonic 3",
+            Tts::Qwen(_) => "Qwen3-TTS",
         }
     }
 
@@ -120,34 +114,29 @@ pub fn watch_idle(models_root: PathBuf) {
         .expect("tts idle watcher thread");
 }
 
-/// Загруженный Higgs под эту конфигурацию; другая конфигурация или Drama 3 выгружаются.
-pub fn engine(cfg: &HiggsConfig) -> Result<Tts, String> {
+/// Higgs на сервере audio.cpp в выбранном кванте; другой квант или другая модель озвучки выгружаются.
+pub fn higgs(repo_root: &Path, models_root: &Path) -> Result<Tts, String> {
+    let key = format!("{}:{}", crate::engines::acpp::HIGGS, crate::engines::acpp::higgs_gguf(models_root).display());
     let mut slot = host();
-    if let Some((key, Tts::Higgs(e))) = slot.as_ref() {
-        if *key == cfg.key() && e.is_model_loaded() {
+    if let Some((k, Tts::Higgs(e))) = slot.as_ref() {
+        if *k == key {
             touch();
             return Ok(Tts::Higgs(e.clone()));
         }
     }
     *slot = None;
-    if cfg.backend == "cuda" {
-        let gpu = crate::engines::hw::gpu_report();
-        if !gpu.cuda13_ok {
-            let card = gpu.summary().unwrap_or_else(|| "-".to_string());
-            return Err(match gpu.reason {
-                Some("gpu_old") => t!("render-higgs-gpu-old", card = card, min = gpu.min_compute.clone()),
-                Some("driver_old") => t!("render-higgs-driver-old", card = card, min = gpu.min_driver),
-                _ => t!("render-higgs-no-gpu", card = card),
-            });
-        }
+    let gpu = crate::engines::hw::gpu_report();
+    if gpu.nvidia && gpu.cuda_build.is_none() {
+        let card = gpu.summary().unwrap_or_else(|| "-".to_string());
+        return Err(match gpu.reason {
+            Some("gpu_old") => t!("render-higgs-gpu-old", card = card, min = gpu.min_compute.clone()),
+            Some("driver_old") => t!("render-higgs-driver-old", card = card, min = gpu.min_driver),
+            _ => t!("render-higgs-no-gpu", card = card),
+        });
     }
-    if !cfg.dll.is_file() {
-        return Err(t!("tts-engine-missing", path = cfg.dll.display().to_string()));
-    }
-    let e = Arc::new(AudiocppEngine::load(&cfg.dll).map_err(|e| t!("render-higgs-load-failed", error = e.localize()))?);
-    e.load_model(&cfg.model_root, &cfg.backend, 0, cfg.threads, Some(cfg.quant.as_str()))
-        .map_err(|e| t!("render-higgs-model-failed", error = e.localize()))?;
-    *slot = Some((cfg.key(), Tts::Higgs(e.clone())));
+    let e = Arc::new(crate::engines::acpp::Higgs::load(repo_root, models_root)?);
+    tracing::info!("voicing: Higgs Audio v3 {} on audiocpp_server {:?}", crate::engines::acpp::higgs_gguf(models_root).display(), e.backend());
+    *slot = Some((key, Tts::Higgs(e.clone())));
     touch();
     Ok(Tts::Higgs(e))
 }
@@ -175,21 +164,36 @@ pub fn drama(models_root: &Path) -> Result<Tts, String> {
     if !crate::engines::models::drama_installed(models_root) {
         return Err(t!("render-drama-missing"));
     }
+    dub_tcpp::cpu_floor("Drama 3")?;
     let e = drama::DramaEngine::load_limited(&crate::engines::models::drama_dll(models_root), &[], &models_root.join(crate::engines::models::DRAMA_TTS), DRAMA_MAX_LEN, limit)
-        .map_err(|e| t!("render-drama-load-failed", error = e.to_string()))?;
+        .map_err(|e| drama_load_error(&e.to_string(), limit))?;
     let e = Arc::new(e);
+    tracing::info!("voicing: Drama 3 on CUDA, VRAM limit {limit} MB (0: auto)");
     *slot = Some((want, Tts::Drama(e.clone())));
     touch();
     Ok(Tts::Drama(e))
 }
 
+/// The expert cache gets what the limit leaves after Drama's own weights: a hand limit at or under them, or a card other
+/// programs filled while Drama loaded, leaves it nothing, and the engine's numbers alone do not say which setting to move.
+fn drama_load_error(error: &str, limit_mb: u32) -> String {
+    if !error.contains("not enough VRAM for the expert cache") {
+        t!("render-drama-load-failed", error = error.to_string())
+    } else if limit_mb > 0 {
+        t!("render-drama-vram-limit-low", gb = (limit_mb / 1024).to_string(), error = error.to_string())
+    } else {
+        t!("render-drama-vram-busy", error = error.to_string())
+    }
+}
 
-/// Загруженный Supertonic 3: на видеокарте NVIDIA через CUDA onnxruntime (она должна подойти, иначе ошибка с причиной,
-/// не тихий процессор), на машине без NVIDIA — на процессоре.
-pub fn supertonic(models_root: &Path) -> Result<Tts, String> {
+
+/// Supertonic 3 на сервере audio.cpp, на сборке устройства озвучки (`tts_backend`); другое устройство — перезагрузка.
+pub fn supertonic(repo_root: &Path, models_root: &Path) -> Result<Tts, String> {
+    let build = crate::engines::acpp::build_for(crate::engines::models::server_choice(models_root, "tts_backend"))?;
+    let key = format!("{}:{}", crate::engines::supertonic::ENGINE, crate::engines::models::build_name(build));
     let mut slot = host();
-    if let Some((key, Tts::Supertonic(e))) = slot.as_ref() {
-        if key == crate::engines::supertonic::ENGINE {
+    if let Some((k, Tts::Supertonic(e))) = slot.as_ref() {
+        if *k == key {
             touch();
             return Ok(Tts::Supertonic(e.clone()));
         }
@@ -198,25 +202,17 @@ pub fn supertonic(models_root: &Path) -> Result<Tts, String> {
     if !crate::engines::supertonic::installed(models_root) {
         return Err(t!("render-supertonic-missing"));
     }
-    let gpu = crate::engines::hw::gpu_report();
-    if gpu.nvidia && !gpu.cuda13_ok {
-        let card = gpu.summary().unwrap_or_else(|| "-".to_string());
-        return Err(match gpu.reason {
-            Some("gpu_old") => t!("render-higgs-gpu-old", card = card, min = gpu.min_compute.clone()),
-            Some("driver_old") => t!("render-higgs-driver-old", card = card, min = gpu.min_driver),
-            _ => t!("render-higgs-no-gpu", card = card),
-        });
-    }
-    let e = Arc::new(crate::engines::supertonic::Model::load(models_root, gpu.nvidia).map_err(|e| t!("render-supertonic-load-failed", error = e))?);
-    *slot = Some((crate::engines::supertonic::ENGINE.to_string(), Tts::Supertonic(e.clone())));
+    let e = Arc::new(crate::engines::supertonic::Model::load(repo_root, models_root).map_err(|e| t!("render-supertonic-load-failed", error = e))?);
+    tracing::info!("voicing: Supertonic 3 on audiocpp_server {:?}", e.backend());
+    *slot = Some((key, Tts::Supertonic(e.clone())));
     touch();
     Ok(Tts::Supertonic(e))
 }
 
 
 /// Загруженный Qwen3-TTS выбранного кванта: CustomVoice для голосов модели, Base для клона (`clone`), Base с
-/// адаптером русских ударений (`stress`); другой квант, другой чекпоинт или другой движок выгружаются. Только на
-/// видеокарте NVIDIA с CUDA 13: на неподходящей — ошибка с причиной.
+/// адаптером русских ударений (`stress`); другой квант, другой чекпоинт или другой движок выгружаются. На сборке
+/// устройства озвучки; другое устройство — после перезапуска, с причиной.
 pub fn qwen(models_root: &Path, clone: bool, stress: bool) -> Result<Tts, String> {
     let quant = crate::engines::models::qwen_quant(models_root);
     let talker = match (clone, stress) {
@@ -224,7 +220,8 @@ pub fn qwen(models_root: &Path, clone: bool, stress: bool) -> Result<Tts, String
         (true, false) => "base",
         (false, false) => "custom",
     };
-    let key = format!("{}:{talker}:{quant}", crate::engines::qwen_tts::ENGINE);
+    let device = crate::engines::qwen_tts::build(models_root)?;
+    let key = format!("{}:{talker}:{quant}:{device:?}", crate::engines::qwen_tts::ENGINE);
     let mut slot = host();
     if let Some((k, Tts::Qwen(e))) = slot.as_ref() {
         if *k == key {
@@ -240,14 +237,25 @@ pub fn qwen(models_root: &Path, clone: bool, stress: bool) -> Result<Tts, String
             (false, false) => t!("render-qwen-missing"),
         });
     }
-    cuda13_ready()?;
-    let e = Arc::new(crate::engines::qwen_tts::Engine::load(models_root, &quant, clone || stress, stress).map_err(|e| t!("render-qwen-load-failed", error = e))?);
+    let build = qwen_build(models_root)?;
+    let e = Arc::new(crate::engines::qwen_tts::Engine::load(models_root, build, &quant, clone || stress, stress).map_err(|e| t!("render-qwen-load-failed", error = e))?);
+    tracing::info!("voicing: Qwen3-TTS {talker} {quant} on {} ({})", crate::engines::qwen_tts::device(build), e.version());
     *slot = Some((key, Tts::Qwen(e.clone())));
     touch();
     Ok(Tts::Qwen(e))
 }
 
-/// Видеокарта и драйвер тянут CUDA 13 (сборка движков ggml); нет — ошибка с причиной.
+/// The build of Qwen for the voicing device, once the computer can run it: the processor's floor, and the CUDA 13 card
+/// and driver for that build.
+fn qwen_build(models_root: &Path) -> Result<acpp_server::asset::Build, String> {
+    let build = crate::engines::qwen_tts::build(models_root)?;
+    dub_tcpp::cpu_floor("Qwen3-TTS")?;
+    if build == acpp_server::asset::Build::Cuda13 {
+        cuda13_ready()?;
+    }
+    Ok(build)
+}
+
 fn cuda13_ready() -> Result<(), String> {
     let gpu = crate::engines::hw::gpu_report();
     if gpu.cuda13_ok {
@@ -264,7 +272,8 @@ fn cuda13_ready() -> Result<(), String> {
 /// Qwen3-TTS VoiceDesign: голос по описанию, одна модель на процесс вместо прочих.
 pub fn qwen_design(models_root: &Path) -> Result<Tts, String> {
     let quant = crate::engines::models::qwen_quant(models_root);
-    let key = format!("{}:design:{quant}", crate::engines::qwen_tts::ENGINE);
+    let device = crate::engines::qwen_tts::build(models_root)?;
+    let key = format!("{}:design:{quant}:{device:?}", crate::engines::qwen_tts::ENGINE);
     let mut slot = host();
     if let Some((k, Tts::Qwen(e))) = slot.as_ref() {
         if *k == key {
@@ -276,8 +285,9 @@ pub fn qwen_design(models_root: &Path) -> Result<Tts, String> {
     if !crate::engines::qwen_tts::design_installed(models_root, &quant) {
         return Err(t!("voice-design-missing"));
     }
-    cuda13_ready()?;
-    let e = Arc::new(crate::engines::qwen_tts::Engine::load_design(models_root, &quant).map_err(|e| t!("render-qwen-load-failed", error = e))?);
+    let build = qwen_build(models_root)?;
+    let e = Arc::new(crate::engines::qwen_tts::Engine::load_design(models_root, build, &quant).map_err(|e| t!("render-qwen-load-failed", error = e))?);
+    tracing::info!("voicing: Qwen3-TTS voice design {quant} on {}", crate::engines::qwen_tts::device(build));
     *slot = Some((key, Tts::Qwen(e.clone())));
     touch();
     Ok(Tts::Qwen(e))
@@ -288,13 +298,6 @@ pub fn unload() {
     if let Some((_, e)) = host().take() {
         e.cancel();
     }
-}
-
-pub fn loaded() -> bool {
-    host().as_ref().is_some_and(|(_, e)| match e {
-        Tts::Higgs(h) => h.is_model_loaded(),
-        Tts::Drama(_) | Tts::Supertonic(_) | Tts::Qwen(_) => true,
-    })
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -376,12 +379,45 @@ impl Params {
 /// Сколько секунд обычно звучит текст на этом языке (для потолка токенов и сторожа).
 pub fn expected_secs(text: &str, lang: &str) -> f64 {
     let chars = text.chars().filter(|c| c.is_alphanumeric()).count() as f64;
-    let lang = if lang.is_empty() || lang == "auto" { "ru" } else { lang };
-    (chars / dub_core::fit::table_cps(lang)).max(0.6)
+    (chars / dub_core::fit::table_cps(pace_lang(text, lang))).max(0.6)
 }
 
-fn token_cap(expected: f64) -> u32 {
-    (((expected * TOKENS_PER_SEC * 1.5).ceil() as u32) + 32).clamp(64, 2048)
+/// The language a phrase is paced by: the one it is set to, else what its letters say — ideographs Chinese, kana
+/// Japanese, Hangul Korean (a sign of theirs is a syllable, two to three times a Russian letter), any other Russian.
+pub fn pace_lang<'a>(text: &str, lang: &'a str) -> &'a str {
+    if !lang.is_empty() && lang != "auto" {
+        return lang;
+    }
+    let (mut han, mut kana, mut hangul, mut other) = (0usize, 0usize, 0usize, 0usize);
+    for c in text.chars().filter(|c| c.is_alphanumeric()) {
+        match c as u32 {
+            0x3040..=0x30ff => kana += 1,
+            0x3400..=0x4dbf | 0x4e00..=0x9fff | 0xf900..=0xfaff => han += 1,
+            0xac00..=0xd7af => hangul += 1,
+            _ => other += 1,
+        }
+    }
+    if kana > 0 && kana + han > other {
+        "ja"
+    } else if han > other {
+        "zh"
+    } else if hangul > other {
+        "ko"
+    } else {
+        "ru"
+    }
+}
+
+/// Seconds of sound past which a phrase of `chars` letters and digits is a runaway.
+fn runaway_secs(chars: usize, lang: &str) -> f64 {
+    let lang = if lang.is_empty() || lang == "auto" { "ru" } else { lang };
+    chars as f64 * RUNAWAY_PER_CHAR * (RUNAWAY_CPS / dub_core::fit::table_cps(lang)).max(1.0) + RUNAWAY_SLACK
+}
+
+/// Higgs stops a second past the runaway length: what it says by then is judged a runaway and voiced again, and a
+/// phrase read at any pace short of that is not cut.
+fn token_cap(chars: usize, lang: &str) -> u32 {
+    ((((runaway_secs(chars, lang) + 1.0) * FRAMES_PER_SEC).ceil() as u32) + CODEBOOK_DELAY).clamp(64, 2048)
 }
 
 /// Секунд звука на знак, выше которых фраза считается разнесённой (HiggsAudio-Studio: 0,13 с на знак + 3 с).
@@ -418,9 +454,7 @@ pub fn defect(samples: &[f32], sr: i32, chars: usize, lang: &str) -> Option<&'st
     }
     let srn = sr as usize;
     let dur = samples.len() as f64 / srn as f64;
-    let lang = if lang.is_empty() || lang == "auto" { "ru" } else { lang };
-    let per_char = RUNAWAY_PER_CHAR * (RUNAWAY_CPS / dub_core::fit::table_cps(lang)).max(1.0);
-    if chars >= 1 && dur > chars as f64 * per_char + RUNAWAY_SLACK {
+    if chars >= 1 && dur > runaway_secs(chars, lang) {
         return Some("runaway");
     }
     if chars >= 4 && dur < chars as f64 * 0.045 {
@@ -468,7 +502,6 @@ pub struct Synth {
     pub sr: i32,
     pub seed: u64,
     pub temperature: f64,
-    pub attempts: u32,
     pub defects: Vec<&'static str>,
     pub seconds: f64,
 }
@@ -513,22 +546,18 @@ fn run_guarded(engine: &Tts, call: Call, timeout: Duration, live: Option<Arc<cra
         // an engine that does not stream gives the window the whole take once it is done
         let mut streamed = false;
         let r = match (&eng, rw) {
-            (Tts::Higgs(e), rw) if live.is_some() && e.engine().supports_streaming() => {
-                streamed = true;
-                let phrase = live.clone().expect("checked above");
-                let audio: audiocpp::AudioChunkCallback = Arc::new(move |sr, _, _, samples, _| phrase.chunk(samples, sr as u32));
-                let progress: audiocpp::ProgressCallback = Arc::new(|_, _, _| {});
-                serde_json::from_str::<Value>(&op).map_err(|e| e.to_string()).and_then(|opts| {
-                    match rw {
-                        Some(rw) => e.engine().generate_voice_clone_stream(&t, &rw.to_string_lossy(), rt.as_deref(), &opts, progress, audio),
-                        None => e.engine().generate_tts_stream(&t, &opts, progress, audio),
-                    }
-                    .map(|res| (res.samples, res.sample_rate))
-                    .map_err(|e| e.localize())
+            (Tts::Higgs(e), rw) => {
+                streamed = live.is_some();
+                let sr = e.sample_rate();
+                serde_json::from_str::<serde_json::Map<String, Value>>(&op).map_err(|e| e.to_string()).and_then(|opts| {
+                    e.speak(&t, rw.as_deref(), rt.as_deref(), opts, &mut |piece| {
+                        if let Some(phrase) = &live {
+                            phrase.chunk(piece, sr);
+                        }
+                    })
+                    .map(|samples| (samples, sr as i32))
                 })
             }
-            (Tts::Higgs(e), Some(rw)) => e.voice_clone(&t, &rw.to_string_lossy(), rt.as_deref(), &op).map_err(|e| e.localize()),
-            (Tts::Higgs(e), None) => e.tts(&t, &op).map_err(|e| e.localize()),
             (Tts::Drama(e), Some(rw)) => match rt.as_deref().filter(|t| !t.trim().is_empty()) {
                 Some(rt) => {
                     let sr = e.sample_rate();
@@ -599,10 +628,10 @@ fn run_guarded(engine: &Tts, call: Call, timeout: Duration, live: Option<Arc<cra
     engine.cancel();
     match rx.recv_timeout(Duration::from_secs(GUARD_GRACE_SECS)) {
         Ok(_) if cancelled => Err(crate::jobs::CANCELLED.to_string()),
-        Ok(_) => Err(t!("render-synth-timeout", seconds = timeout.as_secs())),
+        Ok(_) => Err(t!("render-synth-timeout", engine = engine.name(), seconds = timeout.as_secs())),
         Err(_) => {
             unload();
-            Err(format!("{ENGINE_STUCK}: {}", t!("render-engine-stuck", seconds = timeout.as_secs() + GUARD_GRACE_SECS)))
+            Err(format!("{ENGINE_STUCK}: {}", t!("render-engine-stuck", engine = engine.name(), seconds = timeout.as_secs() + GUARD_GRACE_SECS)))
         }
     }
 }
@@ -648,9 +677,9 @@ fn drama_frames(expected: f64, max_tokens: u32) -> u32 {
 pub fn synth(engine: &Tts, req: &Request) -> Result<Synth, String> {
     req.params.checked()?;
     let expected = expected_secs(req.text, req.lang);
-    let cap = if req.params.max_tokens > 0 { req.params.max_tokens as usize } else { token_cap(expected) as usize };
-    let timeout = Duration::from_secs(((expected * 8.0).ceil() as u64).max(45));
     let chars = req.text.chars().filter(|c| c.is_alphanumeric()).count();
+    let cap = if req.params.max_tokens > 0 { req.params.max_tokens as usize } else { token_cap(chars, pace_lang(req.text, req.lang)) as usize };
+    let timeout = Duration::from_secs(((expected * 8.0).ceil() as u64).max(45));
     let fixed = req.params.seed_mode != "random";
     let aloud = req.live.as_ref().is_some_and(|l| l.is_aloud());
     let tries = if fixed || aloud { 1 } else { 3 };
@@ -662,9 +691,8 @@ pub fn synth(engine: &Tts, req: &Request) -> Result<Synth, String> {
             "temperature": temperature,
             "top_k": req.params.top_k,
             "top_p": req.params.top_p,
-            "max_new_tokens": cap,
-            "ras_win_len": 7,
-            "return_audio_in_tokens": true,
+            "max_tokens": cap,
+            "allow_incomplete_generation": true,
             "seed": seed,
         })
         .to_string();
@@ -691,10 +719,10 @@ pub fn synth(engine: &Tts, req: &Request) -> Result<Synth, String> {
         let (samples, sr) = run_guarded(engine, call, timeout, req.live.clone())?;
         let seconds = started.elapsed().as_secs_f64();
         if aloud {
-            return Ok(Synth { samples, sr, seed, temperature, attempts: 1, defects, seconds });
+            return Ok(Synth { samples, sr, seed, temperature, defects, seconds });
         }
-        match defect(&samples, sr, chars, req.lang) {
-            None => return Ok(Synth { samples, sr, seed, temperature, attempts: attempt + 1, defects, seconds }),
+        match defect(&samples, sr, chars, pace_lang(req.text, req.lang)) {
+            None => return Ok(Synth { samples, sr, seed, temperature, defects, seconds }),
             Some(kind) => defects.push(kind),
         }
     }
@@ -719,6 +747,24 @@ mod tests {
         assert_eq!(defect(&speech(0.2, sr), sr, 40, "ru"), Some("cutoff"));
         assert_eq!(defect(&vec![0.001; sr as usize * 2], sr, 20, "ru"), Some("silence"));
         assert_eq!(defect(&speech(2.0, sr), sr, 25, "ru"), None);
+    }
+
+    /// A Chinese phrase in a project of language «auto» is paced as Chinese: 40 ideographs read in 9 s were a «runaway»
+    /// by the Russian rate on every attempt.
+    #[test]
+    fn a_phrase_of_auto_language_is_paced_by_its_script() {
+        let sr = 24_000;
+        let zh = "今天晚上八点我们在老桥旁边见面然后一起去看电影吃饭聊天散步回家休息明天再见朋友们";
+        let chars = zh.chars().filter(|c| c.is_alphanumeric()).count();
+        assert_eq!(pace_lang(zh, "auto"), "zh");
+        assert_eq!(pace_lang(zh, ""), "zh");
+        assert_eq!(pace_lang("今日はいい天気ですね", "auto"), "ja");
+        assert_eq!(pace_lang("오늘 날씨가 좋네요", "auto"), "ko");
+        assert_eq!(pace_lang("Сегодня в восемь вечера", "auto"), "ru");
+        assert_eq!(pace_lang(zh, "en"), "en", "a language set by hand stands");
+        assert_eq!(defect(&speech(9.0, sr), sr, chars, pace_lang(zh, "auto")), None);
+        assert_eq!(defect(&speech(9.0, sr), sr, chars, "ru"), Some("runaway"));
+        assert!(expected_secs(zh, "auto") > 6.0);
     }
 
     #[test]
@@ -769,8 +815,9 @@ mod tests {
 
     #[test]
     fn the_token_cap_follows_the_expected_length() {
-        assert_eq!(token_cap(0.6), 100);
-        assert_eq!(token_cap(100.0), 2048);
+        assert_eq!(token_cap(10, "ru"), ((10.0 * 0.13 + 3.0 + 1.0) * 25.0f64).ceil() as u32 + 8, "frames of 40 ms to a second past the runaway");
+        assert_eq!(token_cap(2_000, "ru"), 2048);
+        assert!(token_cap(40, "zh") > token_cap(40, "ru"), "an ideograph is a syllable");
         let short = expected_secs("Да.", "ru");
         let long = expected_secs(&"слово ".repeat(40), "ru");
         assert!(short < 1.0 && long > 15.0);

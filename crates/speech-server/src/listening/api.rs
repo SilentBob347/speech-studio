@@ -98,8 +98,10 @@ async fn live_parts(st: &AppState, engine: &str) -> Result<(), Response> {
     let (root, models, engine) = (st.repo_root.clone(), st.models_root.clone(), engine.to_string());
     let ids = joined(tokio::task::spawn_blocking(move || {
         let mut ids = crate::app::recognition::missing_parts(&root, &models, &engine);
-        if !crate::engines::vad::installed(&models) {
-            ids.push("silero-vad".to_string());
+        for id in crate::engines::vad::missing(&models) {
+            if !ids.contains(&id) {
+                ids.push(id);
+            }
         }
         ids
     })

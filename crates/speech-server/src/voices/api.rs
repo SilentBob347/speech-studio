@@ -289,12 +289,16 @@ pub async fn restore(State(st): State<AppState>, Json(body): Json<Value>) -> Res
     }
 }
 
-/// POST /voices/rename {from, to}.
+/// POST /voices/rename {from, to}: the projects that speak with the voice follow its new name.
 pub async fn rename(State(st): State<AppState>, Json(body): Json<Value>) -> Response {
     let (from, to) = (body_name(&body, "from"), body_name(&body, "to"));
     let dir = st.voices_dir.clone();
-    match joined(tokio::task::spawn_blocking(move || lib::rename(&dir, &from, &to).map(|_| listing(&dir))).await) {
-        Ok(Ok(v)) => Json(v).into_response(),
+    let app = st.clone();
+    match joined(tokio::task::spawn_blocking(move || crate::app::rename_voice(&app, &from, &to).map(|_| listing(&dir))).await) {
+        Ok(Ok(v)) => {
+            crate::app::publish(json!({ "changed": "voices" }));
+            Json(v).into_response()
+        }
         Ok(Err(e)) => bad(e),
         Err(r) => r,
     }

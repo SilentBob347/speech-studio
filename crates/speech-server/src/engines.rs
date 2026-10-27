@@ -2,9 +2,9 @@
 //! запуска: языки (из карточки модели), параметры с типом, диапазоном и умолчанием, режимы сида, теги экспрессии,
 //! вид клона, продолжение, стриминг, что из разметки текста движок читает.
 
+pub(crate) mod acpp;
 pub(crate) mod asr;
 pub(crate) mod denoise;
-pub(crate) mod bench;
 pub(crate) mod hw;
 pub(crate) mod models;
 pub(crate) mod presets;

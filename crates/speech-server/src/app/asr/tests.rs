@@ -14,18 +14,21 @@ fn asr_preparation_uses_its_stage_backend_instead_of_other_stages() {
         root.path(),
         json!({"local_backend":"gpu", "asr_backend":"cpu", "sep_backend":"gpu", "diar_backend":"gpu"}),
     );
-    assert_eq!(
-        missing_parts(root.path(), &models, "parakeet"),
-        ["transcribe-engine-cpu", "parakeet"]
-    );
+    // Parakeet v3 runs in the server's processor build
+    let cpu = crate::engines::acpp::component(crate::engines::acpp::build_for("cpu").unwrap()).to_string();
+    assert_eq!(missing_parts(root.path(), &models, "parakeet"), ["parakeet".to_string(), cpu]);
     selection(
         root.path(),
         json!({"local_backend":"cpu", "asr_backend":"gpu", "sep_backend":"cpu", "diar_backend":"cpu"}),
     );
-    assert_eq!(
-        missing_parts(root.path(), &models, "whisper"),
-        ["whisper-engine", "whisper-large-v3-turbo", "whisper-cuda"]
-    );
+    // CrisperWhisper: its weights, the language id on transcribe.cpp, and the server build of the card with its runtime
+    let mut whisper: Vec<String> =
+        ["crisperwhisper-turbo", "langid", crate::engines::models::tcpp_build(&models).dir()].map(String::from).to_vec();
+    if let Ok(build) = crate::engines::acpp::build_for("gpu") {
+        whisper.push(crate::engines::acpp::component(build).to_string());
+        whisper.extend(crate::engines::acpp::runtime_component(build).map(String::from));
+    }
+    assert_eq!(missing_parts(root.path(), &models, "whisper"), whisper);
 }
 
 #[test]
@@ -44,58 +47,22 @@ fn an_explicit_missing_recognizer_returns_an_error_without_installing() {
 }
 
 #[test]
-fn resolved_whisper_spec_keeps_cpu_int8_when_other_stages_use_gpu() {
-    let root = tempfile::tempdir().unwrap();
-    let models = selection(
-        root.path(),
-        json!({
-            "local_backend":"gpu", "asr_backend":"cpu", "sep_backend":"gpu", "diar_backend":"gpu",
-            "asr_engine":"whisper", "whisper_model":"tiny", "whisper_compute":"int8_float16"
-        }),
-    );
-    let bin = if cfg!(windows) {
-        root.path().join("tools/whisper/Faster-Whisper-XXL/faster-whisper-xxl.exe")
-    } else {
-        root.path().join("tools/whisper/whisper-faster")
-    };
-    std::fs::create_dir_all(bin.parent().unwrap()).unwrap();
-    std::fs::write(&bin, b"not an executable").unwrap();
-    let weights = models.join("whisper/faster-whisper-tiny/model.bin");
-    std::fs::create_dir_all(weights.parent().unwrap()).unwrap();
-    std::fs::write(weights, b"not model weights").unwrap();
-    match choice(root.path(), &models, "en", "voice").unwrap() {
-        crate::engines::asr::AsrChoice::Whisper {
-            bin: actual,
-            model,
-            compute,
-            device,
-            ..
-        } => {
-            assert_eq!(actual, bin);
-            assert_eq!(model, "tiny");
-            assert_eq!(compute, "int8");
-            assert_eq!(device, "cpu");
-        }
-        other => panic!("{other:?}"),
-    }
-}
-
-#[test]
 fn each_request_resolves_current_selection_without_changing_previous_specification() {
     let root = tempfile::tempdir().unwrap();
     let models = selection(root.path(), json!({"local_backend":"cpu", "asr":"int8"}));
     for id in ["transcribe-engine-cpu", "parakeet", "parakeet-ultra"] {
-        for marker in crate::setup::manifest().iter().find(|c| c.id == id).unwrap().markers {
-            let path = root.path().join(marker.rel);
+        // installed means the pinned size: the content is not read here
+        for f in crate::setup::manifest().iter().find(|c| c.id == id).unwrap().files {
+            let path = root.path().join(f.dest_rel);
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-            std::fs::write(path, b"invalid engine or model, only availability is checked").unwrap();
+            std::fs::File::create(path).unwrap().set_len(f.size).unwrap();
         }
     }
     let first = choice(root.path(), &models, "en", "voice").unwrap();
     selection(root.path(), json!({"local_backend":"cpu", "asr":"ultra-int8"}));
     let second = choice(root.path(), &models, "en", "voice").unwrap();
     assert!(
-        matches!(first, crate::engines::asr::AsrChoice::Ggml {model, build: crate::engines::tcpp_asr::Build::Cpu, ..} if model.id == "parakeet-v3")
+        matches!(first, crate::engines::asr::AsrChoice::Server {model, choice: "cpu", ..} if model.id == "parakeet-v3")
     );
     assert!(
         matches!(second, crate::engines::asr::AsrChoice::Ggml {model, build: crate::engines::tcpp_asr::Build::Cpu, ..} if model.id == "parakeet-ultra")
@@ -124,9 +91,9 @@ fn missing_parts_name_the_chosen_recogniser() {
     let root = tempfile::tempdir().unwrap();
     let models = root.path().join("models");
     let whisper = super::missing_parts(root.path(), &models, "whisper");
-    assert!(whisper.iter().any(|id| id == "whisper-engine"), "{whisper:?}");
-    assert!(whisper.iter().any(|id| id == "whisper-large-v3-turbo"), "{whisper:?}");
+    assert!(whisper.iter().any(|id| id == "crisperwhisper-turbo"), "{whisper:?}");
+    assert!(whisper.iter().any(|id| id == "langid"), "{whisper:?}");
     let nemotron = super::missing_parts(root.path(), &models, "nemotron");
     assert!(nemotron.iter().any(|id| id == "asr-gguf-nemotron"), "{nemotron:?}");
-    assert!(!nemotron.iter().any(|id| id.starts_with("whisper")), "{nemotron:?}");
+    assert!(!nemotron.iter().any(|id| id.starts_with("crisperwhisper")), "{nemotron:?}");
 }
